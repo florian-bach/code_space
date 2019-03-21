@@ -102,7 +102,7 @@ list_of_degs <- split(cut_off, cut_off$Volunteer)
 
 ######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
 
-setwd("/Users/s1249052/PhD/flow data/vac69a/t cells only/FlowSOM_first_flowsom_(copy)_(copy)_results/results/cluster_medians")
+setwd("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_first_flowsom_(copy)_(copy)_(copy)_results/results/cluster_medians")
 
 median_02 <- read.csv("T+6_02_UMAP_cluster_medians.csv")
 median_03 <- read.csv("T+6_03_UMAP_cluster_medians.csv")
@@ -299,10 +299,8 @@ one_table$STDV <- round(as.numeric(as.matrix(one_table)[,2]), digits=2)
 
 grid.table(one_table)
 
-ft <- flextable(one_table)
 
-
-(figura <- grid.arrange(tableGrob(base_table[,1:2]),
+(figurs <- grid.arrange(tableGrob(base_table[,1:2]),
                         tableGrob(inf_table[,1:2]),
              big_heatmap_arsinh,
              widths=c(5,5),
