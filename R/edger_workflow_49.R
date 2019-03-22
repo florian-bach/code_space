@@ -167,7 +167,7 @@ my_palette <- rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))
 
 # make levels to reorder markers in a meaningful way
 
-levels <- c("CD4",
+marker_levels <- c("CD4",
 "CD8",
 "Vd2",
 "Va7.2",
@@ -318,20 +318,27 @@ grid.table(one_table)
              nrow=2)
 )
 
-##############          sandbox to get rid of empty columns
+##############          working figure
 
 
 for(i in unique(long_deg_medians_all$Volunteer)){
   
-  ifelse(i %in% c("02","06"), assign("result", element_text(size=20)), assign("result", element_blank()))
+  ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
   ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
   #ifelse(i %in% c("07"), assign("result2"))
+  
+ 
+  
 graphic <- 
-  ggplot(data=filter(long_deg_medians_all, Volunteer == i), aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
+  ggplot(data = filter(long_deg_medians_all, Volunteer == i),
+         aes(x = factor(ClusterID),
+             y = factor(Marker, levels = rev(marker_levels)),
+             group = Volunteer))+
   geom_tile(aes(fill=Intensity), color="white")+
   scale_fill_gradientn(colors=rev(my_palette))+
   scale_y_discrete(position = result1)+
   xlab(NULL)+
+  ggtitle(paste("Volunteer ", i,sep=''))+
   # ylab("Marker")+
   #ggtitle(paste("\"Differentially Expressed\" Cluster Medians from Volunteer ", i ," in VAC69a", sep=''))+
   theme(#axis.text.x = element_text(hjust = 1),
@@ -341,14 +348,14 @@ graphic <-
     axis.line.y.right = element_blank(),
     axis.ticks.y = element_blank(),
     axis.title.y = element_blank(),
-    axis.text.x = element_text(size = 20, hjust = 1),
-    axis.text.y.right = element_text(size = 20),
+    axis.text.x = element_text(size = 33),
+    axis.text.y.right = element_text(size = 35),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     axis.line = element_line(colour = "black"),
     legend.title = element_blank(),
     legend.position = "none",
-    plot.title = element_text(hjust = 0.5),
+    plot.title = element_text(size = 45, hjust = 0.5),
     plot.margin = unit(c(1,0,1,0), "cm")
     )
 
@@ -358,13 +365,79 @@ assign(paste("Volunteer_", i,sep=''), graphic)
 
 ggsave("cluster_grid.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
                                                                                                                                        c(4,5,6))
-             ),  width = 20, height = 40, limitsize = F)
+             ),  width = 40, height = 40, limitsize = F)
 
 
 
+##################          sandbox
 
 
-###### not being used atm
+
+for(i in unique(long_deg_medians_all$Volunteer)){
+  
+  ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
+  ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
+
+  sub_set <- filter(long_deg_medians_all, Volunteer == i)
+  #sub_set$ClusterID <- as.character(sub_set$ClusterID)
+  
+  specific_levels <- sub_set %>% 
+    filter(., Marker == "CD4") %>%
+    arrange(., desc(Intensity)) %>%
+    select(., ClusterID)
+    
+  cluster_levels <- specific_levels[1:nrow(specific_levels),]
+  print(cluster_levels)
+  #print(sub_set$ClusterID %in% cluster_levels)
+  
+  graphic <- 
+    ggplot(data = sub_set,
+           aes(x = factor(as.character(ClusterID), levels = as.character(cluster_levels)),
+               y = factor(Marker,    levels = rev(marker_levels)),
+               group = Volunteer)
+           )+
+    geom_tile(aes(fill=Intensity), color="white")+
+    scale_fill_gradientn(colors=rev(my_palette))+
+    scale_y_discrete(position = result1)+
+    xlab(NULL)+
+    ggtitle(paste("Volunteer ", i,sep=''))+
+    theme(panel.border = element_blank(),
+      axis.text.y.left = result,
+      axis.line.y.left = element_blank(),
+      axis.line.y.right = element_blank(),
+      axis.ticks.y = element_blank(),
+      axis.title.y = element_blank(),
+      axis.text.x = element_text(size = 33),
+      axis.text.y.right = element_text(size = 35),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.line = element_line(colour = "black"),
+      legend.title = element_blank(),
+      legend.position = "none",
+      plot.title = element_text(size = 45, hjust = 0.5),
+      plot.margin = unit(c(1,0,1,0), "cm")
+    )
+  
+  #print(paste("Volunteer_", i, sep=''))
+  assign(paste("Volunteer_", i, sep=''), graphic) 
+  cluster_levels <- NULL
+}
+
+ggsave("sandbox.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+                                                                                                                                                                  c(4,5,6))
+),  width = 40, height = 40, limitsize = F)
+
+grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2)
+
+#testy <- filter(long_deg_medians_all, Volunteer == "02")
+
+levels = data %>% 
+  filter(Marker == "CD4") %>%
+  arrange(., desc(Intensity))
+
+testy[with(testy, order(Marker, Intensity)),]
+
+n###### not being used atm
 # ggsave("cluster_grid.pdf", plot_grid(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09,
 #           ncol=3,
 #           nrow=2,
