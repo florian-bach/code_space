@@ -55,43 +55,70 @@ pre_post_07 <- makeContrasts(T.6_07 - baseline_07,levels=design)
 pre_post_09 <- makeContrasts(T.6_09 - baseline_09,levels=design)
 
 # make deg list for each person                                                                             
-dge_02 <- glmQLFTest(fit, contrast=pre_post_02) 
-dge_03 <- glmQLFTest(fit, contrast=pre_post_03) 
-dge_05 <- glmQLFTest(fit, contrast=pre_post_05) 
-dge_06 <- glmQLFTest(fit, contrast=pre_post_06) 
-dge_07 <- glmQLFTest(fit, contrast=pre_post_07) 
-dge_09 <- glmQLFTest(fit, contrast=pre_post_09) 
+deg_02 <- glmQLFTest(fit, contrast=pre_post_02) 
+deg_03 <- glmQLFTest(fit, contrast=pre_post_03) 
+deg_05 <- glmQLFTest(fit, contrast=pre_post_05) 
+deg_06 <- glmQLFTest(fit, contrast=pre_post_06) 
+deg_07 <- glmQLFTest(fit, contrast=pre_post_07) 
+deg_09 <- glmQLFTest(fit, contrast=pre_post_09) 
 
 # save as dataframes
-dge_02 <- topTags(dge_02, n=36)$table
-dge_03 <- topTags(dge_03, n=36)$table
-dge_05 <- topTags(dge_05, n=36)$table 
-dge_06 <- topTags(dge_06, n=36)$table 
-dge_07 <- topTags(dge_07, n=36)$table 
-dge_09 <- topTags(dge_09, n=36)$table
+deg_02 <- topTags(deg_02, n=49)$table
+deg_03 <- topTags(deg_03, n=49)$table
+deg_05 <- topTags(deg_05, n=49)$table 
+deg_06 <- topTags(deg_06, n=49)$table 
+deg_07 <- topTags(deg_07, n=49)$table 
+deg_09 <- topTags(deg_09, n=49)$table
 
-# add volunteer, cluster column & collate dgelists 
-dge_02$Volunteer <- "V_02"
-dge_03$Volunteer <- "V_03"
-dge_05$Volunteer <- "V_05"
-dge_06$Volunteer <- "V_06"
-dge_07$Volunteer <- "V_07"
-dge_09$Volunteer <- "V_09"
+#add cluser as column 
+deg_02$Cluster <- rownames(deg_02)
+deg_03$Cluster <- rownames(deg_03)
+deg_05$Cluster <- rownames(deg_05)
+deg_06$Cluster <- rownames(deg_06)
+deg_07$Cluster <- rownames(deg_07)
+deg_09$Cluster <- rownames(deg_09)
 
-dge_02$Cluster <- rownames(dge_02)
-dge_03$Cluster <- rownames(dge_03)
-dge_05$Cluster <- rownames(dge_05)
-dge_06$Cluster <- rownames(dge_06)
-dge_07$Cluster <- rownames(dge_07)
-dge_09$Cluster <- rownames(dge_09)
+deg_02 <- deg_02[order(as.numeric(deg_02$Cluster)),]; deg_02$Baseline <- short[,7]; deg_02$Treatment <- short[,1]
+deg_03 <- deg_03[order(as.numeric(deg_03$Cluster)),]; deg_03$Baseline <- short[,8]; deg_03$Treatment <- short[,2]
+deg_05 <- deg_05[order(as.numeric(deg_05$Cluster)),]; deg_05$Baseline <- short[,9]; deg_05$Treatment <- short[,3]
+deg_06 <- deg_06[order(as.numeric(deg_06$Cluster)),]; deg_06$Baseline <- short[,10]; deg_06$Treatment <- short[,4]
+deg_07 <- deg_07[order(as.numeric(deg_07$Cluster)),]; deg_07$Baseline <- short[,11]; deg_07$Treatment <- short[,5]
+deg_09 <- deg_09[order(as.numeric(deg_09$Cluster)),]; deg_09$Baseline <- short[,12]; deg_09$Treatment <- short[,6]
+
+#mark stuff that never surpasses 1% frequency
+deg_02$matters <- ifelse(deg_02$Baseline < 0.01, ifelse(deg_02$Treatment < 0.01, "matters_not", "matters"), "matters")
+deg_03$matters <- ifelse(deg_03$Baseline < 0.01, ifelse(deg_03$Treatment < 0.01, "matters_not", "matters"), "matters")
+deg_05$matters <- ifelse(deg_05$Baseline < 0.01, ifelse(deg_05$Treatment < 0.01, "matters_not", "matters"), "matters")
+deg_06$matters <- ifelse(deg_06$Baseline < 0.01, ifelse(deg_06$Treatment < 0.01, "matters_not", "matters"), "matters")
+deg_07$matters <- ifelse(deg_07$Baseline < 0.01, ifelse(deg_07$Treatment < 0.01, "matters_not", "matters"), "matters")
+deg_09$matters <- ifelse(deg_09$Baseline < 0.01, ifelse(deg_09$Treatment < 0.01, "matters_not", "matters"), "matters")
+
+
+
+# add volunteer, cluster column & collate deglists 
+deg_02$Volunteer <- "V_02"
+deg_03$Volunteer <- "V_03"
+deg_05$Volunteer <- "V_05"
+deg_06$Volunteer <- "V_06"
+deg_07$Volunteer <- "V_07"
+deg_09$Volunteer <- "V_09"
+
+# deg_02$Cluster <- rownames(deg_02)
+# deg_03$Cluster <- rownames(deg_03)
+# deg_05$Cluster <- rownames(deg_05)
+# deg_06$Cluster <- rownames(deg_06)
+# deg_07$Cluster <- rownames(deg_07)
+# deg_09$Cluster <- rownames(deg_09)
 
 # combine them in one big file
-individual_from_all <- rbind(dge_02, dge_03, dge_05, dge_06, dge_07, dge_09)
+individual_from_all <- rbind(deg_02, deg_03, deg_05, deg_06, deg_07, deg_09)
 
 # subset dataframe so only fold changes over 2 and less than 0.5 are included
 upper_cut_off <- filter(individual_from_all, logFC > 1)
 lower_cut_off <- filter(individual_from_all, logFC < -1)
 cut_off <- rbind(upper_cut_off, lower_cut_off)
+cut_off <- filter(cut_off, matters == "matters")
+nrow(cut_off)
 
 # disassemble big dataframe for making figures
 
@@ -323,8 +350,8 @@ grid.table(one_table)
 
 for(i in unique(long_deg_medians_all$Volunteer)){
   
-  ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
-  ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
+  #ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
+  #ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
   #ifelse(i %in% c("07"), assign("result2"))
   
  
@@ -336,14 +363,14 @@ graphic <-
              group = Volunteer))+
   geom_tile(aes(fill=Intensity), color="white")+
   scale_fill_gradientn(colors=rev(my_palette))+
-  scale_y_discrete(position = result1)+
+  scale_y_discrete(position = "left")+
   xlab(NULL)+
   ggtitle(paste("Volunteer ", i,sep=''))+
   # ylab("Marker")+
   #ggtitle(paste("\"Differentially Expressed\" Cluster Medians from Volunteer ", i ," in VAC69a", sep=''))+
   theme(#axis.text.x = element_text(hjust = 1),
     panel.border = element_blank(),
-    axis.text.y.left = result,
+    axis.text.y.left = element_text(size=35),
     axis.line.y.left = element_blank(),
     axis.line.y.right = element_blank(),
     axis.ticks.y = element_blank(),
@@ -449,3 +476,83 @@ n###### not being used atm
 #        width = 15, height = 30)
 # 
 #           
+
+
+
+
+#######         figures for cluster abundances
+
+clusters_02 <- as.integer(list_of_degs[[1]]$Cluster)
+clusters_03 <- as.integer(list_of_degs[[2]]$Cluster)
+clusters_05 <- as.integer(list_of_degs[[3]]$Cluster)
+clusters_06 <- as.integer(list_of_degs[[4]]$Cluster)
+clusters_07 <- as.integer(list_of_degs[[5]]$Cluster)
+clusters_09 <- as.integer(list_of_degs[[6]]$Cluster)
+
+abun_clusters_02 <- short[c(clusters_02),c(7,1)]
+abun_clusters_02$ClusterID <- as.factor(clusters_02)
+abun_clusters_02$Volunteer <- substr(colnames(abun_clusters_02)[2], 5, 6) 
+colnames(abun_clusters_02) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_03 <- short[c(clusters_03),c(8,2)]
+abun_clusters_03$ClusterID <- as.factor(clusters_03)
+abun_clusters_03$Volunteer <- substr(colnames(abun_clusters_03)[2], 5, 6) 
+colnames(abun_clusters_03) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_05 <- short[c(clusters_05),c(9,3)]
+abun_clusters_05$ClusterID <- as.factor(clusters_05)
+abun_clusters_05$Volunteer <- substr(colnames(abun_clusters_05)[2], 5, 6) 
+colnames(abun_clusters_05) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_06 <- short[c(clusters_06),c(10,4)]
+abun_clusters_06$ClusterID <- as.factor(clusters_06)
+abun_clusters_06$Volunteer <- substr(colnames(abun_clusters_06)[2], 5, 6) 
+colnames(abun_clusters_06) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_07 <- short[c(clusters_07),c(11,5)]
+abun_clusters_07$ClusterID <- as.factor(clusters_07)
+abun_clusters_07$Volunteer <- substr(colnames(abun_clusters_07)[2], 5, 6) 
+colnames(abun_clusters_07) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_09 <- short[c(clusters_09),c(12,6)]
+abun_clusters_09$ClusterID <- as.factor(clusters_09)
+abun_clusters_09$Volunteer <- substr(colnames(abun_clusters_09)[2], 5, 6) 
+colnames(abun_clusters_09) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+
+abun_clusters <- rbind(abun_clusters_02,abun_clusters_03,abun_clusters_05,abun_clusters_06,abun_clusters_07,abun_clusters_09)
+long_abun_clusters <- gather(abun_clusters, Timepoint, Frequency, c("Baseline", "T+6"))
+
+
+
+for(i in unique(long_abun_clusters$Volunteer)){
+graphic <- 
+  ggplot(data=filter(long_abun_clusters, Volunteer == i),
+         aes(x=ClusterID, y=Frequency, fill=Timepoint)
+         )+
+  geom_bar(stat="identity", position=position_dodge())+
+  scale_fill_brewer(palette="Paired")+
+  scale_y_continuous(labels = scales::percent)+
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size = 20),
+        legend.position = "top", 
+        legend.justification = "center",
+        legend.direction = "horizontal",
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(size=20, color="black"),
+        axis.title.x = element_text(size=24, color="black"),
+        axis.title.y = element_text(size=24, color="black"),
+        axis.text.y = element_text(size=20, color="black"))
+
+ggsave(paste("Volunteer_", i, ".pdf", sep=''), graphic, height = 8, width = 10)
+assign(paste("Volunteer_", i, "_bar", sep=''), graphic)
+}
+
+ggsave("heatmap_plus_abundance_02.pdf", grid.arrange(Volunteer_02, Volunteer_02_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_03.pdf", grid.arrange(Volunteer_03, Volunteer_03_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_05.pdf", grid.arrange(Volunteer_05, Volunteer_05_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
+ggsave("heatmap_plus_abundance_06.pdf", grid.arrange(Volunteer_06, Volunteer_06_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_07.pdf", grid.arrange(Volunteer_07, Volunteer_07_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_09.pdf", grid.arrange(Volunteer_09, Volunteer_09_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
