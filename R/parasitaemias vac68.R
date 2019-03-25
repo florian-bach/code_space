@@ -8,43 +8,38 @@ setwd("/Users/s1249052/PhD/oxford/vac68")
 
 data<-read.csv("parasitaemias.csv", header=T)
 colnames(data) [1]<-"Volunteer"
-parasitaemias<-melt(data, "Volunteer")
 
-#get rid of EP bloods
-parasitaemias<-parasitaemias[-c(35, 36, 37, 38, 39, 40),]
+#long format
+parasitaemias<-gather(data, Timepoint, Genomes, colnames(data)[2:18])
 
+# get rid of EP bloods
+parasitaemias[,2:4] <- NULL
 
 # drop letter D from time point label
+parasitaemias$Timepoint <- gsub("D", "C+", parasitaemias$Timepoint)
+parasitaemias$Volunteer <- gsub("01-0", "V", parasitaemias$Volunteer, fixed = T)
+my_palette <- c("#588C73","#1A9CC7")
 
-parasitaemias$variable <- lapply(parasitaemias$variable, gsub, pattern='D', replacement='')
-
-#make timepoints float
-
-parasitaemias$variable<-as.numeric(parasitaemias$variable)
-
-#make values float
-
-parasitaemias$value<-as.numeric(parasitaemias$value)
-attach(parasitaemias)
-
-ggplot(parasitaemias, aes(x=variable, y=value, group=factor(Volunteer)))+
-  geom_point(aes(color=factor(Volunteer)))+
-  geom_line(aes(color=factor(Volunteer)), size=1.5)+
+ggplot(data=parasitaemias[!is.na(parasitaemias$Genomes),], aes(x=factor(Timepoint, levels = unique(mixedsort(parasitaemias$Timepoint))), y=Genomes, group=factor(Volunteer)))+
+  geom_point(aes(color=factor(Volunteer)), size=5)+
+  geom_line(aes(color=factor(Volunteer)), size=4)+
+  scale_color_manual(values=my_palette)+
   theme_bw()+
-  theme(axis.line = element_line(colour = "black"))+
-  xlab("Days post infection")+
+  xlab("Day of Infection")+
   ylab("Genome Copies / mL")+
-  
-  scale_color_brewer(palette="Set1")+
-  scale_y_continuous(trans="log10", limits=c(10, 40000), breaks=c(10, 100, 1000, 10000, 30000))+
-  scale_x_continuous(breaks=seq(6, 15, by=1))+
-  theme(text = element_text(size=17, face="bold", color="black"),
-        axis.text.x = element_text(size=14, color="black"),
-        axis.text.y = element_text(size=14, color="black"))+
-  coord_fixed(ratio=2)+
-  geom_smooth(method = "loess", se=TRUE, aes=(color=factor(Volunteer)), formula = y ~ x)
+  scale_y_continuous(trans="log10", limits=c(1, 32000), breaks=c(10, 100, 1000, 10000, 15000, 30000))+
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size = 20) ,
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(angle = 60, hjust = 1, size=20, color="black"),
+        axis.title.x = element_text(size=24, color="black"),
+        axis.title.y = element_text(size=24, color="black"),
+        axis.text.y = element_text(size=20, color="black"))#
+
+# +
+#   geom_smooth(method = "loess", se=TRUE, aes=(color=factor(Volunteer)), formula = y ~ x)
  
-ggsave ("C:/users/Florian/PhD/reports/figures/parasitaemias vac68.pdf", width=8, height=6)
+ggsave ("/Users/s1249052/PhD/presentations/spence_rowe_lab_meetings/parasitaemias_vac68.pdf", height = 10, width=15)
 
 attach(parasitaemias)
 
