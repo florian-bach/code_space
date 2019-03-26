@@ -3,7 +3,8 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(RColorBrewer)
-library(cowplot)
+library(gridExtra)
+
 
 # translated, the assay(CD) object could be a matrix of cluster percentages (rows) per person (columns)
 
@@ -12,12 +13,16 @@ data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac6
 data2 <-read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac69a_t_cells_49cluster_prepost_2_results/results/cluster_abundances.csv")
 
 # get rid of uneccessary columns, convert fractions to counts
+data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac69a_t_cells_49cluster_prepost_1_results/results/cluster_abundances.csv")
 short <- select(data, colnames(data[3:14]))
-short <- short*5534 # this is the number of cells from each fcs file
+
+number_of_cells <- 5534
+
+short <- short*number_of_cells # this is the number of cells from each fcs file
 
 # repeat same stuff for other dataframe 
 short2 <- select(data2, colnames(data[3:14]))
-short2 <- short2*5534 # this is the number of cells from each fcs file
+short2 <- short2*number_of_cells # this is the number of cells from each fcs file
 
 # combine
 short <- cbind(short, short2)
@@ -86,12 +91,12 @@ deg_07 <- deg_07[order(as.numeric(deg_07$Cluster)),]; deg_07$Baseline <- short[,
 deg_09 <- deg_09[order(as.numeric(deg_09$Cluster)),]; deg_09$Baseline <- short[,12]; deg_09$Treatment <- short[,6]
 
 #mark stuff that never surpasses 1% frequency
-deg_02$matters <- ifelse(deg_02$Baseline < 0.01, ifelse(deg_02$Treatment < 0.01, "matters_not", "matters"), "matters")
-deg_03$matters <- ifelse(deg_03$Baseline < 0.01, ifelse(deg_03$Treatment < 0.01, "matters_not", "matters"), "matters")
-deg_05$matters <- ifelse(deg_05$Baseline < 0.01, ifelse(deg_05$Treatment < 0.01, "matters_not", "matters"), "matters")
-deg_06$matters <- ifelse(deg_06$Baseline < 0.01, ifelse(deg_06$Treatment < 0.01, "matters_not", "matters"), "matters")
-deg_07$matters <- ifelse(deg_07$Baseline < 0.01, ifelse(deg_07$Treatment < 0.01, "matters_not", "matters"), "matters")
-deg_09$matters <- ifelse(deg_09$Baseline < 0.01, ifelse(deg_09$Treatment < 0.01, "matters_not", "matters"), "matters")
+deg_02$matters <- ifelse(deg_02$Baseline < 0.01*number_of_cells, ifelse(deg_02$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
+deg_03$matters <- ifelse(deg_03$Baseline < 0.01*number_of_cells, ifelse(deg_03$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
+deg_05$matters <- ifelse(deg_05$Baseline < 0.01*number_of_cells, ifelse(deg_05$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
+deg_06$matters <- ifelse(deg_06$Baseline < 0.01*number_of_cells, ifelse(deg_06$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
+deg_07$matters <- ifelse(deg_07$Baseline < 0.01*number_of_cells, ifelse(deg_07$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
+deg_09$matters <- ifelse(deg_09$Baseline < 0.01*number_of_cells, ifelse(deg_09$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
 
 
 
@@ -188,8 +193,8 @@ long_deg_medians_all <- gather(data_medians_all, Marker, Intensity, colnames(dat
 
 # make beautiful iris color palette
 
-my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
-my_palette <- rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))
+#my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
+#my_palette <- rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))
 
 
 # make levels to reorder markers in a meaningful way
@@ -231,119 +236,53 @@ marker_levels <- c("CD4",
 "CCR7")
 # make some heatmaps bruv
 
-labs <- c(
-  "02" = "Volunteer 02",
-  "03" = "Volunteer 03",
-  "05" = "Volunteer 05",
-  "06" = "Volunteer 06",
-  "07" = "Volunteer 07",
-  "09" = "Volunteer 09"
-)
+#0-1 transform is pointless
 
-#0-1 transform
-(big_heatmap_01 <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-  geom_tile(aes(fill=scales:::rescale(long_deg_medians_all$Intensity, to=c(0,1))), color="white")+
-  scale_x_discrete()+
-  scale_fill_gradientn(colors=rev(my_palette))+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1),
-        panel.border = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(colour = "black"),
-        legend.position = "none")+
-   facet_wrap(~ Volunteer, ncol=5, labeller=as_labeller(labs))
-)
 
 my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
-color_blind <- c("#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000")
+#color_blind <- c("#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000")
 
 # arcsinh transform
-(big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-    geom_tile(aes(fill=Intensity), color="white")+
-    scale_fill_gradientn(colors=rev(my_palette))+
-    xlab("Cluster")+
-    ylab("Marker")+
-    ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
-    theme(#axis.text.x = element_text(hjust = 1),
-          panel.border = element_blank(),
-          panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          axis.line = element_line(colour = "black"),
-          legend.title = element_blank(),
-          plot.title = element_text(hjust = 0.5))+
-    facet_wrap(~ Volunteer, ncol=6, labeller=as_labeller(labs))
-)
-
-# arcsinh transform, accesible color scheme
-(big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-    geom_tile(aes(fill=Intensity), color="white")+
-    scale_fill_gradientn(colors=color_blind)+
-    xlab("Cluster")+
-    ylab("Marker")+
-    ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
-    theme(#axis.text.x = element_text(hjust = 1),
-      panel.border = element_blank(),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      axis.line = element_line(colour = "black"),
-      legend.title = element_blank(),
-      plot.title = element_text(hjust = 0.5))+
-    facet_wrap(~ Volunteer, ncol=5, labeller=as_labeller(labs))
-)
-
-
+# (big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
+#     geom_tile(aes(fill=Intensity), color="white")+
+#     scale_fill_gradientn(colors=rev(my_palette))+
+#     xlab("Cluster")+
+#     ylab("Marker")+
+#     ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
+#     theme(#axis.text.x = element_text(hjust = 1),
+#           panel.border = element_blank(),
+#           panel.grid.major = element_blank(),
+#           panel.grid.minor = element_blank(),
+#           axis.line = element_line(colour = "black"),
+#           legend.title = element_blank(),
+#           plot.title = element_text(hjust = 0.5))+
+#     facet_wrap(~ Volunteer, ncol=6, labeller=as_labeller(labs))
+# )
+# 
+# # arcsinh transform, accesible color scheme
+# (big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
+#     geom_tile(aes(fill=Intensity), color="white")+
+#     scale_fill_gradientn(colors=color_blind)+
+#     xlab("Cluster")+
+#     ylab("Marker")+
+#     ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
+#     theme(#axis.text.x = element_text(hjust = 1),
+#       panel.border = element_blank(),
+#       panel.grid.major = element_blank(),
+#       panel.grid.minor = element_blank(),
+#       axis.line = element_line(colour = "black"),
+#       legend.title = element_blank(),
+#       plot.title = element_text(hjust = 0.5))+
+#     facet_wrap(~ Volunteer, ncol=5, labeller=as_labeller(labs))
+# )
+# 
+# 
 
 # unique(long_deg_medians_all$Volunteer)
 
 
 # just makin a table
 
-whatevs <- select(data, colnames(data[3:12]))
-significant <- whatevs[c(6,11,12,18,24,28,33,34),]
-
-baseline_abundance <- significant[,1:5]
-infected_abundance <- significant[,6:10]
-
-base_table <- as.data.frame(
-  cbind(
-    apply(baseline_abundance*1000, 1, mean),
-    apply(baseline_abundance*1000, 1, sd),
-    rownames(baseline_abundance)
-    ))
-
-colnames(base_table) <- c("Mean", "STDV", "Cluster")
-
-inf_table <- as.data.frame(cbind(
-  apply(infected_abundance*1000, 1, mean),
-  apply(infected_abundance*1000, 1, sd),
-  rownames(infected_abundance)
-))
-
-colnames(inf_table) <- c("Mean", "STDV", "Cluster")
-
-base_table$Timepoint <- "Baseline"
-inf_table$Timepoint <- "T+6"
-
-# combine table, convert level to float (stupid r...)
-one_table <- rbind(base_table, inf_table)
-one_table$Mean <- round(as.numeric(as.matrix(one_table)[,1]), digits=2)
-one_table$STDV <- round(as.numeric(as.matrix(one_table)[,2]), digits=2)
-
-#tables <- c(grid.table(base_table),grid.table(inf_table))
-
-grid.table(one_table)
-
-
-(figurs <- grid.arrange(tableGrob(base_table[,1:2]),
-                        tableGrob(inf_table[,1:2]),
-             big_heatmap_arsinh,
-             widths=c(5,5),
-             heights=c(5, 10),
-             layout_matrix = rbind(c(1, 2),
-                                   c(3, 3)),
-             ncol=2,
-             nrow=2)
-)
 
 ##############          working figure
 
@@ -456,31 +395,16 @@ ggsave("sandbox.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Vol
 
 grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2)
 
-#testy <- filter(long_deg_medians_all, Volunteer == "02")
-
-levels = data %>% 
-  filter(Marker == "CD4") %>%
-  arrange(., desc(Intensity))
-
-testy[with(testy, order(Marker, Intensity)),]
-
-n###### not being used atm
-# ggsave("cluster_grid.pdf", plot_grid(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09,
-#           ncol=3,
-#           nrow=2,
-#           rel_widths = c(2,1.4,1.4),
-#           labels = c(paste("Volunteer ", unique(long_deg_medians_all$Volunteer), sep='')),
-#           label_size = 20,
-#           align="hv"
-#           ),
-#        width = 15, height = 30)
-# 
-#           
+       
 
 
 
 
 #######         figures for cluster abundances
+
+data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac69a_t_cells_49cluster_prepost_1_results/results/cluster_abundances.csv")
+short <- select(data, colnames(data[3:14]))
+
 
 clusters_02 <- as.integer(list_of_degs[[1]]$Cluster)
 clusters_03 <- as.integer(list_of_degs[[2]]$Cluster)
@@ -532,7 +456,7 @@ graphic <-
          )+
   geom_bar(stat="identity", position=position_dodge())+
   scale_fill_brewer(palette="Paired")+
-  scale_y_continuous(labels = scales::percent)+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
   theme(legend.title = element_blank(),
         legend.text = element_text(size = 20),
         legend.position = "top", 
