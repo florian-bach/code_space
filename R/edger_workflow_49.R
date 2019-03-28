@@ -4,6 +4,7 @@ library(dplyr)
 library(ggplot2)
 library(RColorBrewer)
 library(gridExtra)
+library(cowplot)
 
 
 # translated, the assay(CD) object could be a matrix of cluster percentages (rows) per person (columns)
@@ -288,117 +289,48 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 
 for(i in unique(long_deg_medians_all$Volunteer)){
-  
-  #ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
-  #ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
-  #ifelse(i %in% c("07"), assign("result2"))
-  
- 
-  
-graphic <- 
-  ggplot(data = filter(long_deg_medians_all, Volunteer == i),
-         aes(x = factor(ClusterID),
-             y = factor(Marker, levels = rev(marker_levels)),
-             group = Volunteer))+
-  geom_tile(aes(fill=Intensity), color="white")+
-  scale_fill_gradientn(colors=rev(my_palette))+
-  scale_y_discrete(position = "left")+
-  xlab(NULL)+
-  ggtitle(paste("Volunteer ", i,sep=''))+
-  # ylab("Marker")+
-  #ggtitle(paste("\"Differentially Expressed\" Cluster Medians from Volunteer ", i ," in VAC69a", sep=''))+
-  theme(#axis.text.x = element_text(hjust = 1),
-    panel.border = element_blank(),
-    axis.text.y.left = element_text(size=35),
-    axis.line.y.left = element_blank(),
-    axis.line.y.right = element_blank(),
-    axis.ticks.y = element_blank(),
-    axis.title.y = element_blank(),
-    axis.text.x = element_text(size = 33),
-    axis.text.y.right = element_text(size = 35),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    axis.line = element_line(colour = "black"),
-    legend.title = element_blank(),
-    legend.position = "none",
-    plot.title = element_text(size = 45, hjust = 0.5),
-    plot.margin = unit(c(1,0,1,0), "cm")
-    )
-
-print(as.numeric(unique(i)))
-assign(paste("Volunteer_", i,sep=''), graphic) 
-}
-
-ggsave("cluster_grid.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
-                                                                                                                                       c(4,5,6))
-             ),  width = 40, height = 40, limitsize = F)
-
-
-
-##################          sandbox
-
-
-
-for(i in unique(long_deg_medians_all$Volunteer)){
-  
+  specific_levels <- NULL
   ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
   ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
-
+  
   sub_set <- filter(long_deg_medians_all, Volunteer == i)
-  #sub_set$ClusterID <- as.character(sub_set$ClusterID)
   
   specific_levels <- sub_set %>% 
-    filter(., Marker == "CD4") %>%
-    arrange(., desc(Intensity)) %>%
-    select(., ClusterID)
-    
-  cluster_levels <- specific_levels[1:nrow(specific_levels),]
-  print(cluster_levels)
-  #print(sub_set$ClusterID %in% cluster_levels)
+    filter(Marker == "CD4") %>%
+    arrange(desc(Intensity))
   
-  graphic <- 
-    ggplot(data = sub_set,
-           aes(x = factor(as.character(ClusterID), levels = as.character(cluster_levels)),
-               y = factor(Marker,    levels = rev(marker_levels)),
-               group = Volunteer)
-           )+
-    geom_tile(aes(fill=Intensity), color="white")+
-    scale_fill_gradientn(colors=rev(my_palette))+
-    scale_y_discrete(position = result1)+
-    xlab(NULL)+
-    ggtitle(paste("Volunteer ", i,sep=''))+
-    theme(panel.border = element_blank(),
-      axis.text.y.left = result,
-      axis.line.y.left = element_blank(),
-      axis.line.y.right = element_blank(),
-      axis.ticks.y = element_blank(),
-      axis.title.y = element_blank(),
-      axis.text.x = element_text(size = 33),
-      axis.text.y.right = element_text(size = 35),
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      axis.line = element_line(colour = "black"),
-      legend.title = element_blank(),
-      legend.position = "none",
-      plot.title = element_text(size = 45, hjust = 0.5),
-      plot.margin = unit(c(1,0,1,0), "cm")
-    )
+  specific_levels <- c(as.character(specific_levels$ClusterID))
   
-  #print(paste("Volunteer_", i, sep=''))
-  assign(paste("Volunteer_", i, sep=''), graphic) 
-  cluster_levels <- NULL
-}
+  assign(paste("Volunteer_", unique(sub_set$Volunteer), sep=''),
+         ggplot(data = sub_set, aes_(x = factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Volunteer))+
+           geom_tile(aes(fill=Intensity), color="white")+
+           scale_fill_gradientn(colors=rev(my_palette))+
+           scale_y_discrete(position = result1)+
+           xlab(NULL)+
+           ggtitle(paste("Volunteer ", i,sep=''))+
+           theme(panel.border = element_blank(),
+                 axis.text.y.left = result,
+                 axis.line.y.left = element_blank(),
+                 axis.line.y.right = element_blank(),
+                 axis.ticks.y = element_blank(),
+                 axis.title.y = element_blank(),
+                 axis.text.x = element_text(size = 33),
+                 axis.text.y.right = element_text(size = 35),
+                 panel.grid.major = element_blank(),
+                 panel.grid.minor = element_blank(),
+                 axis.line = element_line(colour = "black"),
+                 legend.title = element_blank(),
+                 legend.position = "none",
+                 plot.title = element_text(size = 45, hjust = 0.5),
+                 plot.margin = unit(c(1,0,1,0), "cm"))
+  )
+} 
+
+
 
 ggsave("sandbox.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
-                                                                                                                                                                  c(4,5,6))
+                                                                                                                                                             c(4,5,6))
 ),  width = 40, height = 40, limitsize = F)
-
-grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2)
-
-       
-
-
-
 
 #######         figures for cluster abundances
 
@@ -450,12 +382,15 @@ long_abun_clusters <- gather(abun_clusters, Timepoint, Frequency, c("Baseline", 
 
 
 for(i in unique(long_abun_clusters$Volunteer)){
-graphic <- 
-  ggplot(data=filter(long_abun_clusters, Volunteer == i),
-         aes(x=ClusterID, y=Frequency, fill=Timepoint)
+  
+(graphic <- 
+  
+  ggplot(data=filter(long_abun_clusters, Volunteer == "02"),
+         aes(x=factor(ClusterID, levels = Volunteer_02_levels), y=Frequency, fill=Timepoint)
          )+
   geom_bar(stat="identity", position=position_dodge())+
   scale_fill_brewer(palette="Paired")+
+  xlab("Cluster ID")+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
   theme(legend.title = element_blank(),
         legend.text = element_text(size = 20),
@@ -466,10 +401,9 @@ graphic <-
         axis.text.x = element_text(size=20, color="black"),
         axis.title.x = element_text(size=24, color="black"),
         axis.title.y = element_text(size=24, color="black"),
-        axis.text.y = element_text(size=20, color="black"))
+        axis.text.y = element_text(size=20, color="black")))
 
-ggsave(paste("Volunteer_", i, ".pdf", sep=''), graphic, height = 8, width = 10)
-assign(paste("Volunteer_", i, "_bar", sep=''), graphic)
+  Volunteer_02_bar <- graphic 
 }
 
 ggsave("heatmap_plus_abundance_02.pdf", grid.arrange(Volunteer_02, Volunteer_02_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
