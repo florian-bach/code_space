@@ -148,6 +148,12 @@ time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3,
 dr <- data.frame(cluster_id = code_clustering1[som$map$mapping[,1]], time_point = time_points, 
                  expr[, marker_levels])
 
+expri <- cbind.data.frame(expr, time_points)
+expri01 <- cbind.data.frame(expr01, time_points)
+
+expri$time_points <- as.character(expri$time_points)
+expri01$time_points <- as.character(expri01$time_points)
+
 mm <- match(dr$sample_id, md$sample_id)
 dr$condition <- md$condition[mm]
 
@@ -163,26 +169,28 @@ color_clusters <- rep(c("#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72",
 
 
 
-plot_clustering_heatmap_wrapper <- function(expr, expr01, 
+plot_clustering_heatmap_wrapper <- function(time_point, hypersine, zero_one, 
                                             cell_clustering, color_clusters, cluster_merging = NULL){
   
   # Calculate the median expression
-  expr_median <- data.frame(expr, cell_clustering = cell_clustering1) %>%
+  expr_median <- data.frame(hypersine, cell_clustering = cell_clustering1[match(time_point, expri$time_points):match(time_point, expri$time_points)+nrow(hypersine)]) %>%
     group_by(cell_clustering) %>% 
-    summarize_all(funs(median))
-  colnames(expr_median) <- c("cell_clustering", colnames(expr))  
-  expr01_median <- data.frame(expr01, cell_clustering = cell_clustering1) %>%
+    summarize_if(is.numeric, funs(median))
+    colnames(expr_median) <- c("cell_clustering", colnames(hypersine))  
+    
+  expr01_median <- data.frame(zero_one, cell_clustering = cell_clustering1[match(time_point, expri$time_points):match(time_point, expri$time_points)+nrow(hypersine)]) %>%
     group_by(cell_clustering) %>% 
-    summarize_all(funs(median))
-  colnames(expr01_median) <- c("cell_clustering", colnames(expr01)) 
+    summarize_if(is.numeric, funs(median))
+    colnames(expr01_median) <- c("cell_clustering", colnames(zero_one)) 
+    
   # Calculate cluster frequencies
-  clustering_table <- as.numeric(table(cell_clustering1))
+  clustering_table <- as.numeric(table(cell_clustering = cell_clustering1[match(time_point, expri$time_points):match(time_point, expri$time_points)+nrow(hypersine)]))
   
   # This clustering is based on the markers that were used for the main clustering
-  d <- dist(expr_median[, colnames(expr)], method = "euclidean")
+  d <- dist(expr_median[, colnames(hypersine)], method = "euclidean")
   cluster_rows <- hclust(d, method = "average")
   
-  expr_heat <- as.matrix(expr01_median[, colnames(expr01)])
+  expr_heat <- as.matrix(expr01_median[, colnames(zero_one)])
   rownames(expr_heat) <- expr01_median$cell_clustering
   
   labels_row <- paste0(rownames(expr_heat), " (", 
@@ -258,6 +266,31 @@ marker_levels <- c("CD4",
 
 
 
-plot_clustering_heatmap_wrapper(expr = expr[,marker_levels],
-                                expr01 = expr01[, marker_levels],
-                                cell_clustering = cell_clustering1, color_clusters = color_clusters)
+baseline_heatmap <- plot_clustering_heatmap_wrapper(time_point = "DoD",
+                                                    hypersine = expri %>%
+                                                      filter(., time_points=="DoD") %>%
+                                                      select(-time_points),
+                                                    zero_one =  expri01 %>%
+                                                      filter(., time_points=="DoD") %>%
+                                                      select(-time_points),
+                                                    cell_clustering = cell_clustering1[match(time_point, expri$time_points):match(time_point, expri$time_points)+nrow(hypersine)],
+                                                    color_clusters = color_clusters)
+#33699
+
+DoD_heatmap <- plot_clustering_heatmap_wrapper(hypersine = expri %>%
+                                                 filter(., time_points=="DoD") %>%
+                                                 select(-time_points),
+                                               zero_one =  expri01 %>%
+                                                 filter(., time_points=="DoD") %>%
+                                                 select(-time_points),
+                                               cell_clustering = cell_clustering1[sum(d_1, d_2, d_3):sum(d_1, d_2, d_3, d_4)],
+                                               color_clusters = color_clusters)
+
+Treat6_heatmap <- plot_clustering_heatmap_wrapper(hypersine = expri %>%
+                                                    filter(., time_points=="T+6") %>%
+                                                    select(-time_points),
+                                                  zero_one =  expri01 %>%
+                                                    filter(., time_points=="T+6") %>%
+                                                    select(-time_points),
+                                                  cell_clustering = cell_clustering1[sum(d_1, d_2, d_3, d_4):length(cell_clustering1)],
+                                                  color_clusters = color_clusters)
