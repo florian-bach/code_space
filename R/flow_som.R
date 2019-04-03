@@ -11,6 +11,7 @@ library(RColorBrewer)
 library(pheatmap)
 library(limma)
 library(ggrepel)
+library(tidyr)
 
 
 
@@ -147,6 +148,257 @@ time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3,
 
 dr <- data.frame(cluster_id = code_clustering1[som$map$mapping[,1]], time_point = time_points, 
                  expr[, marker_levels])
+dr_long <- gather(dr, Marker, Intensity, colnames(dr)[3:37])
+
+dr_list <- split(dr, dr$time_point)
+
+#1 = baseline, 2 = C+10, 3= C+8, 4=DoD, 5=T+6
+dr_list_tbl <- lapply(dr_list, function(x) table(x$cluster_id))
+
+dr_list_counts <- lapply(dr_list_tbl, function(x) sum(x))
+
+
+dr_list_freq <- list()
+for (i in seq(1,5)){
+dr_list_freq[[i]] <- dr_list_tbl[[i]]/dr_list_counts[[i]]*100
+}
+
+dr_list_freq <- lapply(dr_list_freq, function(x) as.data.frame(x))
+edger_input1 <- data.frame(ClusterID= dr_list_freq[[1]]$Var, Baseline_1=dr_list_freq[[1]]$Freq, C_8_1=dr_list_freq[[3]]$Freq, C_10_1=dr_list_freq[[2]]$Freq, DoD_1=dr_list_freq[[4]]$Freq, T_6_1=dr_list_freq[[5]]$Freq)
+
+
+
+
+
+
+####
+####
+
+#### do it again, do it again: for replicates
+
+####
+####
+
+
+fsom <- ReadInput(fcs, transform = FALSE, scale = FALSE)
+set.seed(1234)
+som1 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+
+
+#### clustering on som
+
+codes <- som1$map$codes
+plot_outdir <- "consensus_plots"
+nmc <- 42
+mc1 <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100, 
+                           pItem = 0.9, pFeature = 1, title = plot_outdir, plot = "png", 
+                           clusterAlg = "hc", innerLinkage = "average", finalLinkage = "average", 
+                           distance = "euclidean", seed = 1234)
+
+
+
+
+
+## Get cluster ids for each cell
+code_clustering1 <- mc1[[nmc]]$consensusClass
+cell_clustering1 <- code_clustering1[som1$map$mapping[,1]]
+
+for (i in seq(1, 5)){
+  assign(paste("d", i, sep='_'), som1$metaData[[i]][[2]]-som1$metaData[[i]][[1]]+1)
+}
+
+
+time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3, d_4, d_5))
+
+dr2 <- data.frame(cluster_id = code_clustering1[som1$map$mapping[,1]], time_point = time_points, 
+                 expr[, marker_levels])
+
+dr2_list <- split(dr2, dr2$time_point)
+
+#1 = baseline, 2 = C+10, 3= C+8, 4=DoD, 5=T+6
+dr2_list_tbl <- lapply(dr2_list, function(x) table(x$cluster_id))
+
+dr2_list_counts <- lapply(dr2_list_tbl, function(x) sum(x))
+
+
+dr2_list_freq <- list()
+for (i in seq(1,5)){
+  dr2_list_freq[[i]] <- dr2_list_tbl[[i]]/dr2_list_counts[[i]]*100
+}
+
+dr2_list_freq <- lapply(dr2_list_freq, function(x) as.data.frame(x))
+edger_input2 <- data.frame(Baseline_2=dr2_list_freq[[1]]$Freq, C_8_2=dr2_list_freq[[3]]$Freq, C_10_2=dr2_list_freq[[2]]$Freq, DoD_2=dr2_list_freq[[4]]$Freq, T_6_2=dr2_list_freq[[5]]$Freq)
+
+
+########       time to edge some garbage yo
+
+
+
+
+
+short <- cbind(edger_input1, edger_input2)
+short_long <- gather(short, Timepoint, Frequency, colnames(short)[2:11])
+
+half <- filter(short_long, Timepoint %in% c("Baseline_1", "Baseline_2"))
+
+ggplot(data=half, aes(x= as.factor(ClusterID), y=Frequency, fill=Timepoint))+
+  geom_bar(stat="identity", position = "dodge")
+
+# make up group matrix, matching "replicates" to each other. also remove _UMAP.fcs suffix
+groups <- rep(substr(colnames(short)[1:12],1, nchar(colnames(short))-9), times=2)
+
+# create design matrix & give it proper column names
+design <- model.matrix(~0 + groups)
+colnames(design) <- substr(colnames(short)[1:12],1, nchar(colnames(short))-9)
+
+# create DGEList object, estimate disperson, fit GLM
+y <- DGEList(short, group=groups, lib.size = colSums(short))
+fit <- estimateDisp(y, design)
+fit <- glmQLFit(fit, design, robust=TRUE) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##### figure code
+my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
+
+cluster_heatmap_theme <- function(){
+  theme(panel.border = element_blank(),
+        axis.text.y.left = element_text(size=35),
+        axis.line.y.left = element_blank(),
+        axis.line.y.right = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 33),
+        #axis.text.y.right = element_text(size = 35),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.title = element_blank(),
+        legend.position = "none",
+        plot.title = element_text(size = 45, hjust = 0.5),
+        plot.margin = unit(c(1,0,1,0), "cm"))
+}
+
+
+Volunteer_plots <- dr_long %>%
+  group_by(time_point)%>%
+  filter(Marker == "CD4") %>%
+  arrange(desc(Intensity)) %>%
+  cluster_levels <- do(unique(.$cluster_id))
+  ungroup() %>%
+  group_by(time_point) %>%
+              do(ggsave(
+              ggplot(data = ., aes(x = factor(cluster_id), y = factor(Marker), group=time_point))+
+              geom_tile(aes(fill=Intensity), color="white")+
+              scale_fill_gradientn(colors=rev(my_palette))+
+              scale_y_discrete(position = "left")+
+              xlab(NULL)+
+              ggtitle(paste(.$time_point[1], "HeatMap", sep='_')),
+              ggtitle(paste(i))+
+              cluster_heatmap_theme(),
+              filename = paste(.$time_point[1], "HeatMap", ".pdf", sep=''),
+              device="pdf"))
+            
+  
+  
+   dr_long %>%
+       group_by(time_point)%>%
+       filter(Marker == "CD4") %>%
+       arrange(desc(Intensity)) %>%
+       assign("cluster_levels", unique(.$cluster_id)) %>%
+       do(print(cluster_levels))
+  
+  
+   dr_long %>%
+           group_by(time_point)%>%
+           filter(Marker == "CD4") %>%
+           arrange(desc(Intensity)) %>%
+           select(cluster_id) %>%
+           {unique(.) ->> cluster_levels} %>%
+           print(cluster_levels) %>%
+           ungroup()
+  
+
+
+# for(i in unique(dr_long$time_point)){
+#   # specific_levels <- NULL
+#   # ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
+#   # ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
+#   
+#   sub_set <- filter(dr_long, time_point == i)
+#   
+#   specific_levels <- sub_set %>% 
+#     filter(Marker == "CD4") %>%
+#     arrange(desc(Intensity))
+#   
+#   specific_levels <- c(as.character(specific_levels$clusterID))
+#   
+#   assign(paste(i),
+#          ggplot(data = sub_set, aes_(x = factor(sub_set$clusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$time_point))+
+#            geom_tile(aes(fill=Intensity), color="white")+
+#            scale_fill_gradientn(colors=rev(my_palette))+
+#            scale_y_discrete(position = "left")+
+#            xlab(NULL)+
+#            ggtitle(paste(i))+
+#            theme(panel.border = element_blank(),
+#                  axis.text.y.left = element_text(size=35),
+#                  axis.line.y.left = element_blank(),
+#                  axis.line.y.right = element_blank(),
+#                  axis.ticks.y = element_blank(),
+#                  axis.title.y = element_blank(),
+#                  axis.text.x = element_text(size = 33),
+#                  #axis.text.y.right = element_text(size = 35),
+#                  panel.grid.major = element_blank(),
+#                  panel.grid.minor = element_blank(),
+#                  axis.line = element_line(colour = "black"),
+#                  legend.title = element_blank(),
+#                  legend.position = "none",
+#                  plot.title = element_text(size = 45, hjust = 0.5),
+#                  plot.margin = unit(c(1,0,1,0), "cm"))
+#   )
+# } 
+# 
+# 
+# 
+# ggsave("sandbox.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+#                                                                                                                                                              c(4,5,6))
+# ),  width = 40, height = 40, limitsize = F)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 expri <- cbind.data.frame(expr, time_points)
 expri01 <- cbind.data.frame(expr01, time_points)
@@ -156,6 +408,10 @@ expri01$time_points <- as.character(expri01$time_points)
 
 mm <- match(dr$sample_id, md$sample_id)
 dr$condition <- md$condition[mm]
+
+
+
+
 
 
 
