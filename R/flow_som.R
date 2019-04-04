@@ -21,20 +21,44 @@ files_list <- list.files(path=".", pattern="*.fcs")
 
 # concatenate_fcs_files(files_list, "concat02.fcs")
 # 
-# fcs_raw <- list()
-# for (i in files_list){
-#   print(i)
-#   j <- read.FCS(i, transformation = FALSE, truncate_max_range = FALSE)
-#   assign(paste(substr(i, nchar(i)-10, nchar(i)-4)), j)
-#   fcs_raw[[paste(substr(i, nchar(i)-10, nchar(i)-4))]] <- j}
-# 
-# head(fcs_raw)
+fcs_raw <- list()
+for (i in files_list){
+  print(i)
+  j <- read.FCS(i, transformation = FALSE, truncate_max_range = FALSE)
+  assign(paste(substr(i, nchar(i)-10, nchar(i)-4)), j)
+  fcs_raw[[paste(substr(i, nchar(i)-10, nchar(i)-4))]] <- j}
+
+head(fcs_raw)
 # 
 df_lol <- as.matrix(fcs_raw[[1]]@parameters@data[["desc"]])
 channel_names <- df_lol[1:69]
 
 # timecourse for only Volunteer 03
 flo_set <- read.flowSet(files_list[21:25], transformation = FALSE, truncate_max_range = FALSE)
+
+timepoint <- c(1, 10, 8, 12, 18)
+#1 = baseline, 2 = C+10, 3= C+8, 4=DoD, 5=T+6)
+
+new_flo_set <- new('flowSet', colnames=colnames(tmp)[1:68])
+
+for (i in seq(1,5)){
+  tmp <- flo_set[[i]]
+  col <- rep(timepoint[i], nrow(tmp))
+  cols <- matrix(col, dimnames = list(NULL, "Timepoint"))
+  tmp <- fr_append_cols(tmp, cols)
+  assign(paste("frame_", i, sep=''), tmp)
+}
+
+new_flo_set <- new('flowSet', c(frame_1, frame_2), colnames=colnames(tmp))
+
+tmp <- flo_set[[1]]
+col <- rep(1, nrow(tmp))
+cols <- matrix(col, dimnames = list(NULL, "Timepoint"))
+tmp <- fr_append_cols(tmp, cols)
+
+
+
+
 name_frame <- as.matrix(flo_set[[1]]@parameters@data[["desc"]])
 
 channel_names <- substr(name_frame, 7, nchar(name_frame))
@@ -51,10 +75,12 @@ fcs <- fsApply(flo_set, function(x, cofactor = 5){
 
 fcs
 
+# extract expression matrix
+
 expr <- fsApply(fcs, exprs)
 dim(expr)
 
-
+#do 0_1 transform
 rng <- colQuantiles(expr, probs = c(0.01, 0.99))
 expr01 <- t((t(expr) - rng[, 1]) / (rng[, 2] - rng[, 1]))
 expr01[expr01 < 0] <- 0
@@ -72,38 +98,48 @@ ggdf <- data.frame(time_point = time_point, expr)
 ggdf_long <- gather(ggdf, marker, expression, colnames(ggdf)[2:41])
 
 
-ggplot(ggdf_long, aes(x = expression, color = time_point, 
-                 group = time_point)) +
-  geom_density() +
-  facet_wrap(~ marker, scales = "free") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1), 
-        strip.text = element_text(size = 7), axis.text = element_text(size = 5)) +
-  guides(color = guide_legend(ncol = 1))
+# this makes a series of overlaid histograms showing expression of each marker at different timepoints.. couple of interesting plots but otherwise
+# not very informative
+
+# ggplot(ggdf_long, aes(x = expression, color = time_point, 
+#                  group = time_point)) +
+#   geom_density() +
+#   facet_wrap(~ marker, scales = "free") +
+#   theme_bw() +
+#   theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+#         strip.text = element_text(size = 7), axis.text = element_text(size = 5)) +
+#   guides(color = guide_legend(ncol = 1))
   
 
 
 
 
-
+# make a table of median expression values per timepoint for multidimensional scaling
 expr_median_sample_tbl <- data.frame(sample_id = sample_ids, expr) %>%
   group_by(sample_id) %>% 
-  summarize_all(funs(median))
+  summarize_all(list(median)) %>%
+  ungroup()
 
+#transpose expression matrix so rows are markers, kinda like long format i guess
 expr_median_sample <- t(expr_median_sample_tbl[, -1])
 colnames(expr_median_sample) <- expr_median_sample_tbl$sample_id
 
-
+# creates object called mds that contains X and Y variables, some other infor
 mds <- plotMDS(expr_median_sample, plot = FALSE)
 
+# mut mds object as dataframe with sample_id column
 ggdf <- data.frame(MDS1 = mds$x, MDS2 = mds$y, 
                    sample_id = colnames(expr_median_sample))
 
-ggdf$volunteer <- as.character(ggdf$sample_id)
-ggdf$volunteer <- substr(ggdf$volunteer, nchar(ggdf$volunteer)-1, nchar(ggdf$volunteer))
+ggdf$volunteer <- "V03"
 
-mm <- match(ggdf$sample_id, md$file_name)
-ggdf$volunteer <- md$volunteer[21:25]
+# this would be for when you have multiple people in the same dataset
+
+# ggdf$volunteer <- as.character(ggdf$sample_id)
+# ggdf$volunteer <- substr(ggdf$volunteer, nchar(ggdf$volunteer)-1, nchar(ggdf$volunteer))
+
+#mm <- match(ggdf$sample_id, md$file_name)
+#ggdf$volunteer <- md$volunteer[21:25]
 
 ggplot(ggdf, aes(x = MDS1, y = MDS2, color = volunteer)) +
   geom_point(size = 2, alpha = 0.8) +
@@ -115,13 +151,21 @@ ggplot(ggdf, aes(x = MDS1, y = MDS2, color = volunteer)) +
 
 
 
-
-fsom <- ReadInput(fcs, transform = FALSE, scale = FALSE)
+# create fsom object that contains fcs (the 5 fcs files from Volunteer 03), and some metadata like column names, number of cells per timepoint etc
+# set seed
+rm(som,fsom)
 set.seed(1234)
-som <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+fsom <- ReadInput(fcs, transform = FALSE, scale = FALSE)
 
 
-#### clustering on som
+#actually build the SOM, choosing which channels to use for mapping
+som <- FlowSOM(fcs, colsToUse = fcs@colnames[c(3:31, 33:40)], maxMeta=12)
+som2 <- FlowSOM(fcs, colsToUse = fcs@colnames[c(3:31, 33:40)], maxMeta=12)
+
+bonjour<- NewData(som, fcs[[1]])
+table(som$data[,5] == som2$data[,5])
+
+#### clustering on som; nmc = number of clusters
 
 codes <- som$map$codes
 plot_outdir <- "consensus_plots"
@@ -139,31 +183,83 @@ mc <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100,
 code_clustering1 <- mc[[nmc]]$consensusClass
 cell_clustering1 <- code_clustering1[som$map$mapping[,1]]
 
+# create a bunch of variable that contain how many cells are in each timepoint
 for (i in seq(1, 5)){
   assign(paste("d", i, sep='_'), som$metaData[[i]][[2]]-som$metaData[[i]][[1]]+1)
 }
 
-
+# shove them into a vector in the right proportions
 time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3, d_4, d_5))
 
+
+# this is a more biologically meaningful ordering of the channels contained in out CyTOF panel
+
+marker_levels <- c("CD4",
+                   "CD8",
+                   "Vd2",
+                   "TCRgd",
+                   "Va7.2",
+                   "CD38",
+                   "HLA-DR",
+                   "ICOS",
+                   "CD28",
+                   "PD1",
+                   "TIM-3",
+                   "CD95",
+                   "BCL-2",
+                   "CD27",
+                   "Perforin",
+                   "GZB",
+                   "Tbet",
+                   "Ki-67",
+                   "CD127",
+                   "IntegrinB7",
+                   "CD56",
+                   "CD16",
+                   "CD161",
+                   "CD49d",
+                   "CD103",
+                   "CD25",
+                   "FoxP3",
+                   "CD39",
+                   "CTLA4",
+                   "CLA",
+                   "CXCR5",
+                   "CD57",
+                   "CD45RA",
+                   "CD45RO",
+                   "CCR7")
+
+
+
+
+# make a data frame with cluster ID, timepoint and expression matrix for each cell
 dr <- data.frame(cluster_id = code_clustering1[som$map$mapping[,1]], time_point = time_points, 
                  expr[, marker_levels])
+
 dr_long <- gather(dr, Marker, Intensity, colnames(dr)[3:37])
 
+#split by timepoint
 dr_list <- split(dr, dr$time_point)
 
 #1 = baseline, 2 = C+10, 3= C+8, 4=DoD, 5=T+6
+
+# make a list of tables for cluster abundances at each timepoint
 dr_list_tbl <- lapply(dr_list, function(x) table(x$cluster_id))
 
+# sum all the cluster abundances and put them in a list (dictionary); kind of a sanity check
 dr_list_counts <- lapply(dr_list_tbl, function(x) sum(x))
 
-
+# convert absolute cell counts into percentages
 dr_list_freq <- list()
 for (i in seq(1,5)){
 dr_list_freq[[i]] <- dr_list_tbl[[i]]/dr_list_counts[[i]]*100
 }
 
+# convert list of tables into list of data frames
 dr_list_freq <- lapply(dr_list_freq, function(x) as.data.frame(x))
+
+# make one dataframe that contains cluster abundances through time
 edger_input1 <- data.frame(ClusterID= dr_list_freq[[1]]$Var, Baseline_1=dr_list_freq[[1]]$Freq, C_8_1=dr_list_freq[[3]]$Freq, C_10_1=dr_list_freq[[2]]$Freq, DoD_1=dr_list_freq[[4]]$Freq, T_6_1=dr_list_freq[[5]]$Freq)
 
 
@@ -178,16 +274,27 @@ edger_input1 <- data.frame(ClusterID= dr_list_freq[[1]]$Var, Baseline_1=dr_list_
 
 ####
 ####
+hi<-som$data[5:10,5]
+rm(som,fsom)
+fsom1 <- ReadInput(fcs, transform = FALSE, scale = FALSE)
+
+#actually build the SOM, choosing which channels to use for mapping
+som1 <- BuildSOM(fsom1, colsToUse = fcs@colnames[c(3:31, 33:40)])
+hey<-som1$data[5:10,5]
+# helo2 <- som1$map$sdValues
 
 
-fsom <- ReadInput(fcs, transform = FALSE, scale = FALSE)
-set.seed(1234)
-som1 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+
+head(som1$map$mapping, n=20)
+som1 <- BuildMST(som1,tSNE=TRUE)
+PlotStars(som1, view='tSNE')
+PlotMarker(som1,"HLA-DR")
 
 
-#### clustering on som
+length(som1$map$mapping)
 
-codes <- som1$map$codes
+
+codes <- som2$map$codes
 plot_outdir <- "consensus_plots"
 nmc <- 42
 mc1 <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100, 
@@ -195,22 +302,22 @@ mc1 <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100,
                            clusterAlg = "hc", innerLinkage = "average", finalLinkage = "average", 
                            distance = "euclidean", seed = 1234)
 
-
+# the output here is actually somewhat different!
 
 
 
 ## Get cluster ids for each cell
-code_clustering1 <- mc1[[nmc]]$consensusClass
-cell_clustering1 <- code_clustering1[som1$map$mapping[,1]]
+code_clustering2 <- mc1[[nmc]]$consensusClass
+cell_clustering2 <- code_clustering2[som1$map$mapping[,1]]
 
 for (i in seq(1, 5)){
   assign(paste("d", i, sep='_'), som1$metaData[[i]][[2]]-som1$metaData[[i]][[1]]+1)
 }
 
 
-time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3, d_4, d_5))
+# time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3, d_4, d_5))
 
-dr2 <- data.frame(cluster_id = code_clustering1[som1$map$mapping[,1]], time_point = time_points, 
+dr2 <- data.frame(cluster_id = code_clustering2[som1$map$mapping[,1]], time_point = time_points, 
                  expr[, marker_levels])
 
 dr2_list <- split(dr2, dr2$time_point)
@@ -484,43 +591,6 @@ plot_clustering_heatmap_wrapper <- function(time_point, hypersine, zero_one,
   
 }
 
-marker_levels <- c("CD4",
-                   "CD8",
-                   "Vd2",
-                   "TCRgd",
-                   "Va7.2",
-                   "CD38",
-                   "HLA-DR",
-                   "ICOS",
-                   "CD28",
-                   "PD1",
-                   "TIM-3",
-                   "CD95",
-                   "BCL-2",
-                   "CD27",
-                   "Perforin",
-                   "GZB",
-                   "Tbet",
-                   "Ki-67",
-                   "CD127",
-                   "IntegrinB7",
-                   "CD56",
-                   "CD16",
-                   "CD161",
-                   "CD49d",
-                   "CD103",
-                   "CD25",
-                   "FoxP3",
-                   "CD39",
-                   "CTLA4",
-                   "CLA",
-                   "CXCR5",
-                   "CD57",
-                   "CD45RA",
-                   "CD45RO",
-                   "CCR7")
-
-
 
 baseline_heatmap <- plot_clustering_heatmap_wrapper(time_point = "DoD",
                                                     hypersine = expri %>%
@@ -550,3 +620,24 @@ Treat6_heatmap <- plot_clustering_heatmap_wrapper(hypersine = expri %>%
                                                     select(-time_points),
                                                   cell_clustering = cell_clustering1[sum(d_1, d_2, d_3, d_4):length(cell_clustering1)],
                                                   color_clusters = color_clusters)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
