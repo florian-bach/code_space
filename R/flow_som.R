@@ -153,17 +153,40 @@ ggplot(ggdf, aes(x = MDS1, y = MDS2, color = volunteer)) +
 
 # create fsom object that contains fcs (the 5 fcs files from Volunteer 03), and some metadata like column names, number of cells per timepoint etc
 # set seed
-rm(som,fsom)
-set.seed(1234)
+rm(som,som2,fsom)
+# set.seed(1234)
 fsom <- ReadInput(fcs, transform = FALSE, scale = FALSE)
-
+bonjour<- NewData(som, fcs[[1]])
 
 #actually build the SOM, choosing which channels to use for mapping
-som <- FlowSOM(fcs, colsToUse = fcs@colnames[c(3:31, 33:40)], maxMeta=12)
-som2 <- FlowSOM(fcs, colsToUse = fcs@colnames[c(3:31, 33:40)], maxMeta=12)
+som <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+som2 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+som3 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+som4 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+som5 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
+som6 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
 
-bonjour<- NewData(som, fcs[[1]])
-table(som$data[,5] == som2$data[,5])
+
+codes <- som$map$codes
+codes2 <- bonjour$map$codes
+codes3 <- som3$map$codes
+codes4 <- som4$map$codes
+codes5 <- som5$map$codes
+codes6 <- som6$map$codes
+
+six<-cbind(head(codes[,5], n=100),head(codes2[,5], n=100),head(codes3[,5], n=100),head(codes4[,5], n=100),head(codes5[,5], n=100),head(codes6[,5], n=100))
+
+try_one <- FlowSOM(fcs, transform = FALSE, scale = FALSE, colsToUse = fcs@colnames[c(3:31, 33:40)], maxMeta = 12, seed=42)
+try_two <- FlowSOM(fcs, transform = FALSE, scale = FALSE, colsToUse = fcs@colnames[c(3:31, 33:40)], maxMeta = 12, seed=42)
+head(try_two$FlowSOM$MST$l)
+head(try_one$FlowSOM$MST$l)
+
+
+
+six
+# can probs be deleted
+# bonjour<- NewData(som, fcs[[1]])
+# table(som$data[,5] == som2$data[,5])
 
 #### clustering on som; nmc = number of clusters
 
@@ -173,7 +196,7 @@ nmc <- 42
 mc <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100, 
                            pItem = 0.9, pFeature = 1, title = plot_outdir, plot = "png", 
                            clusterAlg = "hc", innerLinkage = "average", finalLinkage = "average", 
-                           distance = "euclidean", seed = 1234)
+                           distance = "euclidean")#, seed = 1234)
 
 
 
@@ -274,33 +297,20 @@ edger_input1 <- data.frame(ClusterID= dr_list_freq[[1]]$Var, Baseline_1=dr_list_
 
 ####
 ####
-hi<-som$data[5:10,5]
-rm(som,fsom)
-fsom1 <- ReadInput(fcs, transform = FALSE, scale = FALSE)
-
-#actually build the SOM, choosing which channels to use for mapping
-som1 <- BuildSOM(fsom1, colsToUse = fcs@colnames[c(3:31, 33:40)])
-hey<-som1$data[5:10,5]
-# helo2 <- som1$map$sdValues
+fsom <- ReadInput(fcs, transform = FALSE, scale = FALSE)
+som2 <- BuildSOM(fsom, colsToUse = fcs@colnames[c(3:31, 33:40)])
 
 
 
-head(som1$map$mapping, n=20)
-som1 <- BuildMST(som1,tSNE=TRUE)
-PlotStars(som1, view='tSNE')
-PlotMarker(som1,"HLA-DR")
 
 
-length(som1$map$mapping)
-
-
-codes <- som2$map$codes
-plot_outdir <- "consensus_plots"
+codes2 <- som$map$codes
+plot_outdir <- "consensus_plots2"
 nmc <- 42
 mc1 <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100, 
-                           pItem = 0.9, pFeature = 1, title = plot_outdir, plot = "png", 
-                           clusterAlg = "hc", innerLinkage = "average", finalLinkage = "average", 
-                           distance = "euclidean", seed = 1234)
+                            pItem = 0.9, pFeature = 1, title = plot_outdir, plot = "png", 
+                            clusterAlg = "hc", innerLinkage = "average", finalLinkage = "average", 
+                            distance = "euclidean", seed = 1235)
 
 # the output here is actually somewhat different!
 
@@ -308,16 +318,16 @@ mc1 <- ConsensusClusterPlus(t(codes), maxK = nmc, reps = 100,
 
 ## Get cluster ids for each cell
 code_clustering2 <- mc1[[nmc]]$consensusClass
-cell_clustering2 <- code_clustering2[som1$map$mapping[,1]]
+cell_clustering2 <- code_clustering2[som$map$mapping[,1]]
 
 for (i in seq(1, 5)){
-  assign(paste("d", i, sep='_'), som1$metaData[[i]][[2]]-som1$metaData[[i]][[1]]+1)
+  assign(paste("d", i, sep='_'), som$metaData[[i]][[2]]-som$metaData[[i]][[1]]+1)
 }
 
 
 # time_points <- rep(c("C-1", "C+8", "C+10", "DoD", "T+6"), times=c(d_1, d_2, d_3, d_4, d_5))
 
-dr2 <- data.frame(cluster_id = code_clustering2[som1$map$mapping[,1]], time_point = time_points, 
+dr2 <- data.frame(cluster_id = code_clustering2[som$map$mapping[,1]], time_point = time_points, 
                  expr[, marker_levels])
 
 dr2_list <- split(dr2, dr2$time_point)
@@ -625,6 +635,8 @@ Treat6_heatmap <- plot_clustering_heatmap_wrapper(hypersine = expri %>%
 
 
 
+uno_som <- FlowSOM()
+duo_som <- FlowSOM()
 
 
 
@@ -632,7 +644,13 @@ Treat6_heatmap <- plot_clustering_heatmap_wrapper(hypersine = expri %>%
 
 
 
+head(som1$map$mapping, n=20)
+som1 <- BuildMST(som1,tSNE=TRUE)
+PlotStars(som1, view='tSNE')
+PlotMarker(som1,"HLA-DR")
 
+
+length(som1$map$mapping)
 
 
 
