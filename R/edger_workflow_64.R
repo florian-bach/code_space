@@ -19,39 +19,46 @@ flo_set <- read.flowSet(files_list[21:25], transformation = FALSE, truncate_max_
 
 
 short <- data
-short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[21]]]@exprs)
-short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[22]]]@exprs)
-short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[23]]]@exprs)
+short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[24]]]@exprs)
 short[,6] <- data[,6]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short[,7] <- data[,7]*nrow(flo_set@frames[[files_list[25]]]@exprs)
+short[,7] <- data[,7]*nrow(flo_set@frames[[files_list[24]]]@exprs)
 
+# short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[21]]]@exprs)
+# short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[22]]]@exprs)
+# short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[23]]]@exprs)
+# short[,6] <- data[,6]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+# short[,7] <- data[,7]*nrow(flo_set@frames[[files_list[25]]]@exprs)
 
 
 # repeat same stuff for other dataframe 
 short2 <- data2
-short2[,3] <- data2[,3]*nrow(flo_set@frames[[files_list[21]]]@exprs)
-short2[,4] <- data2[,4]*nrow(flo_set@frames[[files_list[22]]]@exprs)
-short2[,5] <- data2[,5]*nrow(flo_set@frames[[files_list[23]]]@exprs)
+short2[,3] <- data2[,3]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+short2[,4] <- data2[,4]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+short2[,5] <- data2[,5]*nrow(flo_set@frames[[files_list[24]]]@exprs)
 short2[,6] <- data2[,6]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short2[,7] <- data2[,7]*nrow(flo_set@frames[[files_list[25]]]@exprs)
+short2[,7] <- data2[,7]*nrow(flo_set@frames[[files_list[24]]]@exprs)
 # combine
 short <- cbind(short, short2)
-
-short[,8:9] <-NULL
+rownames(short) <- short$ClusterID
+short[,c(1:2,8:9)] <-NULL
 # make up group matrix, matching "replicates" to each other. also remove _UMAP.fcs suffix
 #groups <- rep(substr(colnames(short)[1:14],1, nchar(colnames(short))-9), times=2)
-groups <- colnames(short)[3:12]
+groups <- substr(colnames(short), 2,6)
+
+colnames(short) <- substr(colnames(short), 2,6)
+colnames(short)[6:10] <- paste(colnames(short)[1:5], "_1", sep='')
 
 
 # create design matrix & give it proper column names
 design <- model.matrix(~0 + groups)
 
 # create DGEList object, estimate disperson, fit GLM
-y <- DGEList(short[,3:12], group=groups, lib.size = colSums(short[,3:12]))
+y <- DGEList(short, group=groups, lib.size = colSums(short))
 fit <- estimateDisp(y, design)
 fit <- glmQLFit(fit, design, robust=TRUE) 
 
-colnames(design) <- c("Baseline", "C_8", "C_10", "DoD", "DoD_6")
 # (optional: look for stuff that's differentially expressed across the board)
 # pre_post_all <- makeContrasts(T.6_02 - baseline_02,
 #                            T.6_03 - baseline_03,
@@ -63,11 +70,11 @@ colnames(design) <- c("Baseline", "C_8", "C_10", "DoD", "DoD_6")
 # topTags(dge_all)
 
 # make a contrast (matrix calculating differential expression between to or more samples) for each person
-base_dod6 <- makeContrasts(DoD_6 - Baseline,levels=design)
-base_dod <- makeContrasts(DoD - Baseline,levels=design)
-dod_dod6 <- makeContrasts(DoD - DoD_6,levels=design)
-base_c8 <- makeContrasts(C_8 - Baseline,levels=design)
-base_c10 <- makeContrasts(C_10 - Baseline,levels=design)
+base_dod6 <- makeContrasts(groups14c10 - groups14c06,levels=design)
+base_dod <- makeContrasts(groups14c09 - groups14c06,levels=design)
+dod_dod6 <- makeContrasts(groups14c10 - groups14c09,levels=design)
+base_c8 <- makeContrasts(groups14c07 - groups14c06,levels=design)
+base_c10 <- makeContrasts(groups14c08 - groups14c06,levels=design)
 
 
 # make deg list for each person                                                                             
