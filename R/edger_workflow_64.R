@@ -1,6 +1,7 @@
 library(edgeR)
-library(tidyr)
 library(dplyr)
+library(tidyr)
+library(flowCore)
 library(ggplot2)
 library(RColorBrewer)
 library(gridExtra)
@@ -9,16 +10,26 @@ library(cowplot)
 
 # translated, the assay(CD) object could be a matrix of cluster percentages (rows) per person (columns)
 
+# map new data to same some, but have different seed sequence should produce similar, but not identical results
+
+
 # read in data 
-data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+data2 <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_(copy)_(copy)_results/results/cluster_abundances.csv")
 
 #extract number of cells in each fcs file to convert frequency to actual number
 setwd("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/better_gating/")
+files_list <- list.files(path=".", pattern="*.fcs")
+
 flo_set <- read.flowSet(files_list[21:25], transformation = FALSE, truncate_max_range = FALSE)
 
 
 short <- data
+
+# convert to absolute numbers: we're keeping them the same because we still need to check whether edgeR can
+# adequately deal with the lib.size argument differing with the fcs file sizel this is just the smallest number
+# from any of the fcs files
+
 short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[24]]]@exprs)
 short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[24]]]@exprs)
 short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[24]]]@exprs)
@@ -108,21 +119,33 @@ deg_09 <- deg_09[order(as.numeric(deg_09$Cluster)),]; deg_09$Baseline <- short[,
 
 #mark stuff that never surpasses 1% frequency
 deg_02$matters <- ifelse(deg_02$Baseline < 0.01*number_of_cells, ifelse(deg_02$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
-deg_03$matters <- ifelse(deg_03$Baseline < 0.01*number_of_cells, ifelse(deg_03$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
-deg_05$matters <- ifelse(deg_05$Baseline < 0.01*number_of_cells, ifelse(deg_05$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
-deg_06$matters <- ifelse(deg_06$Baseline < 0.01*number_of_cells, ifelse(deg_06$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
-deg_07$matters <- ifelse(deg_07$Baseline < 0.01*number_of_cells, ifelse(deg_07$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
-deg_09$matters <- ifelse(deg_09$Baseline < 0.01*number_of_cells, ifelse(deg_09$Treatment < 0.01*number_of_cells, "matters_not", "matters"), "matters")
 
 
+deg_base_dod6 <- deg_base_dod6[order(as.numeric(deg_base_dod6$Cluster)),]
+deg_base_dod <- deg_base_dod[order(as.numeric(deg_base_dod$Cluster)),]
+deg_dod_dod6 <- deg_dod_dod6[order(as.numeric(deg_dod_dod6$Cluster)),]
+deg_base_c8 <- deg_base_c8[order(as.numeric(deg_base_c8$Cluster)),]
+deg_base_c10 <- deg_base_c10[order(as.numeric(deg_base_c10$Cluster)),]
+
+deg_base_dod6$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,5] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_dod$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,4] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
+deg_dod_dod6$matters <- ifelse(short[,4] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,5] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_c8$matters <- ifelse(short[,2] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,2] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_c10$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,3] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
 
 # add volunteer, cluster column & collate deglists 
-deg_02$Volunteer <- "V_02"
-deg_03$Volunteer <- "V_03"
-deg_05$Volunteer <- "V_05"
-deg_06$Volunteer <- "V_06"
-deg_07$Volunteer <- "V_07"
-deg_09$Volunteer <- "V_09"
+deg_base_dod6$Volunteer <- "V03"
+deg_base_dod$Volunteer <- "V03"
+deg_dod_dod6$Volunteer <- "V03"
+deg_base_c8$Volunteer <- "V03"
+deg_base_c10$Volunteer <- "V03"
+
+deg_base_dod6$Timepoint <- "deg_base_dod6"
+deg_base_dod$Timepoint <- "deg_base_dod"
+deg_dod_dod6$Timepoint <- "deg_dod_dod6"
+deg_base_c8$Timepoint <- "deg_base_c8"
+deg_base_c10$Timepoint <- "deg_base_c10"
+
 
 # deg_02$Cluster <- rownames(deg_02)
 # deg_03$Cluster <- rownames(deg_03)
@@ -132,80 +155,62 @@ deg_09$Volunteer <- "V_09"
 # deg_09$Cluster <- rownames(deg_09)
 
 # combine them in one big file
-individual_from_all <- rbind(deg_02, deg_03, deg_05, deg_06, deg_07, deg_09)
+individual_from_all <- rbind(deg_base_dod6, deg_base_dod, deg_dod_dod6, deg_base_c8, deg_base_c10)
 
 # subset dataframe so only fold changes over 2 and less than 0.5 are included
-upper_cut_off <- filter(individual_from_all, logFC > 1)
-lower_cut_off <- filter(individual_from_all, logFC < -1)
+upper_cut_off <- dplyr::filter(individual_from_all, logFC > 1)
+lower_cut_off <- dplyr::filter(individual_from_all, individual_from_all$logFC < -1)
 cut_off <- rbind(upper_cut_off, lower_cut_off)
-cut_off <- filter(cut_off, matters == "matters")
+cut_off <- dplyr::filter(cut_off, matters == "matters")
 nrow(cut_off)
 
 # disassemble big dataframe for making figures
 
-list_of_degs <- split(cut_off, cut_off$Volunteer)
+list_of_degs <- split(cut_off, cut_off$Timepoint)
 
 
 
 ######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
 
-setwd("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac69a_t_cells_49cluster_prepost_1_results/results/cluster_medians")
 
-median_02 <- read.csv("T+6_02_UMAP_cluster_medians.csv")
-median_03 <- read.csv("T+6_03_UMAP_cluster_medians.csv")
-median_05 <- read.csv("T+6_05_UMAP_cluster_medians.csv")
-median_06 <- read.csv("T+6_06_UMAP_cluster_medians.csv")
-median_07 <- read.csv("T+6_07_UMAP_cluster_medians.csv")
-median_09 <- read.csv("T+6_09_UMAP_cluster_medians.csv")
+
+setwd("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians/")
+
+deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
 # super convoluted way of doing it but it works: restrict cluster medians to clusters that can be found in deg list with cutoff of log2 1 and -1
-deg_medians_02 <- median_02 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[1]]$Cluster)) %>%
-  mutate(Volunteer = "02") %>%
+deg_medians_02 <- deg_medians_aggregate %>%
+  dplyr::filter(ClusterID %in% as.numeric(list_of_degs[[1]]$Cluster)) %>%
+  mutate(Comparison = list_of_degs[[1]]$Timepoint) %>%
   mutate(FC = paste("Cluster_", ClusterID, " (", substr(as.character(2^as.numeric(list_of_degs[[1]]$logFC)),0,4), ")", sep=''))
 
-deg_medians_03 <- median_03 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[2]]$Cluster)) %>%
-  mutate(Volunteer = "03") %>%
+deg_medians_03 <- deg_medians_aggregate %>%
+  dplyr::filter(ClusterID %in% as.numeric(list_of_degs[[2]]$Cluster))  %>%
+  mutate(Comparison = list_of_degs[[2]]$Timepoint) %>%
   mutate(FC = paste("Cluster_", ClusterID, " (", substr(as.character(2^as.numeric(list_of_degs[[2]]$logFC)),0,4), ")", sep=''))
 
-deg_medians_05 <- median_05 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[3]]$Cluster)) %>%
-  mutate(Volunteer = "05") %>%
+deg_medians_05 <- deg_medians_aggregate %>%
+  dplyr::filter(ClusterID %in% as.numeric(list_of_degs[[3]]$Cluster))  %>%
+  mutate(Comparison = list_of_degs[[3]]$Timepoint) %>%
   mutate(FC = paste("Cluster_", ClusterID, " (", substr(as.character(2^as.numeric(list_of_degs[[3]]$logFC)),0,4), ")", sep=''))
 
-deg_medians_06 <- median_06 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[4]]$Cluster)) %>%
-  mutate(Volunteer = "06") %>%
+deg_medians_06 <- deg_medians_aggregate %>%
+  dplyr::filter(ClusterID %in% as.numeric(list_of_degs[[4]]$Cluster))  %>%
+  mutate(Comparison = list_of_degs[[4]]$Timepoint) %>%
   mutate(FC = paste("Cluster_", ClusterID, " (", substr(as.character(2^as.numeric(list_of_degs[[4]]$logFC)),0,4), ")", sep=''))
 
 
-deg_medians_07 <- median_07 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[5]]$Cluster)) %>%
-  mutate(Volunteer = "07") %>%
-  mutate(FC = paste("Cluster_", ClusterID, " (", substr(as.character(2^as.numeric(list_of_degs[[5]]$logFC)),0,4), ")", sep=''))
-
-deg_medians_09 <- median_09 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[6]]$Cluster)) %>%
-  mutate(Volunteer = "09") %>%
-  mutate(FC = paste("Cluster_", ClusterID, " (", substr(as.character(2^as.numeric(list_of_degs[[6]]$logFC)),0,4), ")", sep=''))
-
 #put it all together to make ggplots; drop UMAP channels
-deg_medians_all <- rbind(deg_medians_02, deg_medians_03, deg_medians_05, deg_medians_06, deg_medians_07, deg_medians_09)
-data_medians_all <- select(deg_medians_all, colnames(deg_medians_all)[c(1:36, 39:40)])
+deg_medians_aggregate <- rbind(deg_medians_02, deg_medians_03, deg_medians_05, deg_medians_06)
 
-#make column names marker names
-colnames(data_medians_all) <- c('ClusterID', 'MetaclusterID', '115In_CD57', '141Pr_HLA-DR', '142Nd_BCL-2', '143Nd_CD45RA', '144Nd_GZB', '145Nd_CD4', '146Nd_Vd2',
-                          '148Nd_ICOS', '149Sm_CXCR5', '150Nd_CD95', '151Eu_CD103', '153Eu_Va7.2', '154Sm_TIM-3', '155Gd_PD1',
-                          '156Gd_CD161', '158Gd_CD27', '159Tb_FoxP3', '160Gd_CTLA4', '161Dy_Tbet', '162Dy_IntegrinB7', '163Dy_CD28', '164Dy_Ki-67',
-                          '165Ho_CD45RO', '166Er_CD56', '167Er_CCR7', '168Er_CD127', '169Tm_CD38', '171Yb_CD49d', '172Yb_CD25', '173Yb_CD39',
-                          '174Yb_CLA', '175Lu_Perforin', '198Pt_CD8', '209Bi_CD16', 'Volunteer', 'Cluster (Fold Change)')
+deg_medians_all <- select(deg_medians_aggregate, colnames(deg_medians_aggregate)[c(1, 2, 5, 16:17, 25:59, 65, 67, 72)])
 
-colnames(data_medians_all)[3:36] <- substr(colnames(data_medians_all)[3:36], 7, 30)
 
+colnames(deg_medians_all)[4:42] <- substr(colnames(deg_medians_all)[4:42], 8, nchar(colnames(deg_medians_all)[4:42])-10)
+colnames(deg_medians_all)[3] <- "CD45"
 # convert to long format
-data_medians_all$MetaclusterID <- NULL
-long_deg_medians_all <- gather(data_medians_all, Marker, Intensity, colnames(data_medians_all)[2:35])
+deg_medians_all$MetaclusterID <- NULL
+long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
 
 # make beautiful iris color palette
 
@@ -232,7 +237,7 @@ marker_levels <- c("CD4",
 "GZB",
 "Tbet",
 "CTLA4",
-"Ki-67",
+"Ki.67",
 "CD127",
 "IntegrinB7",
 "CD56",
@@ -245,86 +250,42 @@ marker_levels <- c("CD4",
 "CD39",
 "CLA",
 "CXCR5",
-
 "CD57",
 "CD45RA",
 "CD45RO",
 "CCR7")
-# make some heatmaps bruv
-
-#0-1 transform is pointless
 
 
 my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 #color_blind <- c("#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000")
 
-# arcsinh transform
-# (big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-#     geom_tile(aes(fill=Intensity), color="white")+
-#     scale_fill_gradientn(colors=rev(my_palette))+
-#     xlab("Cluster")+
-#     ylab("Marker")+
-#     ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
-#     theme(#axis.text.x = element_text(hjust = 1),
-#           panel.border = element_blank(),
-#           panel.grid.major = element_blank(),
-#           panel.grid.minor = element_blank(),
-#           axis.line = element_line(colour = "black"),
-#           legend.title = element_blank(),
-#           plot.title = element_text(hjust = 0.5))+
-#     facet_wrap(~ Volunteer, ncol=6, labeller=as_labeller(labs))
-# )
-# 
-# # arcsinh transform, accesible color scheme
-# (big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-#     geom_tile(aes(fill=Intensity), color="white")+
-#     scale_fill_gradientn(colors=color_blind)+
-#     xlab("Cluster")+
-#     ylab("Marker")+
-#     ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
-#     theme(#axis.text.x = element_text(hjust = 1),
-#       panel.border = element_blank(),
-#       panel.grid.major = element_blank(),
-#       panel.grid.minor = element_blank(),
-#       axis.line = element_line(colour = "black"),
-#       legend.title = element_blank(),
-#       plot.title = element_text(hjust = 0.5))+
-#     facet_wrap(~ Volunteer, ncol=5, labeller=as_labeller(labs))
-# )
-# 
-# 
-
-# unique(long_deg_medians_all$Volunteer)
-
-
-# just makin a table
 
 
 ##############          working figure
 
 
-for(i in unique(long_deg_medians_all$Volunteer)){
+for(i in unique(long_deg_medians_all$Comparison)){
   specific_levels <- NULL
-  ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
-  ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
-  
-  sub_set <- filter(long_deg_medians_all, Volunteer == i)
+  # ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
+  # ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
+  # 
+  sub_set <- dplyr::filter(long_deg_medians_all, Comparison == i)
   
   specific_levels <- sub_set %>% 
-    filter(Marker == "CD4") %>%
+    dplyr::filter(Marker == "CD4") %>%
     arrange(desc(Intensity))
   
   specific_levels <- c(as.character(specific_levels$ClusterID))
   
-  assign(paste("Volunteer_", unique(sub_set$Volunteer), sep=''),
-         ggplot(data = sub_set, aes_(x = factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Volunteer))+
+  assign(paste("comparison_", unique(sub_set$Comparison), sep=''),
+         ggplot(data = sub_set, aes_(x = factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
            geom_tile(aes(fill=Intensity), color="white")+
            scale_fill_gradientn(colors=rev(my_palette))+
-           scale_y_discrete(position = result1)+
+           scale_y_discrete(position = "left")+
            xlab(NULL)+
            ggtitle(paste("Volunteer ", i,sep=''))+
            theme(panel.border = element_blank(),
-                 axis.text.y.left = result,
+                 axis.text.y.left = element_text(size=35),
                  axis.line.y.left = element_blank(),
                  axis.line.y.right = element_blank(),
                  axis.ticks.y = element_blank(),
@@ -343,65 +304,54 @@ for(i in unique(long_deg_medians_all$Volunteer)){
 
 
 
-ggsave("sandbox.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+ggsave("sandbox.pdf", grid.arrange(comparison_deg_base_c8, comparison_deg_base_dod, comparison_deg_base_dod6, comparison_deg_dod_dod6, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
                                                                                                                                                              c(4,5,6))
 ),  width = 40, height = 40, limitsize = F)
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac69a_t_cells_49cluster_prepost_1_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
 short <- select(data, colnames(data[3:14]))
 
 
-clusters_02 <- as.integer(list_of_degs[[1]]$Cluster)
-clusters_03 <- as.integer(list_of_degs[[2]]$Cluster)
-clusters_05 <- as.integer(list_of_degs[[3]]$Cluster)
-clusters_06 <- as.integer(list_of_degs[[4]]$Cluster)
-clusters_07 <- as.integer(list_of_degs[[5]]$Cluster)
-clusters_09 <- as.integer(list_of_degs[[6]]$Cluster)
-
-abun_clusters_02 <- short[c(clusters_02),c(7,1)]
-abun_clusters_02$ClusterID <- as.factor(clusters_02)
-abun_clusters_02$Volunteer <- substr(colnames(abun_clusters_02)[2], 5, 6) 
-colnames(abun_clusters_02) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_03 <- short[c(clusters_03),c(8,2)]
-abun_clusters_03$ClusterID <- as.factor(clusters_03)
-abun_clusters_03$Volunteer <- substr(colnames(abun_clusters_03)[2], 5, 6) 
-colnames(abun_clusters_03) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_05 <- short[c(clusters_05),c(9,3)]
-abun_clusters_05$ClusterID <- as.factor(clusters_05)
-abun_clusters_05$Volunteer <- substr(colnames(abun_clusters_05)[2], 5, 6) 
-colnames(abun_clusters_05) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_06 <- short[c(clusters_06),c(10,4)]
-abun_clusters_06$ClusterID <- as.factor(clusters_06)
-abun_clusters_06$Volunteer <- substr(colnames(abun_clusters_06)[2], 5, 6) 
-colnames(abun_clusters_06) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_07 <- short[c(clusters_07),c(11,5)]
-abun_clusters_07$ClusterID <- as.factor(clusters_07)
-abun_clusters_07$Volunteer <- substr(colnames(abun_clusters_07)[2], 5, 6) 
-colnames(abun_clusters_07) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_09 <- short[c(clusters_09),c(12,6)]
-abun_clusters_09$ClusterID <- as.factor(clusters_09)
-abun_clusters_09$Volunteer <- substr(colnames(abun_clusters_09)[2], 5, 6) 
-colnames(abun_clusters_09) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+clusters_base_c8 <- as.integer(list_of_degs[[1]]$Cluster)
+clusters_base_dod <- as.integer(list_of_degs[[2]]$Cluster)
+clusters_base_dod6 <- as.integer(list_of_degs[[3]]$Cluster)
+clusters_dod_dod6 <- as.integer(list_of_degs[[4]]$Cluster)
 
 
-abun_clusters <- rbind(abun_clusters_02,abun_clusters_03,abun_clusters_05,abun_clusters_06,abun_clusters_07,abun_clusters_09)
-long_abun_clusters <- gather(abun_clusters, Timepoint, Frequency, c("Baseline", "T+6"))
+abun_clusters_02 <- short[c(clusters_base_c8),c(2,1)]
+abun_clusters_02$ClusterID <- as.factor(clusters_base_c8)
+abun_clusters_02$Comparison <- "base_c8"
+colnames(abun_clusters_02) <- c("post", "pre", "ClusterID", "Comparison")
+
+abun_clusters_03 <- short[c(clusters_base_dod),c(4,1)]
+abun_clusters_03$ClusterID <- as.factor(clusters_base_dod)
+abun_clusters_03$Comparison <- "base_dod"
+colnames(abun_clusters_03) <- c("post", "pre", "ClusterID", "Comparison")
+
+abun_clusters_05 <- short[c(clusters_base_dod6),c(5,1)]
+abun_clusters_05$ClusterID <- as.factor(clusters_base_dod6)
+abun_clusters_05$Comparison <- "base_dod6"
+colnames(abun_clusters_05) <- c("post", "pre", "ClusterID", "Comparison")
+
+abun_clusters_06 <- short[c(clusters_dod_dod6),c(5,4)]
+abun_clusters_06$ClusterID <- as.factor(clusters_dod_dod6)
+abun_clusters_06$Comparison <- "dod_dod6"
+colnames(abun_clusters_06) <- c("post", "pre", "ClusterID", "Comparison")
 
 
+abun_clusters <- rbind(abun_clusters_02, abun_clusters_03, abun_clusters_05, abun_clusters_06)
 
-for(i in unique(long_abun_clusters$Volunteer)){
-  
-(graphic <- 
-  
-  ggplot(data=filter(long_abun_clusters, Volunteer == "02"),
-         aes(x=factor(ClusterID, levels = Volunteer_02_levels), y=Frequency, fill=Timepoint)
+long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
+long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
+
+
+for(i in unique(long_abun_clusters$Comparison)){
+  assign(paste(i,"_bar", sep=''), 
+    
+  ggplot(data = dplyr::filter(long_abun_clusters, Comparison == i),
+         aes(x=factor(ClusterID), y=Count, fill=factor(Timepoint, levels=c("pre", "post")))
          )+
   geom_bar(stat="identity", position=position_dodge())+
   scale_fill_brewer(palette="Paired")+
@@ -417,15 +367,13 @@ for(i in unique(long_abun_clusters$Volunteer)){
         axis.title.x = element_text(size=24, color="black"),
         axis.title.y = element_text(size=24, color="black"),
         axis.text.y = element_text(size=20, color="black")))
-
-  Volunteer_02_bar <- graphic 
 }
 
-ggsave("heatmap_plus_abundance_02.pdf", grid.arrange(Volunteer_02, Volunteer_02_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_03.pdf", grid.arrange(Volunteer_03, Volunteer_03_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_05.pdf", grid.arrange(Volunteer_05, Volunteer_05_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_base_c8.pdf", grid.arrange(comparison_deg_base_c8, base_c8_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_deg_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_deg_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_deg_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
-ggsave("heatmap_plus_abundance_06.pdf", grid.arrange(Volunteer_06, Volunteer_06_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_07.pdf", grid.arrange(Volunteer_07, Volunteer_07_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_09.pdf", grid.arrange(Volunteer_09, Volunteer_09_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
+
+########   combine the two for loops so the order f the bar graph matches the drapes
