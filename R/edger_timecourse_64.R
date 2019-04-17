@@ -239,9 +239,10 @@ colnames(deg_medians_all)[3] <- "CD45"
 # long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
 
 deg_medians_all$MetaclusterID <- NULL
-long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
 
-long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>2, "up", "down")
+# order the expression datasets so that the fold change can be neatly carried over from the abundance set
+
+deg_medians_all <- deg_medians_all[order(deg_medians_all$ClusterID),]
 
 
 # make beautiful iris color palette
@@ -318,8 +319,18 @@ dod_dod6_clusters$Fold_Change <- dod_dod6_clusters$post/dod_dod6_clusters$pre
 
 abun_clusters <- rbind(base_dod_clusters, base_dod6_clusters, dod_dod6_clusters)
 
+# order the thing so the fold change carries over correctly
+abun_clusters <- abun_clusters[order(as.numeric(abun_clusters$ClusterID)),]
+abun_clusters$ClusterID <- as.numeric(abun_clusters$ClusterID)
+
 long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
-long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
+# long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
+
+
+deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
+
+long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
+long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>2, "up", "down")
 
 
 # makes a barplot of abundance at the pre and post timepoint for each comparison
@@ -414,4 +425,77 @@ ggsave("heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, 
 
 
 
+
+long_deg_medians_all$Directions <- factor(long_deg_medians_all$Direction, levels = c("up", "down"))
+
 ########   combine the two for loops so the order f the bar graph matches the drapes
+
+#### barplot
+
+for(i in unique(long_abun_clusters$Comparison)){
+  
+  sub_set <- dplyr::filter(long_abun_clusters, Comparison == i)
+  specific_levels <- unique(sub_set[order(sub_set$Fold_Change, decreasing = TRUE),"ClusterID"])
+  print(specific_levels)
+  
+  assign(paste(i,"_bar", sep=''), 
+         
+         ggplot(data = sub_set,
+                aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y=sub_set$Count, fill=factor(sub_set$Timepoint, levels=c("pre", "post")))
+         )+
+           geom_bar(stat="identity", position=position_dodge())+
+           scale_fill_brewer(palette="Paired")+
+           xlab("Cluster ID")+
+           ylab("Percentage of CD3+ T cells")+
+           scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
+           theme(legend.title = element_blank(),
+                 legend.text = element_text(size = 20),
+                 legend.position = "top", 
+                 legend.justification = "center",
+                 legend.direction = "horizontal",
+                 axis.line = element_line(colour = "black"),
+                 axis.text.x = element_text(size=20, color="black"),
+                 axis.title.x = element_text(size=24, color="black"),
+                 axis.title.y = element_text(size=24, color="black"),
+                 axis.text.y = element_text(size=20, color="black")))
+
+  ##### heatmap
+  
+  sub_set <- dplyr::filter(long_deg_medians_all, Comparison == i)
+  
+  assign(paste("comparison_", unique(sub_set$Comparison), sep=''),
+         ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
+           geom_tile(aes(fill=Intensity), color="white")+
+           scale_fill_gradientn(colors=rev(my_palette))+
+           scale_y_discrete(position = "left")+
+           xlab(NULL)+
+           facet_grid(~ Directions, scales = "free")+
+           ggtitle(paste(i))+
+           theme(panel.border = element_blank(),
+                 axis.text.y.left = element_text(size=35),
+                 axis.line.y.left = element_blank(),
+                 axis.line.y.right = element_blank(),
+                 axis.ticks.y = element_blank(),
+                 axis.title.y = element_blank(),
+                 axis.text.x = element_text(size = 33),
+                 axis.text.y.right = element_text(size = 35),
+                 panel.grid.major = element_blank(),
+                 panel.grid.minor = element_blank(),
+                 axis.line = element_line(colour = "black"),
+                 legend.title = element_blank(),
+                 legend.position = "none",
+                 plot.title = element_text(size = 45, hjust = 0.5),
+                 plot.margin = unit(c(1,0,1,0), "cm"),
+                 strip.text.x = element_text(size=28))
+  )
+  }
+
+
+ggsave("heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
+
+
+
+
