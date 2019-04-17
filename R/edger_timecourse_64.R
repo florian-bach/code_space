@@ -202,13 +202,7 @@ clusters_dod_dod6 <- dplyr::filter(important_ones, Timepoint=="deg_dod_dod6")
 
 ### nothing significant from base_c8 or base_c10
 
-
-# medians_base_c10 <- deg_medians_aggregate %>%
-#   dplyr::filter(ClusterID %in% clusters_base_c10$Cluster)%>%
-#   mutate(Comparison = "base_c10") %>%
-#   mutate(Fold_Change = clusters_base_c10$Fold_Change)
-
-medians_base_dod <- deg_medians_aggregate[order(deg_medians_aggregate$ClusterID),] %>%
+medians_base_dod <- deg_medians_aggregate %>%
   dplyr::filter(ClusterID %in% clusters_base_dod$Cluster)  %>%
   mutate(Comparison = "base_dod") %>%
   mutate(Fold_Change = clusters_base_dod$Fold_Change)
@@ -237,8 +231,7 @@ colnames(deg_medians_all)[3] <- "CD45"
 # convert to long format
 # deg_medians_all$MetaclusterID <- NULL
 # long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
-
-deg_medians_all$MetaclusterID <- NULL
+deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -TCRgd, -MetaclusterID)
 
 # order the expression datasets so that the fold change can be neatly carried over from the abundance set
 
@@ -258,13 +251,13 @@ marker_levels <- c("CD4",
 "Vd2",
 "Va7.2",
 "CD38",
-"HLA-DR",
+"HLA.DR",
 "ICOS",
 "CD28",
 "PD1",
-"TIM-3",
+"TIM.3",
 "CD95",
-"BCL-2",
+"BCL.2",
 "CD27",
 "Perforin",
 "GZB",
@@ -273,15 +266,18 @@ marker_levels <- c("CD4",
 "Ki.67",
 "CD127",
 "IntegrinB7",
+"CD49d",
 "CD56",
 "CD16",
 "CD161",
-"CD49d",
 "CD103",
 "CD25",
 "FoxP3",
 "CD39",
 "CLA",
+"CD14",
+"CX3CR1",
+"CD20",
 "CXCR5",
 "CD57",
 "CD45RA",
@@ -326,107 +322,124 @@ abun_clusters$ClusterID <- as.numeric(abun_clusters$ClusterID)
 long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
 # long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
 
+#get rid of cd45, cd3, tcrgd channels
 
+
+# add correct fold change variable
 deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
 
-long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
+# long format
+long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:38])
+
+# add categorical variable whether something is going up or down based on fold change
 long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>2, "up", "down")
 
-
-# makes a barplot of abundance at the pre and post timepoint for each comparison
-for(i in unique(long_abun_clusters$Comparison)){
-  print(i)
-  
-  sub_set <- dplyr::filter(long_abun_clusters, Comparison == i)
-  specific_levels <- unique(sub_set[order(sub_set$Fold_Change, decreasing = TRUE),"ClusterID"])
-  print(specific_levels)
-  
-  assign(paste(i,"_bar", sep=''), 
-         
-         ggplot(data = sub_set,
-                aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y=sub_set$Count, fill=factor(sub_set$Timepoint, levels=c("pre", "post")))
-         )+
-           geom_bar(stat="identity", position=position_dodge())+
-           scale_fill_brewer(palette="Paired")+
-           xlab("Cluster ID")+
-           scale_y_continuous()+
-           theme(legend.title = element_blank(),
-                 legend.text = element_text(size = 20),
-                 legend.position = "top", 
-                 legend.justification = "center",
-                 legend.direction = "horizontal",
-                 axis.line = element_line(colour = "black"),
-                 axis.text.x = element_text(size=20, color="black"),
-                 axis.title.x = element_text(size=24, color="black"),
-                 axis.title.y = element_text(size=24, color="black"),
-                 axis.text.y = element_text(size=20, color="black")))
-}
-
-
-
-##############          working figure
-
-
-for(i in unique(long_deg_medians_all$Comparison)){
-  specific_levels <- NULL
-  print(i)
-  # ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
-  # ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
-  # 
-  sub_set <- dplyr::filter(long_deg_medians_all, Comparison == i)
-  sub_set <- sub_set[order(sub_set$Fold_Change, decreasing=TRUE),]
-  specific_levels <- unique(sub_set$ClusterID)
-  
-  print(specific_levels)
-  # specific_levels <- sub_set %>% 
-  #   dplyr::filter(Marker == "CD4") %>%
-  #   arrange(desc(Intensity))
-  # 
-  # specific_levels <- c(as.character(specific_levels$ClusterID))
-  # 
-  assign(paste("comparison_", unique(sub_set$Comparison), sep=''),
-         ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = as.character(specific_levels)), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
-           geom_tile(aes(fill=Intensity), color="white")+
-           scale_fill_gradientn(colors=rev(my_palette))+
-           scale_y_discrete(position = "left")+
-           xlab(NULL)+
-           facet_grid(~ Direction, scales = "free")+
-           ggtitle(paste(i))+
-           theme(panel.border = element_blank(),
-                 axis.text.y.left = element_text(size=35),
-                 axis.line.y.left = element_blank(),
-                 axis.line.y.right = element_blank(),
-                 axis.ticks.y = element_blank(),
-                 axis.title.y = element_blank(),
-                 axis.text.x = element_text(size = 33),
-                 axis.text.y.right = element_text(size = 35),
-                 panel.grid.major = element_blank(),
-                 panel.grid.minor = element_blank(),
-                 axis.line = element_line(colour = "black"),
-                 legend.title = element_blank(),
-                 legend.position = "none",
-                 plot.title = element_text(size = 45, hjust = 0.5),
-                 plot.margin = unit(c(1,0,1,0), "cm"),
-                 strip.text.x = element_text(size=28))
-  )
-} 
-
-
-
-ggsave("sandbox.pdf", grid.arrange(comparison_base_dod, comparison_base_dod6, comparison_dod_dod6, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
-                                                                                                                                                             c(4,5,6))
-),  width = 40, height = 40, limitsize = F)
-
-
-#ggsave("heatmap_plus_abundance_base_c8.pdf", grid.arrange(comparison_base_c8, base_c8_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-
-
-
-
+# reorder that variable to first the up panel is displayed in the plots
 long_deg_medians_all$Directions <- factor(long_deg_medians_all$Direction, levels = c("up", "down"))
+
+# 
+# # makes a barplot of abundance at the pre and post timepoint for each comparison
+# for(i in unique(long_abun_clusters$Comparison)){
+#   print(i)
+#   
+#   sub_set <- dplyr::filter(long_abun_clusters, Comparison == i)
+#   specific_levels <- unique(sub_set[order(sub_set$Fold_Change, decreasing = TRUE),"ClusterID"])
+#   print(specific_levels)
+#   
+#   assign(paste(i,"_bar", sep=''), 
+#          
+#          ggplot(data = sub_set,
+#                 aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y=sub_set$Count, fill=factor(sub_set$Timepoint, levels=c("pre", "post")))
+#          )+
+#            geom_bar(stat="identity", position=position_dodge())+
+#            scale_fill_brewer(palette="Paired")+
+#            xlab("Cluster ID")+
+#            scale_y_continuous()+
+#            theme(legend.title = element_blank(),
+#                  legend.text = element_text(size = 20),
+#                  legend.position = "top", 
+#                  legend.justification = "center",
+#                  legend.direction = "horizontal",
+#                  axis.line = element_line(colour = "black"),
+#                  axis.text.x = element_text(size=20, color="black"),
+#                  axis.title.x = element_text(size=24, color="black"),
+#                  axis.title.y = element_text(size=24, color="black"),
+#                  axis.text.y = element_text(size=20, color="black")))
+# }
+# 
+# 
+# 
+# ##############          working figure
+# 
+# 
+# for(i in unique(long_deg_medians_all$Comparison)){
+#   specific_levels <- NULL
+#   print(i)
+#   # ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
+#   # ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
+#   # 
+#   sub_set <- dplyr::filter(long_deg_medians_all, Comparison == i)
+#   sub_set <- sub_set[order(sub_set$Fold_Change, decreasing=TRUE),]
+#   specific_levels <- unique(sub_set$ClusterID)
+#   
+#   print(specific_levels)
+#   # specific_levels <- sub_set %>% 
+#   #   dplyr::filter(Marker == "CD4") %>%
+#   #   arrange(desc(Intensity))
+#   # 
+#   # specific_levels <- c(as.character(specific_levels$ClusterID))
+#   # 
+#   assign(paste("comparison_", unique(sub_set$Comparison), sep=''),
+#          ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = as.character(specific_levels)), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
+#            geom_tile(aes(fill=Intensity), color="white")+
+#            scale_fill_gradientn(colors=rev(my_palette))+
+#            scale_y_discrete(position = "left")+
+#            xlab(NULL)+
+#            facet_grid(~ Direction, scales = "free")+
+#            ggtitle(paste(i))+
+#            theme(panel.border = element_blank(),
+#                  axis.text.y.left = element_text(size=35),
+#                  axis.line.y.left = element_blank(),
+#                  axis.line.y.right = element_blank(),
+#                  axis.ticks.y = element_blank(),
+#                  axis.title.y = element_blank(),
+#                  axis.text.x = element_text(size = 33),
+#                  axis.text.y.right = element_text(size = 35),
+#                  panel.grid.major = element_blank(),
+#                  panel.grid.minor = element_blank(),
+#                  axis.line = element_line(colour = "black"),
+#                  legend.title = element_blank(),
+#                  legend.position = "none",
+#                  plot.title = element_text(size = 45, hjust = 0.5),
+#                  plot.margin = unit(c(1,0,1,0), "cm"),
+#                  strip.text.x = element_text(size=28))
+#   )
+# } 
+# 
+# 
+# 
+# ggsave("sandbox.pdf", grid.arrange(comparison_base_dod, comparison_base_dod6, comparison_dod_dod6, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+#                                                                                                                                                              c(4,5,6))
+# ),  width = 40, height = 40, limitsize = F)
+# 
+# 
+# #ggsave("heatmap_plus_abundance_base_c8.pdf", grid.arrange(comparison_base_c8, base_c8_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# 
+# 
+
+
+
+
+
+
+
+
+
+
+
 
 ########   combine the two for loops so the order f the bar graph matches the drapes
 
@@ -436,7 +449,6 @@ for(i in unique(long_abun_clusters$Comparison)){
   
   sub_set <- dplyr::filter(long_abun_clusters, Comparison == i)
   specific_levels <- unique(sub_set[order(sub_set$Fold_Change, decreasing = TRUE),"ClusterID"])
-  print(specific_levels)
   
   assign(paste(i,"_bar", sep=''), 
          
