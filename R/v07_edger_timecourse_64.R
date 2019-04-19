@@ -14,14 +14,14 @@ library(cowplot)
 
 
 # read in data 
-data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/better_gating/double_flowsoms/FlowSOM_big_timecourse_07b_results/results/cluster_abundances.csv")
+data <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
+data2 <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07b_results/results/cluster_abundances.csv")
 
 #extract number of cells in each fcs file to convert frequency to actual number
-setwd("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/better_gating/")
+setwd("/home/florian/PhD/cytof/better_gating")
 files_list <- list.files(path=".", pattern="*.fcs")
 
-flo_set <- read.flowSet(files_list[21:25], transformation = FALSE, truncate_max_range = FALSE)
+flo_set <- read.flowSet(files_list[6:10], transformation = FALSE, truncate_max_range = FALSE)
 
 
 short <- data
@@ -30,26 +30,26 @@ short <- data
 # adequately deal with the lib.size argument differing with the fcs file sizel this is just the smallest number
 # from any of the fcs files
 
-short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short[,6] <- data[,6]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short[,7] <- data[,7]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short[,6] <- data[,6]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short[,7] <- data[,7]*nrow(flo_set@frames[[files_list[9]]]@exprs)
 
 # short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[21]]]@exprs)
 # short[,4] <- data[,4]*nrow(flo_set@frames[[files_list[22]]]@exprs)
 # short[,5] <- data[,5]*nrow(flo_set@frames[[files_list[23]]]@exprs)
-# short[,6] <- data[,6]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+# short[,6] <- data[,6]*nrow(flo_set@frames[[files_list[9]]]@exprs)
 # short[,7] <- data[,7]*nrow(flo_set@frames[[files_list[25]]]@exprs)
 
 
 # repeat same stuff for other dataframe 
 short2 <- data2
-short2[,3] <- data2[,3]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short2[,4] <- data2[,4]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short2[,5] <- data2[,5]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short2[,6] <- data2[,6]*nrow(flo_set@frames[[files_list[24]]]@exprs)
-short2[,7] <- data2[,7]*nrow(flo_set@frames[[files_list[24]]]@exprs)
+short2[,3] <- data2[,3]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short2[,4] <- data2[,4]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short2[,5] <- data2[,5]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short2[,6] <- data2[,6]*nrow(flo_set@frames[[files_list[9]]]@exprs)
+short2[,7] <- data2[,7]*nrow(flo_set@frames[[files_list[9]]]@exprs)
 # combine
 short <- cbind(short, short2)
 rownames(short) <- short$ClusterID
@@ -130,18 +130,18 @@ deg_dod_dod6 <- deg_dod_dod6[order(as.numeric(deg_dod_dod6$Cluster)),]
 deg_base_c8 <- deg_base_c8[order(as.numeric(deg_base_c8$Cluster)),]
 deg_base_c10 <- deg_base_c10[order(as.numeric(deg_base_c10$Cluster)),]
 
-deg_base_dod6$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,5] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
-deg_base_dod$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,4] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
-deg_dod_dod6$matters <- ifelse(short[,4] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,5] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
-deg_base_c8$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,2] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
-deg_base_c10$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), ifelse(short[,3] < 0.01*nrow(flo_set@frames[[files_list[24]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_dod6$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), ifelse(short[,5] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_dod$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), ifelse(short[,4] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), "matters_not", "matters"), "matters")
+deg_dod_dod6$matters <- ifelse(short[,4] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), ifelse(short[,5] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_c8$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), ifelse(short[,2] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), "matters_not", "matters"), "matters")
+deg_base_c10$matters <- ifelse(short[,1] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), ifelse(short[,3] < 0.01*nrow(flo_set@frames[[files_list[9]]]@exprs), "matters_not", "matters"), "matters")
 
 # add volunteer, cluster column & collate deglists 
-deg_base_dod6$Volunteer <- "V03"
-deg_base_dod$Volunteer <- "V03"
-deg_dod_dod6$Volunteer <- "V03"
-deg_base_c8$Volunteer <- "V03"
-deg_base_c10$Volunteer <- "V03"
+deg_base_dod6$Volunteer <- "V07"
+deg_base_dod$Volunteer <- "V07"
+deg_dod_dod6$Volunteer <- "V07"
+deg_base_c8$Volunteer <- "V07"
+deg_base_c10$Volunteer <- "V07"
 
 deg_base_dod6$Timepoint <- "deg_base_dod6"
 deg_base_dod$Timepoint <- "deg_base_dod"
@@ -164,20 +164,23 @@ all_degs <- mapply(cbind, all_degs, "Fold_Change"= fold_change, SIMPLIFY=F)
 #individual_from_all <- rbind(deg_base_dod6, deg_base_dod, deg_dod_dod6, deg_base_c8, deg_base_c10)
 
 individual_from_all <- plyr::ldply(all_degs, rbind)
+nrow(individual_from_all)
 #nrow=320
 
 individual_from_all <- dplyr::filter(individual_from_all, FDR<0.01)
-#nrow=176
+nrow(individual_from_all)
+#nrow=205
 
 # subset dataframe so only fold changes over 2 and less than 0.5 are included
 lower_cut_off <- dplyr::filter(individual_from_all, Fold_Change > 2)
 upper_cut_off <- dplyr::filter(individual_from_all, Fold_Change < 0.5)
 cut_off <- rbind(upper_cut_off, lower_cut_off)
-#nrow=52
+nrow(cut_off)
+#nrow=15
 
 cut_off <- dplyr::filter(cut_off, matters == "matters")
 nrow(cut_off)
-#nrow=42
+#nrow=10
 
 # disassemble big dataframe for making figures
 
@@ -189,23 +192,17 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 
 
-setwd("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians/")
+setwd("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_medians/")
 
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
 ### make small dataframes for each cluster comparison
-#clusters_base_c10 <- dplyr::filter(important_ones, Timepoint=="deg_base_c10")
-clusters_base_dod <- dplyr::filter(important_ones, Timepoint=="deg_base_dod")
+### nothing significant from base_c8 or base_c10 or base_dod (!)
+
 clusters_base_dod6 <- dplyr::filter(important_ones, Timepoint=="deg_base_dod6")
 clusters_dod_dod6 <- dplyr::filter(important_ones, Timepoint=="deg_dod_dod6")
 
-
-### nothing significant from base_c8 or base_c10
-
-medians_base_dod <- deg_medians_aggregate %>%
-  dplyr::filter(ClusterID %in% clusters_base_dod$Cluster)  %>%
-  mutate(Comparison = "base_dod") %>%
-  mutate(Fold_Change = clusters_base_dod$Fold_Change)
+### add marker expression data
 
 medians_base_dod6 <- deg_medians_aggregate %>%
   dplyr::filter(ClusterID %in% clusters_base_dod6$Cluster)  %>%
@@ -219,7 +216,7 @@ medians_dod_dod6 <- deg_medians_aggregate %>%
 
 
 #put it all together to make ggplots; drop UMAP channels
-deg_medians_aggregate <- rbind(medians_base_dod, medians_base_dod6, medians_dod_dod6)
+deg_medians_aggregate <- rbind(medians_base_dod6, medians_dod_dod6)
 
 deg_medians_all <- select(deg_medians_aggregate, colnames(deg_medians_aggregate)[c(1, 2, 5, 16:17, 25:59, 65, 67, 72, 73)])
 
@@ -290,15 +287,8 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+data <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
 short <- select(data, colnames(data[3:7]))
-
-
-base_dod_clusters <- short[c(clusters_base_dod$Cluster),c(4,1)]
-base_dod_clusters$ClusterID <- rownames(base_dod_clusters)
-base_dod_clusters$Comparison <- "base_dod"
-colnames(base_dod_clusters)[1:2] <- c("post", "pre")
-base_dod_clusters$Fold_Change <- base_dod_clusters$post/base_dod_clusters$pre
 
 
 base_dod6_clusters <- short[c(as.numeric(clusters_base_dod6$Cluster)),c(5,1)]
@@ -313,7 +303,7 @@ dod_dod6_clusters$Comparison <- "dod_dod6"
 colnames(dod_dod6_clusters)[1:2] <- c("post", "pre")
 dod_dod6_clusters$Fold_Change <- dod_dod6_clusters$post/dod_dod6_clusters$pre
 
-abun_clusters <- rbind(base_dod_clusters, base_dod6_clusters, dod_dod6_clusters)
+abun_clusters <- rbind(base_dod6_clusters, dod_dod6_clusters)
 
 # order the thing so the fold change carries over correctly
 abun_clusters <- abun_clusters[order(as.numeric(abun_clusters$ClusterID)),]
@@ -321,9 +311,6 @@ abun_clusters$ClusterID <- as.numeric(abun_clusters$ClusterID)
 
 long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
 # long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
-
-#get rid of cd45, cd3, tcrgd channels
-
 
 # add correct fold change variable
 deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
@@ -502,8 +489,7 @@ for(i in unique(long_abun_clusters$Comparison)){
   )
 }
 
-
-ggsave("v07_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+setwd("/home/florian/PhD/cytof/better_gating/double_flowsoms/figures/")
 ggsave("v07_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v07_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
