@@ -483,15 +483,16 @@ for(i in unique(long_abun_clusters$Comparison)){
            geom_tile(aes(fill=Intensity), color="white")+
            scale_fill_gradientn(colors=rev(my_palette))+
            scale_y_discrete(position = "left")+
-           xlab(NULL)+
+           xlab("Cluster ID")+
            facet_grid(~ Directions, scales = "free")+
-           ggtitle(paste(i))+
+           ggtitle(paste("V09 ", i, sep=''))+
            theme(panel.border = element_blank(),
                  axis.text.y.left = element_text(size=35),
                  axis.line.y.left = element_blank(),
                  axis.line.y.right = element_blank(),
                  axis.ticks.y = element_blank(),
                  axis.title.y = element_blank(),
+                 axis.title.x = element_text(size=33),
                  axis.text.x = element_text(size = 33),
                  axis.text.y.right = element_text(size = 35),
                  panel.grid.major = element_blank(),
