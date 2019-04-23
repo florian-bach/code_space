@@ -310,14 +310,14 @@ base_dod_clusters$Comparison <- "base_dod"
 colnames(base_dod_clusters)[1:2] <- c("post", "pre")
 base_dod_clusters$Fold_Change <- base_dod_clusters$post/base_dod_clusters$pre
 
-base_c10_clusters <- short[c(clusters_base_c10$Cluster),c(4,1)]
+base_c10_clusters <- short[c(clusters_base_c10$Cluster),c(2,1)]
 base_c10_clusters$ClusterID <- rownames(base_c10_clusters)
 base_c10_clusters$Comparison <- "base_c10"
 colnames(base_c10_clusters)[1:2] <- c("post", "pre")
 base_c10_clusters$Fold_Change <- base_c10_clusters$post/base_c10_clusters$pre
 
 
-base_c12_clusters <- short[c(clusters_base_c12$Cluster),c(4,1)]
+base_c12_clusters <- short[c(clusters_base_c12$Cluster),c(3,1)]
 base_c12_clusters$ClusterID <- rownames(base_c12_clusters)
 base_c12_clusters$Comparison <- "base_c12"
 colnames(base_c12_clusters)[1:2] <- c("post", "pre")

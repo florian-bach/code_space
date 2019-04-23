@@ -362,7 +362,7 @@ for(i in unique(long_abun_clusters$Comparison)){
   specific_levels <- unique(sub_set[order(sub_set$Fold_Change, decreasing = TRUE),"ClusterID"])
   
   assign(paste(i,"_bar", sep=''), 
-         
+        
          ggplot(data = sub_set,
                 aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y=sub_set$Count, fill=factor(sub_set$Timepoint, levels=c("pre", "post")))
          )+

@@ -325,7 +325,6 @@ abun_clusters <- abun_clusters[order(as.numeric(abun_clusters$ClusterID)),]
 abun_clusters$ClusterID <- as.numeric(abun_clusters$ClusterID)
 
 long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
-# long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
 
 #get rid of cd45, cd3, tcrgd channels
 

@@ -32,7 +32,7 @@ flo_set <- read.flowSet(files_list[16:20], transformation = FALSE, truncate_max_
 short <- data
 
 # convert to absolute numbers: we're keeping them the same because we still need to check whether edgeR can
-# adequately deal with the lib.size argument differing with the fcs file sizel this is just the smallest number
+# adequately deal with the lib.size argument differing with the fcs file size; this is just the smallest number
 # from any of the fcs files
 
 short[,3] <- data[,3]*nrow(flo_set@frames[[files_list[19]]]@exprs)
@@ -49,6 +49,7 @@ short2[,4] <- data2[,4]*nrow(flo_set@frames[[files_list[19]]]@exprs)
 short2[,5] <- data2[,5]*nrow(flo_set@frames[[files_list[19]]]@exprs)
 short2[,6] <- data2[,6]*nrow(flo_set@frames[[files_list[19]]]@exprs)
 short2[,7] <- data2[,7]*nrow(flo_set@frames[[files_list[19]]]@exprs)
+
 # combine
 short <- cbind(short, short2)
 rownames(short) <- short$ClusterID
@@ -71,15 +72,6 @@ y <- DGEList(short, group=groups, lib.size = colSums(short))
 fit <- estimateDisp(y, design)
 fit <- glmQLFit(fit, design, robust=TRUE) 
 
-# (optional: look for stuff that's differentially expressed across the board)
-# pre_post_all <- makeContrasts(T.6_02 - baseline_02,
-#                            T.6_03 - baseline_03,
-#                            T.6_05 - baseline_05,
-#                            T.6_07 - baseline_07,
-#                            T.6_09 - baseline_09,
-#                            levels=design)
-# dge_all <- glmQLFTest(fit, contrast=pre_post_all) 
-# topTags(dge_all)
 
 # make a contrast (matrix calculating differential expression between to or more samples) for each person
 base_dod6 <- makeContrasts(groupsDoD6 - groupsBaseline, levels=design)
@@ -104,7 +96,7 @@ deg_base_c12 <- topTags(deg_base_c12, n=64)$table
 deg_base_c10 <- topTags(deg_base_c10, n=64)$table 
 
 
-#add cluser as column 
+#add cluster as column 
 deg_base_dod6$Cluster <- rownames(deg_base_dod6)
 deg_base_dod$Cluster <- rownames(deg_base_dod)
 deg_dod_dod6$Cluster <- rownames(deg_dod_dod6)
@@ -232,14 +224,8 @@ colnames(deg_medians_all)[4:42] <- substr(colnames(deg_medians_all)[4:42], 8, nc
 colnames(deg_medians_all)[3] <- "CD45"
 
 
-
-# convert to long format
-# deg_medians_all$MetaclusterID <- NULL
-# long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
-
 #get rid of cd45, cd3, tcrgd channels
 deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -TCRgd, -MetaclusterID)
-
 
 
 # order the expression datasets so that the fold change can be neatly carried over from the abundance set
@@ -309,14 +295,13 @@ base_dod_clusters$Comparison <- "base_dod"
 colnames(base_dod_clusters)[1:2] <- c("post", "pre")
 base_dod_clusters$Fold_Change <- base_dod_clusters$post/base_dod_clusters$pre
 
-base_c10_clusters <- short[c(clusters_base_c10$Cluster),c(4,1)]
+base_c10_clusters <- short[c(clusters_base_c10$Cluster),c(2,1)]
 base_c10_clusters$ClusterID <- rownames(base_c10_clusters)
 base_c10_clusters$Comparison <- "base_c10"
 colnames(base_c10_clusters)[1:2] <- c("post", "pre")
 base_c10_clusters$Fold_Change <- base_c10_clusters$post/base_c10_clusters$pre
 
-
-base_c12_clusters <- short[c(clusters_base_c12$Cluster),c(4,1)]
+base_c12_clusters <- short[c(clusters_base_c12$Cluster),c(3,1)]
 base_c12_clusters$ClusterID <- rownames(base_c12_clusters)
 base_c12_clusters$Comparison <- "base_c12"
 colnames(base_c12_clusters)[1:2] <- c("post", "pre")
@@ -344,8 +329,6 @@ abun_clusters <- abun_clusters[order(as.numeric(abun_clusters$ClusterID)),]
 abun_clusters$ClusterID <- as.numeric(abun_clusters$ClusterID)
 
 long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
-# long_abun_clusters$Count <- long_abun_clusters$Count/nrow(flo_set@frames[[files_list[24]]]@exprs)
-
 
 # add correct fold change variable
 deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
