@@ -8,17 +8,23 @@ library(gridExtra)
 library(cowplot)
 
 
+### clean environment
+
+remove(list = ls())
+
+
+
 # translated, the assay(CD) object could be a matrix of cluster percentages (rows) per person (columns)
 
 # map new data to same some, but have different seed sequence should produce similar, but not identical results
 
 
 # read in data 
-data <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_(copy)_results/results/cluster_abundances.csv")
-data2 <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_(copy)_results/results/cluster_abundances.csv")
+data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
 
 #extract number of cells in each fcs file to convert frequency to actual number
-setwd("/home/florian/PhD/cytof/better_gating")
+setwd("/Users/s1249052/PhD/cytof/better_gating")
 
 files_list <- list.files(path=".", pattern="*.fcs")
 
@@ -189,7 +195,7 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 ######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
 
 
-setwd("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
 ### make small dataframes for each cluster comparison
@@ -289,7 +295,7 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-data <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
 short <- select(data, colnames(data[3:7]))
 
 
@@ -331,112 +337,10 @@ deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
 long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:38])
 
 # add categorical variable whether something is going up or down based on fold change
-long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>2, "up", "down")
+long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>1, "up", "down")
 
 # reorder that variable to first the up panel is displayed in the plots
 long_deg_medians_all$Directions <- factor(long_deg_medians_all$Direction, levels = c("up", "down"))
-
-# 
-# # makes a barplot of abundance at the pre and post timepoint for each comparison
-# for(i in unique(long_abun_clusters$Comparison)){
-#   print(i)
-#   
-#   sub_set <- dplyr::filter(long_abun_clusters, Comparison == i)
-#   specific_levels <- unique(sub_set[order(sub_set$Fold_Change, decreasing = TRUE),"ClusterID"])
-#   print(specific_levels)
-#   
-#   assign(paste(i,"_bar", sep=''), 
-#          
-#          ggplot(data = sub_set,
-#                 aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y=sub_set$Count, fill=factor(sub_set$Timepoint, levels=c("pre", "post")))
-#          )+
-#            geom_bar(stat="identity", position=position_dodge())+
-#            scale_fill_brewer(palette="Paired")+
-#            xlab("Cluster ID")+
-#            scale_y_continuous()+
-#            theme(legend.title = element_blank(),
-#                  legend.text = element_text(size = 20),
-#                  legend.position = "top", 
-#                  legend.justification = "center",
-#                  legend.direction = "horizontal",
-#                  axis.line = element_line(colour = "black"),
-#                  axis.text.x = element_text(size=20, color="black"),
-#                  axis.title.x = element_text(size=24, color="black"),
-#                  axis.title.y = element_text(size=24, color="black"),
-#                  axis.text.y = element_text(size=20, color="black")))
-# }
-# 
-# 
-# 
-# ##############          working figure
-# 
-# 
-# for(i in unique(long_deg_medians_all$Comparison)){
-#   specific_levels <- NULL
-#   print(i)
-#   # ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
-#   # ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
-#   # 
-#   sub_set <- dplyr::filter(long_deg_medians_all, Comparison == i)
-#   sub_set <- sub_set[order(sub_set$Fold_Change, decreasing=TRUE),]
-#   specific_levels <- unique(sub_set$ClusterID)
-#   
-#   print(specific_levels)
-#   # specific_levels <- sub_set %>% 
-#   #   dplyr::filter(Marker == "CD4") %>%
-#   #   arrange(desc(Intensity))
-#   # 
-#   # specific_levels <- c(as.character(specific_levels$ClusterID))
-#   # 
-#   assign(paste("comparison_", unique(sub_set$Comparison), sep=''),
-#          ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = as.character(specific_levels)), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
-#            geom_tile(aes(fill=Intensity), color="white")+
-#            scale_fill_gradientn(colors=rev(my_palette))+
-#            scale_y_discrete(position = "left")+
-#            xlab(NULL)+
-#            facet_grid(~ Direction, scales = "free")+
-#            ggtitle(paste(i))+
-#            theme(panel.border = element_blank(),
-#                  axis.text.y.left = element_text(size=35),
-#                  axis.line.y.left = element_blank(),
-#                  axis.line.y.right = element_blank(),
-#                  axis.ticks.y = element_blank(),
-#                  axis.title.y = element_blank(),
-#                  axis.text.x = element_text(size = 33),
-#                  axis.text.y.right = element_text(size = 35),
-#                  panel.grid.major = element_blank(),
-#                  panel.grid.minor = element_blank(),
-#                  axis.line = element_line(colour = "black"),
-#                  legend.title = element_blank(),
-#                  legend.position = "none",
-#                  plot.title = element_text(size = 45, hjust = 0.5),
-#                  plot.margin = unit(c(1,0,1,0), "cm"),
-#                  strip.text.x = element_text(size=28))
-#   )
-# } 
-# 
-# 
-# 
-# ggsave("sandbox.pdf", grid.arrange(comparison_base_dod, comparison_base_dod6, comparison_dod_dod6, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
-#                                                                                                                                                              c(4,5,6))
-# ),  width = 40, height = 40, limitsize = F)
-# 
-# 
-# #ggsave("heatmap_plus_abundance_base_c8.pdf", grid.arrange(comparison_base_c8, base_c8_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-# ggsave("heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-# ggsave("heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-# ggsave("heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-# 
-# 
-
-
-
-
-
-
-
-
-
 
 
 
@@ -502,7 +406,7 @@ for(i in unique(long_abun_clusters$Comparison)){
   )
   }
 
-setwd("/home/florian/PhD/cytof/better_gating/double_flowsoms/figures/")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures/")
 
 ggsave("v03_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v03_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)

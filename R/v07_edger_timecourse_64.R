@@ -8,17 +8,17 @@ library(gridExtra)
 library(cowplot)
 
 
-# translated, the assay(CD) object could be a matrix of cluster percentages (rows) per person (columns)
+### clean environment
 
-# map new data to same some, but have different seed sequence should produce similar, but not identical results
+remove(list = ls())
 
 
 # read in data 
-data <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
-data2 <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07b_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
+data2 <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07b_results/results/cluster_abundances.csv")
 
 #extract number of cells in each fcs file to convert frequency to actual number
-setwd("/home/florian/PhD/cytof/better_gating")
+setwd("/Users/s1249052//PhD/cytof/better_gating")
 files_list <- list.files(path=".", pattern="*.fcs")
 
 flo_set <- read.flowSet(files_list[6:10], transformation = FALSE, truncate_max_range = FALSE)
@@ -192,7 +192,7 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 
 
-setwd("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_medians/")
+setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_medians/")
 
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
@@ -287,7 +287,7 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-data <- read.csv("/home/florian/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_07a_results/results/cluster_abundances.csv")
 short <- select(data, colnames(data[3:7]))
 
 
@@ -319,7 +319,7 @@ deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
 long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:38])
 
 # add categorical variable whether something is going up or down based on fold change
-long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>2, "up", "down")
+long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>1, "up", "down")
 
 # reorder that variable to first the up panel is displayed in the plots
 long_deg_medians_all$Directions <- factor(long_deg_medians_all$Direction, levels = c("up", "down"))
@@ -490,7 +490,7 @@ for(i in unique(long_abun_clusters$Comparison)){
   )
 }
 
-setwd("/home/florian/PhD/cytof/better_gating/double_flowsoms/figures/")
+setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/")
 ggsave("v07_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v07_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
