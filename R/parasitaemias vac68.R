@@ -31,7 +31,7 @@ ggplot(data=parasitaemias[!is.na(parasitaemias$Genomes),], aes(x=factor(Timepoin
   theme(legend.title = element_blank(),
         legend.text = element_text(size = 20) ,
         axis.line = element_line(colour = "black"),
-        axis.text.x = element_text(angle = 60, hjust = 1, size=20, color="black"),
+        axis.text.x = element_text(angle = 60, hjust = 1, size=18, color="black"),
         axis.title.x = element_text(size=24, color="black"),
         axis.title.y = element_text(size=24, color="black"),
         axis.text.y = element_text(size=20, color="black"))#
@@ -39,7 +39,14 @@ ggplot(data=parasitaemias[!is.na(parasitaemias$Genomes),], aes(x=factor(Timepoin
 # +
 #   geom_smooth(method = "loess", se=TRUE, aes=(color=factor(Volunteer)), formula = y ~ x)
  
-ggsave ("/Users/s1249052/PhD/presentations/spence_rowe_lab_meetings/parasitaemias_vac68.pdf", height = 10, width=15)
+ggsave ("/Users/s1249052/PhD/oxford/vac68/parasitaemias_vac68.pdf", height = 8, width=10)
+
+
+
+
+
+
+
 
 attach(parasitaemias)
 
