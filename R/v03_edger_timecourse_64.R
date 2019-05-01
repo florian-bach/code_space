@@ -197,6 +197,10 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
+colMeans(deg_medians_aggregate[,5:71])
+
+#0 1 transform of marker intensities, columnwise
+deg_medians_aggregate[,5:71] <- lapply(deg_medians_aggregate[5:71], function(x){scales::rescale(x,to=c(0,1))})
 
 ### make small dataframes for each cluster comparison
 #clusters_base_c10 <- dplyr::filter(important_ones, Timepoint=="deg_base_c10")
@@ -236,7 +240,7 @@ colnames(deg_medians_all)[3] <- "CD45"
 # convert to long format
 # deg_medians_all$MetaclusterID <- NULL
 # long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
-deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -TCRgd, -MetaclusterID)
+deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -CD14, -CD20, -TIM.3, -CXCR5, -CX3CR1,  -TCRgd, -MetaclusterID)
 
 # order the expression datasets so that the fold change can be neatly carried over from the abundance set
 
@@ -333,7 +337,7 @@ long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
 deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
 
 # long format
-long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:38])
+long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:33])
 
 # add categorical variable whether something is going up or down based on fold change
 long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>1, "up", "down")
@@ -376,6 +380,7 @@ for(i in unique(long_abun_clusters$Comparison)){
   ##### heatmap
   
   sub_set <- dplyr::filter(long_deg_medians_all, Comparison == i)
+  #sub_set$Intensity <- scales::rescale(sub_set$Intensity, to=c(0,1))
   
   assign(paste("comparison_", unique(sub_set$Comparison), sep=''),
          ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
@@ -407,9 +412,14 @@ for(i in unique(long_abun_clusters$Comparison)){
 
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures/")
 
-ggsave("v03_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v03_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v03_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v03_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v03_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v03_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
+
+ggsave("v03_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("v03_01_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("v03_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
 
 
