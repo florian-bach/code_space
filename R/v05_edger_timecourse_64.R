@@ -187,6 +187,10 @@ setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timec
 
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
+#0 1 transform of marker intensities, columnwise
+deg_medians_aggregate[,5:71] <- lapply(deg_medians_aggregate[5:71], function(x){scales::rescale(x,to=c(0,1))})
+
+
 ### make small dataframes for each cluster comparison to then add marker expression data to it later
 
 clusters_base_c10 <- dplyr::filter(important_ones, Timepoint=="deg_base_c10")
@@ -239,7 +243,7 @@ colnames(deg_medians_all)[3] <- "CD45"
 # long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
 
 #get rid of cd45, cd3, tcrgd channels
-deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -TCRgd, -MetaclusterID)
+deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -CD14, -CD20, -TIM.3, -CXCR5, -CX3CR1,  -TCRgd, -MetaclusterID)
 
 
 
@@ -424,11 +428,17 @@ for(i in unique(long_abun_clusters$Comparison)){
 
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
 
-ggsave("v05_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v05_heatmap_plus_abundance_base_c12.pdf", grid.arrange(comparison_base_c12, base_c12_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v05_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v05_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v05_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v05_heatmap_plus_abundance_base_c12.pdf", grid.arrange(comparison_base_c12, base_c12_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v05_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# ggsave("v05_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+# 
+# 
 
+ggsave("v05_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("v05_01_heatmap_plus_abundance_base_c12.pdf", grid.arrange(comparison_base_c12, base_c12_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("v05_01_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+ggsave("v05_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
 
 
