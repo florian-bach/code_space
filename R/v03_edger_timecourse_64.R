@@ -197,7 +197,6 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
-colMeans(deg_medians_aggregate[,5:71])
 
 #0 1 transform of marker intensities, columnwise
 deg_medians_aggregate[,5:71] <- lapply(deg_medians_aggregate[5:71], function(x){scales::rescale(x,to=c(0,1))})
@@ -240,7 +239,7 @@ colnames(deg_medians_all)[3] <- "CD45"
 # convert to long format
 # deg_medians_all$MetaclusterID <- NULL
 # long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
-deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -CD14, -CD20, -TIM.3, -CXCR5, -CX3CR1,  -TCRgd, -MetaclusterID)
+deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -CD14, -CD20, -TIM.3, -CXCR5, -CX3CR1, -CD103,  -IntegrinB7, -TCRgd, -MetaclusterID)
 
 # order the expression datasets so that the fold change can be neatly carried over from the abundance set
 

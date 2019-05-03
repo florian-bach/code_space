@@ -247,7 +247,7 @@ colnames(deg_medians_all)[3] <- "CD45"
 # long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:41])
 
 #get rid of cd45, cd3, tcrgd channels
-deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -CD14, -CD20, -TIM.3, -CXCR5, -CX3CR1,  -TCRgd, -MetaclusterID)
+deg_medians_all <- select(deg_medians_all, -CD45, -CD3, -CD14, -CD20, -TIM.3, -CXCR5, -CX3CR1, -CD103,  -IntegrinB7, -TCRgd, -MetaclusterID)
 
 
 
