@@ -321,7 +321,7 @@ long_abun_clusters <- gather(abun_clusters, Timepoint, Count, c("pre", "post"))
 deg_medians_all$Fold_Change <- abun_clusters$Fold_Change
 
 # long format
-long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:33])
+long_deg_medians_all <- gather(deg_medians_all, Marker, Intensity, colnames(deg_medians_all)[2:31])
 
 # add categorical variable whether something is going up or down based on fold change
 long_deg_medians_all$Direction <- ifelse(long_deg_medians_all$Fold_Change>1, "up", "down")
