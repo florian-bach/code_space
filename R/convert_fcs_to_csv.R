@@ -9,7 +9,7 @@ library('flowCore')
 
 # Set working directory
 getwd()
-setwd("/Users/s1249052/PhD/flow data/vac69a/t cells only/experiment_210618_files") # set to your desired working folder (directory)
+setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/") # set to your desired working folder (directory)
 PrimaryDirectory <- getwd()
 
 # Find file names of .fcs files in the current working directory
