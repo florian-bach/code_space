@@ -257,7 +257,7 @@ deg_medians_all <- deg_medians_all[order(deg_medians_all$ClusterID),]
 
 # make beautiful iris color palette
 
-#my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
+my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
 #my_palette <- rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))
 
 
@@ -428,6 +428,54 @@ setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures")
 ggsave("v06_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v06_01_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v06_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(ggsunburst)
+
+sunburst_clusters <- sunburst_data("up_dod_dod6.csv", type = "node_parent", sep = ',', node_attributes = 'colour')
+
+sunburst(sunburst_clusters, rects.fill.aes = "colour", node_labels = T, node_labels.min = 25)
+
+
+
+
+sunburst(data, rects.fill="white", rects.fill.aes=0, rects.color="black", rects.size=.5, blank=T, leaf_labels=T, leaf_labels.size = 2, leaf_labels.color = "black", node_labels = F, node_labels.size = 2, node_labels.color = "black", node_labels.min = 90)
+
+
+
+
+
+
+
+# 
+# 
+# data object obtained using the sunburst_data function
+# rects.fill color of space-filled nodes
+# rects.fill.aes color of space-filled nodes mapped to a variable
+# rects.color color of line delimiter between partitions
+# rects.size size of line delimiter between partitions
+# blank if TRUE, a blank theme is applied
+# leaf_labels if TRUE, shows leaf labels
+# text.size size for text of leaf labels
+# text.color color for text of leaf labels
+# node_labels if TRUE, shows node labels
+# node_labels.size size for text of node labels
+# node_labels.color color for text of node labels
+# node_labels.min sets the minimum size in angles for a internal node to display the label
+# 
+
 
 
 
