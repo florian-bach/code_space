@@ -48,7 +48,7 @@ pie_data <- filter(pie_data, Population != "Activated")
 pie_data <- filter(pie_data, Gate=="Activated T cells")
 
 
-(pie_plot <- ggplot(pie_data, aes(x=Activated/2, y=Percentage, fill=Population, width=Activated))+
+(pie_plot <- ggplot(pie_data, aes(x=Activated*2, y=Percentage, fill=Population, width=Activated))+
   geom_bar(stat="identity", color="black")+
   coord_polar("y")+
   facet_grid(~Volunteer)+
@@ -64,3 +64,44 @@ freqs <- c(9.39, 19.89, 10.3, 18, 12.16, 15.1)
 
 
 
+
+
+up_dod_dod6 <- filter(long_abun_clusters, Comparison=="dod_dod6")
+up_dod_dod6 <- filter(up_dod_dod6, Fold_Change>1)
+up_dod_dod6 <- filter(up_dod_dod6, Timepoint=="post")
+
+up_dod_dod6[,c(2,4)] <- NULL
+up_dod_dod6$Count <- up_dod_dod6$Count*100
+up_dod_dod6$SubSet <- c("CD4", "CD4", "CD8", "Vd2", "Vd2", "CD8", "MAIT", "CD4", "CD8")
+
+#up_dod_dod6 <- data.frame(node=up_dod_dod6$parent, parent=up_dod_dod6$ClusterID, size=up_dod_dod6$Count, colour=paste("Cluster_", up_dod_dod6$ClusterID))
+up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$SubSet),]
+up_dod_dod6$ClusterID <- paste("Cluster_", up_dod_dod6$ClusterID, sep='')
+
+
+
+
+up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
+up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
+
+my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
+
+
+ggplot(up_dod_dod6)+
+  
+  #geom_rect(aes(fill=Fold_Change, ymin=ymin, ymax=ymax, xmax=2.8, xmin=2), inherit.aes = F)+
+  geom_rect(aes(fill=SubSet, ymin=ymin, ymax=ymax, xmax=7, xmin=6), inherit.aes = F)+
+   geom_rect(aes(fill=ClusterID, ymin=ymin, ymax=ymax, xmax=5, xmin=3), inherit.aes = F)+
+   geom_text(aes(x=4.1, y=(ymin+ymax)/2, label = paste(ClusterID)),size=2.4, inherit.aes = F)+
+   geom_text(aes(x=6.5, y=(ymin+ymax)/2, label = paste(SubSet)), size=2.7, inherit.aes = F)+
+  #scale_fill_gradient(low = "black", high = "red")+
+  theme(aspect.ratio=1,
+        axis.text = element_blank(),
+        legend.position = "none",
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank())+
+  xlim(c(0, 7))+
+  coord_polar("y")
+
+  rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5"))
