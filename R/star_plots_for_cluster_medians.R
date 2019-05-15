@@ -4,8 +4,8 @@ library(RColorBrewer)
 library(gridExtra)
 library(cowplot)
 
-setwd("/Users/s1249052/PhD/flow data/vac69a/t cells only/FlowSOM_first_flowsom_(copy)_(copy)_results/results/cluster_medians")
-data <- read.csv("T+6_03_UMAP_cluster_medians.csv")
+setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_medians/")
+data <- read.csv("aggregate_cluster_medians.csv")
 
 data_clean <- select(data, colnames(data)[1:36])
 
@@ -21,6 +21,7 @@ head(data_clean)
 vol_03_t6 <- gather(data_clean, Channel, Median, c(colnames(data_clean)[3:36]))
 vol_03_t6$MetaclusterID <- NULL
 
+vol_03_t6 <- vol_03_t6[1:200,]
 cluster_list <- split(vol_03_t6, vol_03_t6$ClusterID)
 
 
@@ -28,7 +29,7 @@ cluster_list <- split(vol_03_t6, vol_03_t6$ClusterID)
 facetted <- ggplot(vol_03_t6, aes(x = Channel, y = Median, group = ClusterID))+
   geom_line(color="black")+
   coord_polar(theta = "x", direction = -1)+
-  facet_wrap(~ ClusterID, ncol=4)+
+  facet_wrap(~ ClusterID, ncol=8)+
   theme(axis.text.x = element_text(vjust = 3, size=12, color="black"),
         axis.text.y = element_blank(),
         axis.ticks.y  = element_blank(),
@@ -86,3 +87,33 @@ ggplot(cluster_list[[1]], aes(x = Channel, y = Median, group = ClusterID)) +
 
 
 ggtitle(paste("Cluster_", as.character(unique(i$ClusterID)), sep=''))
+
+
+mtcars$model<-rownames(mtcars)
+
+
+mtcarsscaled <- as.data.frame(lapply(mtcars, ggplot2:::rescale01))
+mtcarsscaled$model <- rownames(mtcars)
+mtcarsmelted <- reshape2::melt(mtcarsscaled)
+
+
+ggplot(mtcarsmelted, aes(x=variable, y=value))+
+  geom_polygon(aes(group = model, color = model), fill=NA, show.legend = F)+
+  geom_point()+
+  coord_radar()
+  
+
+coord_radar <- function (theta = "x", start = 0, direction = 1) 
+{
+  theta <- match.arg(theta, c("x", "y"))
+  r <- if (theta == "x") 
+    "y"
+  else "x"
+  ggproto("CordRadar", CoordPolar, theta = theta, r = r, start = start, 
+          direction = sign(direction),
+          is_linear = function(coord) TRUE)
+}
+
+
+
+
