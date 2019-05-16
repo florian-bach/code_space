@@ -420,4 +420,21 @@ ggsave("v09_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod
 ggsave("v09_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
 
+up_dod_dod6 <- filter(long_abun_clusters, Comparison=="dod_dod6")
+up_dod_dod6 <- filter(up_dod_dod6, Fold_Change>1)
+up_dod_dod6 <- filter(up_dod_dod6, Timepoint=="post")
+
+up_dod_dod6[,c(2,4)] <- NULL
+up_dod_dod6$Count <- up_dod_dod6$Count*100
+up_dod_dod6$SubSet <- c("CD8", "DN", "CD4", "DN", "Vd2")
+
+up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$SubSet),]
+#up_dod_dod6$ClusterID <- paste0("Cluster", up_dod_dod6$ClusterID, sep=" \n")
+
+up_dod_dod6$ymin[1]<-0
+up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
+up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
+
+write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V09_up_dod_dod6.csv")
+
 
