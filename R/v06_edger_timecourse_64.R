@@ -23,12 +23,18 @@ remove(list = ls())
 #data2 <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
 
 # read in data when on laptop
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69/double_flowsoms/FlowSOM_big_timecourse_06a_results/results/cluster_abundances.csv")
-data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_06a_results/results/cluster_abundances.csv")
+data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
 
 
 #extract number of cells in each fcs file to convert frequency to actual number
-setwd("/Users/s1249052//PhD/cytof/better_gating")
+
+# iMac
+# setwd("/Users/s1249052//PhD/cytof/better_gating")
+
+# laptop
+setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
+
 files_list <- list.files(path=".", pattern="*.fcs")
 
 flo_set <- read.flowSet(files_list[1:5], transformation = FALSE, truncate_max_range = FALSE)
@@ -191,8 +197,11 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 ######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
 
 
+# iMac
+#setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_medians/")
 
-setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_medians/")
+# laptop
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_medians/")
 
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
@@ -312,7 +321,11 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
+# iMac
+# data <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
+
+# laptop
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
 short <- select(data, colnames(data[3:7]))
 
 ### make a dataframe for each comparison that contains the cluster abundance at the pre and post timepoint
@@ -423,8 +436,12 @@ for(i in unique(long_abun_clusters$Comparison)){
   )
 }
 
-setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures")
-# 
+#imac
+# setwd("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures")
+
+# laptop
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+
 # ggsave("v06_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 # ggsave("v06_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 # ggsave("v06_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
@@ -456,5 +473,5 @@ up_dod_dod6$ymin[1]<-0
 up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
 up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
 
-write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V06_up_dod_dod6.csv")
+#write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V06_up_dod_dod6.csv")
 
