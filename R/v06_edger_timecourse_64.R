@@ -18,9 +18,14 @@ remove(list = ls())
 # map new data to same some, but have different seed sequence should produce similar, but not identical results
 
 
-# read in data 
-data <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06a_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
+# read in data when at iMac
+#data <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06a_results/results/cluster_abundances.csv")
+#data2 <- read.csv("/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
+
+# read in data when on laptop
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69/double_flowsoms/FlowSOM_big_timecourse_06a_results/results/cluster_abundances.csv")
+data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_abundances.csv")
+
 
 #extract number of cells in each fcs file to convert frequency to actual number
 setwd("/Users/s1249052//PhD/cytof/better_gating")
