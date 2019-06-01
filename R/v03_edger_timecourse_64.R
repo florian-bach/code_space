@@ -20,11 +20,23 @@ remove(list = ls())
 
 
 # read in data 
-data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_(copy)_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+
+# iMac
+# data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_(copy)_results/results/cluster_abundances.csv")
+# data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+
+# laptop
+
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_(copy)_results/results/cluster_abundances.csv")
+data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+
+
 
 #extract number of cells in each fcs file to convert frequency to actual number
-setwd("/Users/s1249052/PhD/cytof/better_gating")
+#setwd("/Users/s1249052/PhD/cytof/better_gating")
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
+
 
 files_list <- list.files(path=".", pattern="*.fcs")
 
@@ -194,8 +206,14 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 ######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
 
+# iMac
+# setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
 
-setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
+# laptop
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_medians")
+
+
+
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
 #0 1 transform of marker intensities, columnwise
@@ -298,7 +316,13 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+# iMac
+# data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+
+# laptop
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_03_(copy)_(copy)_results/results/cluster_abundances.csv")
+
+
 short <- select(data, colnames(data[3:7]))
 
 

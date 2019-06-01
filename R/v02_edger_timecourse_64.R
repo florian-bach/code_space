@@ -19,11 +19,21 @@ remove(list = ls())
 
 # read in data 
 
-data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+# iMac
+#data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
+#data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+
+# laptop
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
+data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+
 
 #extract number of cells in each fcs file to convert frequency to actual number
-setwd("/Users/s1249052/PhD/cytof/better_gating")
+#setwd("/Users/s1249052/PhD/cytof/better_gating")
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
+
+
 files_list <- list.files(path=".", pattern="*.fcs")
 
 flo_set <- read.flowSet(files_list[16:20], transformation = FALSE, truncate_max_range = FALSE)
@@ -173,9 +183,14 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 ######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
 
 
+# iMac
+#setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
 
-setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
+# laptop
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
 
+  
+  
 deg_medians_aggregate  <- read.csv("aggregate_cluster_medians.csv")
 
 #0 1 transform of marker intensities, columnwise
@@ -288,7 +303,13 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+#iMac
+#data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+
+# laptop
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+
+
 short <- select(data, colnames(data[3:7]))
 
 ### make a dataframe for each comparison that contains the cluster abundance at the pre and post timepoint
@@ -435,6 +456,34 @@ up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$SubSet),]
 up_dod_dod6$ymin[1]<-0
 up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
 up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
+
+
+ggplot(up_dod_dod6)+
+  
+  geom_rect(aes(fill=Fold_Change, ymin=up_dod_dod6$ymin, ymax=up_dod_dod6$ymax, xmax=2.8, xmin=2, colour=Fold_Change))+
+  geom_rect(aes(fill=as.numeric(factor(ClusterID))*100, ymin=ymin, ymax=ymax, xmax=6, xmin=3))+
+  geom_rect(aes(fill=as.numeric(factor(SubSet))*500, ymin=ymin, ymax=ymax, xmax=9, xmin=6.2))+
+  scale_color_gradientn(colours=rev(sequential_hcl(5, "Heat")))+
+  scale_fill_gradientn(guide = FALSE, colors=my_long_palette, values=c(scales::rescale(seq(1,50), to=c(0,0.8)),scales::rescale(c(500,900,1000,1500,1800,2000,2500), to=c(0.8,1))))+
+  
+  geom_text(aes(x=4.5, y=(ymin+ymax)/2, label = paste("Cluster", ClusterID, sep="\n")),size=2.4,fontface="bold")+
+  geom_text(aes(x=7.5, y=(ymin+ymax)/2, label = paste(SubSet)), size=2.7, fontface="bold")+
+  
+  guides(color=guide_colorbar(barwidth = 2))+
+  labs(color = "Fold Change")+
+  theme(aspect.ratio=1,
+        legend.title = element_text(),
+        legend.title.align = 0.5,
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank())+
+  xlim(c(0, 9))+
+  coord_polar("y")
+
+
+
+
 
 write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V02_up_dod_dod6.csv")
 
