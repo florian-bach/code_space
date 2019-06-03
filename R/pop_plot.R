@@ -85,24 +85,6 @@ up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
 
 my_long_palette <- c(rev(sequential_hcl(5, "Heat")),qualitative_hcl(100, "Cold"), qualitative_hcl(150, "Dynamic"))
 
-
-
-compute_angle = function(perc){
-  angle = -1
-  # Or even more compact, but less readable
-  if(perc < 0.5) # 1st half [90, -90]
-    angle = (180 - (perc/0.5) * 180) - 90
-  else # 2nd half [90, -90]
-    angle = (90 - ((perc - 0.5)/0.5) * 180)
-  
-  return(angle)
-}
-
-
-
-
-
-
 ggplot(up_dod_dod6)+
  
   geom_rect(aes(fill=Fold_Change, ymin=up_dod_dod6$ymin, ymax=up_dod_dod6$ymax, xmax=2.8, xmin=2, colour=Fold_Change))+
@@ -125,4 +107,24 @@ ggplot(up_dod_dod6)+
         axis.ticks = element_blank())+
   xlim(c(0, 9))+
   coord_polar("y")
+
+
+
+# 
+# 
+# compute_angle = function(perc){
+#   angle = -1
+#   # Or even more compact, but less readable
+#   if(perc < 0.5) # 1st half [90, -90]
+#     angle = (180 - (perc/0.5) * 180) - 90
+#   else # 2nd half [90, -90]
+#     angle = (90 - ((perc - 0.5)/0.5) * 180)
+#   
+#   return(angle)
+# }
+
+
+
+
+
 

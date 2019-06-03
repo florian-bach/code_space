@@ -446,6 +446,68 @@ ggsave("v03_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod
 
 
 
+# figure only with only what's up from dod to dod6
+
+
+mat <- spread(long_deg_medians_all, Marker, Intensity)
+
+mat2 <- mat %>%
+  dplyr::filter(., Comparison=="dod_dod6") %>%
+  dplyr::filter(., Direction=="up")%>%
+  dplyr::select(., -Comparison, -Fold_Change, -Direction, -Directions)
+
+mat2 <- as.matrix(mat2)
+
+tmat <- t(mat2)
+
+colnames(tmat) <- tmat[1,]
+
+corr_mat=cor(tmat[2:nrow(tmat),],method="s")
+
+
+##### heatmap
+
+sub_set <- dplyr::filter(long_deg_medians_all, Comparison == "dod_dod6")
+sub_set <- dplyr::filter(sub_set, Direction=="up")
+
+sub_set$ClusterID <- as.character(sub_set$ClusterID)
+
+specific_levels <- rownames(corr_mat[order(corr_mat[,4], decreasing = TRUE),])
+
+ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
+  geom_tile(aes(fill=Intensity), color="white")+
+  scale_fill_gradientn(colors=rev(my_palette))+
+  scale_y_discrete(position = "left")+
+  xlab("Cluster ID")+
+  ggtitle("V03")+
+  theme(panel.border = element_blank(),
+        axis.text.y.left = element_text(size=18),
+        axis.line.y.left = element_blank(),
+        axis.line.y.right = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size=18),
+        axis.text.x = element_text(size = 18),
+        axis.text.y.right = element_text(size = 18),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.title = element_blank(),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5),
+        plot.margin = unit(c(1,0,1,0), "cm"),
+        strip.text.x = element_text(size=16))
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+ggsave("v03_up.pdf", height=9, width=11)
+
+
+
+
+
+
+
+
 
 up_dod_dod6 <- filter(long_abun_clusters, Comparison=="dod_dod6")
 up_dod_dod6 <- filter(up_dod_dod6, Fold_Change>1)
@@ -465,5 +527,10 @@ up_dod_dod6$ymin[1]<-0
 up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
 up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
 
-write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V03_up_dod_dod6.csv")
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+up_dod_dod6$Volunteer <- "V03"
+write.csv(up_dod_dod6, "v03_up_dod_dod6.csv")
+
+
+
 

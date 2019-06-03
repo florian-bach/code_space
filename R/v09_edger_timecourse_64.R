@@ -1,3 +1,4 @@
+library(colorspace)
 library(edgeR)
 library(dplyr)
 library(tidyr)
@@ -17,8 +18,8 @@ remove(list = ls())
 # data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_09a_results/results/cluster_abundances.csv")
 # data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_09b_results/results/cluster_abundances.csv")
 
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/double_flowsoms/FlowSOM_big_timecourse_09a_results/results/cluster_abundances.csv")
-data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/double_flowsoms/FlowSOM_big_timecourse_09b_results/results/cluster_abundances.csv")
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_09a_results/results/cluster_abundances.csv")
+data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_09b_results/results/cluster_abundances.csv")
 
 
 
@@ -203,7 +204,7 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 
 # setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_09a_results/results/cluster_medians/")
-setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/double_flowsoms/FlowSOM_big_timecourse_09a_results/results/cluster_medians/")
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_09a_results/results/cluster_medians/")
 
 
 
@@ -435,9 +436,86 @@ setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures/")
 # ggsave("v09_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 # 
 
-ggsave("v09_01_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v09_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
-ggsave("v09_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+#ggsave("v09_01_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+#ggsave("v09_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+#ggsave("v09_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_base_dod, base_dod_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
+
+
+
+
+
+
+
+
+
+
+
+# figure only with only what's up from dod to dod6
+
+
+mat <- spread(long_deg_medians_all, Marker, Intensity)
+
+mat2 <- mat %>%
+  dplyr::filter(., Comparison=="dod_dod6") %>%
+  dplyr::filter(., Direction=="up")%>%
+  dplyr::select(., -Comparison, -Fold_Change, -Direction, -Directions)
+
+mat2 <- as.matrix(mat2)
+
+tmat <- t(mat2)
+
+colnames(tmat) <- tmat[1,]
+
+corr_mat=cor(tmat[2:nrow(tmat),],method="s")
+
+
+##### heatmap
+
+sub_set <- dplyr::filter(long_deg_medians_all, Comparison == "dod_dod6")
+sub_set <- dplyr::filter(sub_set, Direction=="up")
+
+sub_set$ClusterID <- as.character(sub_set$ClusterID)
+
+specific_levels <- rownames(corr_mat[order(corr_mat[,3], decreasing = TRUE),])
+
+ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
+  geom_tile(aes(fill=Intensity), color="white")+
+  scale_fill_gradientn(colors=rev(my_palette))+
+  scale_y_discrete(position = "left")+
+  xlab("Cluster ID")+
+  ggtitle("V09")+
+  theme(panel.border = element_blank(),
+        axis.text.y.left = element_text(size=18),
+        axis.line.y.left = element_blank(),
+        axis.line.y.right = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size=18),
+        axis.text.x = element_text(size = 18),
+        axis.text.y.right = element_text(size = 18),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.title = element_blank(),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5),
+        plot.margin = unit(c(1,0,1,0), "cm"),
+        strip.text.x = element_text(size=16))
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+ggsave("v09_up.pdf", height=9, width=11)
+
+
+
+
+
+
+
+
+
+
+
 
 
 up_dod_dod6 <- filter(long_abun_clusters, Comparison=="dod_dod6")
@@ -447,6 +525,8 @@ up_dod_dod6 <- filter(up_dod_dod6, Timepoint=="post")
 up_dod_dod6[,c(2,4)] <- NULL
 up_dod_dod6$Count <- up_dod_dod6$Count*100
 up_dod_dod6$SubSet <- c("CD8", "DN", "CD4", "DN", "Vd2")
+up_dod_dod6$SubSet <- factor(up_dod_dod6$SubSet, levels= c("CD4", "CD8", "Vd2", "MAIT", "DN"))
+
 
 up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$SubSet),]
 #up_dod_dod6$ClusterID <- paste0("Cluster", up_dod_dod6$ClusterID, sep=" \n")
@@ -455,6 +535,44 @@ up_dod_dod6$ymin[1]<-0
 up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
 up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
 
-write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V09_up_dod_dod6.csv")
+#write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V09_up_dod_dod6.csv")
+
+my_long_palette <- c(rev(sequential_hcl(5, "Heat")),qualitative_hcl(200, "Cold"))
+                     
+#my_long_palette <- c(rev(sequential_hcl(90, "Heat")),qualitative_hcl(800, "Cold"), qualitative_hcl(3000, "Dynamic"))
 
 
+my_palette <- c(qualitative_hcl(10, "Dynamic"), rev(qualitative_hcl(5, "Dark3")))
+ggplot()+
+  # circles made of numbers indicating fold change
+  geom_text(aes(x=4.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("2")), size=1.2)+
+  geom_text(aes(x=5.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("4")), size=1.2)+
+  geom_text(aes(x=6.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("8")), size=1.2)+
+  geom_text(aes(x=7.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("16")), size=1.2)+
+  geom_text(aes(x=8.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("32")), size=1.2)+
+  # clusters and subset pies
+  geom_rect(data=up_dod_dod6, aes(fill=as.numeric(factor(ClusterID)), ymin=ymin, ymax=ymax, xmax=6+log2(up_dod_dod6$Fold_Change), xmin=3+log2(up_dod_dod6$Fold_Change)))+
+  geom_rect(data=up_dod_dod6, aes(fill=as.numeric(factor(SubSet, levels=levels(SubSet)))+10, ymin=ymin, ymax=ymax, xmax=13, xmin=11))+
+  #labelling those pies
+  #geom_text(aes(x=4.5+log2(up_dod_dod6$Fold_Change), y=(ymin+ymax)/2, label = paste("C_", ClusterID, sep="")),size=2.4,fontface="bold")+
+  geom_text(data=up_dod_dod6, aes(x=12, y=(ymin+ymax)/2, label = paste(SubSet)), size=2, fontface="bold")+
+  #beautify
+  #scale_fill_gradientn(colors=c(qualitative_hcl(10, "Harmonic"), qualitative_hcl(15, "Dark3")), values=c(scales::rescale(seq(1,10), to=c(0,0.66)), scales::rescale(seq(10,15), to=c(0.66,1))))+
+  scale_fill_gradientn(guide="none", colors=my_palette)+
+  theme(aspect.ratio=1,
+        legend.title = element_text(),
+        legend.title.align = 0.5,
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank())+
+  xlim(c(0, 14))+
+  ggtitle("Volunteer 09")+
+  coord_polar("y")
+
+
+up_dod_dod6$Volunteer <- "V09"
+write.csv(up_dod_dod6, "v09_up_dod_dod6.csv")
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+#ggsave("v09_hot_pie.pdf")

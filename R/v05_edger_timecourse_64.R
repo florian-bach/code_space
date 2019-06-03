@@ -468,12 +468,50 @@ up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$Fold_Change, decreasing = T),]
 
 up_dod_dod6$SubSet <- c("Vd2", "CD4", "CD4", "MAIT")
 
+up_dod_dod6$SubSet <- factor(up_dod_dod6$SubSet, levels= c("CD4", "CD8", "Vd2", "MAIT", "DN"))
+
 up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$SubSet),]
-#up_dod_dod6$ClusterID <- paste0("Cluster", up_dod_dod6$ClusterID, sep=" \n")
+#up_dod_dod6$ClusterID <- paste0("Cluster_", up_dod_dod6$ClusterID)
 
 up_dod_dod6$ymin[1]<-0
 up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
 up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
 
-write.csv(up_dod_dod6, "/Users/s1249052//PhD/cytof/better_gating/double_flowsoms/figures/V05_up_dod_dod6.csv")
+#my_long_palette <- c(rev(sequential_hcl(5, "Heat")),qualitative_hcl(100, "Cold"), qualitative_hcl(150, "Dynamic"))
 
+my_palette <- c(qualitative_hcl(10, "Dynamic"), rev(qualitative_hcl(5, "Dark3")))
+ggplot()+
+  # circles made of numbers indicating fold change
+  geom_text(aes(x=4.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("2")), size=1.2)+
+  geom_text(aes(x=5.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("4")), size=1.2)+
+  geom_text(aes(x=6.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("8")), size=1.2)+
+  geom_text(aes(x=7.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("16")), size=1.2)+
+  geom_text(aes(x=8.05, y=seq(0,max(up_dod_dod6$ymax), by=max(up_dod_dod6$ymax)/nrow(up_dod_dod6)/8), label=paste0("32")), size=1.2)+
+  # clusters and subset pies
+  geom_rect(data=up_dod_dod6, aes(fill=as.numeric(factor(ClusterID)), ymin=ymin, ymax=ymax, xmax=6+log2(up_dod_dod6$Fold_Change), xmin=3+log2(up_dod_dod6$Fold_Change)))+
+  geom_rect(data=up_dod_dod6, aes(fill=as.numeric(factor(SubSet, levels=levels(SubSet)))+10, ymin=ymin, ymax=ymax, xmax=13, xmin=11))+
+  #labelling those pies
+  #geom_text(aes(x=4.5+log2(up_dod_dod6$Fold_Change), y=(ymin+ymax)/2, label = paste("C_", ClusterID, sep="")),size=2.4,fontface="bold")+
+  geom_text(data=up_dod_dod6, aes(x=12, y=(ymin+ymax)/2, label = paste(SubSet)), size=2, fontface="bold")+
+  #beautify
+  #scale_fill_gradientn(colors=c(qualitative_hcl(10, "Harmonic"), qualitative_hcl(15, "Dark3")), values=c(scales::rescale(seq(1,10), to=c(0,0.66)), scales::rescale(seq(10,15), to=c(0.66,1))))+
+  scale_fill_gradientn(guide="none", colors=my_palette)+
+  theme(aspect.ratio=1,
+        legend.title = element_text(),
+        legend.title.align = 0.5,
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.ticks = element_blank())+
+  xlim(c(0, 14))+
+  ggtitle("Volunteer 05")+
+  coord_polar("y")
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+up_dod_dod6$Volunteer <- "V05"
+write.csv(up_dod_dod6, "v05_up_dod_dod6.csv")
+
+
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+ggsave("v05_hot_pie.pdf")
