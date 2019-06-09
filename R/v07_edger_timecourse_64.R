@@ -521,8 +521,6 @@ ggsave("v07_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod
 
 
 # figure only with only what's up from dod to dod6
-
-
 mat <- spread(long_deg_medians_all, Marker, Intensity)
 
 mat2 <- mat %>%
