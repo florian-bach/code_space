@@ -202,6 +202,23 @@ deg_medians_all$ClusterID <- as.character(deg_medians_all$ClusterID)
 
 data_medians_all <- select(deg_medians_all, colnames(deg_medians_all)[c(1, 5, 17, 25:59, 65, 67, 72, 73)])
 
+# this bit spikes in the lowest and hightest value for each channel taken from a flowsom run on all T cells
+# in order to adapt the notion of positiviy away from a z score specific to cd4s or cd8s
+
+spike <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_06b_results/results/cluster_medians/aggregate_cluster_medians.csv")
+spike <- select(spike, colnames(spike)[c(1, 5, 17, 25:59, 65, 67)])
+
+spike_col_min <- unlist(lapply(spike, min))
+spike_col_max <- unlist(lapply(spike, max))
+
+spike_min_max <- data.frame(rbind(spike_col_min, spike_col_max))
+spike_min_max$ClusterID <- 0
+spike_min_max <- mutate(spike_min_max, Volunteer=0, Direction=0) 
+
+
+data_medians_all <- rbind(data_medians_all, spike_min_max)
+
+
 #make column names marker names
 # colnames(data_medians_all) <- c('ClusterID', 'MetaclusterID', '115In_CD57', '141Pr_HLA-DR', '142Nd_BCL-2', '143Nd_CD45RA', '144Nd_GZB', '145Nd_CD4', '146Nd_Vd2',
 #                           '148Nd_ICOS', '149Sm_CXCR5', '150Nd_CD95', '151Eu_CD103', '153Eu_Va7.2', '154Sm_TIM-3', '155Gd_PD1',
@@ -386,7 +403,7 @@ for(i in unique(long_deg_medians_all$Volunteer)){
 # iMac
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
 
-ggsave("sandbox.png", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+ggsave("cd4_01_d6.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
                                                                                                                                                              c(4,5,6))
 ),  width = 40, height = 40, limitsize = F)
 

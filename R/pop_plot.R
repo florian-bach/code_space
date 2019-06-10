@@ -3,7 +3,10 @@ library(dplyr)
 library(ggplot2)
 library(colorspace)
 
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
+# laptop
+# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
+# iMac
+data <- read.csv("/Users/s1249052/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
 
 str(data)
 colnames(data) <-c("CD4+", "Vd2+", "CD8+", "MAIT", "Tregs", "DN", "Activated", "Gate", "Timepoint", "Volunteer") 
@@ -22,12 +25,13 @@ pop_plot <- ggplot(long_data, aes(x=factor(Timepoint, levels=c("C-1", "C+8", "C+
          theme_bw()+
          xlab("Timepoint")+
          theme(legend.position = "none",
-               axis.text.x = element_text(angle = 60, hjust = 1, size=12))
+               axis.text.x = element_text(angle = 60, hjust = 1, size=12),
+               strip.text.x = element_text(size = 10))
 
 
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
 
-ggsave("pop_plot.pdf", pop_plot)
+ggsave("pop_plot.png", pop_plot, width = 14, height=8)
 
 
 

@@ -50,7 +50,8 @@ ggplot(data=parasitaemias[!is.na(parasitaemias$Genomes),], aes(x=factor(Timepoin
   
               
  ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.pdf", height = 8, width=10)
-
+ ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.png", height = 8, width=10)
+ 
 
 ggplot(dods, aes(x=vol, y=paras, fill=vol))+
   geom_bar(stat='identity')+
