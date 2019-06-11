@@ -166,35 +166,39 @@ median_09 <- read.csv("14c15_sample1_01_0_0_cluster_medians.csv")
 
 # super convoluted way of doing it but it works: restrict cluster medians to clusters that can be found in deg list with cutoff of log2 1 and -1
 deg_medians_02 <- median_02 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[1]]$Cluster)) %>%
+  filter(ClusterID %in% as.numeric(list_of_degs[[1]][order(as.numeric(list_of_degs[[1]]$Cluster)),]$Cluster)) %>%
   mutate(Volunteer = "02") %>%
-  mutate(Direction = list_of_degs[[1]]$Direction)
+  mutate(Direction = list_of_degs[[1]][order(as.numeric(list_of_degs[[1]]$Cluster)),]$Direction)
 
 deg_medians_03 <- median_03 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[2]]$Cluster)) %>%
+  filter(ClusterID %in% as.numeric(list_of_degs[[2]][order(as.numeric(list_of_degs[[2]]$Cluster)),]$Cluster)) %>%
   mutate(Volunteer = "03") %>%
-  mutate(Direction = list_of_degs[[2]]$Direction)
+  mutate(Direction = list_of_degs[[2]][order(as.numeric(list_of_degs[[2]]$Cluster)),]$Direction)
+
 
 deg_medians_05 <- median_05 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[3]]$Cluster)) %>%
+  filter(ClusterID %in% as.numeric(list_of_degs[[3]][order(as.numeric(list_of_degs[[3]]$Cluster)),]$Cluster)) %>%
   mutate(Volunteer = "05") %>%
-  mutate(Direction = list_of_degs[[3]]$Direction)
+  mutate(Direction = list_of_degs[[3]][order(as.numeric(list_of_degs[[3]]$Cluster)),]$Direction)
+
 
 deg_medians_06 <- median_06 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[4]]$Cluster)) %>%
+  filter(ClusterID %in% as.numeric(list_of_degs[[4]][order(as.numeric(list_of_degs[[4]]$Cluster)),]$Cluster)) %>%
   mutate(Volunteer = "06") %>%
-  mutate(Direction = list_of_degs[[4]]$Direction)
+  mutate(Direction = list_of_degs[[4]][order(as.numeric(list_of_degs[[4]]$Cluster)),]$Direction)
+
 
 
 deg_medians_07 <- median_07 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[5]]$Cluster)) %>%
+  filter(ClusterID %in% as.numeric(list_of_degs[[5]][order(as.numeric(list_of_degs[[5]]$Cluster)),]$Cluster)) %>%
   mutate(Volunteer = "07") %>%
-  mutate(Direction = list_of_degs[[5]]$Direction)
+  mutate(Direction = list_of_degs[[5]][order(as.numeric(list_of_degs[[5]]$Cluster)),]$Direction)
+
 
 deg_medians_09 <- median_09 %>%
-  filter(ClusterID %in% as.numeric(list_of_degs[[6]]$Cluster)) %>%
+  filter(ClusterID %in% as.numeric(list_of_degs[[6]][order(as.numeric(list_of_degs[[6]]$Cluster)),]$Cluster)) %>%
   mutate(Volunteer = "09") %>%
-  mutate(Direction = list_of_degs[[6]]$Direction)
+  mutate(Direction = list_of_degs[[6]][order(as.numeric(list_of_degs[[6]]$Cluster)),]$Direction)
 
 #put it all together to make ggplots; drop UMAP channels
 deg_medians_all <- rbind(deg_medians_02, deg_medians_03, deg_medians_05, deg_medians_06, deg_medians_07, deg_medians_09)
@@ -489,3 +493,26 @@ ggsave("heatmap_plus_abundance_06.pdf", grid.arrange(Volunteer_06, Volunteer_06_
 ggsave("heatmap_plus_abundance_07.pdf", grid.arrange(Volunteer_07, Volunteer_07_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("heatmap_plus_abundance_09.pdf", grid.arrange(Volunteer_09, Volunteer_09_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 
+
+
+ggsave("indie_up_d6.png", grid.arrange(up_v2, up_v3, up_v5, up_v6, up_v7, up_v9, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),c(4,5,6))),width = 40, height = 40, limitsize = F)
+
+theme_boy <- theme_bw()+theme(panel.border = element_blank(),
+                                axis.line.y.left = element_blank(),
+                                axis.line.y.right = element_blank(),
+                                axis.ticks.y = element_blank(),
+                                axis.title.y = element_blank(),
+                                axis.title.x = element_blank(),
+                                axis.text.x = element_text(size = 33),
+                                axis.text.y.left = element_text(size = 35),
+                                panel.grid.major = element_blank(),
+                                panel.grid.minor = element_blank(),
+                                axis.line = element_line(colour = "black"),
+                                legend.title = element_blank(),
+                                legend.position = "none",
+                                plot.title = element_text(size = 45, hjust = 0.5),
+                                plot.margin = unit(c(1,0,1,0), "cm"))
+
+ggsave("indie_up_d6.png", grid.arrange(up_v2+theme_boy, up_v3+theme_boy, up_v5+theme_boy, up_v6+theme_boy, up_v7+theme_boy, up_v9+theme_boy, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+                                                                                                                                                               c(4,5,6))
+),  width = 40, height = 40, limitsize = F)

@@ -18,17 +18,17 @@ remove(list = ls())
 
 
 # read in data 
-# data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05a_results/results/cluster_abundances.csv")
-# data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05a_results/results/cluster_abundances.csv")
+data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
 
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05a_results/results/cluster_abundances.csv")
-data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
+# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05a_results/results/cluster_abundances.csv")
+# data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
 
 
 #extract number of cells in each fcs file to convert frequency to actual number
 
-#setwd("/Users/s1249052/PhD/cytof/better_gating")
-setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
+setwd("/Users/s1249052/PhD/cytof/better_gating")
+# setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
 
 files_list <- list.files(path=".", pattern="*.fcs")
 
@@ -190,9 +190,9 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 
 
-# setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_medians/")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_medians/")
 
-setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_medians/")
+# setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_medians/")
 
 
 
@@ -314,9 +314,9 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 
 #######         figures for cluster abundances
 
-# data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
 
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
+# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_05b_results/results/cluster_abundances.csv")
 
 
 
@@ -455,6 +455,74 @@ ggsave("v05_01_heatmap_plus_abundance_base_dod.pdf", grid.arrange(comparison_bas
 ggsave("v05_01_heatmap_plus_abundance_base_c12.pdf", grid.arrange(comparison_base_c12, base_c12_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v05_01_heatmap_plus_abundance_base_dod6.pdf", grid.arrange(comparison_base_dod6, base_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
 ggsave("v05_01_heatmap_plus_abundance_dod_dod6.pdf", grid.arrange(comparison_dod_dod6, dod_dod6_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)
+
+
+# figure only with only what's up from dod to dod6
+mat <- spread(long_deg_medians_all, Marker, Intensity)
+
+mat2 <- mat %>%
+  dplyr::filter(., Comparison=="dod_dod6") %>%
+  dplyr::filter(., Direction=="up")%>%
+  dplyr::select(., -Comparison, -Fold_Change, -Direction, -Directions)
+
+mat2 <- as.matrix(mat2)
+
+tmat <- t(mat2)
+
+colnames(tmat) <- tmat[1,]
+
+corr_mat=cor(tmat[2:nrow(tmat),],method="s")
+
+
+##### heatmap
+
+sub_set <- dplyr::filter(long_deg_medians_all, Comparison == "dod_dod6")
+sub_set <- dplyr::filter(sub_set, Direction=="up")
+
+sub_set$ClusterID <- as.character(sub_set$ClusterID)
+
+specific_levels <- rownames(corr_mat[order(corr_mat[,1], decreasing = TRUE),])
+
+up_v5 <- ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
+  geom_tile(aes(fill=Intensity), color="white")+
+  scale_fill_gradientn(colors=rev(my_palette))+
+  scale_y_discrete(position = "left")+
+  xlab("Cluster ID")+
+  ggtitle("Volunteer 05")+
+  theme(panel.border = element_blank(),
+        axis.text.y.left = element_text(size=18),
+        axis.line.y.left = element_blank(),
+        axis.line.y.right = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size=18),
+        axis.text.x = element_text(size = 18),
+        axis.text.y.right = element_text(size = 18),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.title = element_blank(),
+        legend.position = "none",
+        plot.title = element_text(size = 20, hjust = 0.5),
+        plot.margin = unit(c(1,0,1,0), "cm"),
+        strip.text.x = element_text(size=16))
+
+# setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
+
+ggsave("v05_up.pdf", height=9, width=11)
+ggsave("v05_up.png", height=9, width=11)
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -20,18 +20,18 @@ remove(list = ls())
 # read in data 
 
 # iMac
-#data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
-#data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
+data2 <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
 
 # laptop
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
-data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02a_results/results/cluster_abundances.csv")
+# data2 <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
 
 
 #extract number of cells in each fcs file to convert frequency to actual number
-#setwd("/Users/s1249052/PhD/cytof/better_gating")
+setwd("/Users/s1249052/PhD/cytof/better_gating")
 
-setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
+# setwd("C:/Users/Florian/PhD/cytof/vac69a/T_cells_only/better_gating")
 
 
 files_list <- list.files(path=".", pattern="*.fcs")
@@ -184,10 +184,10 @@ important_ones <- plyr::ldply(list_of_degs, rbind)
 
 
 # iMac
-#setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
 
-# laptop
-setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
+# # laptop
+# setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_medians/")
 
   
   
@@ -304,10 +304,10 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 #######         figures for cluster abundances
 
 #iMac
-#data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
 
 # laptop
-data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
+# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/FlowSOM_big_timecourse_02b_results/results/cluster_abundances.csv")
 
 
 short <- select(data, colnames(data[3:7]))
@@ -465,12 +465,12 @@ sub_set$ClusterID <- as.character(sub_set$ClusterID)
 
 specific_levels <- rownames(corr_mat[order(corr_mat[,1], decreasing = TRUE),])
 
-ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
+up_v2 <- ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Comparison))+
   geom_tile(aes(fill=Intensity), color="white")+
   scale_fill_gradientn(colors=rev(my_palette))+
   scale_y_discrete(position = "left")+
   xlab("Cluster ID")+
-  ggtitle("V02")+
+  ggtitle("Volunteer 02")+
   theme(panel.border = element_blank(),
         axis.text.y.left = element_text(size=18),
         axis.line.y.left = element_blank(),
@@ -489,8 +489,11 @@ ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specific_levels
         plot.margin = unit(c(1,0,1,0), "cm"),
         strip.text.x = element_text(size=16))
 
-setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+# setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
+
 ggsave("v02_up.pdf", height=9, width=11)
+ggsave("v02_up.png", height=9, width=11)
 
 
 

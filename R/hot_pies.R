@@ -2,7 +2,7 @@ library(ggplot2)
 library(colorspace)
 library(gridExtra)
 
-setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
 
 
 flist <- list.files(".", pattern="*.csv")
@@ -11,10 +11,10 @@ up_dod_dod6 <- data.frame()
 
 for(i in flist){
   tmp <- read.csv(i)
+  tmp$Volunteer <- substr(i, 1, 3)
   up_dod_dod6 <- rbind(up_dod_dod6, tmp)
 }
 
-up_dod_dod6$Volunteer <- as.character(up_dod_dod6$Volunteer)
 
 #my_palette <- c(qualitative_hcl(nrow(up_dod_dod6), "Dynamic"), qualitative_hcl(5, "Dark3"))
 
@@ -58,25 +58,25 @@ for (i in unique(up_dod_dod6$Volunteer)){
   geom_text(data=tmp_dat, aes_(x=18.5, y=(tmp_dat$ymin+tmp_dat$ymax)/2, label = paste(tmp_dat$SubSet), size=1.5, fontface="bold"), show.legend = F)+
   #beautify
   scale_fill_manual(guide="none", values=my_palette)+
-  #scale_x_continuous(limits = c(0, 18))+
-  theme(aspect.ratio=1,
+    theme_void()+
+    theme(aspect.ratio=1,
         axis.text = element_blank(),
         axis.title = element_blank(),
         axis.line = element_blank(),
-        axis.ticks = element_blank())+
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5, size = 20, face = "bold"))+
   coord_polar(theta = "y")+
-  theme_void()+
+  ggtitle(paste("Volunteer", substr(i, 2, 3)))+
+  
   ylim(4,5)+
   xlim(4, 20)
   )
  }
 
 
-# make 0-1 transform and then specify size with ymax somehow?
-
-
 #ggsave("v09_hot_pie.pdf", V09, height = 4, width = 4)
 #grid.arrange(V02_pie_plot, V03_pie_plot, V05_pie_plot)
-grid.arrange(V02_pie_plot, V03_pie_plot, V05_pie_plot, V06_pie_plot, V07_pie_plot, V09_pie_plot, ncol=3, nrow=2, widths=rep(5, 3), heights=rep(5, 2))
-ggsave("all_v_hot_pie.pdf", grid.arrange(V02_pie_plot, V03_pie_plot, V05_pie_plot, V06_pie_plot, V07_pie_plot, V09_pie_plot, ncol=3, nrow=2, widths=rep(5, 3), heights=rep(5, 2)), width = 15, height=10)
+grid.arrange(V02_pie_plot, V03_pie_plot, V05_pie_plot, V06_pie_plot, V07_pie_plot, V09_pie_plot, ncol=2, nrow=3, widths=rep(5, 3), heights=rep(5, 2))
+
+ggsave("all_v_hot_pie.png", grid.arrange(V02_pie_plot, V03_pie_plot, V05_pie_plot, V06_pie_plot, V07_pie_plot, V09_pie_plot, ncol=2, nrow=3, widths=rep(5, 2), heights=rep(5, 3)), width = 10, height=15)
 

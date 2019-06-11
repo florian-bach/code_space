@@ -15,6 +15,10 @@ parasitaemias <- gather(data, Timepoint, Genomes, c("C.1", colnames(data)[12:35]
 parasitaemias[,2:13] <- NULL
 
 parasitaemias$Timepoint <- gsub("C.1", "C-1", parasitaemias$Timepoint) 
+parasitaemias$Timepoint <- gsub("D5.5.1", "D5.5", parasitaemias$Timepoint) 
+parasitaemias$Timepoint <- gsub("D", "C+", parasitaemias$Timepoint) 
+
+
 
 parasitaemias$Volunteer <- paste("V", substr(as.character(parasitaemias$Volunteer), nchar(as.character(parasitaemias$Volunteer))-1, nchar(as.character(parasitaemias$Volunteer))), sep='')
 
