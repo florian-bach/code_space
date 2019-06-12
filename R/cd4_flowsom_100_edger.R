@@ -286,60 +286,18 @@ marker_levels <- c("CD4",
                    "CCR7")
 # make some heatmaps bruv
 
-#0-1 transform is pointless
 
 
 my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 #color_blind <- c("#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000")
 
-# arcsinh transform
-# (big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-#     geom_tile(aes(fill=Intensity), color="white")+
-#     scale_fill_gradientn(colors=rev(my_palette))+
-#     xlab("Cluster")+
-#     ylab("Marker")+
-#     ggtitle("/"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
-#     theme(#axis.text.x = element_text(hjust = 1),
-#           panel.border = element_blank(),
-#           panel.grid.major = element_blank(),
-#           panel.grid.minor = element_blank(),
-#           axis.line = element_line(colour = "black"),
-#           legend.title = element_blank(),
-#           plot.title = element_text(hjust = 0.5))+
-#     facet_wrap(~ Volunteer, ncol=6, labeller=as_labeller(labs))
-# )
-# 
-# # arcsinh transform, accesible color scheme
-# (big_heatmap_arsinh <- ggplot(data=long_deg_medians_all, aes(x=factor(ClusterID), y=factor(Marker, levels=rev(levels)), group=Volunteer))+
-#     geom_tile(aes(fill=Intensity), color="white")+
-#     scale_fill_gradientn(colors=color_blind)+
-#     xlab("Cluster")+
-#     ylab("Marker")+
-#     ggtitle("\"Differentially Expressed\" Cluster Medians Per Volunteer in VAC69a")+
-#     theme(#axis.text.x = element_text(hjust = 1),
-#       panel.border = element_blank(),
-#       panel.grid.major = element_blank(),
-#       panel.grid.minor = element_blank(),
-#       axis.line = element_line(colour = "black"),
-#       legend.title = element_blank(),
-#       plot.title = element_text(hjust = 0.5))+
-#     facet_wrap(~ Volunteer, ncol=5, labeller=as_labeller(labs))
-# )
-# 
-# 
-
-# unique(long_deg_medians_all$Volunteer)
-
-
-# just makin a table
-
-
-
-
 
 
 
 # figure only with only what's up from dod to dod6
+
+# order clusters by correlation (starting point = handpicked for high activation level
+)
 mat <- read.csv("/Users/s1249052/PhD/cytof/better_gating/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_(copy)_(copy)_results/results/aggregate_cluster_CVs.csv")
 mat <- select(mat, colnames(mat)[c(1, 5, 17, 25:59, 65, 67)])
 
@@ -366,6 +324,60 @@ specific_levels <- rownames(corr_mat[order(corr_mat[,19], decreasing = T),])
 
 
 
+
+#######         figures for cluster abundances
+
+# data <- read.csv("/Users/s1249052/PhD/cytof/better_gating/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_results/results/cluster_abundances.csv")
+short <-  select(data, colnames(data[3:20]))
+# 
+
+clusters_02 <- as.integer(list_of_degs[[1]]$Cluster)
+clusters_03 <- as.integer(list_of_degs[[2]]$Cluster)
+clusters_05 <- as.integer(list_of_degs[[3]]$Cluster)
+clusters_06 <- as.integer(list_of_degs[[4]]$Cluster)
+clusters_07 <- as.integer(list_of_degs[[5]]$Cluster)
+clusters_09 <- as.integer(list_of_degs[[6]]$Cluster)
+
+abun_clusters_02 <- short[c(clusters_02),c(10,12)]
+abun_clusters_02$ClusterID <- as.character(clusters_02)
+abun_clusters_02$Volunteer <- substr(colnames(abun_clusters_02)[2], 2, 3) 
+colnames(abun_clusters_02) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_03 <- short[c(clusters_03),c(13,15)]
+abun_clusters_03$ClusterID <- as.character(clusters_03)
+abun_clusters_03$Volunteer <- substr(colnames(abun_clusters_03)[2], 2, 3) 
+colnames(abun_clusters_03) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_05 <- short[c(clusters_05),c(16,18)]
+abun_clusters_05$ClusterID <- as.character(clusters_05)
+abun_clusters_05$Volunteer <- substr(colnames(abun_clusters_05)[2], 2, 3) 
+colnames(abun_clusters_05) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_06 <- short[c(clusters_06),c(1,3)]
+abun_clusters_06$ClusterID <- as.character(clusters_06)
+abun_clusters_06$Volunteer <- substr(colnames(abun_clusters_06)[2], 2, 3) 
+colnames(abun_clusters_06) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_07 <- short[c(clusters_07),c(4,6)]
+abun_clusters_07$ClusterID <- as.character(clusters_07)
+abun_clusters_07$Volunteer <- substr(colnames(abun_clusters_07)[2], 2, 3) 
+colnames(abun_clusters_07) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+abun_clusters_09 <- short[c(clusters_09),c(7,9)]
+abun_clusters_09$ClusterID <- as.character(clusters_09)
+abun_clusters_09$Volunteer <- substr(colnames(abun_clusters_09)[2], 2, 3) 
+colnames(abun_clusters_09) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+
+
+abun_clusters <- rbind(abun_clusters_02,abun_clusters_03,abun_clusters_05,abun_clusters_06,abun_clusters_07,abun_clusters_09)
+long_abun_clusters <- gather(abun_clusters, Timepoint, Frequency, c("Baseline", "T+6"))
+
+
+
+
+
+
+
 ##############          working figure
 
 
@@ -382,13 +394,13 @@ for(i in unique(long_deg_medians_all$Volunteer)){
            scale_fill_gradientn(colors=rev(my_palette))+
            scale_y_discrete(position = result1)+
            xlab(NULL)+
-           ggtitle(paste("Volunteer ", i,sep=''))+
            theme(panel.border = element_blank(),
                  axis.text.y.left = result,
                  axis.line.y.left = element_blank(),
                  axis.line.y.right = element_blank(),
                  axis.ticks.y = element_blank(),
                  axis.title.y = element_blank(),
+                 axis.title.x = element_blank(),
                  axis.text.x = element_text(size = 33),
                  axis.text.y.right = element_text(size = 35),
                  panel.grid.major = element_blank(),
@@ -396,9 +408,36 @@ for(i in unique(long_deg_medians_all$Volunteer)){
                  axis.line = element_line(colour = "black"),
                  legend.title = element_blank(),
                  legend.position = "none",
-                 plot.title = element_text(size = 45, hjust = 0.5),
                  plot.margin = unit(c(1,0,1,0), "cm"))
   )
+  
+  
+  sub_set2 <- dplyr::filter(long_abun_clusters, Volunteer == i)
+  sub_set2 <- dplyr::filter(sub_set2, ClusterID %in% sub_set$ClusterID)
+
+  assign(paste("V", i,"_bar", sep=''), 
+         
+         ggplot(data = sub_set2,
+                aes_(x=factor(sub_set2$ClusterID, levels = specific_levels), y=sub_set2$Frequency, fill=factor(sub_set2$Timepoint, levels=c("Baseline", "T+6")))
+         )+
+           geom_bar(stat="identity", position=position_dodge())+
+           scale_fill_brewer(palette="Paired")+
+           
+           ylab("% of CD4+ T cells")+
+           scale_y_continuous(position= "left", labels = scales::percent_format())+
+           ggtitle(paste("Volunteer ", i, "\n", sep=''))+
+           theme(legend.title = element_blank(),
+                 legend.text = element_text(size = 20),
+                 legend.position = "top", 
+                 legend.justification = "center",
+                 legend.direction = "horizontal",
+                 axis.line = element_line(colour = "black"),
+                 plot.title = element_text(size = 45, hjust = 0.5),
+                 axis.title.x = element_blank(),
+                 axis.text.x = element_blank(),
+                 axis.title.y = result,
+                 #axis.title.y = element_text(size=20, color="black"),
+                 axis.text.y = element_text(size=20, color="black")))
 } 
 
 
@@ -407,65 +446,39 @@ for(i in unique(long_deg_medians_all$Volunteer)){
 # iMac
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
 
-ggsave("cd4_01_d6.pdf", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+ggsave("cd4_01_d6.png", grid.arrange(Volunteer_02, Volunteer_03, Volunteer_05, Volunteer_06, Volunteer_07, Volunteer_09, ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
                                                                                                                                                              c(4,5,6))
 ),  width = 40, height = 40, limitsize = F)
 
-#######         figures for cluster abundances
+grid.arrange(V02_bar , V03_bar, V05_bar, V06_bar, V07_bar, V09_bar)
 
-data <- read.csv("/Users/s1249052/PhD/flow_data/vac69a/t_cells_only/FlowSOM_vac69a_t_cells_49cluster_prepost_1_results/results/cluster_abundances.csv")
-short <- select(data, colnames(data[3:14]))
-
-
-clusters_02 <- as.integer(list_of_degs[[1]]$Cluster)
-clusters_03 <- as.integer(list_of_degs[[2]]$Cluster)
-clusters_05 <- as.integer(list_of_degs[[3]]$Cluster)
-clusters_06 <- as.integer(list_of_degs[[4]]$Cluster)
-clusters_07 <- as.integer(list_of_degs[[5]]$Cluster)
-clusters_09 <- as.integer(list_of_degs[[6]]$Cluster)
-
-abun_clusters_02 <- short[c(clusters_02),c(7,1)]
-abun_clusters_02$ClusterID <- as.factor(clusters_02)
-abun_clusters_02$Volunteer <- substr(colnames(abun_clusters_02)[2], 5, 6) 
-colnames(abun_clusters_02) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_03 <- short[c(clusters_03),c(8,2)]
-abun_clusters_03$ClusterID <- as.factor(clusters_03)
-abun_clusters_03$Volunteer <- substr(colnames(abun_clusters_03)[2], 5, 6) 
-colnames(abun_clusters_03) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_05 <- short[c(clusters_05),c(9,3)]
-abun_clusters_05$ClusterID <- as.factor(clusters_05)
-abun_clusters_05$Volunteer <- substr(colnames(abun_clusters_05)[2], 5, 6) 
-colnames(abun_clusters_05) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_06 <- short[c(clusters_06),c(10,4)]
-abun_clusters_06$ClusterID <- as.factor(clusters_06)
-abun_clusters_06$Volunteer <- substr(colnames(abun_clusters_06)[2], 5, 6) 
-colnames(abun_clusters_06) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_07 <- short[c(clusters_07),c(11,5)]
-abun_clusters_07$ClusterID <- as.factor(clusters_07)
-abun_clusters_07$Volunteer <- substr(colnames(abun_clusters_07)[2], 5, 6) 
-colnames(abun_clusters_07) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
-
-abun_clusters_09 <- short[c(clusters_09),c(12,6)]
-abun_clusters_09$ClusterID <- as.factor(clusters_09)
-abun_clusters_09$Volunteer <- substr(colnames(abun_clusters_09)[2], 5, 6) 
-colnames(abun_clusters_09) <- c("Baseline", "T+6", "ClusterID", "Volunteer")
+ggsave("cd4_01_d6.png", grid.arrange(Volunteer_02, V02_bar, Volunteer_03, V03_bar,Volunteer_05, V05_bar,Volunteer_06, V06_bar,Volunteer_07, V07_bar, Volunteer_09, V09_bar), ncol=3, nrow=2, layout_matrix = rbind(c(1,2,3),
+                                                                                                                                                               c(4,5,6))
+),  width = 40, height = 40, limitsize = F)
 
 
-abun_clusters <- rbind(abun_clusters_02,abun_clusters_03,abun_clusters_05,abun_clusters_06,abun_clusters_07,abun_clusters_09)
-long_abun_clusters <- gather(abun_clusters, Timepoint, Frequency, c("Baseline", "T+6"))
 
+
+ggsave("v02_heatmaps_barplots.pdf", plot_grid(V02_bar, Volunteer_02, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v03_heatmaps_barplots.pdf", plot_grid(V03_bar, Volunteer_03, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v05_heatmaps_barplots.pdf", plot_grid(V05_bar, Volunteer_05, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v06_heatmaps_barplots.pdf", plot_grid(V06_bar, Volunteer_06, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v07_heatmaps_barplots.pdf", plot_grid(V07_bar, Volunteer_07, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v09_heatmaps_barplots.pdf", plot_grid(V09_bar, Volunteer_09, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+
+
+ggsave("v02_heatmaps_barplots.png", plot_grid(V02_bar, Volunteer_02, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v03_heatmaps_barplots.png", plot_grid(V03_bar, Volunteer_03, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v05_heatmaps_barplots.png", plot_grid(V05_bar, Volunteer_05, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v06_heatmaps_barplots.png", plot_grid(V06_bar, Volunteer_06, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v07_heatmaps_barplots.png", plot_grid(V07_bar, Volunteer_07, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
+ggsave("v09_heatmaps_barplots.png", plot_grid(V09_bar, Volunteer_09, ncol=1, rel_heights = c(1,2), align="v"), height = 17, width=11.3)
 
 
 for(i in unique(long_abun_clusters$Volunteer)){
   
-  (graphic <- 
-     
-     ggplot(data=filter(long_abun_clusters, Volunteer == "02"),
-            aes(x=factor(ClusterID, levels = Volunteer_02_levels), y=Frequency, fill=Timepoint)
+  (assign(paste(i, "_bar", sep=''), ggplot(data=filter(long_abun_clusters, Volunteer == i),
+            aes(x=factor(ClusterID, levels = specific_levels), y=Frequency, fill=Timepoint)
      )+
      geom_bar(stat="identity", position=position_dodge())+
      scale_fill_brewer(palette="Paired")+
@@ -480,9 +493,9 @@ for(i in unique(long_abun_clusters$Volunteer)){
            axis.text.x = element_text(size=20, color="black"),
            axis.title.x = element_text(size=24, color="black"),
            axis.title.y = element_text(size=24, color="black"),
-           axis.text.y = element_text(size=20, color="black")))
+           axis.text.y = element_text(size=20, color="black"))))
   
-  Volunteer_02_bar <- graphic 
+ 
 }
 
 ggsave("heatmap_plus_abundance_02.pdf", grid.arrange(Volunteer_02, Volunteer_02_bar, layout_matrix = rbind(c(1,1,NA),c(1,1,2),c(1,1,NA))), height = 20, width=28)

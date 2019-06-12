@@ -501,8 +501,8 @@ up_v3 <- ggplot(data = sub_set, aes_(x=factor(sub_set$ClusterID, levels = specif
 # setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
 setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures/")
 
-ggsave("v03_up.pdf", height=9, width=11)
-ggsave("v03_up.png", height=9, width=11)
+ggsave("v03_up.pdf", height=7.5, width=5)
+ggsave("v03_up.png", height=7.5, width=5)
 
 
 
