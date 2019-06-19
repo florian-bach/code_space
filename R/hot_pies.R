@@ -2,8 +2,10 @@ library(ggplot2)
 library(colorspace)
 library(gridExtra)
 library(cowplot)
+library(RColorBrewer)
 
-setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
+#setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures/")
 
 
 flist <- list.files(".", pattern="*.csv")
@@ -21,8 +23,8 @@ for(i in flist){
 
 #my_palette <- c("CD4", "CD8", "MAIT", "Vd2", "DN")
 
-my_palette <- c(qualitative_hcl(64, "Dynamic"), qualitative_hcl(5, "Dark3"))
-names(my_palette) <- seq(1,69)
+my_palette <- c(sample(qualitative_hcl(64, "Set 3")), "#ff1493", "#f3d250", "#90ccf4", "#D96459", "#0bb38f")
+names(my_palette)[1:64] <- seq(1,64)
 names(my_palette)[65:69] <- c("CD4", "MAIT", "CD8", "Vd2", "DN")
 
 
@@ -89,10 +91,18 @@ for (i in unique(up_dod_dod6$Volunteer)){
 }
 
 top_row <- plot_grid(V02_pie_plot, V03_pie_plot, V05_pie_plot,  ncol=3, axis = "b", align="h", rel_widths = c(V02_ratio, V03_ratio, V05_ratio))
-bot_row <- plot_grid(V06_pie_plot, V07_pie_plot, V09_pie_plot, ncol=3, align = "v", rel_widths = c(V06_ratio,V07_ratio, V09_ratio))
+top_row
+
+bot_row <- plot_grid(v06_pie_plot, V07_pie_plot, v09_pie_plot, ncol=3, align = "v", rel_widths = c(v06_ratio, V07_ratio, v09_ratio))
+bot_row
+
+broad_row <- plot_grid(V02_pie_plot, V03_pie_plot, V05_pie_plot,  v06_pie_plot, V07_pie_plot, v09_pie_plot, ncol=6, axis = "b", align="h", rel_widths = c(V02_ratio, V03_ratio, V05_ratio, v06_ratio, V07_ratio, v09_ratio))
+broad_row
+
+
 ggsave("top_row.png", top_row, width = 12, height=8)
 ggsave("bot_row.png", bot_row, width = 12, height=8)
-
+ggsave("broad_row.png", broad_row, width=24, height=8)
 
 
 

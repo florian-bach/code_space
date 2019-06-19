@@ -4,9 +4,9 @@ library(ggplot2)
 library(colorspace)
 
 # laptop
-# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
+data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
 # iMac
-data <- read.csv("/Users/s1249052/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
+# data <- read.csv("/Users/s1249052/PhD/cytof/vac69a/Vac69a_michalina_compensated_Exported_Stats\ 4.csv")
 
 str(data)
 colnames(data) <-c("CD4+", "Vd2+", "CD8+", "MAIT", "Tregs", "DN", "Activated", "Gate", "Timepoint", "Volunteer") 
@@ -35,100 +35,108 @@ ggsave("pop_plot.png", pop_plot, width = 14, height=8)
 
 
 
+# convert number to percentages, get rid of superfluous columns & rows
 
-##############       pie charts yoooooo
+dod6_data <- subset(data, Timepoint %in% c("C-1","DoD", "T+6"))
+dod6_data[dod6_data$Gate=="Activated T cells",] <- NA
+dod6_data <- na.omit(dod6_data)
+dod6_data[,1:6] <- dod6_data[,1:6]/100
+dod6_data[,1:6] <- dod6_data[,1:6] * dod6_data$Activated
+dod6_data$Activated <- NULL
+dod6_data$Tregs <- NULL
 
-
-norm_data <- data
-norm_data$Activated <- rep(norm_data$Activated[1:30], times=2)
-norm_data$sum <- apply(norm_data[,1:6], 1, sum)
-norm_data$sum <- norm_data$sum/100
-
-norm_data[,1:6] <- norm_data[,1:6]/norm_data$sum
-norm_data$sum <- NULL
-
-long_norm_data <- gather(norm_data, Population, Percentage, colnames(norm_data)[1:6])
-
-pie_data <- filter(long_norm_data, Timepoint=="T+6")
-pie_data <- filter(pie_data, Population != "Activated")
-pie_data <- filter(pie_data, Gate=="Activated T cells")
-
-
-(pie_plot <- ggplot(pie_data, aes(x=Activated/2, y=Percentage, fill=Population, width=Activated))+
-  geom_bar(stat="identity", color="black")+
-  coord_polar("y")+
-  facet_wrap(~Volunteer, ncol=3)+
-  theme_void()+
-  theme(legend.title = element_blank(),
-        axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank())
-  )
-
-vols <- c("Volunteer 02", "Volunteer 03", "Volunteer 05", "Volunteer 06", "Volunteer 07", "Volunteer 09")
-freqs <- c(9.39, 19.89, 10.3, 18, 12.16, 15.1)
-
-
-
-
-
-up_dod_dod6 <- dplyr::filter(long_abun_clusters, Comparison=="dod_dod6")
-up_dod_dod6 <- dplyr::filter(up_dod_dod6, Fold_Change>1)
-up_dod_dod6 <- dplyr::filter(up_dod_dod6, Timepoint=="post")
-
-up_dod_dod6[,c(2,4)] <- NULL
-up_dod_dod6$Count <- up_dod_dod6$Count*100
-up_dod_dod6$SubSet <- c("CD4", "CD4", "CD8", "Vd2", "Vd2", "CD8", "MAIT", "CD4", "CD8")
-
-up_dod_dod6 <- up_dod_dod6[order(up_dod_dod6$SubSet),]
-#up_dod_dod6$ClusterID <- paste0("Cluster_", up_dod_dod6$ClusterID)
-
-up_dod_dod6$ymin[1]<-0
-up_dod_dod6$ymin[2:nrow(up_dod_dod6)] <- cumsum(up_dod_dod6$Count)[1:nrow(up_dod_dod6)-1]
-up_dod_dod6$ymax <- up_dod_dod6$ymin + up_dod_dod6$Count
-
-my_long_palette <- c(rev(sequential_hcl(5, "Heat")),qualitative_hcl(100, "Cold"), qualitative_hcl(150, "Dynamic"))
-
-ggplot(up_dod_dod6)+
- 
-  geom_rect(aes(fill=Fold_Change, ymin=up_dod_dod6$ymin, ymax=up_dod_dod6$ymax, xmax=2.8, xmin=2, colour=Fold_Change))+
-  geom_rect(aes(fill=as.numeric(factor(ClusterID))*100, ymin=ymin, ymax=ymax, xmax=6, xmin=3))+
-  geom_rect(aes(fill=as.numeric(factor(SubSet))*500, ymin=ymin, ymax=ymax, xmax=9, xmin=6.2))+
-  scale_color_gradientn(colours=rev(sequential_hcl(5, "Heat")))+
-  scale_fill_gradientn(guide = FALSE, colors=my_long_palette, values=c(scales::rescale(seq(1,50), to=c(0,0.8)),scales::rescale(c(500,900,1000,1500,1800,2000,2500), to=c(0.8,1))))+
-  
-  geom_text(aes(x=4.5, y=(ymin+ymax)/2, label = paste("Cluster", ClusterID, sep="\n")),size=2.4,fontface="bold")+
-  geom_text(aes(x=7.5, y=(ymin+ymax)/2, label = paste(SubSet)), size=2.7, fontface="bold")+
-  
-  guides(color=guide_colorbar(barwidth = 2))+
-  labs(color = "Fold Change")+
-  theme(aspect.ratio=1,
-        legend.title = element_text(),
-        legend.title.align = 0.5,
-        axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.line = element_blank(),
-        axis.ticks = element_blank())+
-  xlim(c(0, 9))+
-  coord_polar("y")
-
-
-
+long_dod6_data <- gather(dod6_data, Population, Percentage, colnames(dod6_data)[1:5])
 # 
+# # create ymin and ymax columns for geom_rect() by subsetting dataframe and doing cumsum
 # 
-# compute_angle = function(perc){
-#   angle = -1
-#   # Or even more compact, but less readable
-#   if(perc < 0.5) # 1st half [90, -90]
-#     angle = (180 - (perc/0.5) * 180) - 90
-#   else # 2nd half [90, -90]
-#     angle = (90 - ((perc - 0.5)/0.5) * 180)
+# pie_dod6_data <- long_dod6_data%>%
+#   dplyr::arrange(Volunteer, Timepoint, Population) %>%
+#   group_by(Timepoint, Volunteer) %>%
+#   mutate(ymax=cumsum(Percentage)) %>%
+#   ungroup()
+# 
+# pie_dod6_data$ymin <- c(0, pie_dod6_data$ymax[1:nrow(pie_dod6_data)-1])
+# pie_dod6_data$Population <- gsub("+", "", pie_dod6_data$Population, fixed = T)
+# 
+
+# for (i in unique(pie_dod6_data$Volunteer)){
 #   
-#   return(angle)
+#   tmp_dat <- NULL
+#   tmp_dat <- dplyr::filter(pie_dod6_data, pie_dod6_data$Volunteer==i)
+#   
+#   tmp_dat$ymin <- tmp_dat$ymin/max(tmp_dat$ymax)+4
+#   tmp_dat$ymax <- tmp_dat$ymax/max(tmp_dat$ymax)+4
+#   
+#   assign(paste(unique(tmp_dat$Volunteer), "_ratio", sep=''), max(tmp_dat$ymax)/8.4675213)
+#   
+#   tmp_dat$ymin <- tmp_dat$ymin/max(tmp_dat$ymax)+4
+#   tmp_dat$ymax <- tmp_dat$ymax/max(tmp_dat$ymax)+4
+#   
+#   
+#   assign(
+#     paste("V", substr(unique(tmp_dat$Volunteer),11,12), "_pop_pie_plot", sep=''), 
+#     
+#     ggplot()+
+#       # clusters and subset pies
+#       geom_rect(data=tmp_dat, aes_(fill=factor(tmp_dat$Population, levels=c("CD4", "CD8", "MAIT", "Vd2", "DN")), ymin=tmp_dat$ymin, ymax=tmp_dat$ymax, xmax=6, xmin=4))+
+#       
+#       scale_fill_manual(values=qualitative_hcl(6, "Dark3"))+
+#       facet_wrap(~Timepoint)+
+#       theme(aspect.ratio=1,
+#             axis.text = element_blank(),
+#             axis.title = element_blank(),
+#             axis.line = element_blank(),
+#             axis.ticks = element_blank())+
+#       coord_polar(theta = "y")+
+#       theme_void()
+#     )
 # }
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+
+long_dod6_data <- gather(dod6_data, Population, Percentage, colnames(dod6_data)[1:5])
+
+long_dod6_data$Population <- gsub("+", "", long_dod6_data$Population, fixed = T)
+long_dod6_data$Popf <- factor(long_dod6_data$Population, levels=c("CD4", "CD8", "MAIT", "Vd2", "DN"))
+
+test <- long_dod6_data[order(long_dod6_data$Popf),]
+
+colour_fixing <- c("#ff1493", "#f3d250", "#90ccf4", "#D96459", "#0bb38f")
+names(colour_fixing) <- c("CD4", "MAIT", "CD8", "Vd2", "DN")
+
+
+(dod6_pop_plot <- ggplot(test, aes(x=factor(Timepoint, levels=c("C-1", "DoD", "T+6")), group=Volunteer, fill=Population, y=Percentage))+
+    geom_bar(stat="identity", position="stack")+
+    facet_wrap(~Volunteer)+
+    scale_fill_manual(values=colour_fixing)+
+    theme_bw()+
+    xlab("Timepoint")+
+    scale_y_continuous(labels=function(x) paste0(x,"%"))+
+    ylab("Percenentage Activated")+
+    theme(axis.text.x = element_text(angle = 60, hjust = 1, size=12),
+          legend.title = element_blank(),
+          axis.text.y = element_text(size=12),
+          strip.text = element_text(size=16, face = "bold"),
+          legend.text = element_text(size=16),
+          strip.background = element_blank(),
+          axis.title.y = element_text(size=16, face = "bold"),
+          axis.title.x = element_text(size=16, face = "bold")))
 
 
 
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures/")
+
+ggsave("dod6_pop_plot.png", dod6_pop_plot, width=11, height=8)
 
 
+test <- subset(long_dod6_data, Volunteer=="Volunteer 02")
+test2 <- subset(test, Timepoint=="DoD")
 
