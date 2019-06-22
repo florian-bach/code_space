@@ -137,6 +137,33 @@ setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures/")
 ggsave("dod6_pop_plot.png", dod6_pop_plot, width=11, height=8)
 
 
+
+sub_set <- filter(test, Volunteer=="Volunteer 03")
+
+(v06_plot <- ggplot(sub_set, aes(x=factor(Timepoint, levels=c("C-1", "DoD", "T+6")), group=Volunteer, fill=Population, y=Percentage))+
+    geom_bar(stat="identity", position="stack")+
+    scale_fill_manual(values=colour_fixing)+
+    theme_bw()+
+    xlab("Timepoint")+
+    scale_y_continuous(labels=function(x) paste0(x,"%"))+
+    ylab("Percenentage Activated")+
+    theme(axis.text.x = element_text(angle = 60, hjust = 1, size=12),
+          legend.title = element_blank(),
+          axis.text.y = element_text(size=12),
+          strip.text = element_text(size=16, face = "bold"),
+          legend.text = element_text(size=16),
+          strip.background = element_blank(),
+          axis.title.y = element_text(size=16, face = "bold"),
+          axis.title.x = element_text(size=16, face = "bold")))
+
+
+
+
+setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures/")
+
+ggsave("v03_dod_dod6_pop_plot.png", v06_plot, width=4, height=3.5)
+
+
 test <- subset(long_dod6_data, Volunteer=="Volunteer 02")
 test2 <- subset(test, Timepoint=="DoD")
 
