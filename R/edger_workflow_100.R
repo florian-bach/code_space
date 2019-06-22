@@ -364,8 +364,8 @@ for(i in unique(long_deg_medians_all$Volunteer)){
                  panel.grid.major = element_blank(),
                  panel.grid.minor = element_blank(),
                  axis.line = element_line(colour = "black"),
+                 #legend.position="none", 
                  legend.title = element_blank(),
-                 legend.position = "none",
                  plot.title = element_text(size = 45, hjust = 0.5),
                  plot.margin = unit(c(1,0,1,0), "cm"))
   )
