@@ -219,3 +219,72 @@ ggplot(long_short, aes(x=factor(timepoint, levels=c("C-1", "C+7", "EP+1", "T+6",
 
 
 ggsave("biochem.png", width=10, height=10)
+
+
+
+########       blood counts        ########
+
+
+data <- read.csv("blood_counts.csv")
+
+
+data$Volunteer <- paste("Volunteer", data$Volunteer, sep=' ')
+
+
+
+short2 <- data
+short2$timepoint <- as.character(short2$timepoint)
+
+short2$timepoint[short2$timepoint=="_C_1"] <- "C-1"
+short2$timepoint[short2$timepoint=="_C28"] <- "C+28"
+short2$timepoint[short2$timepoint=="_T6"] <- "T+6"
+short2$timepoint[short2$timepoint=="_C90"] <- "C+90"
+short2$timepoint[short2$timepoint=="_EP"] <- "EP+1"
+short2$timepoint[short2$timepoint=="_C1_7"] <- "C+7"
+
+
+long_short <- gather(short2, Cell_Type, Count, colnames(short2)[c(2:4, 6)])
+
+
+ggplot(long_short, aes(x=factor(timepoint, levels=c("C-1", "EP+1", "T+6")), y=Count, group=Volunteer))+
+  geom_point(aes(colour=as.character(long_short$Volunteer)), size=3)+
+  geom_line(aes(colour=as.character(long_short$Volunteer)), size=1.5)+
+  scale_colour_manual(values=my_paired_palette)+
+  theme_bw()+
+  facet_wrap(~Cell_Type, scales="free")
+  #ylab(expression(paste("T Cells / ", mu*"L")))+
+  theme(axis.title.x = element_blank(),
+        strip.background = element_blank(),
+        legend.text = element_text(size=20),
+        strip.text = element_text(size=20, face = "bold"),
+        axis.text.x = element_text(angle = 60, hjust = 1, size=14),
+        axis.text.y = element_text(size=16),
+        axis.title.y = element_text(size=20),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+ggsave("T_Cell_Count.png", height=8.5, width=7)
+
+
+
+
+############        vac 63 lymph counts        ############
+
+
+setwd("C:/Users/Florian/PhD/cytof/vac63c")
+
+data <- read.csv("lymph_stats.csv")
+
+colnames(data)[1:3] <- c("T_of_lymph", "B_of_Lymph", "T_of_all")
+data$B_of_all <- data$B_of_Lymph/data$T_of_lymph*data$T_of_all
+
+long_data <- gather(data, Cells, Frequency, c("T_of_lymph", "B_of_Lymph", "T_of_all", "B_of_all"))
+
+lymph_of_all_only <- long_data[long_data$Cells%in%c("T_of_all", "B_of_all"),]
+
+ggplot(lymph_of_all_only, aes(x=factor(Timepoint, levels=c("C-1", "C+9", "C+10", "C+14", "C+16", "D+6")), y=Frequency, group=Volunteer))+
+  geom_point()+
+  geom_line()+
+  facet_grid(Cells~Volunteer)+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle=60, hjust=1))
