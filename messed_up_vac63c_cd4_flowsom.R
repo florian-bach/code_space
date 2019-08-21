@@ -44,11 +44,12 @@ short2[3:46] <- short2[3:46]*number_of_cells # this is the number of cells from 
 short <- cbind(short, short2[3:46])
 
 
-#clean up column
+#clean up column names
 colnames(short) <- gsub("_", "", colnames(short), fixed=T)
 colnames(short) <- gsub(".", "", colnames(short), fixed=T)
 
-# make up group matrix, matching "replicates" to each other. also remove _UMAP.fcs suffix
+
+# make up group matrix, matching "replicates" to each other. 
 groups <- colnames(short)[3:ncol(short)]
 
 # create design matrix & give it proper column names
@@ -69,30 +70,30 @@ fit <- glmQLFit(fit, design, robust=TRUE)
 # volunteers <- as.character(c(302, 303, 304, 305, 306, 307, 308, 310, 313, 315, 318, 320))
 
 # c-1 to c+45
-pre_post_301 <- makeContrasts(X301C45  - X301C1, levels=design)
-pre_post_302 <- makeContrasts(X302C45  - X302C1, levels=design)
-pre_post_304 <- makeContrasts(X304C45  - X304C1, levels=design)
-pre_post_305 <- makeContrasts(X305C45  - X305C1, levels=design)
-pre_post_306 <- makeContrasts(X306C45  - X306C1, levels=design)
-pre_post_307 <- makeContrasts(X307C45  - X307C1, levels=design)
-pre_post_308 <- makeContrasts(X308C45  - X308C1, levels=design)
-pre_post_310 <- makeContrasts(X310C45  - X310C1, levels=design)
-pre_post_313 <- makeContrasts(X313C45  - X313C1, levels=design)
-pre_post_315 <- makeContrasts(X315C45  - X315C1, levels=design)
-pre_post_320 <- makeContrasts(X320C45  - X320C1, levels=design)
+# pre_post_301 <- makeContrasts(X301C45  - X301C1, levels=design)
+# pre_post_302 <- makeContrasts(X302C45  - X302C1, levels=design)
+# pre_post_304 <- makeContrasts(X304C45  - X304C1, levels=design)
+# pre_post_305 <- makeContrasts(X305C45  - X305C1, levels=design)
+# pre_post_306 <- makeContrasts(X306C45  - X306C1, levels=design)
+# pre_post_307 <- makeContrasts(X307C45  - X307C1, levels=design)
+# pre_post_308 <- makeContrasts(X308C45  - X308C1, levels=design)
+# pre_post_310 <- makeContrasts(X310C45  - X310C1, levels=design)
+# pre_post_313 <- makeContrasts(X313C45  - X313C1, levels=design)
+# pre_post_315 <- makeContrasts(X315C45  - X315C1, levels=design)
+# pre_post_320 <- makeContrasts(X320C45  - X320C1, levels=design)
 
 # c-1 until dod
-pre_dod_301 <- makeContrasts(X301DoD  - X301C1, levels=design)
-pre_dod_302 <- makeContrasts(X302DoD  - X302C1, levels=design)
-pre_dod_304 <- makeContrasts(X304DoD  - X304C1, levels=design)
-pre_dod_305 <- makeContrasts(X305DoD  - X305C1, levels=design)
-pre_dod_306 <- makeContrasts(X306DoD  - X306C1, levels=design)
-pre_dod_307 <- makeContrasts(X307DoD  - X307C1, levels=design)
-pre_dod_308 <- makeContrasts(X308DoD  - X308C1, levels=design)
-pre_dod_310 <- makeContrasts(X310DoD  - X310C1, levels=design)
-pre_dod_313 <- makeContrasts(X313DoD  - X313C1, levels=design)
-pre_dod_315 <- makeContrasts(X315Dod  - X315C1, levels=design)
-pre_dod_320 <- makeContrasts(X320DoD  - X320C1, levels=design)
+# pre_dod_301 <- makeContrasts(X301DoD  - X301C1, levels=design)
+# pre_dod_302 <- makeContrasts(X302DoD  - X302C1, levels=design)
+# pre_dod_304 <- makeContrasts(X304DoD  - X304C1, levels=design)
+# pre_dod_305 <- makeContrasts(X305DoD  - X305C1, levels=design)
+# pre_dod_306 <- makeContrasts(X306DoD  - X306C1, levels=design)
+# pre_dod_307 <- makeContrasts(X307DoD  - X307C1, levels=design)
+# pre_dod_308 <- makeContrasts(X308DoD  - X308C1, levels=design)
+# pre_dod_310 <- makeContrasts(X310DoD  - X310C1, levels=design)
+# pre_dod_313 <- makeContrasts(X313DoD  - X313C1, levels=design)
+# pre_dod_315 <- makeContrasts(X315Dod  - X315C1, levels=design)
+# pre_dod_320 <- makeContrasts(X320DoD  - X320C1, levels=design)
 
 # dod until t+6
 dod_t6_301 <- makeContrasts(X301T6  - X301DoD, levels=design)
@@ -163,6 +164,9 @@ deg_320$Cluster <- rownames(deg_320)
 # deg_320 <- deg_320[order(as.numeric(deg_320$Cluster)),]; deg_320$Baseline <- short[,'320C1']; deg_320$Treatment <- short[,'320C45']
 
 
+# this bit orders the DEG dataframes by cluster number, then imports the frequencies the timepoints of comparisons,
+# naming them pre and post; names of timepoints must be changed if a different contrast is used... (maybe inmport that information)
+# from somewhere so that doesn't have to be done manually?
 
 deg_301 <- deg_301[order(as.numeric(deg_301$Cluster)),]; deg_301$pre <- short[,'301DoD']; deg_301$post <- short[,'301T6']
 deg_302 <- deg_302[order(as.numeric(deg_302$Cluster)),]; deg_302$pre <- short[,'302DoD']; deg_302$post <- short[,'302T6']
@@ -208,33 +212,29 @@ deg_313$Volunteer <- "V_313"
 deg_315$Volunteer <- "V_315"
 deg_320$Volunteer <- "V_320"
 
-# deg_02$Cluster <- rownames(deg_02)
-# deg_03$Cluster <- rownames(deg_03)
-# deg_05$Cluster <- rownames(deg_05)
-# deg_06$Cluster <- rownames(deg_06)
-# deg_07$Cluster <- rownames(deg_07)
-# deg_09$Cluster <- rownames(deg_09)
 
 # combine them in one big file
 individual_from_all <- rbind(deg_301, deg_302, deg_304, deg_305, deg_306, deg_307, deg_308, deg_310, deg_313, deg_315, deg_320)
 
-# subset dataframe so only fold changes over 2 and less than 0.5 are included
-upper_cut_off <- dplyr::filter(individual_from_all, logFC > 1)
-lower_cut_off <- dplyr::filter(individual_from_all, logFC < -1)
+# subset dataframe so only fold changes over 2 and less than 0.5 are included, then put together and remove small (<1% clusters); tag
+# whether clusters are "up" or "down" regulated
+upper_cut_off <- dplyr::filter(individual_from_all, logFC >= 1)
+lower_cut_off <- dplyr::filter(individual_from_all, logFC <= -1)
+
 cut_off <- rbind(upper_cut_off, lower_cut_off)
+
 cut_off <- dplyr::filter(cut_off, matters == "matters")
 cut_off$Direction <- ifelse(cut_off$logFC>1, "up", "down")
 nrow(cut_off)
-#131
-
-# disassemble big dataframe for making figures
+#167
 
 
+# disassemble big dataframe into list of dataframe for each volunteer for making figures
 list_of_degs <- split(cut_off, cut_off$Volunteer)
 
 
 
-######        the plan is to make figures showing a starplot of all their deg clusters with the fold change
+#### import cluster medians for making heatmaps
 
 # laptop
 # setwd("C:/Users/Florian/PhD/cytof/vac69a/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_(copy)_(copy)_results/results/cluster_medians")
@@ -243,20 +243,25 @@ setwd("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/result
 
 list_of_files <- list.files()
 
-median_301 <- read.csv(list_of_files[max(grep("301", list_of_files))])
-median_302 <- read.csv(list_of_files[max(grep("302", list_of_files))])
-median_304 <- read.csv(list_of_files[max(grep("304", list_of_files))])
-median_305 <- read.csv(list_of_files[max(grep("305", list_of_files))])
-median_306 <- read.csv(list_of_files[max(grep("306", list_of_files))])
-median_307 <- read.csv(list_of_files[max(grep("307", list_of_files))])
-median_308 <- read.csv(list_of_files[max(grep("308", list_of_files))])
-median_310 <- read.csv(list_of_files[max(grep("310", list_of_files))])
-median_313 <- read.csv(list_of_files[max(grep("313", list_of_files))])
-median_315 <- read.csv(list_of_files[max(grep("315", list_of_files))])
-median_320 <- read.csv(list_of_files[max(grep("320", list_of_files))])
+### when reading in the files, grep reads in the four files per volunteer [1]=C1, [2]=DoD, [3]=T6, [4]=C+45; grep needs to be instructed to pick the
+### correct files according to the comparison set out above!
+
+median_301 <- read.csv(list_of_files[grep("301", list_of_files)][3])
+median_302 <- read.csv(list_of_files[grep("302", list_of_files)][3])
+median_304 <- read.csv(list_of_files[grep("304", list_of_files)][3])
+median_305 <- read.csv(list_of_files[grep("305", list_of_files)][3])
+median_306 <- read.csv(list_of_files[grep("306", list_of_files)][3])
+median_307 <- read.csv(list_of_files[grep("307", list_of_files)][3])
+median_308 <- read.csv(list_of_files[grep("308", list_of_files)][3])
+median_310 <- read.csv(list_of_files[grep("310", list_of_files)][3])
+median_313 <- read.csv(list_of_files[grep("313", list_of_files)][3])
+median_315 <- read.csv(list_of_files[grep("315", list_of_files)][3])
+median_320 <- read.csv(list_of_files[grep("320", list_of_files)][3])
 
 
-# super convoluted way of doing it but it works: restrict cluster medians to clusters that can be found in deg list with cutoff of log2 1 and -1
+# super convoluted way of doing it but it works: restrict cluster medians in imported file to the clusters that can be
+# found in deg list with  cutoff of log2 1 and -1 for each volunteer; maybe the Direciton thing should be fixed in the future
+# so that it doesn't depend on ordering, but rather pattern matches the CLusterIDs
 
 
 deg_medians_301 <- median_301 %>%
@@ -331,8 +336,8 @@ spike_col_min <- unlist(lapply(spike, min))
 spike_col_max <- unlist(lapply(spike, max))
 
 spike_min_max <- data.frame(rbind(spike_col_min, spike_col_max))
-spike_min_max$ClusterID <- 0
-spike_min_max <- mutate(spike_min_max, Volunteer=0, Direction=0) 
+spike_min_max$ClusterID <- NA
+spike_min_max <- mutate(spike_min_max, Volunteer=NA, Direction=NA) 
 
 
 data_medians_all <- rbind(data_medians_all, spike_min_max)
@@ -345,27 +350,18 @@ data_medians_all <- rbind(data_medians_all, spike_min_max)
 #                           '165Ho_CD45RO', '166Er_CD56', '167Er_CCR7', '168Er_CD127', '169Tm_CD38', '171Yb_CD49d', '172Yb_CD25', '173Yb_CD39',
 #                           '174Yb_CLA', '175Lu_Perforin', '198Pt_CD8', '209Bi_CD16', 'Volunteer', 'Cluster (Fold Change)')
 
-colnames(data_medians_all) <- substr(colnames(data_medians_all), 8, nchar(colnames(data_medians_all))-10)
-
-# convert to long format
+colnames(data_medians_all)[2:40] <- substr(colnames(data_medians_all)[2:40], 8, nchar(colnames(data_medians_all)[2:40])-10)
 colnames(data_medians_all)[c(1,2,41,42)] <- c("ClusterID", "CD45", "Volunteer", "Direction")
 
-data_medians_all <- dplyr::select(data_medians_all, -CD45, -CD8, -CD4, -Va72, -Vd2, -CD3, -TIM3, -CXCR5, -CX3CR1, -TCRgd)
+# Drop uninteresting channels, do 0_1 transform, convert to long format
 
+data_medians_all <- dplyr::select(data_medians_all, -CD45, -CD8, -CD4, -Va72, -Vd2, -CD3, -TIM3, -CXCR5, -TCRgd)
 data_medians_all[,2:(ncol(data_medians_all)-2)] <- lapply(data_medians_all[,2:(ncol(data_medians_all)-2)], function(x){scales::rescale(x,to=c(0,1))})
-
-colnames(data_medians_all) <- gsub(".", "-", colnames(data_medians_all), fixed=T)
 
 long_deg_medians_all <- tidyr::gather(data_medians_all, Marker, Intensity, colnames(data_medians_all)[2:(ncol(data_medians_all)-2)])
 
-# make beautiful iris color palette
-
-#my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
-#my_palette <- rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))
-
 
 # make levels to reorder markers in a meaningful way
-
 marker_levels <- c("CD4",
                    "CD8",
                    "Vd2",
@@ -402,20 +398,28 @@ marker_levels <- c("CD4",
                    "CD45RA",
                    "CD45RO",
                    "CCR7")
+
+
+
+
 # make some heatmaps bruv
 
 
-
 my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
-#color_blind <- c("#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000")
+# color_blind <- c("#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000")
 
+# iris color palette
+# my_palette <- colorRampPalette(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))(n=20)
+# my_palette <- rev(c("#ffd4c4", "#ffb5e2", "#ce70e8", "#a347e5", "#6a39ff"))
 
 
 
 # figure only with only what's up from dod to dod6
 
-# order clusters by correlation (starting point = handpicked for high activation level)
-mat <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/aggregate_cluster_CVs.csv")
+# order clusters by correlation (starting point = handpicked for high activation level): import aggregate cluster medians, make
+# spearman correlation matrix starting at bright and angry cluster
+
+mat <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
 mat <- select(mat, colnames(mat)[c(1, 5, 17, 25:59, 65, 67)])
 
 
@@ -424,12 +428,7 @@ aggregate_medians <- select(deg_medians_all, colnames(deg_medians_all)[c(1, 5, 1
 colnames(mat) <- substr(colnames(aggregate_medians)[1:40], 8, nchar(colnames(aggregate_medians)[1:40])-10)
 colnames(mat)[c(1,2)] <- c("ClusterID", "CD45")
 
-
-# convert to long format
-
 mat2 <- dplyr::select(mat, -CD45, -CD8, -CD4, -Va72, -Vd2, -CD3, -TIM3, -CXCR5, -CX3CR1, -TCRgd)
-
-
 rownames(mat2) <- mat2$ClusterID
 
 mat2 <- as.matrix(mat2)
@@ -437,7 +436,8 @@ tmat <- t(mat2[,2:ncol(mat2)])
 
 corr_mat=cor(tmat, method="s")
 
-specific_levels <- rownames(corr_mat[order(corr_mat[,19], decreasing = T),])
+# this is where the cluster is handpicked!
+specific_levels <- rownames(corr_mat[order(corr_mat[,100], decreasing = T),])
 
 
 
@@ -461,8 +461,11 @@ clusters_315 <- as.integer(list_of_degs[[10]]$Cluster)
 clusters_320 <- as.integer(list_of_degs[[11]]$Cluster)
 
 
-#########     change the numbers at the end to pick different timepoints: 1=baseline, 2=dod, 3=t6, 4=c+45
 
+#########     make a bunch of dataframes that grab the differentially expressed clusters and their respective frequencies at the 
+#########     chosen contrasting timepoints
+
+#########     change the numbers at the end to pick different timepoints: 1=baseline, 2=dod, 3=t6, 4=c+45
 
 abun_clusters_301 <- short[c(clusters_301),c(grep(301, colnames(short))[c(2,3)])]
 abun_clusters_301$ClusterID <- as.character(clusters_301)
@@ -530,15 +533,12 @@ long_abun_clusters <- tidyr::gather(abun_clusters, Timepoint, Frequency, c("pre"
 
 
 for(i in unique(long_deg_medians_all$Volunteer)){
-  # ifelse(i %in% c("02","06"), assign("result", element_text(size=35)), assign("result", element_blank()))
-  # ifelse(i %in% c("05","09"), assign("result1", "right"), assign("result1", "left"))
-  # 
+
   sub_set <- dplyr::filter(long_deg_medians_all, Volunteer == i)
   sub_set <- filter(sub_set, Direction=="up")
   
-  assign(paste("Volunteer_", unique(sub_set$Volunteer), sep=''),
-         # ggplot(data = sub_set, aes_(x = factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Volunteer))+
-         ggplot(data = sub_set, aes_(x = factor(sub_set$ClusterID), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Volunteer))+
+  assign(paste("V", i,"_heat", sep=''),
+         ggplot(data = sub_set, aes_(x = factor(sub_set$ClusterID, levels = specific_levels), y = factor(sub_set$Marker, levels = rev(marker_levels)), group=sub_set$Volunteer))+
            geom_tile(aes(fill=Intensity), color="white")+
            scale_fill_gradientn(colors=rev(my_palette))+
            # scale_y_discrete(position = result1)+
@@ -550,8 +550,8 @@ for(i in unique(long_deg_medians_all$Volunteer)){
                  axis.ticks.y = element_blank(),
                  axis.title.y = element_blank(),
                  axis.title.x = element_blank(),
-                 axis.text.x = element_text(size = 33),
-                 axis.text.y.right = element_text(size = 35),
+                 axis.text.x = element_text(size = 28),
+                 axis.text.y.left = element_text(size = 35),
                  panel.grid.major = element_blank(),
                  panel.grid.minor = element_blank(),
                  axis.line = element_line(colour = "black"),
@@ -567,11 +567,9 @@ for(i in unique(long_deg_medians_all$Volunteer)){
   assign(paste("V", i,"_bar", sep=''), 
          
          ggplot(data = sub_set2,
-                aes_(x=factor(sub_set2$ClusterID, levels = specific_levels), y=sub_set2$Frequency, fill=factor(sub_set2$Timepoint, levels=c("pre", "post")))
-         )+
+                aes_(x=factor(sub_set2$ClusterID, levels = specific_levels), y=sub_set2$Frequency, fill=factor(sub_set2$Timepoint, levels=c("pre", "post"))))+
            geom_bar(stat="identity", position=position_dodge())+
            scale_fill_brewer(palette="Paired")+
-           
            ylab("% of CD4+ T cells")+
            scale_y_continuous(position= "left", labels = scales::percent_format())+
            ggtitle(paste("Volunteer ", i, "\n", sep=''))+
@@ -585,27 +583,34 @@ for(i in unique(long_deg_medians_all$Volunteer)){
                  axis.title.x = element_blank(),
                  axis.text.x = element_blank(),
                  # axis.title.y = result,
-                 #axis.title.y = element_text(size=20, color="black"),
-                 axis.text.y = element_text(size=20, color="black")))
+                 axis.text.y = element_text(size=24, color="black")))
 } 
 
 
 # laptop
 # setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
 # iMac
-setwd("/Users/s1249052/PhD/cytof/vac63c/figures")
+setwd("/Users/s1249052/PhD/cytof/vac63c/figures/cd4")
 
 
 
-plot_grid(V301_bar, Volunteer_301, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V302_bar, Volunteer_302, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V304_bar, Volunteer_304, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V305_bar, Volunteer_305, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V306_bar, Volunteer_306, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V307_bar, Volunteer_307, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V308_bar, Volunteer_308, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V310_bar, Volunteer_310, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V313_bar, Volunteer_313, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V315_bar, Volunteer_315, ncol=1, rel_heights = c(1,2), align="v")
-plot_grid(V320_bar, Volunteer_320, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_301 <- plot_grid(V301_bar, V301_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_302 <- plot_grid(V302_bar, V302_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_304 <- plot_grid(V304_bar, V304_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_305 <- plot_grid(V305_bar, V305_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_306 <- plot_grid(V306_bar, V306_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_307 <- plot_grid(V307_bar, V307_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_308 <- plot_grid(V308_bar, V308_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_310 <- plot_grid(V310_bar, V310_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_313 <- plot_grid(V313_bar, V313_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_315 <- plot_grid(V315_bar, V315_heat, ncol=1, rel_heights = c(1,2), align="v")
+bar_heat_320 <- plot_grid(V320_bar, V320_heat, ncol=1, rel_heights = c(1,2), align="v")
+
+third <- plot_grid(bar_heat_301, bar_heat_304, bar_heat_305, bar_heat_306, bar_heat_308, bar_heat_310, ncol = 3)
+second <- plot_grid(bar_heat_302, bar_heat_307, ncol=2)
+first <- plot_grid(bar_heat_313, bar_heat_315, bar_heat_320, ncol=3)
+
+ggsave("third_heat_bar.png", third, width = 40, height = 40, limitsize = FALSE)
+ggsave("second_heat_bar.png", second, width = 26.66666, height = 20, limitsize = FALSE)
+ggsave("first_heat_bar.png", first, width = 40, height = 20, limitsize = FALSE)
 
