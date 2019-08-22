@@ -15,8 +15,8 @@ library(cowplot)
 
 # read in data (iMac)
 
-data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_2_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+results/results/cluster_abundances.csv")
+data2 <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+_2_results/results/cluster_abundances.csv")
 
 
 colnames(data)[3:49] <- substr(colnames(data)[3:49], nchar(colnames(data)[3:49])-10, nchar(colnames(data)[3:49])-4)
@@ -35,7 +35,7 @@ short <- short[,-grep("tr", colnames(short), fixed = T)]
 short2 <- short2[,-grep("tr", colnames(short2), fixed = T)]
 
 
-number_of_cells <- 2306
+number_of_cells <- 3450
 
 short[3:46] <- short[3:46]*number_of_cells # this is the number of cells from each fcs file
 short2[3:46] <- short2[3:46]*number_of_cells # this is the number of cells from each fcs file
@@ -47,6 +47,26 @@ short <- cbind(short, short2[3:46])
 #clean up column names
 colnames(short) <- gsub("_", "", colnames(short), fixed=T)
 colnames(short) <- gsub(".", "", colnames(short), fixed=T)
+
+
+long_short <- gather(short, File, Count, colnames(short)[3:46])
+
+long_short$Volunteer <- substr(long_short$File, 1, 3)
+long_short$Timepoint <- substr(long_short$File, 4, 6)
+long_short$Timepoint <- gsub("Dod", "DoD", long_short$Timepoint)
+long_short$VolunteerF <- factor(long_short$Volunteer, levels = c("301", "304", "305", "306", "308", "310",  "302", "307", "313", "315", "318", "320"))
+
+ggplot(long_short, aes(x=factor(Timepoint, levels=c("C1", "DoD", "T6", "C45")), y=Count))+
+  geom_col(position = "stack")+
+  facet_wrap(~VolunteerF)+
+  theme(legend.position = "none")
+
+
+
+
+
+
+
 
 
 # make up group matrix, matching "replicates" to each other. 
@@ -239,7 +259,7 @@ list_of_degs <- split(cut_off, cut_off$Volunteer)
 # laptop
 # setwd("C:/Users/Florian/PhD/cytof/vac69a/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_(copy)_(copy)_results/results/cluster_medians")
 
-setwd("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians")
+setwd("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+_2_results/results/cluster_medians")
 
 list_of_files <- list.files()
 
@@ -329,7 +349,7 @@ data_medians_all <- select(deg_medians_all, colnames(deg_medians_all)[c(1, 5, 17
 # this bit spikes in the lowest and hightest value for each channel taken from a flowsom run on all T cells
 # in order to adapt the notion of positiviy away from a z score specific to cd4s or cd8s
 
-spike <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+spike <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+_2_results/results/cluster_medians/aggregate_cluster_medians.csv")
 spike <- select(spike, colnames(spike)[c(1, 5, 17, 25:59, 65, 67)])
 
 spike_col_min <- unlist(lapply(spike, min))
@@ -355,7 +375,7 @@ colnames(data_medians_all)[c(1,2,41,42)] <- c("ClusterID", "CD45", "Volunteer", 
 
 # Drop uninteresting channels, do 0_1 transform, convert to long format
 
-data_medians_all <- dplyr::select(data_medians_all, -CD45, -CD8, -CD4, -Va72, -Vd2, -CD3, -TIM3, -CXCR5, -TCRgd)
+data_medians_all <- dplyr::select(data_medians_all, -CD45, -CD3)
 data_medians_all[,2:(ncol(data_medians_all)-2)] <- lapply(data_medians_all[,2:(ncol(data_medians_all)-2)], function(x){scales::rescale(x,to=c(0,1))})
 
 long_deg_medians_all <- tidyr::gather(data_medians_all, Marker, Intensity, colnames(data_medians_all)[2:(ncol(data_medians_all)-2)])
@@ -364,7 +384,9 @@ long_deg_medians_all <- tidyr::gather(data_medians_all, Marker, Intensity, colna
 # make levels to reorder markers in a meaningful way
 marker_levels <- c("CD4",
                    "CD8",
+                   "Va72",
                    "Vd2",
+                   "TCRgd",
                    "CD69",
                    "CD38",
                    "HLADR",
@@ -394,6 +416,7 @@ marker_levels <- c("CD4",
                    "CD39",
                    "CLA",
                    "CXCR5",
+                   "CX3CR1",
                    "CD57",
                    "CD45RA",
                    "CD45RO",
@@ -419,7 +442,7 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 # order clusters by correlation (starting point = handpicked for high activation level): import aggregate cluster medians, make
 # spearman correlation matrix starting at bright and angry cluster
 
-mat <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+mat <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+_2_results/results/cluster_medians/aggregate_cluster_medians.csv")
 mat <- select(mat, colnames(mat)[c(1, 5, 17, 25:59, 65, 67)])
 
 
@@ -428,7 +451,7 @@ aggregate_medians <- select(deg_medians_all, colnames(deg_medians_all)[c(1, 5, 1
 colnames(mat) <- substr(colnames(aggregate_medians)[1:40], 8, nchar(colnames(aggregate_medians)[1:40])-10)
 colnames(mat)[c(1,2)] <- c("ClusterID", "CD45")
 
-mat2 <- dplyr::select(mat, -CD45, -CD8, -CD4, -Va72, -Vd2, -CD3, -TIM3, -CXCR5, -CX3CR1, -TCRgd)
+mat2 <- dplyr::select(mat, -CD45, -CD3)
 rownames(mat2) <- mat2$ClusterID
 
 mat2 <- as.matrix(mat2)
@@ -444,7 +467,7 @@ specific_levels <- rownames(corr_mat[order(corr_mat[,100], decreasing = T),])
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
+data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+_2_results/results/cluster_abundances.csv")
 short <-  select(data, colnames(data[3:49]))
 # 
 
@@ -590,7 +613,7 @@ for(i in unique(long_deg_medians_all$Volunteer)){
 # laptop
 # setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
 # iMac
-setwd("/Users/s1249052/PhD/cytof/vac63c/figures/cd4")
+setwd("/Users/s1249052/PhD/cytof/vac63c/figures/non_cd4/")
 
 
 
