@@ -56,11 +56,12 @@ long_short$Timepoint <- substr(long_short$File, 4, 6)
 long_short$Timepoint <- gsub("Dod", "DoD", long_short$Timepoint)
 long_short$VolunteerF <- factor(long_short$Volunteer, levels = c("301", "304", "305", "306", "308", "310",  "302", "307", "313", "315", "318", "320"))
 
-ggplot(long_short, aes(x=factor(Timepoint, levels=c("C1", "DoD", "T6", "C45")), y=Count))+
+ggplot(long_short,
+       aes(x=factor(Timepoint, levels=c("C1", "DoD", "T6", "C45")), y=Count, fill=as.character(ClusterID), group=factor(Timepoint, levels=c("C1", "DoD", "T6", "C45"))))+
   geom_col(position = "stack")+
-  facet_wrap(~VolunteerF)+
-  theme(legend.position = "none")
-
+  facet_grid(~VolunteerF)+
+  scale_fill_manual(values = sample(colorspace::qualitative_hcl(100, "Set 3")))+
+  theme(axis.text.x = element_text(hjust=1, angle = 60))
 
 
 
@@ -247,6 +248,54 @@ cut_off <- dplyr::filter(cut_off, matters == "matters")
 cut_off$Direction <- ifelse(cut_off$logFC>1, "up", "down")
 nrow(cut_off)
 #167
+
+
+
+data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_non_cd4+results/results/cluster_abundances.csv")
+colnames(data)[3:49] <- substr(colnames(data)[3:49], nchar(colnames(data)[3:49])-10, nchar(colnames(data)[3:49])-4)
+short<-data
+
+# get rid of control files
+short <- short[,-grep("tr", colnames(short), fixed = T)]
+
+#clean up column names
+colnames(short) <- gsub("_", "", colnames(short), fixed=T)
+colnames(short) <- gsub(".", "", colnames(short), fixed=T)
+
+short <- filter(short, as.numeric(short$ClusterID) %in% cut_off$Cluster)
+
+long_short <- gather(short, File, Count, colnames(short)[3:46])
+
+
+long_short$Volunteer <- substr(long_short$File, 1, 3)
+long_short$Timepoint <- substr(long_short$File, 4, 6)
+long_short$Timepoint <- gsub("Dod", "DoD", long_short$Timepoint)
+long_short$VolunteerF <- factor(long_short$Volunteer, levels = c("301", "304", "305", "306", "308", "310",  "302", "307", "313", "315", "318", "320"))
+
+ggplot(long_short,
+       aes(x=factor(Timepoint, levels=c("C1", "DoD", "T6", "C45")), y=Count, fill=as.character(ClusterID), group=factor(Timepoint, levels=c("C1", "DoD", "T6", "C45"))))+
+  geom_col(position = "stack")+
+  facet_grid(~VolunteerF)+
+  #scale_fill_manual(values = sample(colorspace::qualitative_hcl(100, "Dark 3")))+
+  theme(axis.text.x = element_text(hjust=1, angle = 60))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # disassemble big dataframe into list of dataframe for each volunteer for making figures
