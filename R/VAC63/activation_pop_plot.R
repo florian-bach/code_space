@@ -32,5 +32,6 @@ long_data$order_vol <- factor(long_data$Individuals, levels = c("313", "315", "3
         axis.text.y = element_text(size=14))
 )
 
+setwd("/Users/s1249052/PhD/cytof/vac63c/figures")
 
 ggsave("pop_plot.pdf", pop_plot, width=15, height=15)
