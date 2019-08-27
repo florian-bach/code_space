@@ -123,16 +123,6 @@ cytof_pca <- prcomp(broad_cytof[,3:102], center = T, scale. = T)
 
 
 
-
-
-
-
-
-
-
-
-
-
 ggplot()+
    # geom_point(aes(x=cytof_pca$x[,1], y=cytof_pca$x[,2]), size=4)+
   # ggrepel::geom_label_repel(aes(x=cytof_pca$x[,1], y=cytof_pca$x[,2], color=data$Volunteer, label=data$timepoint), point.padding = 0.2, size=4)+
@@ -151,3 +141,40 @@ ggplot()+
 
 
 rgl::plot3d(cytof_pca$x[,1], cytof_pca$x[,2], cytof_pca$x[,3], col=as.numeric(as.factor(broad_cytof$Volunteer)))
+
+
+
+
+
+
+
+
+
+
+
+
+yeast1 <- data.frame(spline(x=filter(fiss$strain=="wt")$minute, y=fiss$count, n=100))
+yeast2 <- data.frame(spline(x=fiss$minute, y=fiss$count, n=100))
+
+yeasts <- list(yeast1, yeast2)
+
+
+
+
+yeet <- long_data,
+
+yeetus <- split(yeet, yeet$)
+
+applied_yeet <- lapply(yeet, FUN = function(x){spline(x$minute, x$count, n=500)})  
+
+ggplot()+
+  geom_point(data=fiss, aes(x = minute, y = count, color = strain, group = strain))+
+  #scale_y_log10()+
+  #geom_line(data=hello, aes(x=x, y=y))
+  #geom_line(data=dplyr::bind_rows(yeasts, .id="df"), aes(x=x, y=y, color=df))
+  geom_line(data=dplyr::bind_rows(applied_yeet, .id="df"), aes(x=x, y=y, color=df))
+
+
+
+
+
