@@ -33,7 +33,6 @@ yeasts <- list(yeast1, yeast2)
 
 
 yeet <- split(fiss, fiss$strain)
-
 applied_yeet <- lapply(yeet, FUN = function(x){spline(x$minute, x$count, n=500)})  
 
 ggplot()+

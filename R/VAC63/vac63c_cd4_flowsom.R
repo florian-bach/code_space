@@ -165,8 +165,8 @@ deg_320$Cluster <- rownames(deg_320)
 
 
 # this bit orders the DEG dataframes by cluster number, then imports the frequencies the timepoints of comparisons,
-# naming them pre and post; names of timepoints must be changed if a different contrast is used... (maybe inmport that information)
-# from somewhere so that doesn't have to be done manually?
+# naming them pre and post; names of timepoints must be changed if a different contrast is used... (maybe inmport that information
+# from somewhere so that doesn't have to be done manually?)
 
 deg_301 <- deg_301[order(as.numeric(deg_301$Cluster)),]; deg_301$pre <- short[,'301DoD']; deg_301$post <- short[,'301T6']
 deg_302 <- deg_302[order(as.numeric(deg_302$Cluster)),]; deg_302$pre <- short[,'302DoD']; deg_302$post <- short[,'302T6']
@@ -218,8 +218,8 @@ individual_from_all <- rbind(deg_301, deg_302, deg_304, deg_305, deg_306, deg_30
 
 # subset dataframe so only fold changes over 2 and less than 0.5 are included, then put together and remove small (<1% clusters); tag
 # whether clusters are "up" or "down" regulated
-upper_cut_off <- dplyr::filter(individual_from_all, logFC >= 1)
-lower_cut_off <- dplyr::filter(individual_from_all, logFC <= -1)
+upper_cut_off <- dplyr::filter(individual_from_all, logFC > 1)
+lower_cut_off <- dplyr::filter(individual_from_all, logFC < -1)
 
 cut_off <- rbind(upper_cut_off, lower_cut_off)
 
@@ -389,6 +389,7 @@ marker_levels <- c("CD4",
                    "RORgt",
                    "CD49d",
                    "CD103",
+                   "CX3CR1",
                    "CD25",
                    "FoxP3",
                    "CD39",
@@ -477,7 +478,7 @@ abun_clusters_302$ClusterID <- as.character(clusters_302)
 abun_clusters_302$Volunteer <- "302"
 colnames(abun_clusters_302) <- c("pre", "post", "ClusterID", "Volunteer")
 
-abun_clusters_304 <- short[c(clusters_304),c(grep(304, colnames(short))[c(2,3)])]
+abun_clusters_304 <- short[c(clusters_304),c(grep(304, colnames(short))[c(4,1)])]
 abun_clusters_304$ClusterID <- as.character(clusters_304)
 abun_clusters_304$Volunteer <- "304"
 colnames(abun_clusters_304) <- c("pre", "post", "ClusterID", "Volunteer")
@@ -582,8 +583,8 @@ for(i in unique(long_deg_medians_all$Volunteer)){
                  plot.title = element_text(size = 45, hjust = 0.5),
                  axis.title.x = element_blank(),
                  axis.text.x = element_blank(),
-                 # axis.title.y = result,
-                 axis.text.y = element_text(size=24, color="black")))
+                 axis.title.y = element_text(size=35, color="black"),
+                 axis.text.y = element_text(size=30, color="black")))
 } 
 
 
