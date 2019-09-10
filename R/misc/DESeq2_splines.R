@@ -81,9 +81,23 @@ dds <- estimateDispersionsMAP(dds, outlierSD = 10)
 dds <- nbinomLRT(dds, full = ~spline1 + spline2 + spline3 + spline4,
                  reduced = ~1)
 # extract results
-print(head(results(dds), n=250))
+View(head(results(dds), n=250))
 
 
+brief <- listicle
+test <- c(0,1,5,9,0,0,1,8,5,6)
+
+for (i in test){
+  
+brief <- NULL
+
+ifelse(
+  i!=0,
+  assign("brief", listicle[-i]),
+  assign("brief", listicle)
+  )
+print(listicle[-which(listicle %in% brief)])
+}
 
 
 
