@@ -33,7 +33,7 @@ yeasts <- list(yeast1, yeast2)
 
 
 yeet <- split(fiss, fiss$strain)
-applied_yeet <- lapply(yeet, FUN = function(x){spline(x$minute, x$count, n=500)})  
+applied_yeet <- lapply(yeet, FUN = function(x){spline(x$minute, x$count, n=600)})  
 
 ggplot()+
   geom_point(data=fiss, aes(x = minute, y = count, color = strain, group = strain))+
