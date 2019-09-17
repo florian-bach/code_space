@@ -93,6 +93,7 @@ sig_data <- data.frame(results(dds)[c(2, 6)], Gene=rownames(results(dds)[1]))
 sig_data <- sig_data[order(sig_data$padj, decreasing = F),]
 
 top68 <- sig_data[1:61,]
+bot <- sig_data[200:250,]
 siggy <- subset(sig_data, sig_data$padj<0.01)
 #df 4 = 61
 #df 5 = 68
@@ -149,6 +150,51 @@ top68_graph <- ggplot(ddd, aes(x=Time, y=Count, group=gg, color=ID))+
 
 
 ggsave("top68_graph.pdf", top68_graph, width=25, height = 19)
+
+
+
+
+
+
+
+
+
+ddd <- subset(long_data, long_data$Gene %in% bot$Gene)
+
+ddd$padj <- bot[match(ddd$Gene, bot$Gene), 2]
+
+ddd$gg <- factor(ddd$Gene, levels = unique(ddd[order(ddd$padj),1]))
+
+
+
+
+gene.labs <- paste(factor(bot$Gene, levels = bot[order(bot$padj),]$Gene), "\n", paste(substr(format(bot$padj, scientific = T), 1, 3),
+                                                                                        substr(format(bot$padj, scientific = T), nchar(format(bot$padj, scientific = T))-3, nchar(format(bot$padj, scientific = T))), sep=' '),
+                   sep=' ')
+
+names(gene.labs) <- factor(bot$Gene, levels = bot[order(bot$padj),]$Gene)
+
+
+
+
+bot_graph <- ggplot(ddd, aes(x=Time, y=Count, group=gg, color=ID))+
+  geom_point()+
+  geom_path()+
+  theme_minimal()+
+  facet_wrap(~gg, labeller=labeller(gg=gene.labs), scale="free")+
+  theme(legend.position = "none")+
+  ggtitle("Bottom 50")
+
+
+
+ggsave("bottom50_graph.pdf", bot_graph, width=25, height = 19)
+
+
+
+
+
+
+
 
 
 
