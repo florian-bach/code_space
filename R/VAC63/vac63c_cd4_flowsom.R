@@ -10,13 +10,13 @@ library(cowplot)
 # translated, the assay(CD) object could be a matrix of cluster percentages (rows) per person (columns)
 
 # read in data (laptop)
-# data <- read.csv("C:/Users/Florian/PhD/cytof/vac69a/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_(copy)_(copy)_results/results/cluster_abundances.csv")
-# data2 <-read.csv("C:/Users/Florian/PhD/cytof/vac69a/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_results/results/cluster_abundances.csv")
+data <- read.csv("/home/florian/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
+data2 <- read.csv("/home/florian/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_2_results/results/cluster_abundances.csv")
 
 # read in data (iMac)
 
-data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
-data2 <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_2_results/results/cluster_abundances.csv")
+# data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
+# data2 <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_2_results/results/cluster_abundances.csv")
 
 
 colnames(data)[3:49] <- substr(colnames(data)[3:49], nchar(colnames(data)[3:49])-10, nchar(colnames(data)[3:49])-4)
@@ -238,8 +238,10 @@ list_of_degs <- split(cut_off, cut_off$Volunteer)
 
 # laptop
 # setwd("C:/Users/Florian/PhD/cytof/vac69a/big_flowsoms/FlowSOM_all_cd4s_baseline_dod_t6_(copy)_(copy)_results/results/cluster_medians")
+setwd("/home/florian/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians")
 
-setwd("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians")
+# imac
+# setwd("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians")
 
 list_of_files <- list.files()
 
@@ -329,7 +331,12 @@ data_medians_all <- select(deg_medians_all, colnames(deg_medians_all)[c(1, 5, 17
 # this bit spikes in the lowest and hightest value for each channel taken from a flowsom run on all T cells
 # in order to adapt the notion of positiviy away from a z score specific to cd4s or cd8s
 
-spike <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+# laptop
+spike <- read.csv("/home/florian/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+
+# imac
+# spike <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+
 spike <- select(spike, colnames(spike)[c(1, 5, 17, 25:59, 65, 67)])
 
 spike_col_min <- unlist(lapply(spike, min))
@@ -420,7 +427,13 @@ my_palette <- c("#D53E4F","#D96459","#F2AE72","#588C73","#1A9CC7")
 # order clusters by correlation (starting point = handpicked for high activation level): import aggregate cluster medians, make
 # spearman correlation matrix starting at bright and angry cluster
 
-mat <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+# imac
+# mat <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+
+# laptop
+mat <- read.csv("/home/florian/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_medians/aggregate_cluster_medians.csv")
+
+
 mat <- select(mat, colnames(mat)[c(1, 5, 17, 25:59, 65, 67)])
 
 
@@ -445,9 +458,14 @@ specific_levels <- rownames(corr_mat[order(corr_mat[,100], decreasing = T),])
 
 #######         figures for cluster abundances
 
-data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
+# laptop
+data <- read.csv("/home/florian/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
+
+# imac
+# data <- read.csv("/Users/s1249052/PhD/cytof/vac63c/analysis/FlowSOM_all_cd4+_results/results/cluster_abundances.csv")
+
 short <-  select(data, colnames(data[3:49]))
-# 
+ 
 
 clusters_301 <- as.integer(list_of_degs[[1]]$Cluster)
 clusters_302 <- as.integer(list_of_degs[[2]]$Cluster)
@@ -574,6 +592,7 @@ for(i in unique(long_deg_medians_all$Volunteer)){
            ylab("% of CD4+ T cells")+
            scale_y_continuous(position= "left", labels = scales::percent_format())+
            ggtitle(paste("Volunteer ", i, "\n", sep=''))+
+           theme_minimal()+
            theme(legend.title = element_blank(),
                  legend.text = element_text(size = 20),
                  legend.position = "top", 
@@ -589,9 +608,9 @@ for(i in unique(long_deg_medians_all$Volunteer)){
 
 
 # laptop
-# setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures")
+setwd("/home/florian/PhD/cytof/vac63c/figures")
 # iMac
-setwd("/Users/s1249052/PhD/cytof/vac63c/figures/cd4")
+# setwd("/Users/s1249052/PhD/cytof/vac63c/figures/cd4")
 
 
 
