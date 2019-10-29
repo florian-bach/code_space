@@ -1,6 +1,7 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(MOFA) # <3
 
 # read in data (laptop)
 
@@ -27,15 +28,38 @@ data <- read.csv("C:/Users/Florian/PhD/oxford/vac69/plasma_analytes_vivax_no_ine
 long_data <- gather(data, Analyte, Concentration, colnames(data)[3:ncol(data)])
 
 long_data$Analyte <- substr(long_data$Analyte, 1, nchar(long_data$Analyte)-7)
-
 long_data$Analyte <- gsub(".", "", long_data$Analyte, fixed = T)
 long_data$Concentration <- as.numeric(long_data$Concentration)
 
-long_data$
-
-spread_data <- spread(long_data, Volunteer, timepoint)
-
-
+long_data$Volunteer <- gsub("v00", "V0", long_data$Volunteer, fixed = T)
+long_data$timepoint <- gsub("+", ".", long_data$timepoint, fixed = T)
+long_data$timepoint <- gsub("C-1", "Baseline", long_data$timepoint, fixed = T)
 
 
+long_data$col <- paste(long_data$Volunteer, long_data$timepoint, sep = "_")
 
+spread_data <- data.frame(t(spread(long_data, Analyte, Concentration)))
+spread_data$Feature <- rownames(spread_data)
+
+colnames(spread_data) <- unname(as.matrix(spread_data)[3,])
+spread_data$col <- NULL
+spread_data$Feature <- rownames(spread_data)
+
+spread_data <- spread_data[4:nrow(spread_data),] 
+spread_data <- data.frame(spread_data$Feature, spread_data[,1:ncol(spread_data)-1])
+spread_data <- as.matrix(spread_data)
+colnames(spread_data)[1] <- "Feature"
+
+try <- as.data.frame(spread_data, stringsAsFactors = FALSE)
+feature <- try$Feature
+try$Feature <- NULL
+try2 <- data.frame(sapply(try, FUN=function(x){as.numeric(x)}))
+try2$Feature <- feature
+colnames(try2)[22] <- colnames(mof)[10]
+
+mof2 <- bind_rows(try2, mof)
+
+
+
+library(MOFAdata)
+data("CLL_data")
