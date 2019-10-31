@@ -76,7 +76,70 @@ log_plasma_data <- log10(plasma_data)
 # rownames(log_plasma_data)[(nrow(log_plasma_data)-1):nrow(log_plasma_data)] <- c("Volunteer", "Timepoint")
 
 
+###### clinical & biochem data
 
+### cell counts
+
+data <- read.csv("/Users/s1249052/PhD/clinical data/vac69a/haem.csv")
+
+colnames(data)[1] <- "Volunteer"
+
+data$Volunteer <- paste("V", substr(data$Volunteer, 6, 7), sep='')
+
+short <- filter(data, timepoint %in% c("_C_1", "_T6", "_EP"))
+
+short2 <- select(short, Volunteer, timepoint, wbc, platelets, neutrophils, lymphocytes, monocytes, eosinophils)
+short2$timepoint <- as.character(short2$timepoint)
+
+###  NAUGHTY because dod and ep1 arent the same, but let's jsut assume theyre roughly the same
+short2$timepoint[short2$timepoint=="_C_1"] <- "Baseline"
+short2$timepoint[short2$timepoint=="_T6"] <- "DoD.6"
+short2$timepoint[short2$timepoint=="_EP"] <- "DoD"
+
+short2 <- filter(short2, timepoint %in% c("Baseline", "DoD.6", "DoD"))
+
+
+mofa_haem <- t(short2)
+colnames(mofa_haem) <- paste(mofa_haem[1,], mofa_haem[2,], sep="_") 
+mofa_haem <- mofa_haem[3:nrow(mofa_haem),]
+mofa_haem <- as.matrix(select(data.frame(mofa_haem), colnames(cytof_data)))
+class(mofa_haem) <- "double"
+
+# haem_data <- log10(mofa_haem)
+haem_data <- mofa_haem
+haem_data <- ifelse(is.infinite(haem_data), NA, haem_data)
+haem_data <- select(haem_data, colnames(cytof_data))
+
+
+## biochem
+
+data <- read.csv("/Users/s1249052/PhD/clinical data/vac69a/biochem.csv")
+
+colnames(data)[1] <- "Volunteer"
+
+data$Volunteer <- paste("V", substr(data$Volunteer, 6, 7), sep='')
+
+short <- filter(data, timepoint %in% c("_C_1", "_T6", "_EP"))
+short2 <- select(short,  Volunteer, timepoint, sodium, potassium, creatinine, bilirubin, alt, alkphos, albumin, ast, ggt)
+
+short2$timepoint <- as.character(short2$timepoint)
+
+short2$timepoint[short2$timepoint=="_C_1"] <- "Baseline"
+short2$timepoint[short2$timepoint=="_T6"] <- "DoD.6"
+short2$timepoint[short2$timepoint=="_EP"] <- "DoD"
+
+short2 <- filter(short2, timepoint %in% c("Baseline", "DoD.6", "DoD"))
+
+
+mofa_biochem <- t(short2)
+colnames(mofa_biochem) <- paste(mofa_biochem[1,], mofa_biochem[2,], sep="_") 
+mofa_biochem <- mofa_biochem[3:nrow(mofa_biochem),]
+mofa_biochem <- as.matrix(select(data.frame(mofa_biochem), colnames(cytof_data)))
+class(mofa_biochem) <- "double"
+
+# biochem_data <- log10(mofa_biochem)
+biochem_data <- mofa_biochem
+biochem_data <- ifelse(is.infinite(biochem_data), NA, biochem_data)
 ######     MetaData, rownames of this should be the names of the columns in the data matrices
 
 MetaData <- rbind(
@@ -91,20 +154,20 @@ colnames(MetaData) <- c("Volunteer", "Timepoint")
 
 ######   time??
 
-time <- gsub("Baseline", 1, MetaData)
-time <- gsub("DoD.6", 20, time, fixed = T)
-time <- gsub("DoD", 14, time, fixed=T)
-
-time <- t(data.frame(time[2,]))
-class(time) <- "numeric"
-rownames(time) <- "Time"
-time <- as.matrix(time)
+# time <- gsub("Baseline", 1, MetaData)
+# time <- gsub("DoD.6", 20, time, fixed = T)
+# time <- gsub("DoD", 14, time, fixed=T)
+# 
+# time <- t(data.frame(time[2,]))
+# class(time) <- "numeric"
+# rownames(time) <- "Time"
+# time <- as.matrix(time)
 
 ######   MOFA BABYYYYYYY
 
 
-moby <- list(cytof_data, log_plasma_data, time)
-names(moby) <- c("CyTOF", "Plasma", "Time")
+moby <- list(cytof_data, log_plasma_data, haem_data, biochem_data)
+names(moby) <- c("CyTOF", "Plasma", "Haem", "Biochem")
 
 mae_vivax <- MultiAssayExperiment(
   experiments = moby, 
@@ -112,15 +175,16 @@ mae_vivax <- MultiAssayExperiment(
 )
 
 #mofa baby
-MOFAobject <- createMOFAobject(moby) #<333333 <33333
+MOFAobject <- createMOFAobject(mae_vivax) #<333333 <33333
+
+
+
 
 
 # getting default model training options from the vignette
 
 TrainOptions <- getDefaultTrainOptions()
 ModelOptions <- getDefaultModelOptions(MOFAobject)
-
-ModelOptions$likelihood[3] <- 'gaussian'
 
 DataOptions <- getDefaultDataOptions()
 DataOptions$scaleViews <- TRUE
@@ -129,7 +193,23 @@ TrainOptions$DropFactorThreshold <- 0.01
 TrainOptions$tolerance <- 0.01
 
 
-n_inits <- 10
+MOFAobject <- prepareMOFA(
+  MOFAobject, 
+  DataOptions = DataOptions,
+  ModelOptions = ModelOptions,
+  TrainOptions = TrainOptions
+)
+
+MOFAobject <- regressCovariates(
+  object = MOFAobject,
+  views = c("CyTOF","Plasma", "Haem", "Biochem"),
+  covariates = MOFAobject@InputData@colData$Volunteer
+)
+
+
+n_inits <- 50
+
+
 
 MOFAlist <- lapply(seq_len(n_inits), function(it) {
   
@@ -162,15 +242,13 @@ plotVarianceExplained(MOFAobject)
 plotWeightsHeatmap(
   MOFAobject, 
   view = "Plasma", 
-  factors = 1:2,
+  factors = 1:3,
   show_colnames = T
 )
 
-
-
 plotFactorScatter(
   MOFAobject,
-  factors = 1:2,
+  factors = c(1,3),
   color_by = "Volunteer",      # color by the IGHV values that are part of the training data
   shape_by = "Timepoint"  # shape by the trisomy12 values that are part of the training data
 )
@@ -178,14 +256,14 @@ plotFactorScatter(
 
 plotWeights(
   MOFAobject, 
-  view = "CyTOF", 
-  factor = 3, 
-  nfeatures = 10
+  view = "Haem", 
+  factor = 1, 
+  nfeatures = 5
 )
 
 plotDataHeatmap(
   MOFAobject, 
-  view = "Plasma", 
+  view = "Haem", 
   factor = 1, 
   features = 20, 
   show_rownames = T
@@ -194,7 +272,7 @@ plotDataHeatmap(
 
 plotFactorScatters(
   MOFAobject,
-  factors = 1:3,
+  factors = 1:5,
   color_by = "Volunteer",
   shape_by = "Timepoint"
 )
@@ -202,6 +280,20 @@ plotFactorScatters(
 
 plotFactorBeeswarm(
   MOFAobject,
-  factors = 2,
-  color_by = "Volunteer",
+  factors = 1,
+  color_by = "Timepoint"
 )
+
+
+r2 <- calculateVarianceExplained(MOFAobject)
+r2$R2Total
+
+# Variance explained by each factor in each view
+head(r2$R2PerFactor)
+
+# Plot it
+plotVarianceExplained(MOFAobject)
+
+
+
+
