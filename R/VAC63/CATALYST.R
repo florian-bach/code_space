@@ -109,7 +109,7 @@ t_cell_channels <- marker_levels
 
 ##
 daf <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 12, seed = 1234)
-metadata(daf)$delta_area 
+
 
 # Daf_12 <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 12, seed = 12)
 # Daf_12_Delta <- metadata(Daf_12)$delta_area
@@ -162,7 +162,6 @@ plotClusterHeatmap(daf, hm2 = NULL, k = "meta12", m = NULL, cluster_anno = TRUE,
 
 
 
-
 plotDR(daffy, "UMAP", color_by="meta12", facet=c("timepoint"))
 
 # density plot, with contours
@@ -183,6 +182,8 @@ cd38_plot <- plotDR(daf, "UMAP", color_by="CD38", facet="timepoint")+
         axis.title = element_blank())+
   sc
 
+
+cd38_plot$layers[[1]]$aes_params$size <- 1
 
 bcl2_plot <- plotDR(daf, "UMAP", color_by="BCL2", facet="timepoint")+
   theme(panel.grid.major = element_blank(),
