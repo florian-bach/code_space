@@ -170,8 +170,8 @@ colnames(MetaData) <- c("Volunteer", "Timepoint")
 ######   MOFA BABYYYYYYY
 
 
-moby <- list(cytof_data, log_plasma_data, haem_data, biochem_data)
-names(moby) <- c("CyTOF", "Plasma", "Haem", "Biochem")
+moby <- list(cytof_data, log_plasma_data) #, haem_data, biochem_data
+names(moby) <- c("CyTOF", "Plasma") #, "Haem", "Biochem"
 
 mae_vivax <- MultiAssayExperiment(
   experiments = moby, 
@@ -204,10 +204,14 @@ MOFAobject <- prepareMOFA(
   TrainOptions = TrainOptions
 )
 
+
+
+###regression
+
 MOFAobject <- regressCovariates(
   object = MOFAobject,
-  views = c("CyTOF","Plasma", "Haem", "Biochem"),
-  covariates = MOFAobject@InputData@colData$Volunteer
+  views = c("CyTOF","Plasma")#, #, "Haem", "Biochem"
+  #covariates = MOFAobject@InputData@colData$Volunteer
 )
 
 
@@ -215,7 +219,7 @@ n_inits <- 50
 
 
 
-MOFAlist <- lapply(seq_len(n_inits), function(it) {
+regressed_MOFAlist <- lapply(seq_len(n_inits), function(it) {
   
   TrainOptions$seed <- 2018 + it
   
@@ -230,44 +234,44 @@ MOFAlist <- lapply(seq_len(n_inits), function(it) {
 })
 
 
-compareModels(MOFAlist)
+compareModels(regressed_MOFAlist)
 #higher elbo values preferred
 
-compareFactors(MOFAlist)
+compareFactors(regressed_MOFAlist)
 # visualises robsustness between runs
 
 
-MOFAobject <- selectModel(MOFAlist, plotit = FALSE)
-MOFAobject
+regressed_MOFAobject <- selectModel(regressed_MOFAlist, plotit = FALSE)
+regressed_MOFAobject
 
-plotVarianceExplained(MOFAobject)
+plotVarianceExplained(regressed_MOFAobject)
 
 
 plotWeightsHeatmap(
-  MOFAobject, 
+  regressed_MOFAobject, 
   view = "Plasma", 
   factors = 1:3,
   show_colnames = T
 )
 
 plotFactorScatter(
-  MOFAobject,
-  factors = c(1,3),
+  regressed_MOFAobject,
+  factors = c(1,2),
   color_by = "Volunteer",      # color by the IGHV values that are part of the training data
   shape_by = "Timepoint"  # shape by the trisomy12 values that are part of the training data
 )
 
 
 plotWeights(
-  MOFAobject, 
-  view = "Haem", 
-  factor = 1, 
-  nfeatures = 5
+  regressed_MOFAobject, 
+  view = "CyTOF", 
+  factor = 2, 
+  nfeatures = 8
 )
 
 plotDataHeatmap(
-  MOFAobject, 
-  view = "Haem", 
+  regressed_MOFAobject, 
+  view = "CyTOF", 
   factor = 1, 
   features = 20, 
   show_rownames = T
@@ -275,8 +279,8 @@ plotDataHeatmap(
 
 
 plotFactorScatters(
-  MOFAobject,
-  factors = 1:5,
+  regressed_MOFAobject,
+  factors = 1:3,
   color_by = "Volunteer",
   shape_by = "Timepoint"
 )
@@ -320,7 +324,7 @@ plotFactorBeeswarm(
 )
 
 
-r2 <- calculateVarianceExplained(MOFAobject)
+r2 <- calculateVarianceExplained(regressed_MOFAobject)
 r2$R2Total
 
 # Variance explained by each factor in each view
@@ -334,5 +338,87 @@ mof2 <- bind_rows(try2, mof)
 
 
 
+<<<<<<< HEAD
 library(MOFAdata)
 data("CLL_data")
+=======
+
+
+
+
+
+MOFAlist <- lapply(seq_len(n_inits), function(it) {
+  
+  TrainOptions$seed <- 2018 + it
+  
+  MOFAobject <- prepareMOFA(
+    MOFAobject, 
+    DataOptions = DataOptions,
+    ModelOptions = ModelOptions,
+    TrainOptions = TrainOptions
+  )
+  
+  runMOFA(MOFAobject)
+})
+
+
+compareModels(MOFAlist)
+#higher elbo values preferred
+
+compareFactors(MOFAlist)
+# visualises robsustness between runs
+
+
+MOFAobject <- selectModel(MOFAlist, plotit = FALSE)
+MOFAobject
+
+plotVarianceExplained(MOFAobject)
+
+
+plotWeightsHeatmap(
+  MOFAobject, 
+  view = "Plasma", 
+  factors = 1:3,
+  show_colnames = T
+)
+
+plotFactorScatter(
+  MOFAobject,
+  factors = c(1,2),
+  color_by = "Volunteer",      # color by the IGHV values that are part of the training data
+  shape_by = "Timepoint"  # shape by the trisomy12 values that are part of the training data
+)
+
+
+plotWeights(
+  MOFAobject, 
+  view = "Plasma", 
+  factor = 3, 
+  nfeatures = 8
+)
+
+plotDataHeatmap(
+  MOFAobject, 
+  view = "CyTOF", 
+  factor = 1, 
+  features = 20, 
+  show_rownames = T
+)
+
+
+plotFactorScatters(
+  MOFAobject,
+  factors = 1:3,
+  color_by = "Volunteer",
+  shape_by = "Timepoint"
+)
+
+
+
+
+
+
+
+
+
+>>>>>>> f1e7fbc5cd72344b7848b02ff174a0b613b12f18
