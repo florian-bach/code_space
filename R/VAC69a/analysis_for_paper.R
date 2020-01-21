@@ -24,7 +24,8 @@ sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
 
 
 ### read in metadata etc. ####
-setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/fcs")
+#setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
 md <- read.csv("meta_data.csv", header=T) 
 
@@ -176,7 +177,7 @@ merging_table1$new_cluster <- factor(merging_table1$new_cluster, levels = c("CD4
 
 daf100 <- mergeClusters(daf100, k = "meta15", table = merging_table1, id = "merging1")
 
-plotDR(daf100, "UMAP", color_by="CD45RO")
+plotDR(daf100, "UMAP", color_by="CD4")
 ####
 
 
