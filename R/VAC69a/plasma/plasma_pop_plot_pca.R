@@ -4,7 +4,7 @@ library(ggplot2)
 library(ggbiplot)
 library(plotly)
 
-library(rgl) # want some 3d?
+#library(rgl) # want some 3d?
 
 data <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 # data<- na.omit(data)
@@ -60,22 +60,144 @@ viva_data <- long_data
 ggsave("/Users/s1249052/PhD/plasma/vac69a/log_all_hail_legendplex.png", viva_plot, width=35.5, height = 20)
 ####     pca plot
 
-data2 <- spread(long_data, Analyte, Concentration)
 
+
+
+data2 <- spread(long_data, Analyte, Concentration)
 split_data <- split(data2, data2$Volunteer)
 
-list_of_pcas <- lapply(split_data, function(x){prcomp(x[,3:ncol(x)], center = T)})
 
-list_of_plots <- apply(list_of_pcas, FUN=function(p){ggplot()+
-  geom_text(aes(x=p$x[,1], y=p$x[,2], color=data$Volunteer, label=data$timepoint), size=7, fontface="bold")+
-  xlab(paste("PC1 ", summary(plasma_pca)$importance[2,1]*100, "%", sep = ""))+
-  ylab(paste("PC2 ", summary(plasma_pca)$importance[2,2]*100, "%", sep = ""))+
-  scale_shape_manual(values=c(16:19))+
-  #scale_color_manual(values=my_paired_palette)+
+
+
+# 
+# ####
+# 
+# pca <- lapply(split_data[2], FUN=function(x){
+#   prcomp(x[,3:ncol(x)], center = T)}
+#   )
+# 
+# ####
+# list_of_plots <- lapply(list_of_pcas, FUN=function(p){
+#   ggplot()+
+#   geom_text(aes(x=p$x[,1], y=p$x[,2], color=data$Volunteer, label=data$timepoint), size=7, fontface="bold")+
+#   xlab(paste("PC1 ", summary(p)$importance[2,1]*100, "%", sep = ""))+
+#   ylab(paste("PC2 ", summary(p)$importance[2,2]*100, "%", sep = ""))+
+#   scale_shape_manual(values=c(16:19))+
+#   #scale_color_manual(values=my_paired_palette)+
+#   theme_minimal()+
+#   theme(legend.title = element_blank(),
+#         axis.text = element_text(size=20),
+#         axis.title = element_text(size=25))
+#   }
+#   )
+# 
+# meta_list <- lapply(list_of_pcas, fucntion(x))
+
+my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
+names(my_paired_palette) <- names(list_of_pcas)
+
+
+transformed_list_of_analytes <- lapply(
+  split_data, function(x){scales::rescale(as.matrix(x[,3:ncol(x)], to=c(1,100)))
+    })
+
+list_of_pcas <- lapply(transformed_list_of_analytes, function(x){
+  pca <- prcomp(x[,3:ncol(x)], center = T)
+  cbind(x[,1:2], pca$x)
+})
+
+
+list_of_perc <- lapply(transformed_list_of_analytes, function(x){
+  pca <- prcomp(x[,3:ncol(x)], center = T)
+})
+
+
+
+for(i in 1:length(list_of_pcas)){
+  
+  p <- NULL
+  p <- list_of_pcas[[i]]
+  q <-list_of_perc[[i]]
+  
+  assign(paste(names(list_of_pcas[i]), "_pca_plot", sep=''),
+  ggplot(p, aes(x=PC1, y=PC2, colour=Volunteer))+
+  scale_color_manual(values=my_paired_palette)+
+  geom_text(label=p$timepoint, size=6, fontface="bold")+
+  ggtitle(paste(names(list_of_pcas[i])))+
+  xlab(paste("PC1 ", data.frame(summary(q)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(q)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
-  theme(legend.title = element_blank(),
+  theme(legend.position = "none",
         axis.text = element_text(size=20),
-        axis.title = element_text(size=25))})
+        axis.title = element_text(size=25),
+        #axis.text = element_blank(),
+        plot.title = element_text(size=16, hjust=0.5)
+        )
+  )
+  }
+
+
+gridExtra::grid.arrange(v002_pca_plot, v003_pca_plot, v005_pca_plot, v006_pca_plot, v007_pca_plot, v009_pca_plot)
+
+
+
+
+list_of_pcas2 <- lapply(split_data, function(x){
+  pca <- prcomp(x[,3:ncol(x)], center = T)
+  cbind(x[,1:2], pca$x)
+})
+
+
+list_of_perc2 <- lapply(split_data, function(x){
+  pca <- prcomp(x[,3:ncol(x)], center = T)
+})
+
+top_hits2 <- lapply(list_of_perc2, function(x){
+  head(
+    x$rotation[order((x$rotation[,1]), decreasing=T),],
+    n=10)
+})
+
+
+
+
+
+top_hits <- lapply(list_of_perc, function(x){
+  head(
+    x$rotation[order(x$rotation[,1], decreasing=T),],
+    n=15)
+})
+
+top_hits
+
+  head(
+    list_of_perc[1]$v002$rotation[order
+      (abs(list_of_perc[1]$v002$rotation[,1]), decreasing=T),],
+    n=10)
+
+
+
+
+
+
+
+
+
+geom_text(aes(x=p$x[,1], y=p$x[,2], color=data$Volunteer, label=data$timepoint), size=7, fontface="bold")
+# ggplot()+
+#   +   geom_text(aes(x=p$x[,1], y=p$x[,2], color=data$Volunteer, label=data$timepoint), size=7, fontface="bold")+
+#   +   xlab(paste("PC1 ", summary(p)$importance[2,1]*100, "%", sep = ""))+
+#   +   ylab(paste("PC2 ", summary(p)$importance[2,2]*100, "%", sep = ""))+
+#   +   scale_shape_manual(values=c(16:19))+
+#   +   #scale_color_manual(values=my_paired_palette)+
+#   +   theme_minimal()+
+#   +   theme(legend.title = element_blank(),
+#             +         axis.text = element_text(size=20),
+#             +         axis.title = element_text(size=25))
+# 
+# 
+
+
 
 
 plasma_pca <- prcomp(data2[,3:ncol(data2)], center = T, scale. = T)
