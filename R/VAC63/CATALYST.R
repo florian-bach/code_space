@@ -4,22 +4,43 @@ library(flowCore)
 library(ggplot2)
 library(RColorBrewer)
 library(SingleCellExperiment)
+library(CytoNorm)
 
 setwd("/Users/s1249052/PhD/cytof/vac63c/fcs_files/T\ cells/")
+setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
 
+#### how the metadata file was made ####
+md <- read.delim("experiment_279034_annotations.tsv")
+md <- dplyr::select(md, FCS.Filename, Timepoints, Individuals)
+colnames(md) <- c("file_name", "timepoint", "volunteer")
 
-md <- read_excel("meta_data.xlsx") 
+md$timepoint <- gsub("C-1", "Baseline", md$timepoint)
+md$timepoint <- gsub("+", "", md$timepoint, fixed = T)
+
+batch <- stringr::str_match(md$file_name, "b[0-9]*")[, 1]
+batch <- ifelse(is.na(batch)==T, "b3", batch)
+
+sample_id <- paste(md$timepoint, "_v", md$volunteer, sep='')
+
+#md <- read_excel("meta_data.xlsx") 
+vac63c_metadata <- data.frame("file_name"=md$file_name, "sample_id"=sample_id, "timepoint"=md$timepoint, "batch"=batch, "volunteer"=paste("v", md$volunteer, sep=''))
+write.csv(vac63c_metadata, "vac63c_metadata.csv") 
+
+#### let's go ####
+md <- read.csv("vac63c_metadata.csv")
 
 #change number of volunteers here
-md <- dplyr::filter(md, volunteer %in% c("V315", "V313", "V320"))
 
+md <- dplyr::filter(md, volunteer %in% c("v315", "v313", "v320"))
 
-md$timepoint <- factor(md$timepoint, levels = c("Baseline", "DoD", "T+6", "C+45"))
+md$timepoint <- factor(md$timepoint, levels = c("Baseline", "DoD", "DoD+6", "C45"))
 md$sample_id <- factor(md$sample_id, levels = md$sample_id[order(md$timepoint)])
 
 # select whose files to import
 
-fcs_files <- grep("fcs", list.files("/Users/s1249052/PhD/cytof/vac63c/fcs_files/T\ cells/"), value = T)
+#fcs_files <- grep("fcs", list.files("/Users/s1249052/PhD/cytof/vac63c/fcs_files/T\ cells/"), value = T)
+fcs_files <- grep("fcs", list.files("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files"), value = T)
+
 
 primaries <- c()
 
@@ -35,8 +56,9 @@ vac63c_primaries <- read.flowSet(primaries)
 
 
 
-## antigen colnames CANNOT start with a digit, otherwise it won't parse
+## antigen colnames CANNOT start with a digit, it won't parse
 
+#### how the panel was made ####
 try <- vac63c_primaries[[1]]
 panel <- data.frame("fcs_colname"=colnames(try), "antigen"=c("Time", markernames(try)))
 panel$antigen <- gsub("_", "", panel$antigen)
@@ -47,7 +69,10 @@ panel$antigen <- ifelse(nchar(panel$antigen)>6,
                                        )
 panel$antigen[3] <- "CD45"
 
+write.csv(panel, "vac63c_panel.csv")
+#### ####
 
+panel <- read.csv("vac63c_panel.csv")
 # spot check that all panel columns are in the flowSet object
 # all(panel$fcs_colname %in% colnames(vac63c_primaries))
 # all(colnames(vac63c_primaries) %in% panel$fcs_colname)
@@ -213,3 +238,10 @@ icos_plot <- plotDR(daf, "UMAP", color_by="ICOS", facet="timepoint")+
   sc
 
 cowplot::plot_grid(cxcr5_plot, pd1_plot, icos_plot, nrow=3)
+
+
+
+#### cytoNorm ####
+
+devtools::install_github('saeyslab/CytoNorm')
+remotes::install_github("r-lib/rlang")
