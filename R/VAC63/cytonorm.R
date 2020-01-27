@@ -6,10 +6,27 @@ library(RColorBrewer)
 library(SingleCellExperiment)
 library(CytoNorm)
 library(FlowSOM)
+library(devtools)
+
+
+library(BiocManager)
+# This should pull all dependencies.
+BiocManager::install("FlowSOM") 
+
+# Then install latest dependencies from github, using devtools.
+install.packages("devtools") 
+library(devtools) #load it
+
+# install_github("RGLab/flowWorkspace")
+# install_github("RGLab/openCyto")
+BiocManager::install("CytoML") 
+install_github('saeyslab/CytoNorm')
+
 
 `%!in%` = Negate(`%in%`)
 
 myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
+
 red_palette <- c(myPalette(100), rep(myPalette(100)[100], 200))
 
 sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
@@ -17,8 +34,9 @@ sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
 
 
 
-setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
+#setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
 
+setwd("/home/florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
 files <- list.files(pattern = "*.fcs")
 dir <- getwd()
 
@@ -68,9 +86,10 @@ proper_channels <- colnames(ff)[c(3,14:15,23:57,63,65)]
 
 
 transformList <- flowCore::transformList(proper_channels,
-                                         cytofTransform)
+                                         CytoNorm::cytofTransform)
+
 transformList_reverse <- flowCore::transformList(proper_channels,
-                                                 cytofTransform.reverse)
+                                                 CytoNorm::cytofTransform.reverse)
 
 fsom <- prepareFlowSOM(data$Path,
                        proper_channels,
@@ -82,10 +101,26 @@ fsom <- prepareFlowSOM(data$Path,
                        transformList = transformList,
                        seed = 1)
 
-cvs <- testCV(fsom,
-              cluster_values = c(5, 10, 15)) 
+cvs <- CytoNorm::testCV(fsom, cluster_values = c(5, 10, 15)) 
 
-cvs$pctgs$`10`
+
+Training the model
+
+model <- CytoNorm.train(files = train_data$Path,
+                        labels = train_data$Batch,
+                        channels = channels,
+                        transformList = transformList,
+                        FlowSOM.params = list(nCells = 6000, 
+                                              xdim = 5,
+                                              ydim = 5,
+                                              nClus = 10,
+                                              scale = FALSE),
+                        normMethod.train = QuantileNorm.train,
+                        normParams = list(nQ = 101,
+                                          goal = "mean"),
+                        seed = 1,
+                        verbose = TRUE)
+
 
 
 
