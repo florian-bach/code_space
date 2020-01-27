@@ -5,9 +5,13 @@ library(ggplot2)
 library(RColorBrewer)
 library(SingleCellExperiment)
 library(CytoNorm)
+library(diffcyt)
+library(tidyr)
+library(dplyr)
 
-setwd("/Users/s1249052/PhD/cytof/vac63c/fcs_files/T\ cells/")
-setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
+setwd("/home/florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
+# setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files")
+# setwd("/Users/s1249052/PhD/cytof/vac63c/fcs_files/T\ cells/")
 
 #### how the metadata file was made ####
 md <- read.delim("experiment_279034_annotations.tsv")
@@ -33,13 +37,14 @@ md <- read.csv("vac63c_metadata.csv")
 
 md <- dplyr::filter(md, volunteer %in% c("v315", "v313", "v320"))
 
-md$timepoint <- factor(md$timepoint, levels = c("Baseline", "DoD", "DoD+6", "C45"))
+md$timepoint <- factor(md$timepoint, levels = c("Baseline", "DoD", "T6", "C45"))
 md$sample_id <- factor(md$sample_id, levels = md$sample_id[order(md$timepoint)])
 
 # select whose files to import
 
 #fcs_files <- grep("fcs", list.files("/Users/s1249052/PhD/cytof/vac63c/fcs_files/T\ cells/"), value = T)
-fcs_files <- grep("fcs", list.files("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files"), value = T)
+#fcs_files <- grep("fcs", list.files("C:/Users/Florian/PhD/cytof/vac63c/t_cells/experiment_279034_files"), value = T)
+fcs_files <- grep("fcs", list.files("/home/florian/PhD/cytof/vac63c/t_cells/experiment_279034_files"), value = T)
 
 
 primaries <- c()
@@ -133,38 +138,16 @@ t_cell_channels <- marker_levels
 
 
 ##
-daf <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 12, seed = 1234)
+daf <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 25, seed = 1234)
 
+##metadata(daf)$delta_area
 
-# Daf_12 <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 12, seed = 12)
-# Daf_12_Delta <- metadata(Daf_12)$delta_area
-# 
-# Daf_25 <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 25, seed = 1234)
-# Daf_25_Delta <- metadata(Daf_25)$delta_area
-# 
-# Daf_40 <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 40, seed = 1234)
-# Daf_40_Delta <- metadata(Daf_40)$delta_area
-# 
-# Daf_60 <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 60, seed = 1234)
-# Daf_60_Delta <- metadata(Daf_60)$delta_area
-# 
-# Daf_80 <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 80, seed = 1234)
-# Daf_80_Delta <- metadata(Daf_80)$delta_area
-# 
-# 
-
-
-
-##
 plotMDS(daf, color_by = "timepoint")
 
 plotExprHeatmap(daf, bin_anno = TRUE, row_anno = TRUE)
 
 
-
-
 # run FlowSOM
-daf <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 20, seed = 1234)
 
 #plotNRS(daf, color_by="timepoint")
 
@@ -177,17 +160,214 @@ daf <- cluster(daf, cols_to_use = t_cell_channels, xdim = 10, ydim = 10, maxK = 
 #   scale_fill_distiller(palette = 'RdPu', trans="reverse")
 
 
+
+plotClusterHeatmap(daf, hm2 = "abundances",
+                   k = "meta25",
+                   m = NULL,
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale=F) 
+
+
+
+
+ei <- metadata(daf)$experiment_info
+
+da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
+                             cols_random = c("sample_id"))
+
+(da_formula2 <- createFormula(ei,
+                              cols_fixed = c("timepoint", "volunteer"), 
+                              cols_random = "sample_id"))
+
+
+#try som100; run colnames(metadata(daf100)$cluster_codes) to see everything
+
+#design <- createDesignMatrix(ei, c("timepoint", "sample_id", "volunteer"))
+
+levels(ei$timepoint)
+# [1] "Baseline" "DoD"      "T6"       "C45"  
+
+# try putting baserline level as -1 rather than 0...
+contrast_baseline <- createContrast(c(1, rep(0, 3)))
+contrast_dod<- createContrast(c(0,1,0,0))
+contrast_t6 <- createContrast(c(0,0,1,0))
+contrast_c45 <- createContrast(c(rep(0, 3), 1))
+# nrow(contrast) == ncol(design)
+# data.frame(parameters = colnames(design), contrast)
+
+da_baseline <- diffcyt(daf,
+                       formula = da_formula1,
+                       contrast = contrast_baseline,
+                       analysis_type = "DA",
+                       method_DA = "diffcyt-DA-GLMM",
+                       clustering_to_use = "meta25",
+                       verbose = T)
+
+
+da_dod <- diffcyt(daf,
+                  formula = da_formula1,
+                  #design = design,
+                  contrast = contrast_dod,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-GLMM",
+                  clustering_to_use = "meta25",
+                  verbose = F)
+
+da_t6 <- diffcyt(daf,
+                  formula = da_formula1,
+                  #design = design,
+                  contrast = contrast_t6,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-GLMM",
+                  clustering_to_use = "meta25",
+                  verbose = F)
+
+
+da_c45 <- diffcyt(daf,
+                 formula = da_formula1,
+                 #design = design,
+                 contrast = contrast_c45,
+                 analysis_type = "DA",
+                 method_DA = "diffcyt-DA-GLMM",
+                 clustering_to_use = "meta25",
+                 verbose = F)
+
+
+da_baseline_vol <- diffcyt(daf100,
+                           formula = da_formula2,
+                           contrast = contrast_baseline,
+                           analysis_type = "DA",
+                           method_DA = "diffcyt-DA-GLMM",
+                           clustering_to_use = "som100",
+                           verbose = F)
+
+
+da_c10_vol <- diffcyt(daf100,
+                      formula = da_formula2,
+                      contrast = contrast_c10,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "som100",
+                      verbose = F)
+
+da_dod_vol <- diffcyt(daf100,
+                      formula = da_formula2,
+                      contrast = contrast_dod,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "som100",
+                      verbose = F)
+
+
+da_t6_vol <- diffcyt(daf100,
+                     formula = da_formula2,
+                     contrast = contrast_t6,
+                     analysis_type = "DA",
+                     method_DA = "diffcyt-DA-GLMM",
+                     clustering_to_use = "som100",
+                     verbose = F)
+
+
+FDR_cutoff <- 0.05
+
+plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T, draw_freq=T)
+plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T, top_n=50)
+plotDiffHeatmap(daf, da_c45, th = FDR_cutoff, normalize = TRUE, hm1 = T, top_n=50)
+
+
+table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
+table(rowData(da_dod$res)$p_adj < FDR_cutoff)
+table(rowData(da_t6$res)$p_adj < FDR_cutoff)
+table(rowData(da_c45$res)$p_adj < FDR_cutoff)
+
+# <3
+dod_tbl <- data.frame(topTable(da_dod, show_props = TRUE, format_vals = TRUE, digits = 2))
+
+sig_dod <- dplyr::select(dod_tbl, colnames(dod_tbl)[c(1:6,grep("DoD", colnames(dod_tbl), fixed=T))])
+sig_dod_clusters <- subset(rowData(da_dod$res), rowData(da_dod$res)$p_adj < FDR_cutoff)$cluster_id 
+
+sig_dod <- filter(sig_dod, sig_dod$cluster_id %in% sig_dod_clusters)
+long_sig_dod <- gather(sig_dod, sample, frequency, colnames(sig_dod)[4:length(colnames(sig_dod))])
+long_sig_dod$volunteer <- substr(long_sig_dod$sample, nchar(long_sig_dod$sample)-3, nchar(long_sig_dod$sample))
+long_sig_dod$timepoint <- ifelse(grepl("DoD", long_sig_dod$sample)==T, "DoD", "Baseline")
+
+ggplot(long_sig_dod, aes(x=timepoint, y=frequency, group=sample, fill=volunteer))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme_minimal()
+
+
+
+t6_tbl <- data.frame(topTable(da_t6, show_props = TRUE, format_vals = TRUE, digits = 2))
+
+sig_t6 <- dplyr::select(t6_tbl, colnames(t6_tbl)[c(1:6,grep("T6", colnames(t6_tbl), fixed=T))])
+sig_t6_clusters <- subset(rowData(da_t6$res), rowData(da_t6$res)$p_adj < FDR_cutoff)$cluster_id 
+
+
+sig_t6 <- filter(sig_t6, sig_t6$cluster_id %in% sig_t6_clusters)
+long_sig_t6 <- gather(sig_t6, sample, frequency, colnames(sig_t6)[4:length(colnames(sig_t6))])
+long_sig_t6$volunteer <- substr(long_sig_t6$sample, nchar(long_sig_t6$sample)-3, nchar(long_sig_t6$sample))
+long_sig_t6$timepoint <- ifelse(grepl("T6", long_sig_t6$sample)==T, "T6", "Baseline")
+
+
+ggplot(long_sig_t6, aes(x=timepoint, y=frequency, group=sample, fill=volunteer))+
+  geom_bar(stat = "identity", position = "dodge")+
+  theme_minimal()+
+  facet_wrap(~long_sig_t6$cluster_id, scales="free")
+  
+diffcyt::  
+  
+
+
+
+
+
+
+
+
+
+sigt6 <- subset(rowData(da_t6$res), rowData(da_t6$res)$p_adj < FDR_cutoff) 
+
+sigt6$cluster_id
+
+sig_clusters <- daf[cluster_id %in% as.character(sigt6$cluster_id), "meta25")
+
+cluster_ids <- cluster_ids(daf, "meta25")
+sig_clusters <- as.character(sigt6$cluster_id)
+sig_t6_daf <- daf[cluster_ids %in% sig_clusters,]
+
+
+
+
+daf <- runDR(daf, "UMAP", rows_to_use = 5000)
+
+
+table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
+
+
+
+u <- CATALYST::filterSCE(daf, k = "meta25",
+               cluster_id %in% sigt6$cluster_id)
+
+cowplot::plot_grid(
+  plotDR(daf, "UMAP", color_by = "BCL2",  facet="timepoint"),
+  plotDR(sig_t6_daf, "UMAP", color_by = "BCL2",  facet="timepoint"), nrow = 2)
+
+
+
 myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
 red_palette <- c(myPalette(100), rep(myPalette(100)[100], 200))
 
 sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
 
 
-plotClusterHeatmap(daf, hm2 = NULL, k = "meta12", m = NULL, cluster_anno = TRUE, draw_freqs = TRUE) 
 
 
 
-plotDR(daffy, "UMAP", color_by="meta12", facet=c("timepoint"))
+
+
+
 
 # density plot, with contours
 density_plot <- plotDR(daffy, "UMAP", color_by="CCR7", facet=c("timepoint"))+
