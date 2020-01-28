@@ -4,7 +4,7 @@ library(gridExtra)
 library(cowplot)
 library(RColorBrewer)
 
-#setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
+setwd("/Users/s1249052/PhD/cytof/better_gating/double_flowsoms/figures")
 setwd("C:/Users/Florian/PhD/cytof/vac69a/double_flowsoms/figures/")
 
 
