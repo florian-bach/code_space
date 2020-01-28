@@ -528,6 +528,7 @@ sum_pi <- sum_pi %>%
   group_by(cluster_id) %>%
   dplyr::mutate(fold_change=cluster_sum[2]/cluster_sum[1])
 
+sum_pi$fold_change <- ifelse(sum_pi$fold_change>100, 100, sum_pi$fold_change)
 
 pie_theme <- theme(aspect.ratio=1,
       axis.text = element_blank(),
@@ -548,14 +549,15 @@ base_pie <- ggplot()+
   theme_void()+
   pie_theme
 
-t6_pie <- ggplot()+
-  geom_rect(data=t6_sum_pi, aes(xmin=1, xmax=2, ymin=t6_sum_pi$ymin/3, ymax=t6_sum_pi$ymax/3, color=t6_sum_pi$cluster_id, fill=t6_sum_pi$cluster_id))+
+
+(t6_pie <- ggplot()+
+  geom_rect(data=t6_sum_pi, aes(xmin=log(t6_sum_pi$fold_change, base = 8), xmax=log(t6_sum_pi$fold_change, base = 8)+1, ymin=t6_sum_pi$ymin/3, ymax=t6_sum_pi$ymax/3, color=t6_sum_pi$cluster_id, fill=t6_sum_pi$cluster_id))+
   coord_polar(theta="y")+
   scale_fill_manual(values=rev(meta25_color_scheme))+
   scale_color_manual(values=rev(meta25_color_scheme))+
-  xlim(0,3)+
+  #xlim(0,3)+
   theme_void()+
-  pie_theme
+  pie_theme)
 
 plot_grid(base_pie, t6_pie, rel_widths = c(1,8))
 
