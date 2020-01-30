@@ -38,7 +38,8 @@ md <- read.csv("vac63c_metadata.csv")
 
 #change number of volunteers here
 
-md <- dplyr::filter(md, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
+#md <- dplyr::filter(md, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
+md <- dplyr::filter(md, volunteer %in% c("v308", "v305", "v306"))
 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "DoD", "T6", "C45"))
 md$sample_id <- factor(md$sample_id, levels = md$sample_id[order(md$timepoint)])
@@ -53,7 +54,8 @@ fcs_files <- grep("fcs", list.files("/Users/s1249052/PhD/cytof/vac63c/fcs_files/
 tertiaries <- c()
 
 #change number of volunteers here
-people <- c("301", "304", "305", "306", "308", "310")
+#people <- c("301", "304", "305", "306", "308", "310")
+people <- c("308", "305", "306")
 
 for(i in people){
   one_person <- grep(i, fcs_files, value=T)
@@ -142,10 +144,10 @@ t_cell_channels <- marker_levels
 
 #### calculating FLowSOM clustering & UMAP ####
 start <- Sys.time()
-daf <- cluster(daf, features = t_cell_channels, xdim = 10, ydim = 10, maxK = 25, seed = 1234)
+daf <- cluster(daf, features = t_cell_channels, xdim = 10, ydim = 10, maxK = 35, seed = 1234)
 set.seed(1234)
 daf <- runUMAP(daf, exprs_values = "exprs", feature_set=t_cell_channels)
-plotDR(daf, color_by="batch")+facet_wrap("timepoint")
+plotDR(daf, color_by="CD38")+facet_wrap(c("timepoint", "volunteer"))
 end <- Sys.time()
 print(paste0("clustering & UMAP projecting took ", round(start-end, digits=1), " minutes"))
 # -9.5 minutes
@@ -154,7 +156,6 @@ print(paste0("clustering & UMAP projecting took ", round(start-end, digits=1), "
 
 # plotMDS(daf, color_by = "timepoint")
 # 
-# plotExprHeatmap(daf, bin_anno = TRUE, row_anno = TRUE)
 
 
 # run FlowSOM
@@ -172,16 +173,16 @@ print(paste0("clustering & UMAP projecting took ", round(start-end, digits=1), "
 
 
 plotClusterHeatmap(daf, hm2 = "abundances",
-                   k = "meta25",
-                   m = NULL,
+                   m = "meta25",
+                   k = "som100",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
-                   scale=T) 
-
-
-
-
-plotAbundances(daf, k = "meta12", by = "sample_id", group_by = "timepoint")
+                   scale=T)
+# 
+# 
+# 
+# 
+# plotAbundances(daf, k = "meta12", by = "sample_id", group_by = "timepoint")
 
 #### diffcyt ####
 
@@ -191,22 +192,25 @@ da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
                              cols_random = c("sample_id"))
 
 da_formula2 <- createFormula(ei,
-                              cols_fixed = "timepoint",
-                              cols_random = c("sample_id", "volunteer"))
+                             cols_fixed = "timepoint",
+                             cols_random = "volunteer")
 
 
 #try som100; run colnames(metadata(daf100)$cluster_codes) to see everything
 
-#design <- createDesignMatrix(ei, c("timepoint", "sample_id", "volunteer"))
+design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 
 levels(ei$timepoint)
 # [1] "Baseline" "DoD"      "T6"       "C45"  
 
 # try putting baserline level as -1 rather than 0...
-contrast_baseline <- createContrast(c(1, rep(0, 3)))
-contrast_dod<- createContrast(c(0,1,0,0))
-contrast_t6 <- createContrast(c(0,0,1,0))
-contrast_c45 <- createContrast(c(rep(0, 3), 1))
+contrast_baseline <- createContrast(c(1, rep(0, 8)))
+contrast_dod<- createContrast(c(0,1,rep(0, 7)))
+contrast_t6 <- createContrast(c(0,0,1,rep(0, 6)))
+contrast_c45 <- createContrast(c(rep(0, 3), 1, rep(0, 5)))
+
+data.frame(parameters = colnames(design), contrast_c45)
+
 
 #design <- createDesignMatrix(ei(daf), cols_design = "timepoint")
 
@@ -218,19 +222,19 @@ contrast_c45 <- createContrast(c(rep(0, 3), 1))
 
 
 da_baseline <- diffcyt(daf,
-                       formula = da_formula1,
+                       design=design,
                        experiment_info = ei,
                        marker_info = panel,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
-                       method_DA = "diffcyt-DA-GLMM",
-                       clustering_to_use = "meta25",
+                       method_DA = "diffcyt-DA-edgeR",
+                       clustering_to_use = "som100",
                        verbose = T)
 
 
 da_dod <- diffcyt(daf,
-                  formula = da_formula1,
                   #design = design,
+                  formula = da_formula1,
                   contrast = contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-GLMM",
@@ -238,31 +242,44 @@ da_dod <- diffcyt(daf,
                   verbose = F)
 
 da_t6 <- diffcyt(daf,
-                 formula = da_formula1,
                  #design = design,
-                 contrast = contrast_t6,
+                 formula = da_formula1,
+                 contrast = contrast_dod,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-GLMM",
                  clustering_to_use = "meta25",
                  verbose = F)
 
+table(rowData(da_dod$res)$p_adj < FDR_cutoff)
+table(rowData(da_t6$res)$p_adj < FDR_cutoff)
+plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+
+
+
+
 
 da_c45 <- diffcyt(daf,
-                  formula = da_formula1,
-                  #design = design,
+                  design = design,
                   contrast = contrast_c45,
                   analysis_type = "DA",
-                  method_DA = "diffcyt-DA-GLMM",
-                  clustering_to_use = "meta25",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "som100",
                   verbose = F)
 
 #### models with volunteer as effect ####
+
+contrast_baseline <- createContrast(c(1, rep(0, 3)))
+contrast_dod<- createContrast(c(0,1,rep(0, 3)))
+contrast_t6 <- createContrast(c(0,0,1,rep(0, 1)))
+contrast_c45 <- createContrast(c(rep(0, 3), 1, rep(0, 0)))
+
 da_baseline_vol <- diffcyt(daf,
                            formula = da_formula2,
                            contrast = contrast_baseline,
                            analysis_type = "DA",
                            method_DA = "diffcyt-DA-GLMM",
-                           clustering_to_use = "meta25",
+                           clustering_to_use = "meta35",
                            verbose = F)
 
 da_dod_vol <- diffcyt(daf,
@@ -270,7 +287,7 @@ da_dod_vol <- diffcyt(daf,
                       contrast = contrast_dod,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta25",
+                      clustering_to_use = "meta35",
                       verbose = F)
 
 
@@ -279,7 +296,7 @@ da_t6_vol <- diffcyt(daf,
                      contrast = contrast_t6,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-GLMM",
-                     clustering_to_use = "meta25",
+                     clustering_to_use = "meta35",
                      verbose = F)
 
 da_c45_vol <- diffcyt(daf,
@@ -287,7 +304,7 @@ da_c45_vol <- diffcyt(daf,
                       contrast = contrast_c45,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta25",
+                      clustering_to_use = "meta35",
                       verbose = F)
 
 
@@ -295,11 +312,11 @@ da_c45_vol <- diffcyt(daf,
 #### diffcyt heatmaps ####
 FDR_cutoff <- 0.05
 
-# plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 # # UPREGULATED AT T6: 4, 24, 12, 21, 22, 20, 10, 23
-# plotDiffHeatmap(daf, da_c45, th = FDR_cutoff, normalize = TRUE, hm1 = T, top_n=50)
+plotDiffHeatmap(daf, da_c45, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 # 
 plotDiffHeatmap(daf, da_baseline_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(daf, da_dod_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
