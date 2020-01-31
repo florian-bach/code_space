@@ -38,8 +38,8 @@ md <- read.csv("vac63c_metadata.csv")
 
 #change number of volunteers here
 
-#md <- dplyr::filter(md, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
-md <- dplyr::filter(md, volunteer %in% c("v308", "v305", "v306"))
+md <- dplyr::filter(md, volunteer %in% c("v305", "v306", "v308"))
+#md <- dplyr::filter(md, timepoint %in% c("Baseline", "T6"))
 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "DoD", "T6", "C45"))
 md$sample_id <- factor(md$sample_id, levels = md$sample_id[order(md$timepoint)])
@@ -54,8 +54,8 @@ fcs_files <- grep("fcs", list.files("/Users/s1249052/PhD/cytof/vac63c/fcs_files/
 tertiaries <- c()
 
 #change number of volunteers here
-#people <- c("301", "304", "305", "306", "308", "310")
-people <- c("308", "305", "306")
+people <- c("305", "306", "308")
+#people <- c("308", "305", "306")
 
 for(i in people){
   one_person <- grep(i, fcs_files, value=T)
@@ -94,14 +94,16 @@ panel <- read.csv("vac63c_panel.csv")
 
 
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID AND THEN EVERYTHING ELSE IN FACTORS
+## subscript out of bounds error indicates mismatch between files in flowset and md
 daf <- prepData(vac63c_tertiaries, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")))
+                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer", "n_infection")))
 
 
 # this gets rid of barcoding and quality control channels so clustering is easier
 proper_channels <- rownames(daf)[c(3,14:15,23:57,63,65)]
 t_cell_channels <- proper_channels[c(-1, -2, -32)]
 
+# t cell channels ####
 marker_levels <- c("CD4",
                    "CD8",
                    "Vd2",
@@ -139,17 +141,64 @@ marker_levels <- c("CD4",
                    "CD45RO",
                    "CCR7")
 
+activation_markers <- c("CD4",
+                   "CD8",
+                   "Vd2",
+                   "Va72",
+                   "CD38",
+                   "CD69",
+                   "HLADR",
+                   "ICOS",
+                   "CD28",
+                   "PD1",
+                   
+                   
+                   "BCL2",
+                   "CD27",
+                   "Perforin",
+                   "GZB",
+                   "Tbet",
+                   "Eomes",
+                   
+                   
+                   "CTLA4",
+                   "Ki67",
+                   "CD127",
+                   
+                   "CD161",
+                   
+                   "CD25",
+                   "FoxP3",
+                   
+                   
+                   "CX3CR1",
+                   "CD57",
+                   "CD45RA",
+                   "CD45RO",
+                   "CCR7")
+
+
 t_cell_channels <- marker_levels
+
+# activation relevant channels ####
 
 
 #### calculating FLowSOM clustering & UMAP ####
-start <- Sys.time()
-daf <- cluster(daf, features = t_cell_channels, xdim = 10, ydim = 10, maxK = 35, seed = 1234)
-set.seed(1234)
-daf <- runUMAP(daf, exprs_values = "exprs", feature_set=t_cell_channels)
-plotDR(daf, color_by="CD38")+facet_wrap(c("timepoint", "volunteer"))
-end <- Sys.time()
-print(paste0("clustering & UMAP projecting took ", round(start-end, digits=1), " minutes"))
+#start <- Sys.time()
+set.seed(1234);daf <- cluster(daf, features = t_cell_channels, xdim = 10, ydim = 10, maxK = 35, seed = 1234)
+
+plotClusterHeatmap(daf, hm2 = "abundances",
+                   #m = "meta35",
+                   k = "meta35",
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale=T)
+
+
+#daf <- runUMAP(daf, exprs_values = "exprs", feature_set=t_cell_channels)
+#plotDR(daf, color_by="CD38")+facet_wrap(c("timepoint", "volunteer"))
+#end <- Sys.time()
+#print(paste0("clustering & UMAP projecting took ", round(start-end, digits=1), " minutes"))
 # -9.5 minutes
 
 ##metadata(daf)$delta_area
@@ -188,12 +237,12 @@ plotClusterHeatmap(daf, hm2 = "abundances",
 
 ei <- metadata(daf)$experiment_info
 
-da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
-                             cols_random = c("sample_id"))
-
-da_formula2 <- createFormula(ei,
-                             cols_fixed = "timepoint",
-                             cols_random = "volunteer")
+# da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
+#                              cols_random = c("sample_id"))
+# 
+# da_formula2 <- createFormula(ei,
+#                              cols_fixed = "timepoint",
+#                              cols_random = "volunteer")
 
 
 #try som100; run colnames(metadata(daf100)$cluster_codes) to see everything
@@ -204,10 +253,10 @@ levels(ei$timepoint)
 # [1] "Baseline" "DoD"      "T6"       "C45"  
 
 # try putting baserline level as -1 rather than 0...
-contrast_baseline <- createContrast(c(1, rep(0, 8)))
-contrast_dod<- createContrast(c(0,1,rep(0, 7)))
-contrast_t6 <- createContrast(c(0,0,1,rep(0, 6)))
-contrast_c45 <- createContrast(c(rep(0, 3), 1, rep(0, 5)))
+contrast_baseline <- createContrast(c(1, rep(0, 5)))
+contrast_dod<- createContrast(c(0,1,0,0,0,0))
+contrast_t6 <- createContrast(c(0,0,1,0,0,0))
+contrast_c45 <- createContrast(c(rep(0, 3), 1, 0, 0))
 
 data.frame(parameters = colnames(design), contrast_c45)
 
@@ -220,43 +269,31 @@ data.frame(parameters = colnames(design), contrast_c45)
 
 #### models without volunteer as effect ####
 
-
 da_baseline <- diffcyt(daf,
-                       design=design,
-                       experiment_info = ei,
-                       marker_info = panel,
+                       design = design,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "som100",
+                       clustering_to_use = "meta35",
                        verbose = T)
 
 
 da_dod <- diffcyt(daf,
-                  #design = design,
-                  formula = da_formula1,
+                  design = design,
                   contrast = contrast_dod,
                   analysis_type = "DA",
-                  method_DA = "diffcyt-DA-GLMM",
-                  clustering_to_use = "meta25",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "meta35",
                   verbose = F)
 
 da_t6 <- diffcyt(daf,
-                 #design = design,
                  formula = da_formula1,
-                 contrast = contrast_dod,
+                 design = design,
+                 contrast = contrast_t6,
                  analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "meta25",
+                 method_DA = "diffcyt-DA-edgeR",
+                 clustering_to_use = "meta35",
                  verbose = F)
-
-table(rowData(da_dod$res)$p_adj < FDR_cutoff)
-table(rowData(da_t6$res)$p_adj < FDR_cutoff)
-plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-
-
-
 
 
 da_c45 <- diffcyt(daf,
@@ -264,8 +301,17 @@ da_c45 <- diffcyt(daf,
                   contrast = contrast_c45,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "som100",
+                  clustering_to_use = "meta35",
                   verbose = F)
+
+
+table(rowData(da_dod$res)$p_adj < FDR_cutoff)
+table(rowData(da_t6$res)$p_adj < FDR_cutoff)
+table(rowData(da_c45$res)$p_adj < FDR_cutoff)
+
+plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_c45, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 
 #### models with volunteer as effect ####
 
@@ -312,90 +358,74 @@ da_c45_vol <- diffcyt(daf,
 #### diffcyt heatmaps ####
 FDR_cutoff <- 0.05
 
-plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-# # UPREGULATED AT T6: 4, 24, 12, 21, 22, 20, 10, 23
-plotDiffHeatmap(daf, da_c45, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-# 
-plotDiffHeatmap(daf, da_baseline_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_dod_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_c45, th = FDR_cutoff, normalize = TRUE, hm1 = T, top_n=50)
 
 #upregulated when including volunteer: 7, 24, 18, 13, 9, 21
 #
-# 
-table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
-table(rowData(da_dod$res)$p_adj < FDR_cutoff)
-table(rowData(da_t6$res)$p_adj < FDR_cutoff)
-table(rowData(da_c45$res)$p_adj < FDR_cutoff)
-
-
-table(rowData(da_baseline_vol$res)$p_adj < FDR_cutoff)
-table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
-table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
-table(rowData(da_c45_vol$res)$p_adj < FDR_cutoff)
-
+#
 
 #### FILTERING ON UPREGULATED STUFF
+up_t6 <- paste(c(28,3,24,16))
 
-meta_diff_dod <- filterSCE(daf, k = "meta25",
-                        cluster_id %in% c(7, 24, 18, 13, 9, 21))
+meta_up_t6 <- filterSCE(daf, k = "meta35", cluster_id %in% up_t6)
 
 #### color scheme business ####
 #pastel scheme from https://graphicdesign.stackexchange.com/questions/3682/where-can-i-find-a-large-palette-set-of-contrasting-colors-for-coloring-many-d
-meta25_color_scheme <- rev(c("#023fa5", "#7d87b9", "#bec1d4", "#d6bcc0", "#bb7784", "#8e063b", "#4a6fe3", "#8595e1", "#b5bbe3", "#e6afb9", "#e07b91", "#d33f6a", "#11c638", "#8dd593", "#c6dec7", "#ead3c6", "#f0b98d", "#ef9708", "#0fcfc0", "#9cded6", "#d5eae7", "#f3e1eb", "#f6c4e1", "#f79cd4",'#ff00ff'))
-names(meta25_color_scheme) <- as.character(seq(1, length(meta25_color_scheme)))
+meta35_color_scheme <- c(
+  "#4A3B53","#0AA6D8","#FFB500","#6A3A4C","#456648","#B79762","#3B5DFF","#0CBD66","#4FC601",
+  "#D157A0","#34362D","#885578","#8FB0FF","#006FA6","#BA0900","#7A4900","#FFF69F","#FFDBE5",
+  "#EEC3FF","#B4A8BD","#3A2465","#7A87A1","#1CE6FF","#6F0062","#0086ED","#6B002C","#C0B9B2",
+  "#04F757","#000000","#FF2F80","#FFAA92","#A30059","#FF34FF","#013349","#C2FFED")
+
+names(meta35_color_scheme) <- as.character(seq(1, length(meta35_color_scheme)))
 
 #maximally different 64 colours from https://graphicdesign.stackexchange.com/questions/3682/where-can-i-find-a-large-palette-set-of-contrasting-colors-for-coloring-many-d
-hard_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
-                 "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
-                 "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
-                 "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
-                 "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
-                 "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
-                 "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
-                 "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
-                 "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
-                 "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
-                 "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
-                 "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
-                 "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
+# hard_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
+#                  "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
+#                  "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
+#                  "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
+#                  "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
+#                  "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
+#                  "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
+#                  "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
+#                  "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
+#                  "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
+#                  "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
+#                  "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
+#                  "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
 
-names(hard_scheme) <- as.character(seq(1, length(hard_scheme)))
+#names(hard_scheme) <- as.character(seq(1, length(hard_scheme)))
 
 #random sampling
-scale1 <- sample(hard_scheme, size = 25);names(scale1) <- as.character(seq(1, length(scale1)))
-scale2 <- sample(hard_scheme, size = 25);names(scale2) <- as.character(seq(1, length(scale2)))
-scale3 <- sample(hard_scheme, size = 25);names(scale3) <- as.character(seq(1, length(scale3)))
-scale4 <- sample(hard_scheme, size = 25);names(scale4) <- as.character(seq(1, length(scale4)))
-scale5 <- sample(hard_scheme, size = 25);names(scale5) <- as.character(seq(1, length(scale5)))
-
-plot_grid(
-  plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale1),
-  plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale2),
-  plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale3),
-  plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale4),
-  plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale5), labels = c("scale1", "scale2", "scale3", "scale4", "scale5"))
-
-
-#### UMAP of filtered populations ####
-
-nice_scale <- c("#7A87A1", "#3B9700", "#6F0062", "#C2FF99", "#FF90C9", "#001E09", "#324E72", "#FF8A9A", "#A30059", "#7900D7",
-                "#788D66", "#997D87", "#0CBD66", "#6B002C", "#D16100", "#ff00ff", "#C0B9B2", "#000035", "#6B7900", "#1E6E00", "#BEC459",
-                "#D790FF", "#CC0744", "#886F4C", "#809693")
-
-names(nice_scale) <- as.character(seq(1, length(nice_scale)))
-
-plot_grid(
-  plotDR(daf, color_by = "meta25")+facet_wrap("timepoint")+scale_color_manual(values=meta25_color_scheme),
-  plotDR(meta_diff_dod, color_by = "meta25")+facet_wrap("timepoint")+scale_color_manual(values=meta25_color_scheme)
-)
-
-plot_grid(
-  plotDR(daf, color_by = "CD161")+facet_wrap("timepoint"),
-  plotDR(meta_up_t6, color_by = "CD161")+facet_wrap("timepoint")
+# scale1 <- sample(hard_scheme, size = 25);names(scale1) <- as.character(seq(1, length(scale1)))
+# scale2 <- sample(hard_scheme, size = 25);names(scale2) <- as.character(seq(1, length(scale2)))
+# scale3 <- sample(hard_scheme, size = 25);names(scale3) <- as.character(seq(1, length(scale3)))
+# scale4 <- sample(hard_scheme, size = 25);names(scale4) <- as.character(seq(1, length(scale4)))
+# scale5 <- sample(hard_scheme, size = 25);names(scale5) <- as.character(seq(1, length(scale5)))
+# 
+# plot_grid(
+#   plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale1),
+#   plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale2),
+#   plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale3),
+#   plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale4),
+#   plotDR(daf, color_by = "meta25")+scale_color_manual(values=scale5), labels = c("scale1", "scale2", "scale3", "scale4", "scale5"))
+# 
+# 
+# #### UMAP of filtered populations ####
+# 
+# nice_scale <- c("#7A87A1", "#3B9700", "#6F0062", "#C2FF99", "#FF90C9", "#001E09", "#324E72", "#FF8A9A", "#A30059", "#7900D7",
+#                 "#788D66", "#997D87", "#0CBD66", "#6B002C", "#D16100", "#ff00ff", "#C0B9B2", "#000035", "#6B7900", "#1E6E00", "#BEC459",
+#                 "#D790FF", "#CC0744", "#886F4C", "#809693")
+# 
+# names(nice_scale) <- as.character(seq(1, length(nice_scale)))
+# 
+# plot_grid(
+#   plotDR(daf, color_by = "meta25")+facet_wrap("timepoint")+scale_color_manual(values=meta25_color_scheme),
+#   plotDR(meta_diff_dod, color_by = "meta25")+facet_wrap("timepoint")+scale_color_manual(values=meta25_color_scheme)
+# )
+# 
+# plot_grid(
+#   plotDR(daf, color_by = "CD161")+facet_wrap("timepoint"),
+#   plotDR(meta_up_t6, color_by = "CD161")+facet_wrap("timepoint")
 )
 
 # heatmaps of upregulated clusters ####
@@ -408,7 +438,7 @@ plot_grid(
 shplit_cells <- function(x, by) {
   stopifnot(is.character(by), by %in% colnames(colData(x)))
   cd <- data.frame(colData(x))
-  cd$cluster_id <- cluster_ids(x, "meta25")
+  cd$cluster_id <- cluster_ids(x, "meta35")
   dt <- data.table::data.table(cd, i = seq_len(ncol(x)))
   dt_split <- split(dt, by = by, sorted = TRUE, flatten = FALSE)
   map_depth(dt_split, length(by), "i")
@@ -430,10 +460,12 @@ ahgg <- function(x, by, fun = c("median", "mean", "sum")) {
 
 # make maxtrix of median expression ####
 
-ms <- ahgg(meta_diff_dod[type_markers(meta_diff_dod), ], by = c("cluster_id", "sample_id"))
+# ms <- ahgg(meta_diff_dod[type_markers(meta_diff_dod), ], by = c("cluster_id", "sample_id"))
+# ms <- lapply(ms, reshape::melt, varnames = c("antigen", "sample_id"))
+# ms <- bind_rows(ms, .id = "cluster_id")
+ms <- ahgg(meta_up_t6[type_markers(meta_up_t6), ], by = c("cluster_id", "sample_id"))
 ms <- lapply(ms, reshape::melt, varnames = c("antigen", "sample_id"))
 ms <- bind_rows(ms, .id = "cluster_id")
-
 
 # transform each channel according to its min/max ####
 scaled_ms <- ms %>%
@@ -451,66 +483,81 @@ heatmap_channels <- c("CD4", "CD8", "Vd2", "Va72", "CD38", "CD69", "HLADR", "ICO
                       "CD45RA", "CD45RO", "CCR7")
 
 scaled_ms <- dplyr::filter(scaled_ms, antigen %in% heatmap_channels)
-#scaled_ms <- dplyr::filter(scaled_ms, sample_id == "T6_v315")
+scaled_ms <- dplyr::filter(scaled_ms, sample_id == "T6_v306")
 
 # plot ####
-ggplot(data = scaled_ms, aes_(x = factor(scaled_ms$cluster_id, levels=paste(c(7, 24, 18, 13, 9, 21))), y = factor(scaled_ms$antigen, levels = rev(t_cell_channels)), group=scaled_ms$sample_id))+
-  geom_tile(aes(fill=scaled_ms$value))+
-  scale_fill_gradientn(colors=rev(my_palette))+
-  xlab("Metacluster")+
-  theme(panel.border = element_blank(),
-        panel.background = element_rect(fill = "white"),
-        axis.line.y.left = element_blank(),
-        axis.line.y.right = element_blank(),
-        axis.ticks.y = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_text(size = 23),
-        axis.text.y = element_text(size = 23),
-        axis.title.x = element_text(size = 25),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(colour = "black"),
-        legend.position="none", 
-        legend.title = element_blank(),
-        plot.title = element_text(size = 45, hjust = 0.5),
-        plot.margin = unit(c(1,0,1,0), "cm"))
+specific_cluster_levels <- c("3","28","16","24")
 
-# extract cluster frequencies #### <3
-dod_tbl <- data.frame(topTable(da_dod_vol, show_props = TRUE, format_vals = TRUE, digits = 2))
+# plot ####
+up_t6_heatmap <- ggplot(data = scaled_ms, aes_(x = factor(scaled_ms$cluster_id, levels=specific_cluster_levels), y = factor(scaled_ms$antigen, levels = rev(t_cell_channels)), group=scaled_ms$sample_id))+
+   geom_tile(aes(fill=scaled_ms$value))+
+   scale_fill_gradientn(colors=rev(my_palette), "white")+
+   xlab("Metacluster")+
+   #ggtitle("Heatmap of Clusters Upregulated Post-Treatment in Naive Volunteers")
+   theme(panel.border = element_blank(),
+         panel.background = element_rect(fill = "white"),
+         axis.line.y.left = element_blank(),
+         axis.line.y.right = element_blank(),
+         axis.ticks.y = element_blank(),
+         axis.title.y = element_blank(),
+         axis.text.x = element_text(size = 18),
+         axis.text.y = element_text(size = 15),
+         axis.title.x = element_text(size = 20),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         axis.line = element_line(colour = "black"),
+         #legend.position="none", 
+         legend.title = element_blank(),
+         #plot.title = element_text(size = 45, hjust = 0.5),
+         plot.margin = unit(c(1,0,1,0), "cm"))
 
-sig_dod <- dplyr::select(dod_tbl, colnames(dod_tbl)[c(1:6,grep("DoD", colnames(dod_tbl), fixed=T))])
-sig_dod_clusters <- subset(rowData(da_dod_vol$res), rowData(da_dod_vol$res)$p_adj < FDR_cutoff)$cluster_id 
+ggsave("/Users/s1249052/PhD/presentations/NexGenImmunology_2020/tertiary_up_t6_heatmap.png", up_t6_heatmap, width=3, height=7.4)
 
-sig_dod <- dplyr::filter(sig_dod, sig_dod$cluster_id %in% sig_dod_clusters)
-long_sig_dod <- gather(sig_dod, sample, frequency, colnames(sig_dod)[4:length(colnames(sig_dod))])
-long_sig_dod$volunteer <- substr(long_sig_dod$sample, nchar(long_sig_dod$sample)-3, nchar(long_sig_dod$sample))
-long_sig_dod$timepoint <- ifelse(grepl("DoD", long_sig_dod$sample)==T, "DoD", "Baseline")
+subset_colors <- c("#41B3A3", "#C38D9E", "#E27D60", "#F64C72", "#E8A87C")
+names(subset_colors) <- c("CD4+", "MAIT+", "CD8+", "VD2+", "DN")
 
-# t6_tbl <- data.frame(topTable(da_t6, show_props = TRUE, format_vals = TRUE, digits = 2))
-# 
-# sig_t6 <- dplyr::select(t6_tbl, colnames(t6_tbl)[c(1:6,grep("T6", colnames(t6_tbl), fixed=T))])
-# sig_t6_clusters <- subset(rowData(da_t6$res), rowData(da_t6$res)$p_adj < FDR_cutoff)$cluster_id 
-# sig_t6_clusters_up <- c(4, 24, 12, 21, 22, 20, 10, 23)
-# 
-# sig_t6 <- dplyr::filter(sig_t6, sig_t6$cluster_id %in% sig_t6_clusters_up)
-# long_sig_t6 <- gather(sig_t6, sample, frequency, colnames(sig_t6)[4:length(colnames(sig_t6))])
-# long_sig_t6$volunteer <- substr(long_sig_t6$sample, nchar(long_sig_t6$sample)-3, nchar(long_sig_t6$sample))
-# long_sig_t6$timepoint <- ifelse(grepl("T6", long_sig_t6$sample)==T, "T6", "Baseline")
+#  !!!this file has to be sorted in excel to have cluster id in ascending order!!!
+cluster_annotations <- read_excel("/Users/s1249052/PhD/presentations/NexGenImmunology_2020/flo_tertiary_cluster_merging1.xlsx")
 
-# figures of cluster frequencies ####
+cluster_subset <- stringr::str_to_upper(cluster_annotations$new_cluster)
+#cluster_subset[grep("VD2", cluster_subset)] <- "vd2"
+names(cluster_subset) <- seq(1,35)
+long_sig_t6$cluster_kind <- cluster_subset[as.numeric(as.character(long_sig_t6$cluster_id))]
 
 
-ggplot(long_sig_dod, aes(x=timepoint, y=frequency, group=sample, fill=volunteer))+
-  geom_bar(stat = "identity", position = "dodge")+
+
+cluster_names=paste("Metacluster ", specific_cluster_levels, sep='')
+names(cluster_names) <- specific_cluster_levels
+
+cluster_labeller <- function(variable,value){
+  return(cluster_names[value])
+}
+
+long_sig_t6$cluster_id <- factor(long_sig_t6$cluster_id, levels=specific_cluster_levels)
+long_sig_t6$cluster_kind <- factor(long_sig_t6$cluster_kind, levels=c("CD4+", "VD2+", "CD8+", "MAIT+", "DN"))
+
+(prim_boxplot <- ggplot(long_sig_t6, aes(x=timepoint, y=frequency))+
+  geom_boxplot(aes(fill=cluster_kind))+
+  geom_point(color="black", size=1.8, aes(shape=volunteer))+
   theme_minimal()+
-  facet_wrap(~long_sig_dod$cluster_id, scales="free")
+  facet_wrap(~cluster_id, scales="free",labeller = cluster_labeller)+
+  #facet_wrap(~cluster_id, scales="free")+
+  scale_fill_manual(values=subset_colors, labels=c("CD4+", expression(paste(gamma, delta)), "CD8+",  "DN"), guide=guide_legend(label.hjust=0.5, order = 1))+
+  labs(fill = "", shape="Volunteer")+
+  xlab("")+
+  ylab("Percentage of CD3+ T cells")+
+  theme(axis.text.x = element_text(size = 18),
+        axis.text.y = element_text(size = 18),
+        axis.title.y = element_text(size = 20),
+        legend.title = element_text(size=20),
+        legend.text = element_text(size=18),
+        strip.text = element_text(size=14)))
 
-ggplot(long_sig_t6, aes(x=timepoint, y=frequency, group=sample, fill=volunteer))+
-  geom_bar(stat = "identity", position = "dodge")+
-  theme_minimal()+
-  facet_wrap(~long_sig_t6$cluster_id, scales="free")
+ggsave("/Users/s1249052/PhD/presentations/NexGenImmunology_2020/ter_boxplot.png", prim_boxplot, width = 9, height=7)  
 
-plotMedExprs(meta_up_t6, k = "meta25", group_by="volunteer")
+
+
+
 
 # hot pie stuff should go here ####
 
