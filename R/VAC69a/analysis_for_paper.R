@@ -96,7 +96,7 @@ proper_channels <- colnames(daf)[c(3,13:14,22:56,62,64)]
 # get rid of CD45, CD14, CD20, CD3
 t_cell_channels <- proper_channels[c(-1, -2, -10, -32)]
 
-marker_levels <- c("CD4",
+t_cell_channels <- c("CD4",
                    "CD8",
                    "Vd2",
                    "Va72",
@@ -133,15 +133,51 @@ marker_levels <- c("CD4",
                    "CD45RO",
                    "CCR7")
 
+refined_markers <- c("CD4",
+                   "CD8",
+                   "Vd2",
+                   "Va72",
+                   "CD38",
+                   "HLADR",
+                   "ICOS",
+                   "CD28",
+                   "PD1",
+                   #"TIM3",
+                   "CD95",
+                   "BCL2",
+                   "CD27",
+                   "Perforin",
+                   "GZB",
+                   #"CX3CR1",
+                   "Tbet",
+                   "CTLA4",
+                   "Ki67",
+                   "CD127",
+                   #"IntegrinB7",
+                   "CD56",
+                   "CD16",
+                   "CD161",
+                   #"CD49d",
+                   #"CD103",
+                   "CD25",
+                   "FoxP3",
+                   "CD39",
+                   #"CLA",
+                   #"CXCR5",
+                   "CD57",
+                   "CD45RA",
+                   "CD45RO",
+                   "CCR7")
+
 t_cell_channels <- marker_levels
 
 
 ### metaclustering merged central memory and naive cells...
-set.seed(1234);daf <- cluster(daf, features = t_cell_channels, xdim = 10, ydim = 10, maxK = 35, seed = 1234)
+set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 35, seed = 1234)
 
 plotClusterHeatmap(daf, hm2 = "abundances",
                    #m = "meta35",
-                   k = "meta35",
+                   k = "som100",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
                    scale=T)
@@ -150,11 +186,18 @@ plotClusterHeatmap(daf, hm2 = "abundances",
 # daf100_delta <- metadata(daf100)$delta_area
 
 #### get rid of weird super positive events ####
-cluster_ids <- seq(1,35)
-bad_clusters <- 23
-cluster_ids <- cluster_ids[-bad_clusters]
+# cluster_ids <- seq(1,35)
+# bad_clusters <- 23
+# cluster_ids <- cluster_ids[-bad_clusters]
 
 daf <- filterSCE(daf, k = "meta35", cluster_id %in% paste(cluster_ids))
+
+
+####  merge clusters 
+
+
+merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
+daf<- mergeClusters(daf, k = "flo_merge", table = merging_table1, id = "flo_merge")
 
 
 ### diffcyt ####
@@ -169,26 +212,31 @@ levels(ei$timepoint)
 #has been used, the entries correspond to the levels of the fixed effect terms;
 #and the length equals the number of levels of the fixed effect terms.
 
+
+
+FDR_cutoff <- 0.05
+
+# edgeR models ####
+
 contrast_baseline <- createContrast(c(1, rep(0, 8)))
 contrast_c10 <- createContrast(c(c(0, 1), rep(0,7)))
 contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
 contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
 
-FDR_cutoff <- 0.05
 
 da_baseline <- diffcyt(daf,
                        design = design,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "flo_merge",
                        verbose = T)
 da_c10 <- diffcyt(daf,
                        design = design,
                        contrast = contrast_c10,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "flo_merge",
                        verbose = T)
 
 da_dod <- diffcyt(daf,
@@ -196,7 +244,7 @@ da_dod <- diffcyt(daf,
                        contrast = contrast_dod,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "flo_merge",
                        verbose = T)
 
 da_t6 <- diffcyt(daf,
@@ -204,37 +252,10 @@ da_t6 <- diffcyt(daf,
                        contrast = contrast_t6,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "flo_merge",
                        verbose = T)
 
-plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-
-da_formula2 <- createFormula(ei,
-                             cols_fixed = "timepoint",
-                             cols_random = c("volunteer", "sample_id"))
-
-da_dod_vol <- diffcyt(daf,
-                 #design = design,
-                 formula = da_formula2,
-                 contrast = createContrast(c(0,0,1,0)),
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "meta35",
-                 verbose = T)
-
-da_t6_vol <- diffcyt(daf,
-                      #design = design,
-                      formula = da_formula2,
-                      contrast = createContrast(c(0,0,0,1)),
-                      analysis_type = "DA",
-                      method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta35",
-                      verbose = T)
-
-### results using edgeR ###
+# results  ###
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
 # FALSE 
 # 35 
@@ -245,27 +266,121 @@ table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 # FALSE  TRUE 
 # 19    16 
 
+plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+
+
+
+# glmm models ####
+
+contrast_baseline <- createContrast(c(1,0,0,0))
+contrast_c10 <- createContrast(c(0,1,0,0))
+contrast_dod <- createContrast(c(0,0,1,0))
+contrast_t6 <- createContrast(c(0,0,0,1))
+
+da_formula2 <- createFormula(ei,
+                             cols_fixed = "timepoint",
+                             cols_random = c("volunteer", "sample_id"))
+
+da_baseline_vol <- diffcyt(daf,
+                      #design = design,
+                      formula = da_formula2,
+                      contrast = contrast_baseline,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "meta35",
+                      verbose = T)
+
+da_c10_vol <- diffcyt(daf,
+                     #design = design,
+                     formula = da_formula2,
+                     contrast = contrast_c10,
+                     analysis_type = "DA",
+                     method_DA = "diffcyt-DA-GLMM",
+                     clustering_to_use = "meta35",
+                     verbose = T)
+
+da_dod_vol <- diffcyt(daf,
+                 #design = design,
+                 formula = da_formula2,
+                 contrast = contrast_dod,
+                 analysis_type = "DA",
+                 method_DA = "diffcyt-DA-GLMM",
+                 clustering_to_use = "meta35",
+                 verbose = T)
+
+da_t6_vol <- diffcyt(daf,
+                      #design = design,
+                      formula = da_formula2,
+                      contrast = contrast_t6,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "meta35",
+                      verbose = T)
+
 ### results using glmm, <y ~ timepoint + (1 | sample_id)>
-table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
-# FALSE  TRUE 
-# 29     6 
-table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
+
+# table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
+# # FALSE
+# # 35
+# table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
+# # FALSE  TRUE
+# # 29     9
+
+
+
+# it only picks up on conserved stuff, but that makes for an easier story, 8/9 clusters are up..
+
+
+### results using glmm, <y ~ timepoint + (1| sample_ID) +(1 | volunteer)>
+table(rowData(da_baseline_vol$res)$p_adj < FDR_cutoff)
 # FALSE 
-# 35
+# 35 
 
-### results using glmm, <y ~ timepoint + (1 | volunteer) (1 | sample_id)>
+table(rowData(da_c10_vol$res)$p_adj < FDR_cutoff)
+# FALSE   
+# 14
+
 table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
 # FALSE  TRUE 
-# 19    16 
+# 16    19
 
 table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
 # FALSE  TRUE 
-# 14     21 
+# 15     20 
 
+plotDiffHeatmap(daf, da_baseline_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daf, da_c10_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(daf, da_dod_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 
+# adjusting for individual differences with a random effect includes some spurious looking results, but 
+# also includes some more that i feel are missing if there's no attempt to control for individual identity
+# adding a fixed effect somehow breaks it?? might be worth running lme4 oldschool to check what's
+# going on, maybe speak to some IEB people about this again...
+
+
+
 # topTable(da_t6_vol, show_counts = T)
+dod_vol <- data.frame(topTable(da_dod_vol, all=T, show_counts = T))
+up_dod <-  dplyr::filter(dod_vol, dod_vol$p_adj < FDR_cutoff)
+
+long_up_dod <- gather(up_dod, sample_id, count, colnames(up_dod)[4:ncol(up_dod)])
+long_up_dod$volunteer <- stringr::str_match(long_up_dod$sample_id, "V[0-9]*")[, 1]
+long_up_dod$timepoint <- substr(long_up_dod$sample_id, 12,nchar(long_up_dod$sample_id))
+
+long_up_dod$sample_id <- gsub("counts_", "", long_up_dod$sample_id)
+counts <- n_cells(daf)
+long_up_dod$frequency <- long_up_dod$count / counts[long_up_dod$sample_id] *100
+
+ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$count))+
+  geom_boxplot(aes(fill=long_up_dod$timepoint))+
+  geom_point(aes(shape=long_up_dod$volunteer))+
+  facet_wrap(~long_up_dod$cluster_id, scales = "free", ncol=7)
+
+
 t6_vol <- data.frame(topTable(da_t6_vol, all=T, show_counts = T))
 up_t6 <-  dplyr::filter(t6_vol, t6_vol$p_adj < FDR_cutoff)
 
@@ -273,12 +388,18 @@ long_up_t6 <- gather(up_t6, sample_id, count, colnames(up_t6)[4:ncol(up_t6)])
 long_up_t6$volunteer <- stringr::str_match(long_up_t6$sample_id, "V[0-9]*")[, 1]
 long_up_t6$timepoint <- substr(long_up_t6$sample_id, 12,nchar(long_up_t6$sample_id))
 
+long_up_t6$sample_id <- gsub("counts_", "", long_up_t6$sample_id)
+counts <- n_cells(daf)
+long_up_t6$frequency <- long_up_t6$count / counts[long_up_t6$sample_id] *100
+
 ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count))+
   geom_boxplot(aes(fill=long_up_t6$timepoint))+
   geom_point(aes(shape=long_up_t6$volunteer))+
-  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=6)
+  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=7)
+
 
 meta_up_t6 <- filterSCE(daf, k = "meta35", cluster_id %in% up_t6)
+CATALYST::plotMDS(daf, color_by = "timepoint") 
 
 # [1] "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline"
 # [5] "counts_V02_Baseline" "counts_V02_Baseline"
@@ -296,7 +417,7 @@ meta_up_t6 <- filterSCE(daf, k = "meta35", cluster_id %in% up_t6)
 
 
 # plotClusterExprs(daf100, k = "meta15", markers = "state")
-plotAbundances(daf100, k = "meta15", by = "cluster_id", shape="volunteer")
+plotAbundances(daf, k = "meta15", by = "cluster_id", shape="volunteer")
 
 merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
 merging_table1$original_cluster <- as.character(merging_table1$original_cluster)
@@ -317,7 +438,7 @@ merging_table1$new_cluster <- factor(merging_table1$new_cluster, levels = c("CD4
                                                                             "trash"
                                                                             ))
 
-
+merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
 daf100 <- mergeClusters(daf100, k = "meta15", table = merging_table1, id = "merging1")
 
 plotDR(daf100, "UMAP", color_by="CD4")
