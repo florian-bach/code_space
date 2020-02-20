@@ -13,12 +13,45 @@ library(scater)
 library(purrr)
 
 
+#extra functions defined here ####
 `%!in%` = Negate(`%in%`)
 
+# color palettes defined here ####
 myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
 red_palette <- c(myPalette(100), rep(myPalette(100)[100], 200))
 
 sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
+
+magma <- c("#FCFFB2","#FCDF96","#FBC17D","#FBA368","#FA8657","#F66B4D","#ED504A",
+           "#E03B50","#C92D59","#B02363","#981D69","#81176D","#6B116F","#57096E","#43006A",
+           "#300060","#1E0848","#110B2D","#080616","#000005")
+
+magma_lite <- c("#FCFFB2","#FCDF96","#FBC17D","#FBA368","#FA8657","#F66B4D","#ED504A",
+                "#E03B50","#C92D59","#B02363","#981D69","#81176D","#6B116F","#57096E","#43006A",
+                "#300060","#1E0848","#110B2D")
+
+
+plasma <- c("#2B078E", "#4F049B", "#3E0595", "#0D0887", "#5E02A2", "#6E01A7", "#D45470",
+            "#DD6066", "#CB497A","#E56D5E", "#A92593", "#B6308C", "#F0894E", "#C03D83", "#EB7B56",
+            "#F0F921", "#F69644", "#FBB434", "#FAC631", "#FBA339", "#F4E828","#F7D72D")
+
+viridis <- c("#45155E", "#452F73", "#462369", "#440154", "#433B7E", "#414687", "#299A87",
+             "#25A485", "#2B9089", "#36AD7F", "#30728D", "#2B7C8D", "#5DBE6B", "#2C868B", "#4CB575", "#FDE725",
+             "#6BC760", "#93D54C", "#B0DA45", "#78CF54", "#E4E332", "#CBDF3C")
+
+inferno <- c("#16071C", "#2C0E42", "#200D2E", "#000004", "#380D57", "#460B68", "#C84449",
+             "#D74D3F", "#B93B53", "#E15D37", "#8A2267", "#9A2964", "#EF802B", "#AA325B",
+             "#E86F32", "#FCFFA4", "#F59121", "#FEB431", "#FFC751", "#FBA210", "#FFEC89",
+             "#FFDA6D")
+inferno_lite <- c("#000004", "#380D57", "#460B68","#8A2267", "#9A2964",
+                  "#AA325B","#B93B53","#C84449", "#D74D3F", "#E15D37",
+                  "#E86F32","#EF802B", "#F59121", "#FBA210", "#FEB431", "#FFC751",
+                  "#FFDA6D", "#FFEC89", "#FCFFA4")
+scales::show_col(inferno_lite)
+
+inferno_mega_lite <-inferno_lite[seq(1,19, by=3)]
+inferno_mega_lite <- c("#000004", "#C84449", "#E15D37", "#EF802B", "#FFC751", "#FCFFA4")
+smooth_inferno_lite <- colorRampPalette(inferno_lite)
 
 #start_time <- Sys.time()
 ###
@@ -120,7 +153,6 @@ t_cell_channels <- c("CD4",
                    "CD56",
                    "CD16",
                    "CD161",
-                   "CX3CR1",
                    "CD49d",
                    "CD103",
                    "CD25",
@@ -154,8 +186,8 @@ refined_markers <- c("CD4",
                    "Ki67",
                    "CD127",
                    #"IntegrinB7",
-                   "CD56",
-                   "CD16",
+                   #"CD56",
+                   #"CD16",
                    "CD161",
                    #"CD49d",
                    #"CD103",
@@ -171,24 +203,29 @@ refined_markers <- c("CD4",
 
 t_cell_channels <- marker_levels
 
+# clustering ####
+set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
-### metaclustering merged central memory and naive cells...
-set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 35, seed = 1234)
 
-plotClusterHeatmap(daf, hm2 = "abundances",
+  
+plotClusterHeatmap(daf, hm2 = NULL,
                    #m = "meta35",
-                   k = "som100",
+                   k = "meta45",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
-                   scale=T)
+                   scale=T, 
+                   palette=(inferno_lite))
 
+
+
+cowplot::plot_grid(rev, fow)
 
 # daf100_delta <- metadata(daf100)$delta_area
 
 #### get rid of weird super positive events ####
-# cluster_ids <- seq(1,35)
-# bad_clusters <- 23
-# cluster_ids <- cluster_ids[-bad_clusters]
+cluster_ids <- seq(1,35)
+bad_clusters <- 19
+cluster_ids <- cluster_ids[-bad_clusters]
 
 daf <- filterSCE(daf, k = "meta35", cluster_id %in% paste(cluster_ids))
 
@@ -229,14 +266,14 @@ da_baseline <- diffcyt(daf,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "flo_merge",
+                       clustering_to_use = "meta35",
                        verbose = T)
 da_c10 <- diffcyt(daf,
                        design = design,
                        contrast = contrast_c10,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "flo_merge",
+                       clustering_to_use = "meta35",
                        verbose = T)
 
 da_dod <- diffcyt(daf,
@@ -244,7 +281,7 @@ da_dod <- diffcyt(daf,
                        contrast = contrast_dod,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "flo_merge",
+                       clustering_to_use = "meta35",
                        verbose = T)
 
 da_t6 <- diffcyt(daf,
@@ -252,10 +289,13 @@ da_t6 <- diffcyt(daf,
                        contrast = contrast_t6,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "flo_merge",
+                       clustering_to_use = "meta35",
                        verbose = T)
 
 # results  ###
+table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
+
+
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
 # FALSE 
 # 35 
