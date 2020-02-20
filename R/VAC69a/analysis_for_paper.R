@@ -17,6 +17,17 @@ library(purrr)
 `%!in%` = Negate(`%in%`)
 
 # color palettes defined here ####
+#this is how you extract colors from an existing plot object... the order is slightly
+# bongled up though...
+
+(plsm <- ggplot(iris, aes(x=iris$Sepal.Length, y=iris$Sepal.Width, color=iris$Petal.Width))+
+   geom_point()+
+   scale_color_gradientn(colors = inferno_mega_lite))
+
+g <- ggplot_build(plsm)
+paste(unique(g$data[[1]]["colour"]))
+
+
 myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
 red_palette <- c(myPalette(100), rep(myPalette(100)[100], 200))
 
