@@ -20,12 +20,12 @@ library(purrr)
 #this is how you extract colors from an existing plot object... the order is slightly
 # bongled up though...
 
-(plsm <- ggplot(iris, aes(x=iris$Sepal.Length, y=iris$Sepal.Width, color=iris$Petal.Width))+
-   geom_point()+
-   scale_color_gradientn(colors = inferno_mega_lite))
-
-g <- ggplot_build(plsm)
-paste(unique(g$data[[1]]["colour"]))
+# (plsm <- ggplot(iris, aes(x=iris$Sepal.Length, y=iris$Sepal.Width, color=iris$Petal.Width))+
+#    geom_point()+
+#    scale_color_gradientn(colors = inferno_mega_lite))
+# 
+# g <- ggplot_build(plsm)
+# paste(unique(g$data[[1]]["colour"]))
 
 
 myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
@@ -63,13 +63,6 @@ scales::show_col(inferno_lite)
 inferno_mega_lite <-inferno_lite[seq(1,19, by=3)]
 inferno_mega_lite <- c("#000004", "#C84449", "#E15D37", "#EF802B", "#FFC751", "#FCFFA4")
 smooth_inferno_lite <- colorRampPalette(inferno_lite)
-
-#start_time <- Sys.time()
-###
-
-
-# in order to create a daFrame, the single cell experiment, files, metadata and panel information need to be assembled and passed to
-# CATALYST
 
 
 ### read in metadata etc. ####
@@ -212,24 +205,21 @@ refined_markers <- c("CD4",
                    "CD45RO",
                    "CCR7")
 
-t_cell_channels <- marker_levels
-
 # clustering ####
 set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
+#runUMAP(daf, exprs_values = "exprs", feature_set=t_cell_channels)
 
   
 plotClusterHeatmap(daf, hm2 = NULL,
                    #m = "meta35",
-                   k = "meta45",
+                   k = "meta40",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
                    scale=T, 
-                   palette=(inferno_lite))
+                   palette=)
 
 
-
-cowplot::plot_grid(rev, fow)
 
 # daf100_delta <- metadata(daf100)$delta_area
 
@@ -240,6 +230,17 @@ cluster_ids <- cluster_ids[-bad_clusters]
 
 daf <- filterSCE(daf, k = "meta35", cluster_id %in% paste(cluster_ids))
 
+th35 <- filterSCE(daf, k = "meta35", cluster_id %in% paste(c(16, 20, 21)))
+th40 <- filterSCE(daf, k = "meta40", cluster_id %in% paste(c(17, 23, 22, 18)))
+
+th35 <- runUMAP(th35, exprs_values = "exprs", feature_set=refined_markers)
+th40 <- runUMAP(th40, exprs_values = "exprs", feature_set=refined_markers)
+
+th35_plot <- plotDR(th35, color_by = "meta35")
+th40_plot <-plotDR(th40, color_by = "meta40")
+
+plotClusterExprs(th35, k = "meta35", features = "type")
+plotClusterExprs(th40, k = "meta40", features = "type")
 
 ####  merge clusters 
 
@@ -277,14 +278,14 @@ da_baseline <- diffcyt(daf,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "meta40",
                        verbose = T)
 da_c10 <- diffcyt(daf,
                        design = design,
                        contrast = contrast_c10,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "meta40",
                        verbose = T)
 
 da_dod <- diffcyt(daf,
@@ -292,7 +293,7 @@ da_dod <- diffcyt(daf,
                        contrast = contrast_dod,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "meta40",
                        verbose = T)
 
 da_t6 <- diffcyt(daf,
@@ -300,7 +301,7 @@ da_t6 <- diffcyt(daf,
                        contrast = contrast_t6,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta35",
+                       clustering_to_use = "meta40",
                        verbose = T)
 
 # results  ###
@@ -341,7 +342,7 @@ da_baseline_vol <- diffcyt(daf,
                       contrast = contrast_baseline,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta35",
+                      clustering_to_use = "meta40",
                       verbose = T)
 
 da_c10_vol <- diffcyt(daf,
@@ -350,7 +351,7 @@ da_c10_vol <- diffcyt(daf,
                      contrast = contrast_c10,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-GLMM",
-                     clustering_to_use = "meta35",
+                     clustering_to_use = "meta40",
                      verbose = T)
 
 da_dod_vol <- diffcyt(daf,
@@ -359,7 +360,7 @@ da_dod_vol <- diffcyt(daf,
                  contrast = contrast_dod,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "meta35",
+                 clustering_to_use = "meta40",
                  verbose = T)
 
 da_t6_vol <- diffcyt(daf,
@@ -368,7 +369,7 @@ da_t6_vol <- diffcyt(daf,
                       contrast = contrast_t6,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta35",
+                      clustering_to_use = "meta40",
                       verbose = T)
 
 ### results using glmm, <y ~ timepoint + (1 | sample_id)>
