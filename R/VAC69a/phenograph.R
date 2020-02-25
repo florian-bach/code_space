@@ -359,6 +359,7 @@ hladr <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$HLA
   geom_point(shape=1)+UMAP_theme+ggtitle("HLA-DR")+
   scale_color_gradientn(colors=inferno_lite)
 
+## hello world :) ##
 
 state_plots <- plot_grid(cd38, bcl2, hladr, ncol = 3)
 ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/state_umap.png", state_plots, height = 2.85, width=11.295)
