@@ -58,7 +58,7 @@ inferno_lite <- c("#000004", "#380D57", "#460B68","#8A2267", "#9A2964",
                   "#AA325B","#B93B53","#C84449", "#D74D3F", "#E15D37",
                   "#E86F32","#EF802B", "#F59121", "#FBA210", "#FEB431", "#FFC751",
                   "#FFDA6D", "#FFEC89", "#FCFFA4")
-scales::show_col(inferno_lite)
+#scales::show_col(inferno_lite)
 
 inferno_mega_lite <-inferno_lite[seq(1,19, by=3)]
 inferno_mega_lite <- c("#000004", "#C84449", "#E15D37", "#EF802B", "#FFC751", "#FCFFA4")
@@ -76,8 +76,8 @@ md <- read.csv("meta_data.csv", header=T)
 ## reorder so that it's neat 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
 md <- md[
-        with(md, order(md$volunteer, md$timepoint)),
-         ]
+  with(md, order(md$volunteer, md$timepoint)),
+  ]
 md$file_name <- as.character(md$file_name)
 
 
@@ -134,83 +134,99 @@ proper_channels <- colnames(daf)[c(3,13:14,22:56,62,64)]
 t_cell_channels <- proper_channels[c(-1, -2, -10, -32)]
 
 t_cell_channels <- c("CD4",
-                   "CD8",
-                   "Vd2",
-                   "Va72",
-                   "CD38",
-                   "HLADR",
-                   "ICOS",
-                   "CD28",
-                   "PD1",
-                   "TIM3",
-                   "CD95",
-                   "BCL2",
-                   "CD27",
-                   "Perforin",
-                   "GZB",
-                   "CX3CR1",
-                   "Tbet",
-                   "CTLA4",
-                   "Ki67",
-                   "CD127",
-                   "IntegrinB7",
-                   "CD56",
-                   "CD16",
-                   "CD161",
-                   "CD49d",
-                   "CD103",
-                   "CD25",
-                   "FoxP3",
-                   "CD39",
-                   "CLA",
-                   "CXCR5",
-                   "CD57",
-                   "CD45RA",
-                   "CD45RO",
-                   "CCR7")
+                     "CD8",
+                     "Vd2",
+                     "Va72",
+                     "CD38",
+                     "HLADR",
+                     "ICOS",
+                     "CD28",
+                     "PD1",
+                     "TIM3",
+                     "CD95",
+                     "BCL2",
+                     "CD27",
+                     "Perforin",
+                     "GZB",
+                     "CX3CR1",
+                     "Tbet",
+                     "CTLA4",
+                     "Ki67",
+                     "CD127",
+                     "IntegrinB7",
+                     "CD56",
+                     "CD16",
+                     "CD161",
+                     "CD49d",
+                     "CD103",
+                     "CD25",
+                     "FoxP3",
+                     "CD39",
+                     "CLA",
+                     "CXCR5",
+                     "CD57",
+                     "CD45RA",
+                     "CD45RO",
+                     "CCR7")
 
 refined_markers <- c("CD4",
-                   "CD8",
-                   "Vd2",
-                   "Va72",
-                   "CD38",
-                   "HLADR",
-                   "ICOS",
-                   "CD28",
-                   "PD1",
-                   #"TIM3",
-                   "CD95",
-                   "BCL2",
-                   "CD27",
-                   "Perforin",
-                   "GZB",
-                   #"CX3CR1",
-                   "Tbet",
-                   "CTLA4",
-                   "Ki67",
-                   "CD127",
-                   #"IntegrinB7",
-                   #"CD56",
-                   #"CD16",
-                   "CD161",
-                   #"CD49d",
-                   #"CD103",
-                   "CD25",
-                   "FoxP3",
-                   "CD39",
-                   #"CLA",
-                   #"CXCR5",
-                   "CD57",
-                   "CD45RA",
-                   "CD45RO",
-                   "CCR7")
+                     "CD8",
+                     "Vd2",
+                     "Va72",
+                     "CD38",
+                     "HLADR",
+                     "ICOS",
+                     "CD28",
+                     "PD1",
+                     #"TIM3",
+                     "CD95",
+                     "BCL2",
+                     "CD27",
+                     "Perforin",
+                     "GZB",
+                     #"CX3CR1",
+                     "Tbet",
+                     "CTLA4",
+                     "Ki67",
+                     "CD127",
+                     #"IntegrinB7",
+                     #"CD56",
+                     #"CD16",
+                     "CD161",
+                     #"CD49d",
+                     #"CD103",
+                     "CD25",
+                     "FoxP3",
+                     "CD39",
+                     #"CLA",
+                     #"CXCR5",
+                     "CD57",
+                     "CD45RA",
+                     "CD45RO",
+                     "CCR7")
 
 # clustering ####
 set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
-#runUMAP(daf, exprs_values = "exprs", feature_set=t_cell_channels)
 
-  
+
+
+start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
+duration <- round(end - start) # ~12-23 min
+print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
+
+# start <- Sys.time(); daf <- runTSNE(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
+# duration <- round(end - start)
+# print(c("tSNE took ", duration, " minutes to run on 861161 cells"), sep='')
+# 
+# 
+
+print(c("together, UMAP and tSNE took ", duration, " minutes to run on 10,000 cells"), sep='')
+
+th35_plot <- plotDR(daf, "UMAP", color_by = "meta35")
+tfh_plot <- plotDR(daf, "UMAP", color_by = "CD4")
+
+
 plotClusterHeatmap(daf, hm2 = NULL,
                    #m = "meta35",
                    k = "meta40",
@@ -281,28 +297,28 @@ da_baseline <- diffcyt(daf,
                        clustering_to_use = "meta40",
                        verbose = T)
 da_c10 <- diffcyt(daf,
-                       design = design,
-                       contrast = contrast_c10,
-                       analysis_type = "DA",
-                       method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta40",
-                       verbose = T)
+                  design = design,
+                  contrast = contrast_c10,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "meta40",
+                  verbose = T)
 
 da_dod <- diffcyt(daf,
-                       design = design,
-                       contrast = contrast_dod,
-                       analysis_type = "DA",
-                       method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta40",
-                       verbose = T)
+                  design = design,
+                  contrast = contrast_dod,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "meta40",
+                  verbose = T)
 
 da_t6 <- diffcyt(daf,
-                       design = design,
-                       contrast = contrast_t6,
-                       analysis_type = "DA",
-                       method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta40",
-                       verbose = T)
+                 design = design,
+                 contrast = contrast_t6,
+                 analysis_type = "DA",
+                 method_DA = "diffcyt-DA-edgeR",
+                 clustering_to_use = "meta40",
+                 verbose = T)
 
 # results  ###
 table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
@@ -337,40 +353,40 @@ da_formula2 <- createFormula(ei,
                              cols_random = c("volunteer", "sample_id"))
 
 da_baseline_vol <- diffcyt(daf,
+                           #design = design,
+                           formula = da_formula2,
+                           contrast = contrast_baseline,
+                           analysis_type = "DA",
+                           method_DA = "diffcyt-DA-GLMM",
+                           clustering_to_use = "meta40",
+                           verbose = T)
+
+da_c10_vol <- diffcyt(daf,
                       #design = design,
                       formula = da_formula2,
-                      contrast = contrast_baseline,
+                      contrast = contrast_c10,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
                       clustering_to_use = "meta40",
                       verbose = T)
 
-da_c10_vol <- diffcyt(daf,
+da_dod_vol <- diffcyt(daf,
+                      #design = design,
+                      formula = da_formula2,
+                      contrast = contrast_dod,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "meta40",
+                      verbose = T)
+
+da_t6_vol <- diffcyt(daf,
                      #design = design,
                      formula = da_formula2,
-                     contrast = contrast_c10,
+                     contrast = contrast_t6,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-GLMM",
                      clustering_to_use = "meta40",
                      verbose = T)
-
-da_dod_vol <- diffcyt(daf,
-                 #design = design,
-                 formula = da_formula2,
-                 contrast = contrast_dod,
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "meta40",
-                 verbose = T)
-
-da_t6_vol <- diffcyt(daf,
-                      #design = design,
-                      formula = da_formula2,
-                      contrast = contrast_t6,
-                      analysis_type = "DA",
-                      method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta40",
-                      verbose = T)
 
 ### results using glmm, <y ~ timepoint + (1 | sample_id)>
 
@@ -488,7 +504,7 @@ merging_table1$new_cluster <- factor(merging_table1$new_cluster, levels = c("CD4
                                                                             "gd_CD161+_CD28+",
                                                                             "DN",
                                                                             "trash"
-                                                                            ))
+))
 
 merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
 daf100 <- mergeClusters(daf100, k = "meta15", table = merging_table1, id = "merging1")
@@ -524,45 +540,7 @@ contrast_t6 <- createContrast(c(rep(0, 3), 1))
 # data.frame(parameters = colnames(design), contrast)
 
 da_baseline <- diffcyt(daf100,
-                 formula = da_formula1,
-                 contrast = contrast_baseline,
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "som100",
-                 verbose = F)
-
-
-da_c10 <- diffcyt(daf100,
-                 formula = da_formula1,
-                 #design = design,
-                 contrast = contrast_c10,
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "som100",
-                 verbose = F)
-
-da_dod <- diffcyt(daf100,
-                 formula = da_formula1,
-                 #design = design,
-                 contrast = contrast_dod,
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "som100",
-                 verbose = F)
-
-
-da_t6 <- diffcyt(daf100,
-                   formula = da_formula1,
-                   #design = design,
-                   contrast = contrast_t6,
-                   analysis_type = "DA",
-                   method_DA = "diffcyt-DA-GLMM",
-                   clustering_to_use = "som100",
-                   verbose = F)
-
-
-da_baseline_vol <- diffcyt(daf100,
-                       formula = da_formula2,
+                       formula = da_formula1,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-GLMM",
@@ -570,16 +548,18 @@ da_baseline_vol <- diffcyt(daf100,
                        verbose = F)
 
 
-da_c10_vol <- diffcyt(daf100,
-                  formula = da_formula2,
+da_c10 <- diffcyt(daf100,
+                  formula = da_formula1,
+                  #design = design,
                   contrast = contrast_c10,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-GLMM",
                   clustering_to_use = "som100",
                   verbose = F)
 
-da_dod_vol <- diffcyt(daf100,
-                  formula = da_formula2,
+da_dod <- diffcyt(daf100,
+                  formula = da_formula1,
+                  #design = design,
                   contrast = contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-GLMM",
@@ -587,13 +567,49 @@ da_dod_vol <- diffcyt(daf100,
                   verbose = F)
 
 
-da_t6_vol <- diffcyt(daf100,
-                 formula = da_formula2,
+da_t6 <- diffcyt(daf100,
+                 formula = da_formula1,
+                 #design = design,
                  contrast = contrast_t6,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-GLMM",
                  clustering_to_use = "som100",
                  verbose = F)
+
+
+da_baseline_vol <- diffcyt(daf100,
+                           formula = da_formula2,
+                           contrast = contrast_baseline,
+                           analysis_type = "DA",
+                           method_DA = "diffcyt-DA-GLMM",
+                           clustering_to_use = "som100",
+                           verbose = F)
+
+
+da_c10_vol <- diffcyt(daf100,
+                      formula = da_formula2,
+                      contrast = contrast_c10,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "som100",
+                      verbose = F)
+
+da_dod_vol <- diffcyt(daf100,
+                      formula = da_formula2,
+                      contrast = contrast_dod,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "som100",
+                      verbose = F)
+
+
+da_t6_vol <- diffcyt(daf100,
+                     formula = da_formula2,
+                     contrast = contrast_t6,
+                     analysis_type = "DA",
+                     method_DA = "diffcyt-DA-GLMM",
+                     clustering_to_use = "som100",
+                     verbose = F)
 
 
 FDR_cutoff <- 0.05
@@ -745,11 +761,11 @@ sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
 
 
 (cd38_plot <-  plotDR(daf100, "UMAP", color_by="meta12", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())#+sc
-  )
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = "none", 
+          axis.title = element_blank())#+sc
+)
 
 
 
@@ -763,9 +779,9 @@ density_plot <- plotDR(daf100, "UMAP", color_by="CCR7", facet=c("volunteer", "ti
 
 density_plot$layers[[1]] <- NULL
 (density_plot <- density_plot+xlim(c(-15, 8))+ylim(c(-10,12))+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(), 
-        axis.title = element_blank()))
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(), 
+          axis.title = element_blank()))
 
 
 
@@ -779,14 +795,14 @@ bcl2_plot <- plotDR(daf100, "UMAP", color_by="BCL2", facet="timepoint")+
         panel.grid.minor = element_blank(),
         legend.position = "none", 
         axis.title = element_blank())+
-        sc
+  sc
 
 cd38_plot <- plotDR(daf100, "UMAP", color_by="CD38", facet="timepoint")+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.position = "none", 
         axis.title = element_blank())+
-        sc
+  sc
 
 cluster_plot <- plotDR(daf100, "UMAP", color_by="meta15", facet="timepoint")+
   theme(panel.grid.major = element_blank(),
