@@ -245,12 +245,15 @@ plotClusterHeatmap(daf, hm2 = NULL,
 
 # removing a cluster messes with the differential expression calculation for some reason- maybe because
 # it's a factor and removing the cluster doens't change the entry in the dictionary?
-cluster_ids <- seq(1,45)
-bad_clusters <- 24
-cluster_ids <- as.character(cluster_ids[-bad_clusters])
 
-daffy <- filterSCE(merged_daf, k = "meta45", cluster_id %!in% list("trash"))
+
+
+# cluster_ids <- seq(1,45)
+# bad_clusters <- 24
+# cluster_ids <- as.character(cluster_ids[-bad_clusters])
 # 
+# daffy <- filterSCE(merged_daf, k = "meta45", cluster_id %!in% list("trash"))
+
 
 
 
@@ -276,11 +279,10 @@ merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
 
 merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
-daffy <- filterSCE(merged_daf, cluster_id!="trash", k = "flo_merge")
 
 
 
-plotClusterHeatmap(daffy, hm2 = NULL,
+plotClusterHeatmap(merged_daf, hm2 = NULL,
                    k = "flo_merge",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
@@ -289,7 +291,7 @@ plotClusterHeatmap(daffy, hm2 = NULL,
 
 
 ### diffcyt ####
-ei <- metadata(daffy)$experiment_info
+ei <- metadata(merged_daf)$experiment_info
 
 design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 
@@ -309,7 +311,7 @@ FDR_cutoff <- 0.05
 contrast_baseline <- createContrast(c(1, rep(0, 8)))
 contrast_c10 <- createContrast(c(c(0, 1), rep(0,7)))
 contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
-contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+contrast_t6 <- createContrast(c(c(1, 0, 0, -1), rep(0,5)))
 
 
 da_baseline <- diffcyt(merged_daf,
@@ -328,15 +330,15 @@ da_c10 <- diffcyt(merged_daf,
                   clustering_to_use = "flo_merge",
                   verbose = T)
 
-da_dod <- diffcyt(daffy,
+da_dod <- diffcyt(merged_daf,
                   design = design,
                   contrast = contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "meta45",
+                  clustering_to_use = "flo_merge",
                   verbose = T)
 
-da_t6 <- diffcyt(daffy,
+da_t6 <- diffcyt(merged_daf,
                  design = design,
                  contrast = contrast_t6,
                  analysis_type = "DA",
@@ -360,8 +362,8 @@ table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 
 plotDiffHeatmap(merged_daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daffy, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daffy, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
 
 
@@ -374,9 +376,9 @@ contrast_t6 <- createContrast(c(0,0,0,1))
 
 da_formula2 <- createFormula(ei,
                              cols_fixed = "timepoint",
-                             cols_random = c("volunteer", "sample_id"))
+                             cols_random =c("volunteer","sample_id"))
 
-da_baseline_vol <- diffcyt(daf,
+da_baseline_vol <- diffcyt(merged_daf,
                            #design = design,
                            formula = da_formula2,
                            contrast = contrast_baseline,
@@ -385,7 +387,7 @@ da_baseline_vol <- diffcyt(daf,
                            clustering_to_use = "flo_merge",
                            verbose = T)
 
-da_c10_vol <- diffcyt(daf,
+da_c10_vol <- diffcyt(merged_daf,
                       #design = design,
                       formula = da_formula2,
                       contrast = contrast_c10,
@@ -394,7 +396,7 @@ da_c10_vol <- diffcyt(daf,
                       clustering_to_use = "flo_merge",
                       verbose = T)
 
-da_dod_vol <- diffcyt(daf,
+da_dod_vol <- diffcyt(merged_daf,
                       #design = design,
                       formula = da_formula2,
                       contrast = contrast_dod,
@@ -403,7 +405,7 @@ da_dod_vol <- diffcyt(daf,
                       clustering_to_use = "flo_merge",
                       verbose = T)
 
-da_t6_vol <- diffcyt(daf,
+da_t6_vol <- diffcyt(merged_daf,
                      #design = design,
                      formula = da_formula2,
                      contrast = contrast_t6,
@@ -414,10 +416,10 @@ da_t6_vol <- diffcyt(daf,
 
 ### results using glmm, <y ~ timepoint + (1 | sample_id)>
 
-# table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
+table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
 # # FALSE
 # # 35
-# table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
+table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
 # # FALSE  TRUE
 # # 29     9
 
@@ -445,8 +447,8 @@ table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
 
 plotDiffHeatmap(daf, da_baseline_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(daf, da_c10_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_dod_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(merged_daf, da_dod_vol, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+plotDiffHeatmap(merged_daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
 # adjusting for individual differences with a random effect includes some spurious looking results, but 
 # also includes some more that i feel are missing if there's no attempt to control for individual identity
@@ -456,7 +458,7 @@ plotDiffHeatmap(daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 
 
 # topTable(da_t6_vol, show_counts = T)
-dod_vol <- data.frame(topTable(da_dod_vol, all=T, show_counts = T))
+dod_vol <- data.frame(topTable(da_dod, all=T, show_counts = T))
 up_dod <-  dplyr::filter(dod_vol, dod_vol$p_adj < FDR_cutoff)
 
 long_up_dod <- gather(up_dod, sample_id, count, colnames(up_dod)[4:ncol(up_dod)])
@@ -470,10 +472,13 @@ long_up_dod$frequency <- long_up_dod$count / counts[long_up_dod$sample_id] *100
 ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$count))+
   geom_boxplot(aes(fill=long_up_dod$timepoint))+
   geom_point(aes(shape=long_up_dod$volunteer))+
-  facet_wrap(~long_up_dod$cluster_id, scales = "free", ncol=7)
+  facet_wrap(~long_up_dod$cluster_id, scales = "free", ncol=5)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
 
 
-t6_vol <- data.frame(topTable(da_t6_vol, all=T, show_counts = T))
+t6_vol <- data.frame(topTable(da_t6, all=T, show_counts = T))
 up_t6 <-  dplyr::filter(t6_vol, t6_vol$p_adj < FDR_cutoff)
 
 long_up_t6 <- gather(up_t6, sample_id, count, colnames(up_t6)[4:ncol(up_t6)])
@@ -487,7 +492,10 @@ long_up_t6$frequency <- long_up_t6$count / counts[long_up_t6$sample_id] *100
 ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count))+
   geom_boxplot(aes(fill=long_up_t6$timepoint))+
   geom_point(aes(shape=long_up_t6$volunteer))+
-  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=7)
+  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=5)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
 
 
 meta_up_t6 <- filterSCE(daf, k = "meta35", cluster_id %in% up_t6)
