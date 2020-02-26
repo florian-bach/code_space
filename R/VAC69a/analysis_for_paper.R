@@ -211,9 +211,9 @@ set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim =
 
 
 
-start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
-duration <- round(end - start) # ~12-23 min
-print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
+#start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
+#duration <- round(end - start) # ~12-23 min
+#print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
 
 # start <- Sys.time(); daf <- runTSNE(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
 # duration <- round(end - start)
@@ -221,52 +221,75 @@ print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
 # 
 # 
 
-print(c("together, UMAP and tSNE took ", duration, " minutes to run on 10,000 cells"), sep='')
-
-th35_plot <- plotDR(daf, "UMAP", color_by = "meta35")
-tfh_plot <- plotDR(daf, "UMAP", color_by = "CD4")
+# print(c("together, UMAP and tSNE took ", duration, " minutes to run on 10,000 cells"), sep='')
+# 
+# th35_plot <- plotDR(daf, "UMAP", color_by = "meta35")
+# tfh_plot <- plotDR(daf, "UMAP", color_by = "CD4")
 
 
 plotClusterHeatmap(daf, hm2 = NULL,
                    #m = "meta35",
-                   k = "meta40",
+                   k = "meta45",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
                    scale=T, 
-                   palette=)
+                   palette=inferno_lite
+                   )
 
 
 
 # daf100_delta <- metadata(daf100)$delta_area
 
 #### get rid of weird super positive events ####
-cluster_ids <- seq(1,35)
-bad_clusters <- 19
-cluster_ids <- cluster_ids[-bad_clusters]
 
-daf <- filterSCE(daf, k = "meta35", cluster_id %in% paste(cluster_ids))
 
-th35 <- filterSCE(daf, k = "meta35", cluster_id %in% paste(c(16, 20, 21)))
-th40 <- filterSCE(daf, k = "meta40", cluster_id %in% paste(c(17, 23, 22, 18)))
+# removing a cluster messes with the differential expression calculation for some reason- maybe because
+# it's a factor and removing the cluster doens't change the entry in the dictionary?
+cluster_ids <- seq(1,45)
+bad_clusters <- 24
+cluster_ids <- as.character(cluster_ids[-bad_clusters])
 
-th35 <- runUMAP(th35, exprs_values = "exprs", feature_set=refined_markers)
-th40 <- runUMAP(th40, exprs_values = "exprs", feature_set=refined_markers)
+daffy <- filterSCE(merged_daf, k = "meta45", cluster_id %!in% list("trash"))
+# 
 
-th35_plot <- plotDR(th35, color_by = "meta35")
-th40_plot <-plotDR(th40, color_by = "meta40")
 
-plotClusterExprs(th35, k = "meta35", features = "type")
-plotClusterExprs(th40, k = "meta40", features = "type")
+
+
+# th35 <- filterSCE(daf, k = "meta35", cluster_id %in% paste(c(16, 20, 21)))
+# th40 <- filterSCE(daf, k = "meta40", cluster_id %in% paste(c(17, 23, 22, 18)))
+# 
+# th35 <- runUMAP(th35, exprs_values = "exprs", feature_set=refined_markers)
+# th40 <- runUMAP(th40, exprs_values = "exprs", feature_set=refined_markers)
+# 
+# th35_plot <- plotDR(th35, color_by = "meta35")
+# th40_plot <-plotDR(th40, color_by = "meta40")
+# 
+# plotClusterExprs(th35, k = "meta35", features = "type")
+# plotClusterExprs(th40, k = "meta40", features = "type")
 
 ####  merge clusters 
 
 
 merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
-daf<- mergeClusters(daf, k = "flo_merge", table = merging_table1, id = "flo_merge")
+
+merging_table1$new_cluster <- factor(merging_table1$new_cluster)
+
+
+merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
+daffy <- filterSCE(merged_daf, cluster_id!="trash", k = "flo_merge")
+
+
+
+plotClusterHeatmap(daffy, hm2 = NULL,
+                   k = "flo_merge",
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale=T,
+                   palette=inferno_lite)
 
 
 ### diffcyt ####
-ei <- metadata(daf)$experiment_info
+ei <- metadata(daffy)$experiment_info
 
 design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 
@@ -289,35 +312,36 @@ contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
 contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
 
 
-da_baseline <- diffcyt(daf,
+da_baseline <- diffcyt(merged_daf,
                        design = design,
                        contrast = contrast_baseline,
                        analysis_type = "DA",
                        method_DA = "diffcyt-DA-edgeR",
-                       clustering_to_use = "meta40",
+                       clustering_to_use = "flo_merge",
                        verbose = T)
-da_c10 <- diffcyt(daf,
+
+da_c10 <- diffcyt(merged_daf,
                   design = design,
                   contrast = contrast_c10,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "meta40",
+                  clustering_to_use = "flo_merge",
                   verbose = T)
 
-da_dod <- diffcyt(daf,
+da_dod <- diffcyt(daffy,
                   design = design,
                   contrast = contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "meta40",
+                  clustering_to_use = "meta45",
                   verbose = T)
 
-da_t6 <- diffcyt(daf,
+da_t6 <- diffcyt(daffy,
                  design = design,
                  contrast = contrast_t6,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-edgeR",
-                 clustering_to_use = "meta40",
+                 clustering_to_use = "flo_merge",
                  verbose = T)
 
 # results  ###
@@ -326,18 +350,18 @@ table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
 
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
 # FALSE 
-# 35 
+# 38 
 table(rowData(da_dod$res)$p_adj < FDR_cutoff)
 # FALSE  TRUE 
-# 20    15
+# 23    15
 table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 # FALSE  TRUE 
-# 19    16 
+# 23    15 
 
-plotDiffHeatmap(daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(merged_daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daffy, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(daffy, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
 
 
@@ -358,7 +382,7 @@ da_baseline_vol <- diffcyt(daf,
                            contrast = contrast_baseline,
                            analysis_type = "DA",
                            method_DA = "diffcyt-DA-GLMM",
-                           clustering_to_use = "meta40",
+                           clustering_to_use = "flo_merge",
                            verbose = T)
 
 da_c10_vol <- diffcyt(daf,
@@ -367,7 +391,7 @@ da_c10_vol <- diffcyt(daf,
                       contrast = contrast_c10,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta40",
+                      clustering_to_use = "flo_merge",
                       verbose = T)
 
 da_dod_vol <- diffcyt(daf,
@@ -376,7 +400,7 @@ da_dod_vol <- diffcyt(daf,
                       contrast = contrast_dod,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "meta40",
+                      clustering_to_use = "flo_merge",
                       verbose = T)
 
 da_t6_vol <- diffcyt(daf,
@@ -385,7 +409,7 @@ da_t6_vol <- diffcyt(daf,
                      contrast = contrast_t6,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-GLMM",
-                     clustering_to_use = "meta40",
+                     clustering_to_use = "flo_merge",
                      verbose = T)
 
 ### results using glmm, <y ~ timepoint + (1 | sample_id)>
