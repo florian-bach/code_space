@@ -290,7 +290,7 @@ plotClusterHeatmap(merged_daf, hm2 = NULL,
                    palette=inferno_lite)
 
 
-### diffcyt ####
+### diffcyt ####z
 ei <- metadata(merged_daf)$experiment_info
 
 design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
@@ -306,7 +306,7 @@ levels(ei$timepoint)
 
 FDR_cutoff <- 0.05
 
-# edgeR models ####
+# edgeR models with all timepoints####
 
 contrast_baseline <- createContrast(c(1, rep(0, 8)))
 contrast_c10 <- createContrast(c(c(0, 1), rep(0,7)))
@@ -364,6 +364,88 @@ plotDiffHeatmap(merged_daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+
+
+# edger with two timepoints for pairwise comparisons#
+# first we filter the original sce to exclude unnecessary timepoints #
+
+base_c10 <- filterSCE(merged_daf, timepoint %in% c("Baseline", "C10"))
+base_dod <- filterSCE(merged_daf, timepoint %in% c("Baseline", "DoD"))
+base_t6 <- filterSCE(merged_daf, timepoint %in% c("Baseline", "T6"))
+
+
+# then, for each dataset, create design matrix & change metadata to change the factor levels which until now
+# still include the timepoints and sample_ids that aren't present anymore; if you don't do the latter step the
+# diffcyt function will fail because of an internal sanity check that attempts to match sample_ids between the
+# object that contains cluster medians and the sce being tested
+
+ei_c10 <- metadata(base_c10)$experiment_info
+ei_c10$timepoint <- factor(ei_c10$timepoint, levels=c("Baseline", "C10"))
+ei_c10$sample_id <- factor(as.character(ei_c10$sample_id))
+c10_design <- createDesignMatrix(ei_c10, c("timepoint", "volunteer"))
+metadata(base_c10)$experiment_info <- ei_c10
+
+ei_dod <- metadata(base_dod)$experiment_info
+ei_dod$timepoint <- factor(ei_dod$timepoint, levels=c("Baseline", "DoD"))
+ei_dod$sample_id <- factor(as.character(ei_dod$sample_id))
+dod_design <- createDesignMatrix(ei_dod, c("timepoint", "volunteer"))
+metadata(base_dod)$experiment_info <- ei_dod
+
+
+ei_t6 <- metadata(base_t6)$experiment_info
+ei_t6$timepoint <- factor(ei_t6$timepoint, levels=c("Baseline", "T6"))
+ei_t6$sample_id <- factor(as.character(ei_t6$sample_id))
+t6_design <- createDesignMatrix(ei_t6, c("timepoint", "volunteer"))
+metadata(base_t6)$experiment_info <- ei_t6
+
+levels(ei_c10$timepoint)
+
+# 
+# contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
+# contrast_t6 <- createContrast(c(c(1, 0, 0, -1), rep(0,5)))
+
+pairwise_contrast <- createContrast(c(c(0, 1), rep(0,5)))
+
+pair_base_c10 <- diffcyt(base_c10,
+                  design = c10_design,
+                  contrast = pairwise_contrast,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "flo_merge",
+                  verbose = T)
+
+pair_base_dod <- diffcyt(base_dod,
+                  design = dod_design,
+                  contrast = pairwise_contrast,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "flo_merge",
+                  verbose = T)
+
+pair_base_t6 <- diffcyt(base_t6,
+                 design = t6_design,
+                 contrast = pairwise_contrast,
+                 analysis_type = "DA",
+                 method_DA = "diffcyt-DA-edgeR",
+                 clustering_to_use = "flo_merge",
+                 verbose = T)
+
+
+table(rowData(pair_base_c10$res)$p_adj < FDR_cutoff)
+# FALSE  TRUE 
+# 36     2
+table(rowData(pair_base_dod$res)$p_adj < FDR_cutoff)
+# FALSE  TRUE 
+# 34     4
+table(rowData(pair_base_t6$res)$p_adj < FDR_cutoff)
+# FALSE  TRUE 
+# 20    18
+
+
+plotDiffHeatmap(base_c10, pair_base_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
+plotDiffHeatmap(base_dod, pair_base_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+plotDiffHeatmap(base_t6, pair_base_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+
 
 
 
@@ -458,7 +540,7 @@ plotDiffHeatmap(merged_daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = 
 
 
 # topTable(da_t6_vol, show_counts = T)
-dod_vol <- data.frame(topTable(da_dod, all=T, show_counts = T))
+dod_vol <- data.frame(topTable(pair_base_dod, all=T, show_counts = T))
 up_dod <-  dplyr::filter(dod_vol, dod_vol$p_adj < FDR_cutoff)
 
 long_up_dod <- gather(up_dod, sample_id, count, colnames(up_dod)[4:ncol(up_dod)])
@@ -478,7 +560,7 @@ ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$count))+
         legend.title = element_blank())
 
 
-t6_vol <- data.frame(topTable(da_t6, all=T, show_counts = T))
+t6_vol <- data.frame(topTable(pair_base_t6, all=T, show_counts = T))
 up_t6 <-  dplyr::filter(t6_vol, t6_vol$p_adj < FDR_cutoff)
 
 long_up_t6 <- gather(up_t6, sample_id, count, colnames(up_t6)[4:ncol(up_t6)])
