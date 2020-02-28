@@ -4,7 +4,7 @@ library(flowCore)
 library(ggplot2)
 library(RColorBrewer)
 library(SingleCellExperiment)
-library(CytoNorm)
+#library(CytoNorm)
 library(diffcyt)
 library(tidyr)
 library(dplyr)
@@ -54,10 +54,26 @@ inferno <- c("#16071C", "#2C0E42", "#200D2E", "#000004", "#380D57", "#460B68", "
              "#D74D3F", "#B93B53", "#E15D37", "#8A2267", "#9A2964", "#EF802B", "#AA325B",
              "#E86F32", "#FCFFA4", "#F59121", "#FEB431", "#FFC751", "#FBA210", "#FFEC89",
              "#FFDA6D")
+
 inferno_lite <- c("#000004", "#380D57", "#460B68","#8A2267", "#9A2964",
                   "#AA325B","#B93B53","#C84449", "#D74D3F", "#E15D37",
                   "#E86F32","#EF802B", "#F59121", "#FBA210", "#FEB431", "#FFC751",
                   "#FFDA6D", "#FFEC89", "#FCFFA4")
+
+color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
+                      "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
+                      "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
+                      "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
+                      "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
+                      "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
+                      "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
+                      "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
+                      "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
+                      "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
+                      "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
+                      "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
+                      "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
+
 #scales::show_col(inferno_lite)
 
 inferno_mega_lite <-inferno_lite[seq(1,19, by=3)]
@@ -118,7 +134,9 @@ vac69a <- read.flowSet(md$file_name)
 # panel$antigen <- gsub(".", "", panel$antigen, fixed=T)
 # 
 # write.csv(panel, "VAC69_PANEL.CSV")
-panel <- read.csv("VAC69_PANEL.CSV", header=T)
+panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
+colnames(panel)[2] <- "marker_name"
+panel$marker_class <- factor(panel$marker_class, levels = c("type", "state", "none"))
 ####
 
 ### CATALYST ####
@@ -211,7 +229,7 @@ set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim =
 
 
 
-#start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
+start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
 #duration <- round(end - start) # ~12-23 min
 #print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
 
@@ -270,7 +288,7 @@ plotClusterHeatmap(daf, hm2 = NULL,
 # plotClusterExprs(th35, k = "meta35", features = "type")
 # plotClusterExprs(th40, k = "meta40", features = "type")
 
-####  merge clusters 
+####  the mergening 
 
 
 merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
@@ -288,6 +306,30 @@ plotClusterHeatmap(merged_daf, hm2 = NULL,
                    draw_freqs = TRUE,
                    scale=T,
                    palette=inferno_lite)
+
+# contour plot function ####
+contour <- function(sce, facet_by, palette){
+  #make theme
+  UMAP_theme <- theme_minimal()+theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.title = element_blank()
+  )
+  #plot make dotplot, remove dots, add density clouds
+  umap <- plotDR(sce, color_by = "CD38")+facet_wrap(facet_by)
+  umap$layers[[1]] <- NULL
+  umap+stat_density2d(aes(fill = ..level..), geom = "polygon", bins=60, size=0.8)+
+    xlim(c(-15, 15))+
+    ylim(c(-12, 12))+
+    #scale_fill_gradientn(colours = palette)+
+    viridis::scale_fill_viridis(option = "A")+
+    UMAP_theme
+}
+# ####
+contour(merged_daf, facet_by = "timepoint", palette = inferno_lite)
+
+
 
 
 ### diffcyt ####z
@@ -364,6 +406,8 @@ plotDiffHeatmap(merged_daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
 plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+
+FloDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
 
 # edger with two timepoints for pairwise comparisons#
@@ -581,22 +625,55 @@ ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count))+
 
 
 meta_up_t6 <- filterSCE(daf, k = "meta35", cluster_id %in% up_t6)
-CATALYST::plotMDS(daf, color_by = "timepoint") 
+CATALYST::plotMDS(merged_daf, color_by = "volunteer") 
 
 # [1] "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline"
 # [5] "counts_V02_Baseline" "counts_V02_Baseline"
 
 
+ei <- metadata(merged_daf)$experiment_info
+
+ds_formula1 <- createFormula(ei, cols_fixed = "timepoint",
+                             cols_random = "sample_id")
+
+ds_formula2 <- createFormula(ei, cols_fixed = "timepoint",
+                             cols_random = c("sample_id", "volunteer"))
+
+design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
+
+
+lm_contrast_dod <- createContrast(c(0,0,1,0))
+lm_contrast_t6 <- createContrast(c(0,0,0,1))
+
+ds_dod_1 <- diffcyt(merged_daf,                                            
+                   formula = ds_formula1, contrast = contrast_dod, design= design,                    
+                   analysis_type = "DS",            
+                   clustering_to_use = "flo_merge", verbose = T)               
+
+table(rowData(ds_dod_1$res)$p_adj < FDR_cutoff)
+
+ds_t6_1 <- diffcyt(merged_daf,                                            
+                    formula = ds_formula1, contrast = lm_contrast_t6,                    
+                    analysis_type = "DS", method_DS = "diffcyt-DS-LMM",            
+                    clustering_to_use = "flo_merge", verbose = FALSE)               
+table(rowData(ds_t6_1$res)$p_adj < FDR_cutoff)         
 
 
 
+ds_dod_2 <- diffcyt(merged_daf,                                            
+                    formula = ds_formula2, contrast = lm_contrast_dod,                    
+                    analysis_type = "DS", method_DS = "diffcyt-DS-LMM",            
+                    clustering_to_use = "flo_merge", verbose = FALSE)               
+table(rowData(ds_dod_2$res)$p_adj < FDR_cutoff)
 
+ds_t6_2 <- diffcyt(merged_daf,                                            
+                   formula = ds_formula2, contrast = lm_contrast_t6,                    
+                   analysis_type = "DS", method_DS = "diffcyt-DS-LMM",            
+                   clustering_to_use = "flo_merge", verbose = FALSE)               
+table(rowData(ds_t6_2$res)$p_adj < FDR_cutoff)         
 
-
-
-
-
-
+        
+##### legacy code #####
 
 # plotClusterExprs(daf100, k = "meta15", markers = "state")
 plotAbundances(daf, k = "meta15", by = "cluster_id", shape="volunteer")
@@ -631,7 +708,7 @@ plotDR(daf100, "UMAP", color_by="CD4")
 ei <- metadata(daf100)$experiment_info
 
 da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
-                             cols_random = c("sample_id"))
+                             cols_random = c("sample_id", "volunteer"))
 
 (da_formula2 <- createFormula(ei,
                               cols_fixed = c("timepoint", "volunteer"), 

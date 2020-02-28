@@ -295,19 +295,19 @@ ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/phenograph_vs_flowsom
 
 cd4 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD4))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD4")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 cd8 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD8))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD8")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 vd2 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$Vd2))+
   geom_point(shape=1)+UMAP_theme+ggtitle("Vd2")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 va7 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$Va72))+
   geom_point(shape=1)+UMAP_theme+ggtitle("Va7.2")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 
 lin_plots <- plot_grid(cd4, cd8, vd2, va7, ncol=2)
@@ -318,27 +318,27 @@ ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_umap.png", li
 
 cd27 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD27))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD27")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 cd57 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD28))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD57")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 cd45ro <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD45RO))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD45RO")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 ccr7 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CCR7))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CCR7")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 cd25 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD25))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD25")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 cd127 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD127))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD127")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 
 type_plots <- plot_grid(cd45ro, ccr7, cd25, cd127, cd27, cd57, ncol = 3)
@@ -349,15 +349,15 @@ ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/type_umap.png", type_
 
 cd38 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$CD38))+
   geom_point(shape=1)+UMAP_theme+ggtitle("CD38")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 bcl2 <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$BCL2))+
   geom_point(shape=1)+UMAP_theme+ggtitle("Bcl-2")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 hladr <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$HLADR))+
   geom_point(shape=1)+UMAP_theme+ggtitle("HLA-DR")+
-  scale_color_gradientn(colors=inferno_lite)
+  viridis::scale_color_viridis(option = "A")
 
 ## hello world :) ##
 
@@ -378,3 +378,9 @@ batch_plot$layers[[1]]$aes_params$shape <- 1
 
 ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/time_point_plot.png", time_point_plot, height = 5.71, width=7.53)
 ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/batch_plot.png", batch_plot, height = 2.855, width=7.53)
+
+long_slimmed <- gather(slimmed, Marker, Intensity, colnames(slimmed)[1:26])
+
+ggplot(long_slimmed, aes(x=long_slimmed$UMAP1, y=long_slimmed$UMAP2, color=long_slimmed$Intensity))+
+  geom_point(shape=1)+UMAP_theme+facet_wrap(~Marker, ncol = 6)+
+  viridis::scale_color_viridis(option = "A")
