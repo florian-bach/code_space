@@ -11,6 +11,7 @@ library(dplyr)
 library(cowplot)
 library(scater)
 library(purrr)
+library(viridis)
 
 
 #extra functions defined here ####
@@ -136,14 +137,16 @@ vac69a <- read.flowSet(md$file_name)
 # write.csv(panel, "VAC69_PANEL.CSV")
 panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
 colnames(panel)[2] <- "marker_name"
-panel$marker_class <- factor(panel$marker_class, levels = c("type", "state", "none"))
+#panel$marker_class <- factor(panel$marker_class, levels = c("type", "state", "none"))
 ####
 
 ### CATALYST ####
 #construct daFrame #
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
 daf <- prepData(vac69a, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")))
+                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
+                  panel_cols = list(channel = "fcs_colname", antigen = "marker_name", class =
+                                    "marker_class"))
 
 
 # this gets rid of barcoding and quality control channels so clustering is easier
@@ -230,7 +233,7 @@ set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim =
 
 
 start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
-#duration <- round(end - start) # ~12-23 min
+(duration <- round(end - start)) # ~20-25 min
 #print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
 
 # start <- Sys.time(); daf <- runTSNE(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
@@ -410,9 +413,9 @@ plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 FloDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
 
-# edger with two timepoints for pairwise comparisons#
-# first we filter the original sce to exclude unnecessary timepoints #
+#### edger with two timepoints for pairwise comparisons #### 
 
+# first we filter the original sce to exclude unnecessary timepoints #
 base_c10 <- filterSCE(merged_daf, timepoint %in% c("Baseline", "C10"))
 base_dod <- filterSCE(merged_daf, timepoint %in% c("Baseline", "DoD"))
 base_t6 <- filterSCE(merged_daf, timepoint %in% c("Baseline", "T6"))
@@ -422,7 +425,6 @@ base_t6 <- filterSCE(merged_daf, timepoint %in% c("Baseline", "T6"))
 # still include the timepoints and sample_ids that aren't present anymore; if you don't do the latter step the
 # diffcyt function will fail because of an internal sanity check that attempts to match sample_ids between the
 # object that contains cluster medians and the sce being tested
-
 ei_c10 <- metadata(base_c10)$experiment_info
 ei_c10$timepoint <- factor(ei_c10$timepoint, levels=c("Baseline", "C10"))
 ei_c10$sample_id <- factor(as.character(ei_c10$sample_id))
@@ -434,7 +436,6 @@ ei_dod$timepoint <- factor(ei_dod$timepoint, levels=c("Baseline", "DoD"))
 ei_dod$sample_id <- factor(as.character(ei_dod$sample_id))
 dod_design <- createDesignMatrix(ei_dod, c("timepoint", "volunteer"))
 metadata(base_dod)$experiment_info <- ei_dod
-
 
 ei_t6 <- metadata(base_t6)$experiment_info
 ei_t6$timepoint <- factor(ei_t6$timepoint, levels=c("Baseline", "T6"))
@@ -582,9 +583,9 @@ plotDiffHeatmap(merged_daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = 
 # going on, maybe speak to some IEB people about this again...
 
 
-
+###  make boxplots of cluster counts/frequencies ####
 # topTable(da_t6_vol, show_counts = T)
-dod_vol <- data.frame(topTable(pair_base_dod, all=T, show_counts = T))
+dod_vol <- data.frame(topTable(da_baseline, all=T, show_counts = T))
 up_dod <-  dplyr::filter(dod_vol, dod_vol$p_adj < FDR_cutoff)
 
 long_up_dod <- gather(up_dod, sample_id, count, colnames(up_dod)[4:ncol(up_dod)])
@@ -604,7 +605,7 @@ ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$count))+
         legend.title = element_blank())
 
 
-t6_vol <- data.frame(topTable(pair_base_t6, all=T, show_counts = T))
+t6_vol <- data.frame(topTable(da_t6, all=T, show_counts = T))
 up_t6 <-  dplyr::filter(t6_vol, t6_vol$p_adj < FDR_cutoff)
 
 long_up_t6 <- gather(up_t6, sample_id, count, colnames(up_t6)[4:ncol(up_t6)])
@@ -623,13 +624,55 @@ ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count))+
   theme(axis.title = element_blank(),
         legend.title = element_blank())
 
+all_frequencies <- data.frame(topTable(da_baseline, all=T, show_counts = T))
 
-meta_up_t6 <- filterSCE(daf, k = "meta35", cluster_id %in% up_t6)
-CATALYST::plotMDS(merged_daf, color_by = "volunteer") 
+all_frequencies <- gather(all_frequencies, sample_id, count, colnames(all_frequencies)[4:ncol(all_frequencies)])
+all_frequencies$volunteer <- stringr::str_match(all_frequencies$sample_id, "V[0-9]*")[, 1]
+all_frequencies$timepoint <- substr(all_frequencies$sample_id, 12,nchar(all_frequencies$sample_id))
+
+all_frequencies$sample_id <- gsub("counts_", "", all_frequencies$sample_id)
+counts <- n_cells(daf)
+all_frequencies$frequency <- all_frequencies$count / counts[all_frequencies$sample_id] *100
+
+baseline_freq_matrix <- all_frequencies %>%
+  dplyr::filter(timepoint=="Baseline") %>%
+  select(cluster_id, volunteer, timepoint, frequency)
+
+# could make a function that does all this..
+
+
+baseline_freq_matrix <- spread(baseline_freq_matrix, cluster_id, frequency)
+baseline_spearman <- cor(baseline_freq_matrix[,3:ncol(baseline_freq_matrix)], method = "s")
+
+baseline_dist <- dist(baseline_spearman, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
+baselin_hclust <- hclust(baseline_dist)
+
+#check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
+baseline_spearman_df  <- data.frame(baseline_spearman, check.names = FALSE)
+baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+
+long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
+
+unique(long_baseline_spearman$cluster_id_y) %in% unique(long_baseline_spearman$cluster_id_x)
+hclust_levels <- colnames(baseline_spearman)[baselin_hclust$order]
+
+corr_matrix_theme <-
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(angle = 60, hjust = 1),
+        plot.title = element_text(hjust=0.5))
+
+ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = hclust_levels), y=factor(long_baseline_spearman$cluster_id_y, levels=hclust_levels)))+
+  geom_tile(aes(fill=long_baseline_spearman$ro))+
+  scale_fill_viridis(option="A")+
+  ggtitle("Baseline")+
+  labs(fill = expression(paste("Spearman ", rho)))+
+  corr_matrix_theme
+
 
 # [1] "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline"
 # [5] "counts_V02_Baseline" "counts_V02_Baseline"
 
+## lm models for differential marker expression####
 
 ei <- metadata(merged_daf)$experiment_info
 
@@ -673,354 +716,4 @@ ds_t6_2 <- diffcyt(merged_daf,
 table(rowData(ds_t6_2$res)$p_adj < FDR_cutoff)         
 
         
-##### legacy code #####
 
-# plotClusterExprs(daf100, k = "meta15", markers = "state")
-plotAbundances(daf, k = "meta15", by = "cluster_id", shape="volunteer")
-
-merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
-merging_table1$original_cluster <- as.character(merging_table1$original_cluster)
-merging_table1$new_cluster <- factor(merging_table1$new_cluster, levels = c("CD4+_Naive",
-                                                                            "Treg",
-                                                                            "CD4+_Effectors_CD57-ICOS+",
-                                                                            "CD4+_Effectors_CD57intGZBint",
-                                                                            "CD4+_Effectors_CD57+GZB+", 
-                                                                            "CD4+_Effectors_CD27-HLADR+",
-                                                                            "CD8+_Naive",
-                                                                            "CD8+_EM_PD1+",
-                                                                            "CD8+EffectorsCD57+Tbet+",
-                                                                            "CD8+_Effectors_CD57-CD45RA+CD45RO-",
-                                                                            "MAIT",
-                                                                            "gd_CD161-CD28-",
-                                                                            "gd_CD161+_CD28+",
-                                                                            "DN",
-                                                                            "trash"
-))
-
-merging_table1 <- data.frame(read_excel("flo_cluster_merging1.xlsx"))
-daf100 <- mergeClusters(daf100, k = "meta15", table = merging_table1, id = "merging1")
-
-plotDR(daf100, "UMAP", color_by="CD4")
-####
-
-
-### differential analysis using pairwise comparisons implemented in diffcyt ####
-ei <- metadata(daf100)$experiment_info
-
-da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
-                             cols_random = c("sample_id", "volunteer"))
-
-(da_formula2 <- createFormula(ei,
-                              cols_fixed = c("timepoint", "volunteer"), 
-                              cols_random = "sample_id"))
-
-
-#try som100; run colnames(metadata(daf100)$cluster_codes) to see everything
-
-#design <- createDesignMatrix(ei, c("timepoint", "sample_id", "volunteer"))
-
-levels(ei$timepoint)
-# [1] "Baseline" "C10"      "DoD"      "T6"   
-
-# try putting baserline level as -1 rather than 0...
-contrast_baseline <- createContrast(c(1, rep(0, 3)))
-contrast_c10 <- createContrast(c(0,1,0,0))
-contrast_dod <- createContrast(c(0,0,1,0))
-contrast_t6 <- createContrast(c(rep(0, 3), 1))
-# nrow(contrast) == ncol(design)
-# data.frame(parameters = colnames(design), contrast)
-
-da_baseline <- diffcyt(daf100,
-                       formula = da_formula1,
-                       contrast = contrast_baseline,
-                       analysis_type = "DA",
-                       method_DA = "diffcyt-DA-GLMM",
-                       clustering_to_use = "som100",
-                       verbose = F)
-
-
-da_c10 <- diffcyt(daf100,
-                  formula = da_formula1,
-                  #design = design,
-                  contrast = contrast_c10,
-                  analysis_type = "DA",
-                  method_DA = "diffcyt-DA-GLMM",
-                  clustering_to_use = "som100",
-                  verbose = F)
-
-da_dod <- diffcyt(daf100,
-                  formula = da_formula1,
-                  #design = design,
-                  contrast = contrast_dod,
-                  analysis_type = "DA",
-                  method_DA = "diffcyt-DA-GLMM",
-                  clustering_to_use = "som100",
-                  verbose = F)
-
-
-da_t6 <- diffcyt(daf100,
-                 formula = da_formula1,
-                 #design = design,
-                 contrast = contrast_t6,
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-GLMM",
-                 clustering_to_use = "som100",
-                 verbose = F)
-
-
-da_baseline_vol <- diffcyt(daf100,
-                           formula = da_formula2,
-                           contrast = contrast_baseline,
-                           analysis_type = "DA",
-                           method_DA = "diffcyt-DA-GLMM",
-                           clustering_to_use = "som100",
-                           verbose = F)
-
-
-da_c10_vol <- diffcyt(daf100,
-                      formula = da_formula2,
-                      contrast = contrast_c10,
-                      analysis_type = "DA",
-                      method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "som100",
-                      verbose = F)
-
-da_dod_vol <- diffcyt(daf100,
-                      formula = da_formula2,
-                      contrast = contrast_dod,
-                      analysis_type = "DA",
-                      method_DA = "diffcyt-DA-GLMM",
-                      clustering_to_use = "som100",
-                      verbose = F)
-
-
-da_t6_vol <- diffcyt(daf100,
-                     formula = da_formula2,
-                     contrast = contrast_t6,
-                     analysis_type = "DA",
-                     method_DA = "diffcyt-DA-GLMM",
-                     clustering_to_use = "som100",
-                     verbose = F)
-
-
-FDR_cutoff <- 0.05
-
-plotDiffHeatmap(daf100, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf100, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf100, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf100, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-
-
-
-#### metacluster
-table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
-# FALSE  TRUE 
-# 1    14 
-table(rowData(da_c10$res)$p_adj < FDR_cutoff)
-# FALSE 
-# 15 
-table(rowData(da_dod$res)$p_adj < FDR_cutoff)
-# FALSE FALSE  TRUE 
-# 15     94     6
-table(rowData(da_t6$res)$p_adj < FDR_cutoff)
-# FALSE  TRUE FALSE  TRUE 
-# 13     2     88    12
-
-####
-
-# export data ####
-
-### wrapper function extracClusters doesn't work somehow? using the source code for it's easy enough to
-### replicate and it seems to work just fin
-
-cluster_ids <- cluster_ids(daf100, "meta15")
-clusters <- c("2", "14")
-sig_t6_daf <- daf100[cluster_ids %in% clusters,]
-
-
-#### reclustering on t6 upregulated cells ####
-sig_t6_daf <- runDR(sig_t6_daf, "UMAP", rows_to_use = 2000)
-
-bcl2_plot <- plotDR(sig_t6_daf, "UMAP", color_by="BCL2", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())+
-  sc
-
-cd38_plot <- plotDR(sig_t6_daf, "UMAP", color_by="CD38", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())+
-  sc
-
-cluster_plot <- plotDR(sig_t6_daf, "UMAP", color_by="som100", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())
-
-plotAbundances(sig_t6_daf, k = "som100", by = "cluster_id", shape="volunteer")
-
-plotClusterHeatmap(sig_t6_daf,
-                   hm2 = 'abundances',
-                   #k = "meta15",
-                   k = "som100", 
-                   m = "meta15",
-                   cluster_anno = T                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ,
-                   draw_freqs = F)
-#split_by='timepoint')
-
-
-panel <- data.frame("fcs_colname"=colnames(sig_t6[[1]]), "antigen"=c("Time", markernames(sig_t6[[1]])))
-panel$antigen <- gsub("_", "", panel$antigen)
-
-panel$antigen <- ifelse(nchar(panel$antigen)>6,
-                        substr(panel$antigen, 6, nchar(panel$antigen)),
-                        panel$antigen
-)
-
-panel$antigen[3] <- "CD45"
-
-panel$antigen <- gsub("-", "", panel$antigen)
-panel$antigen <- gsub(".", "", panel$antigen, fixed=T)
-
-
-
-
-
-
-
-
-
-
-plotMedExprs(daf100, k = "meta15", facet = "antigen", shape_by = "volunteer", group_by="timepoint")
-
-
-
-
-dafplotDiffHeatmap(daf100, da_baseline_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf100, da_c10_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-plotDiffHeatmap(daf100, da_dod_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T, top_n = 55)
-plotDiffHeatmap(daf100, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = T, top_n = 55)
-
-table(rowData(da_baseline_vol$res)$p_adj < FDR_cutoff)
-table(rowData(da_c10_vol$res)$p_adj < FDR_cutoff)
-table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
-table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
-
-
-##
-
-
-
-
-
-
-
-
-
-
-
-
-#plotClusterHeatmap(daf196, hm2 = NULL, k = "meta25", m = NULL, cluster_anno = TRUE, draw_freqs = TRUE) 
-
-start_time <- Sys.time()
-
-daf100 <- runDR(daf100, "TSNE", rows_to_use = 1000)
-daf100 <- runDR(daf100, "UMAP", rows_to_use = 5000)
-
-daf196 <- runDR(daf196, "TSNE", rows_to_use = 1000)
-daf196 <- runDR(daf196, "UMAP", rows_to_use = 5000)
-
-end_time <- Sys.time() #8 min
-
-p1 <- plotDR(daf100, "UMAP", color_by="meta15", facet=c("timepoint"))+ theme(legend.position = "none")
-
-p2 <- plotDR(daf196, "UMAP", color_by="meta25", facet=c("timepoint"))+ theme(legend.position = "none")
-
-
-, nrow = 2, rel_heights = c(5, 5, 2))
-
-
-
-myPalette <- colorRampPalette(rev(brewer.pal(11, "Spectral")))
-red_palette <- c(myPalette(100), rep(myPalette(100)[100], 200))
-
-sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
-
-
-(cd38_plot <-  plotDR(daf100, "UMAP", color_by="meta12", facet="timepoint")+
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          legend.position = "none", 
-          axis.title = element_blank())#+sc
-)
-
-
-
-cd38_plot$layers[[1]]$aes_params$size <- 0.1; cd38_plot
-
-
-
-
-density_plot <- plotDR(daf100, "UMAP", color_by="CCR7", facet=c("volunteer", "timepoint"))+
-  stat_density2d(bins=100, size=0.11, colour="maroon")
-
-density_plot$layers[[1]] <- NULL
-(density_plot <- density_plot+xlim(c(-15, 8))+ylim(c(-10,12))+
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(), 
-          axis.title = element_blank()))
-
-
-
-
-
-#dot plot shenanigans####
-
-
-bcl2_plot <- plotDR(daf100, "UMAP", color_by="BCL2", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())+
-  sc
-
-cd38_plot <- plotDR(daf100, "UMAP", color_by="CD38", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())+
-  sc
-
-cluster_plot <- plotDR(daf100, "UMAP", color_by="meta15", facet="timepoint")+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = "none", 
-        axis.title = element_blank())
-
-bcl2_plot$layers[[1]]$aes_params$size <- 0.1
-cd38_plot$layers[[1]]$aes_params$size <- 0.1
-cluster_plot$layers[[1]]$aes_params$size <- 0.1
-
-#triple_big <- plot_grid(cd38_plot, bcl2_plot, cluster_plot, nrow = 3)
-triple_big <- gridExtra::grid.arrange(cd38_plot, bcl2_plot, cluster_plot, nrow = 3)
-
-ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/big_dot_plot.pdf", triple_big)
-
-
-bcl2_plot$layers[[1]]$aes_params$size <- 0.01
-cd38_plot$layers[[1]]$aes_params$size <- 0.01
-cluster_plot$layers[[1]]$aes_params$size <- 0.01
-
-triple_small <- gridExtra::grid.arrange(cd38_plot, bcl2_plot, cluster_plot, nrow = 3)
-
-
-ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/small_dot_plot.pdf", triple_small)
-
-
-ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/big_cd38_plot.pdf", cd38_plot)
-
-#end####
