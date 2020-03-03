@@ -17,6 +17,30 @@ library(viridis)
 #extra functions defined here ####
 `%!in%` = Negate(`%in%`)
 
+# contour plot function ####
+contour <- function(sce, facet_by, palette){
+  #make theme
+  UMAP_theme <- theme_minimal()+theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.title = element_blank()
+  )
+  #plot make dotplot, remove dots, add density clouds
+  umap <- plotDR(sce, color_by = "CD38")+facet_wrap(facet_by)
+  umap$layers[[1]] <- NULL
+  umap+stat_density2d(aes(fill = ..level..), geom = "polygon", bins=60, size=0.8)+
+    xlim(c(-15, 15))+
+    ylim(c(-12, 12))+
+    #scale_fill_gradientn(colours = palette)+
+    viridis::scale_fill_viridis(option = "A")+
+    UMAP_theme
+}
+# ####
+contour(merged_daf, facet_by = "timepoint", palette = inferno_lite)
+
+
+
 # color palettes defined here ####
 #this is how you extract colors from an existing plot object... the order is slightly
 # bongled up though...
@@ -107,7 +131,6 @@ fcs_files <- grep("fcs", list.files(), value = T)
 
 primaries <- c()
 
-#change number of volunteers here
 timepoints <- c("C-1", "C_10", "DoD", "T_6")
 
 for(i in timepoints){
@@ -303,35 +326,12 @@ merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_
 
 
 
-plotClusterHeatmap(merged_daf, hm2 = NULL,
-                   k = "flo_merge",
-                   cluster_anno = TRUE,
-                   draw_freqs = TRUE,
-                   scale=T,
-                   palette=inferno_lite)
-
-# contour plot function ####
-contour <- function(sce, facet_by, palette){
-  #make theme
-  UMAP_theme <- theme_minimal()+theme(
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    legend.position = "none",
-    axis.title = element_blank()
-  )
-  #plot make dotplot, remove dots, add density clouds
-  umap <- plotDR(sce, color_by = "CD38")+facet_wrap(facet_by)
-  umap$layers[[1]] <- NULL
-  umap+stat_density2d(aes(fill = ..level..), geom = "polygon", bins=60, size=0.8)+
-    xlim(c(-15, 15))+
-    ylim(c(-12, 12))+
-    #scale_fill_gradientn(colours = palette)+
-    viridis::scale_fill_viridis(option = "A")+
-    UMAP_theme
-}
-# ####
-contour(merged_daf, facet_by = "timepoint", palette = inferno_lite)
-
+# plotClusterHeatmap(merged_daf, hm2 = NULL,
+#                    k = "flo_merge",
+#                    cluster_anno = TRUE,
+#                    draw_freqs = TRUE,
+#                    scale=T,
+#                    palette=inferno_lite)
 
 
 
@@ -624,6 +624,8 @@ ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count))+
   theme(axis.title = element_blank(),
         legend.title = element_blank())
 
+
+# cluster x cluster correlation matrices
 all_frequencies <- data.frame(topTable(da_baseline, all=T, show_counts = T))
 
 all_frequencies <- gather(all_frequencies, sample_id, count, colnames(all_frequencies)[4:ncol(all_frequencies)])
@@ -638,14 +640,16 @@ baseline_freq_matrix <- all_frequencies %>%
   dplyr::filter(timepoint=="Baseline") %>%
   select(cluster_id, volunteer, timepoint, frequency)
 
-# could make a function that does all this..
 
+# making correlation heatmaps
 
 baseline_freq_matrix <- spread(baseline_freq_matrix, cluster_id, frequency)
-baseline_spearman <- cor(baseline_freq_matrix[,3:ncol(baseline_freq_matrix)], method = "s")
+baseline_spearman <- cor(baseline_freq_matrix[,3:ncol(baseline_freq_matrix)], method = "p")
 
-baseline_dist <- dist(baseline_spearman, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
-baselin_hclust <- hclust(baseline_dist)
+unit <- dist(baseline_spearman, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
+units <- hclust(unit)
+
+specific_order <- colnames(baseline_spearman)[units$order]
 
 #check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
 baseline_spearman_df  <- data.frame(baseline_spearman, check.names = FALSE)
@@ -653,20 +657,23 @@ baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
 
 long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
 
-unique(long_baseline_spearman$cluster_id_y) %in% unique(long_baseline_spearman$cluster_id_x)
-hclust_levels <- colnames(baseline_spearman)[baselin_hclust$order]
+# hclust_levels <- colnames(baseline_spearman)[baselin_hclust$order]
 
 corr_matrix_theme <-
   theme(axis.title = element_blank(),
-        axis.text.x = element_text(angle = 60, hjust = 1),
-        plot.title = element_text(hjust=0.5))
+        # axis.text.x = element_text(angle = 60, hjust = 1),
+        axis.text.x = element_blank(),
+        plot.title = element_text(hjust=0.5),
+        legend.position = "none")
 
-ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = hclust_levels), y=factor(long_baseline_spearman$cluster_id_y, levels=hclust_levels)))+
-  geom_tile(aes(fill=long_baseline_spearman$ro))+
-  scale_fill_viridis(option="A")+
-  ggtitle("Baseline")+
-  labs(fill = expression(paste("Spearman ", rho)))+
-  corr_matrix_theme
+
+
+ggplot(long_baseline_spearman, aes_(x=factor(long_baseline_spearman$cluster_id_x, levels = colnames(baseline_spearman)[units$order]), y=factor(long_baseline_spearman$cluster_id_y, levels=colnames(baseline_spearman)[units$order])))+
+    geom_tile(aes(fill=long_baseline_spearman$ro))+
+    scale_fill_viridis(option="A")+
+    ggtitle("Baseline")+
+    labs(fill = expression(paste("Pearson ", rho)))+
+    corr_matrix_theme
 
 
 # [1] "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline" "counts_V02_Baseline"

@@ -1,3 +1,7 @@
+# SPECIFIC ORDER OR NOT???
+# 
+
+
 cluster_correlation_matrix <- function(daf, da_analysis, tp, correlation, distance){
   
           all_frequencies <- data.frame(topTable(da_analysis, all=T, show_counts = T))
@@ -14,10 +18,6 @@ cluster_correlation_matrix <- function(daf, da_analysis, tp, correlation, distan
             dplyr::filter(timepoint==paste(tp)) %>%
             select(cluster_id, volunteer, timepoint, frequency)
           
-          # could make a function that does all this..
-          
-          print(unique(baseline_freq_matrix$timepoint))
-          
           baseline_freq_matrix <- spread(baseline_freq_matrix, cluster_id, frequency)
           baseline_spearman <- cor(baseline_freq_matrix[,3:ncol(baseline_freq_matrix)], method = correlation)
           
@@ -30,17 +30,20 @@ cluster_correlation_matrix <- function(daf, da_analysis, tp, correlation, distan
           
           long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
           
-          hclust_levels <- colnames(baseline_spearman)[baseline_hclust$order]
-          
           corr_matrix_theme <-
             theme(axis.title = element_blank(),
                   axis.text.x = element_text(angle = 60, hjust = 1),
-                  plot.title = element_text(hjust=0.5))
+                  plot.title = element_text(hjust=0.5),
+                  axis.text = element_text(size=7))
           
-          ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = hclust_levels), y=factor(long_baseline_spearman$cluster_id_y, levels=hclust_levels)))+
+          colnames(baseline_spearman)[baseline_hclust$order]
+          
+          # ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = specific_order), y=factor(long_baseline_spearman$cluster_id_y, levels=specific_order)))+
+          ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = colnames(baseline_spearman)[baseline_hclust$order]), y=factor(long_baseline_spearman$cluster_id_y, levels=colnames(baseline_spearman)[baseline_hclust$order])))+
             geom_tile(aes(fill=long_baseline_spearman$ro))+
             scale_fill_viridis(option="A")+
             labs(fill = expression(rho))+
+            ggtitle(paste(tp, " (", correlation, ", ", distance,")", sep=''))+
             corr_matrix_theme
           
           }
@@ -49,13 +52,65 @@ base_corr <- cluster_correlation_matrix(merged_daf, da_baseline, "Baseline", "pe
 dod_corr <- cluster_correlation_matrix(merged_daf, da_baseline, "DoD", "pearson", "euclidean")
 t6_corr <- cluster_correlation_matrix(merged_daf, da_baseline, "T6", "pearson", "euclidean")
 
-pearson <- plot_grid(base_corr, dod_corr, t6_corr, ncol=3)
+lgd <- get_legend(base_corr)
 
-base_corr <- cluster_correlation_matrix(merged_daf, da_baseline, "Baseline", "spearman", "euclidean")
-dod_corr <- cluster_correlation_matrix(merged_daf, da_baseline, "DoD", "spearman", "euclidean")
-t6_corr <- cluster_correlation_matrix(merged_daf, da_baseline, "T6", "spearman", "euclidean")
+pearson <- plot_grid(base_corr+theme(legend.position = "none"), dod_corr+theme(legend.position = "none"), t6_corr+theme(legend.position = "none"),lgd, ncol=4, rel_widths = c(5,5,5,1))
+
+ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/tcell_cluster_correlation_matrix/pearson_all.png", pearson, height = 7, width=20)
+
+ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/tcell_cluster_correlation_matrix/base_corr.png", base_corr)
+ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/tcell_cluster_correlation_matrix/dod_corr.png", dod_corr)
+ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/tcell_cluster_correlation_matrix/t6_corr.png", t6_corr)
 
 
-spearman <- plot_grid(base_corr, dod_corr, t6_corr, ncol=3)
+#### loop for trying different parameters
 
-plot_grid(pearson, spearman, ncol=1)
+methd <- c("euclidean", "maximum", "manhattan", "canberra", "minkowski")
+
+mthds <- list()
+
+for (i in methd){
+  
+  unit <- dist(baseline_spearman, method = i, diag = FALSE, upper = FALSE, p = 2)
+  units <- hclust(unit)
+  mthds[[paste(i)]] <- list(units$order)
+  # colnames(mthds) <- c(colnames(mthds), paste(i))
+}
+
+orders <- c(mthds$euclidean, mthds$maximum, mthds$manhattan, mthds$canberra, mthds$minkowski)
+#baselin_hclust <- hclust(baseline_dist)
+
+#check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
+baseline_spearman_df  <- data.frame(baseline_spearman, check.names = FALSE)
+baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+
+long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
+
+# hclust_levels <- colnames(baseline_spearman)[baselin_hclust$order]
+
+corr_matrix_theme <-
+  theme(axis.title = element_blank(),
+        # axis.text.x = element_text(angle = 60, hjust = 1),
+        axis.text.x = element_blank(),
+        plot.title = element_text(hjust=0.5),
+        legend.position = "none")
+
+
+
+for (i in 1:5){
+  assign(paste("pearson", names(mthds)[i], sep='_' ), ggplot(long_baseline_spearman, aes_(x=factor(long_baseline_spearman$cluster_id_x, levels = colnames(baseline_spearman)[orders[[i]]]), y=factor(long_baseline_spearman$cluster_id_y, levels=colnames(baseline_spearman)[orders[[i]]])))+
+           geom_tile(aes(fill=long_baseline_spearman$ro))+
+           scale_fill_viridis(option="A")+
+           ggtitle("Baseline")+
+           labs(fill = expression(paste("Pearson ", rho)))+
+           corr_matrix_theme)
+}
+
+spearman_methods <- plot_grid(spearman_canberra, spearman_euclidean, spearman_manhattan, spearman_maximum, spearman_minkowski, ncol=3)
+pearson_methods <- plot_grid(pearson_canberra, pearson_euclidean, pearson_manhattan, pearson_maximum, pearson_minkowski, ncol=3)
+
+
+jah_plots <- c("spearman_canberra", "spearman_euclidean", "spearman_manhattan", "spearman_maximum", "spearman_minkowski", "pearson_canberra", "pearson_euclidean", "pearson_manhattan", "pearson_maximum", "pearson_minkowski")
+
+for (i in jah_plots){ggsave(paste("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/", i, ".png", sep=''), get(i))}
+
