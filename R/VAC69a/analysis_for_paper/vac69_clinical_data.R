@@ -5,8 +5,8 @@ library(gtools)
 library(cowplot)
 
 
-setwd("C:/Users/Florian/PhD/cytof/vac69a/clinical_data")
-
+#setwd("C:/Users/Florian/PhD/cytof/vac69a/clinical_data")
+setwd("/Users/s1249052/PhD/clinical_data/vac69a")
 ##########   symptoms findings   #################
 
 
@@ -170,6 +170,16 @@ ggsave("haematological.png", width=10, height=10)
 #######################     clinical chemistry    ########################
 
 
+
+data <- read.csv("biochem.csv", header=T)
+
+data_no_ae <- select(data, -c(colnames(data)[grep("_ae",colnames(data) ,fixed=T)]))
+
+long_data <- gather(data_no_ae, biochem, value, colnames(data_no_ae)[13:20])
+
+long_data <- filter(long_data, long_data$flo_timepoint!="extra")
+
+alt <- subset(long_data, long_data$timepoint=="_T6"&long_data$biochem=="alt")
 
 data <- read.csv("biochem.csv")
 
