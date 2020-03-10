@@ -266,19 +266,7 @@ start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=ref
 # 
 
 # print(c("together, UMAP and tSNE took ", duration, " minutes to run on 10,000 cells"), sep='')
-# 
-# th35_plot <- plotDR(daf, "UMAP", color_by = "meta35")
-# tfh_plot <- plotDR(daf, "UMAP", color_by = "CD4")
 
-
-plotClusterHeatmap(daf, hm2 = NULL,
-                   #m = "meta35",
-                   k = "meta45",
-                   cluster_anno = TRUE,
-                   draw_freqs = TRUE,
-                   scale=T, 
-                   palette=inferno_lite
-                   )
 
 
 
@@ -325,15 +313,38 @@ merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
 
 
+cd28 <- plotDR(clean_daf, "UMAP", color_by = "CD28")+
+  #facet_wrap("timepoint")+
+  scale_color_gradientn(colors=inferno_lite)
 
-# plotClusterHeatmap(merged_daf, hm2 = NULL,
-#                    k = "flo_merge",
-#                    cluster_anno = TRUE,
-#                    draw_freqs = TRUE,
-#                    scale=T,
-#                    palette=inferno_lite)
+cd57 <- plotDR(clean_daf, "UMAP", color_by = "CD57")+
+  #facet_wrap("timepoint")+
+  scale_color_gradientn(colors=inferno_lite)
+
+plot_grid(cd28, cd57, ncol=2)
+
+#+scale_color_manual(values=color_103_scheme)  
+# tfh_plot <- plotDR(daf, "UMAP", color_by = "CD4")
+
+clean_daf <- filterSCE(merged_daf, cluster_id != "trash", k = "flo_merge")
+
+plotDR(clean_daf, "UMAP", color_by = "CX3CR1")+
+  facet_wrap("timepoint")+
+  scale_color_gradientn(colors=inferno_lite)
+
+plotClusterHeatmap(clean_daf, hm2 = NULL,
+                   k = "meta35",
+                   m = "flo_merge",
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale=T, 
+                   palette=inferno_lite
+)
 
 
+code_plot <- plotCodes(merged_daf, k = "flo_merge")
+code_plot$layers[[2]] <- NULL
+code_plot+geom_text()
 
 ### diffcyt ####z
 ei <- metadata(merged_daf)$experiment_info
