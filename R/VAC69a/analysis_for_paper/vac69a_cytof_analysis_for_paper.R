@@ -249,6 +249,43 @@ refined_markers <- c("CD4",
                      "CD45RO",
                      "CCR7")
 
+UMAP_markers <- c("CD4",
+                     "CD8",
+                     "Vd2",
+                     "Va72",
+                     #"CD38",
+                     #"HLADR",
+                     #"ICOS",
+                     "CD28",
+                     "PD1",
+                     #"TIM3",
+                     "CD95",
+                     #"BCL2",
+                     "CD27",
+                     "Perforin",
+                     "GZB",
+                     #"CX3CR1",
+                     "Tbet",
+                     "CTLA4",
+                     #"Ki67",
+                     "CD127",
+                     #"IntegrinB7",
+                     #"CD56",
+                     #"CD16",
+                     "CD161",
+                     #"CD49d",
+                     #"CD103",
+                     "CD25",
+                     "FoxP3",
+                     "CD39",
+                     #"CLA",
+                     #"CXCR5",
+                     "CD57",
+                     "CD45RA",
+                     "CD45RO",
+                     "CCR7")
+
+
 # clustering ####
 set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
@@ -257,6 +294,8 @@ set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim =
 
 start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
 (duration <- round(end - start)) # ~20-25 min
+
+
 #print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
 
 # start <- Sys.time(); daf <- runTSNE(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
