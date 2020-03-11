@@ -65,4 +65,24 @@ smol_time+
      ylim(c(-10, 10))+
      theme_minimal()+
      UMAP_theme
+
+
+
+
+
+
+smol_time+
+  stat_density_2d(aes(fill = stat(nlevel)), geom="polygon", bins=11)+
+  stat_density_2d(size=0.13, color="black", bins=11)+
+  #stat_density_2d(aes(fill = stat(nlevel)), geom = "polygon", bins=22, size=0.3, color="black", contour=T)+
+  # scale_fill_viridis(option="A")+
+  scale_color_viridis(option="B", direction=1)+
+  #scale_fill_viridis(option="A", direction=1)+
+  scale_fill_gradient(low = "white", high="black")+
+  geom_point(shape=".")+
+  xlim(c(-14, 11))+
+  ylim(c(-10, 10))+
+  theme_minimal()+
+  UMAP_theme
+
  
