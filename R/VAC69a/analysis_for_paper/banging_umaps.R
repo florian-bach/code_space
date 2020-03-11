@@ -54,14 +54,15 @@ smol_time$layers[[1]] <- NULL
 
 smol_time+
      stat_density_2d(aes(fill = stat(nlevel)), geom="polygon", bins=10)+
-     #stat_density_2d(aes(fill = stat(nlevel)), geom = "polygon", bins=12, size=0.3, color="black", contour=T)+
+     stat_density_2d(size=0.2, color="black")+
+    #stat_density_2d(aes(fill = stat(nlevel)), geom = "polygon", bins=12, size=0.3, color="black", contour=T)+
      # scale_fill_viridis(option="A")+
      scale_color_viridis(option="B", direction=1)+
      #scale_fill_viridis(option="A", direction=1)+
-     scale_fill_gradient(low = "lavenderblush1", high="black")+
+     scale_fill_gradient(low = "white", high="black")+
      geom_point(shape=".")+
-     # xlim(c(-14, 11))+
-     # ylim(c(-10, 10))+
+     xlim(c(-14, 11))+
+     ylim(c(-10, 10))+
      theme_minimal()+
      UMAP_theme
  
