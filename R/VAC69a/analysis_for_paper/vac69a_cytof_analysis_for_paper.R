@@ -37,7 +37,7 @@ contour <- function(sce, facet_by, palette){
     UMAP_theme
 }
 # ####
-contour(merged_daf, facet_by = "timepoint", palette = inferno_lite)
+#contour(merged_daf, facet_by = "timepoint", palette = inferno_lite)
 
 
 
@@ -102,7 +102,7 @@ color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#0
 #scales::show_col(inferno_lite)
 
 inferno_mega_lite <-inferno_lite[seq(1,19, by=3)]
-inferno_mega_lite <- c("#000004", "#C84449", "#E15D37", "#EF802B", "#FFC751", "#FCFFA4")
+inferno_mega_lite <- c("#000004", "#460B68", "#9A2964", "#EF802B", "#FFC751", "#FCFFA4")
 smooth_inferno_lite <- colorRampPalette(inferno_lite)
 
 
