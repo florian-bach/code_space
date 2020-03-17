@@ -14,7 +14,7 @@ library(purrr)
 library(viridis)
 
 
-#extra functions defined here ####
+#a couple of extra functions defined here ####
 `%!in%` = Negate(`%in%`)
 
 # contour plot function ####
