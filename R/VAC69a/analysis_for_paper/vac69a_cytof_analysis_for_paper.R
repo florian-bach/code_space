@@ -13,7 +13,7 @@ library(scater)
 library(purrr)
 library(viridis)
 
-#hello
+
 #extra functions defined here ####
 `%!in%` = Negate(`%in%`)
 
