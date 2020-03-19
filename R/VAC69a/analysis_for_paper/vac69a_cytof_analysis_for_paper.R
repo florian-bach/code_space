@@ -107,14 +107,20 @@ smooth_inferno_lite <- colorRampPalette(inferno_lite)
 
 
 ### read in metadata etc. ####
-#setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/fcs")
-setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("/home/flo/PhD/cytof/vac69a/T_cells_only/fcs")
+#setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
-md <- read.csv("meta_data.csv", header=T) 
-
+# md <- read.csv("meta_data.csv", header=T) 
+# 
+# new_files <- list.files(pattern = "*fcs", getwd())
+# write.csv(new_files, "new_files.csv")
+# 
+# md$file_name <- new_files
 
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
 ## reorder so that it's neat 
+md <- read.csv("new_files.csv", header=T) 
+
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
 md <- md[
   with(md, order(md$volunteer, md$timepoint)),
@@ -234,7 +240,7 @@ refined_markers <- c("CD4",
                      "Ki67",
                      "CD127",
                      #"IntegrinB7",
-                     #"CD56",
+                     "CD56",
                      #"CD16",
                      "CD161",
                      #"CD49d",
@@ -287,7 +293,7 @@ UMAP_markers <- c("CD4",
 
 
 # clustering ####
-set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
+start <- Sys.time(); set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234); end <- Sys.time()
 
 
 
@@ -371,9 +377,9 @@ plotDR(clean_daf, "UMAP", color_by = "CX3CR1")+
   facet_wrap("timepoint")+
   scale_color_gradientn(colors=inferno_lite)
 
-plotClusterHeatmap(clean_daf, hm2 = NULL,
-                   k = "meta35",
-                   m = "flo_merge",
+plotClusterHeatmap(daf, hm2 = CD56,
+                   k = "meta45",
+                  # m = "flo_merge",
                    cluster_anno = TRUE,
                    draw_freqs = TRUE,
                    scale=T, 

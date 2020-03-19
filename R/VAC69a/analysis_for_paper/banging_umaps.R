@@ -51,13 +51,13 @@ set.seed(1234)
 
 # sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
 smaller_vac69a <- fsApply(vac69a, function(ff) {
-  idx <- sample.int(nrow(ff), min(sampling.ceiling, nrow(ff)))
+  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
   ff[idx,]  # alt. ff[order(idx),]
 })
 
 
 
-p <- ggcyto(smaller_vac69a, aes(x=CD16, y=CD56))
+p <- ggcyto(smaller_vac69a, aes(x=CD3, y=CD56))
   
 #   geom_hex(bins=8000)+
 #   geom_point(shape='.')+
@@ -80,7 +80,7 @@ smol_daf <- cluster(smol_daf, features = refined_markers, xdim = 10, ydim = 10, 
 smol_daf <- filterSCE(smol_daf, timepoint!="C10")
 
 big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
-big_table <- cbind(big_table, colData(smol_daf))
+big_table <- data.frame(cbind(big_table, colData(smol_daf)))
 
 ggplot(big_table, aes(x=CD3, y=CD56))+
   geom_hex(bins=128)+
@@ -94,11 +94,15 @@ ggplot(big_table, aes(x=CD3, y=CD16))+
   # scale_y_flowCore_fasinh()+
   scale_fill_viridis(option="A")
 
-ggplot(big_table, aes(x=CD16, y=CD56))+
-  geom_hex(bins=128)+
-  # scale_x_flowCore_fasinh()+
-  # scale_y_flowCore_fasinh()+
-  scale_fill_viridis(option="A")
+ggplot(big_table, aes(x=CD4, y=CD8))+
+  geom_point(shape=".")+
+  #geom_hex(bins=128)+
+  facet_wrap(~timepoint)+
+  scale_x_flowCore_fasinh()+
+  scale_y_flowCore_fasinh()+
+  scale_color_viridis(option="A")+
+  scale_fill_viridis(option="A")+
+  theme_minimal()
 
 
 
