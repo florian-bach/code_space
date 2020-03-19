@@ -240,7 +240,7 @@ refined_markers <- c("CD4",
                      "Ki67",
                      "CD127",
                      #"IntegrinB7",
-                     "CD56",
+                     #"CD56",
                      #"CD16",
                      "CD161",
                      #"CD49d",
@@ -377,7 +377,7 @@ plotDR(clean_daf, "UMAP", color_by = "CX3CR1")+
   facet_wrap("timepoint")+
   scale_color_gradientn(colors=inferno_lite)
 
-plotClusterHeatmap(daf, hm2 = CD56,
+plotClusterHeatmap(daf, hm2 = NULL,
                    k = "meta45",
                   # m = "flo_merge",
                    cluster_anno = TRUE,
