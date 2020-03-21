@@ -107,7 +107,7 @@ smooth_inferno_lite <- colorRampPalette(inferno_lite)
 
 
 ### read in metadata etc. ####
-setwd("/home/flo/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("/home/flobuntu/PhD/cytof/vac69a/T_cells_only/fcs")
 #setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
 # md <- read.csv("meta_data.csv", header=T) 
