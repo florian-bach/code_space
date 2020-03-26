@@ -4,7 +4,45 @@ library(CATALYST)
 library(ggplot2)
 library(viridis)
 
-#let's try
+#functions, palettes etc. ####
+
+`%!in%` = Negate(`%in%`)
+
+refined_markers <- c("CD4",
+                     "CD8",
+                     "Vd2",
+                     "Va72",
+                     "CD38",
+                     "HLADR",
+                     "ICOS",
+                     "CD28",
+                     "PD1",
+                     #"TIM3",
+                     "CD95",
+                     "BCL2",
+                     "CD27",
+                     "Perforin",
+                     "GZB",
+                     #"CX3CR1",
+                     "Tbet",
+                     "CTLA4",
+                     "Ki67",
+                     "CD127",
+                     #"IntegrinB7",
+                     #"CD56",
+                     #"CD16",
+                     "CD161",
+                     #"CD49d",
+                     #"CD103",
+                     "CD25",
+                     "FoxP3",
+                     "CD39",
+                     #"CLA",
+                     #"CXCR5",
+                     "CD57",
+                     "CD45RA",
+                     "CD45RO",
+                     "CCR7")
 
 inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
 
@@ -43,6 +81,40 @@ flo_umap <- function(df, color_by, facet_by=NULL){
   
 }
 
+# read in data ####
+
+setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
+#setwd("/home/flobuntu/PhD/cytof/vac69a/T_cells_only/fcs")
+#setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
+
+
+md <- read.csv("new_files.csv", header=T) 
+
+md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
+md <- md[
+  with(md, order(md$volunteer, md$timepoint)),
+  ]
+md$file_name <- as.character(md$file_name)
+
+
+#change number of volunteers/timepoints here
+md <- dplyr::filter(md, timepoint %in% c("Baseline", "C10" , "DoD", "T6"))
+
+
+# select whose files to import
+fcs_files <- grep("fcs", list.files(), value = T)
+
+primaries <- c()
+
+timepoints <- c("C-1", "C_10", "DoD", "T_6")
+
+for(i in timepoints){
+  one_moment <- grep(i, fcs_files, value=T)
+  primaries <- c(timepoints, one_moment)
+}
+
+### read in flowfiles using flowCore
+vac69a <- read.flowSet(md$file_name)
 
 #downsampling to equal size
 sampling_ceiling <- 3000
@@ -57,19 +129,6 @@ smaller_vac69a <- fsApply(vac69a, function(ff) {
 
 
 
-p <- ggcyto(smaller_vac69a, aes(x=CD3, y=CD56))
-  
-#   geom_hex(bins=8000)+
-#   geom_point(shape='.')+
-#   scale_x_flowCore_fasinh()+
-#   scale_y_flowCore_fasinh()+
-#   theme_minimal()
-
-p+geom_point(shape='.')+
-  scale_x_flowCore_fasinh()+
-  scale_y_flowCore_fasinh()
-
-
 smol_daf <- prepData(smaller_vac69a, panel, md, md_cols =
                   list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
                 panel_cols = list(channel = "fcs_colname", antigen = "marker_name", class =
@@ -77,58 +136,29 @@ smol_daf <- prepData(smaller_vac69a, panel, md, md_cols =
 
 smol_daf <- cluster(smol_daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
+
+# plotClusterHeatmap(smol_daf, hm2 = NULL,
+#                    k = "meta45",
+#                    # m = "flo_merge",
+#                    cluster_anno = TRUE,
+#                    draw_freqs = TRUE,
+#                    scale=T
+# )
+# 
+
+
 smol_daf <- filterSCE(smol_daf, timepoint!="C10")
 
 
-plotClusterHeatmap(smol_daf, hm2 = NULL,
-                   k = "meta45",
-                   # m = "flo_merge",
-                   cluster_anno = TRUE,
-                   draw_freqs = TRUE,
-                   scale=T
-)
-
-
-
-
-
-
-
-
-# regular scatter plots ####
-big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
-big_table <- data.frame(cbind(big_table, colData(smol_daf)))
-
-ggplot(big_table, aes(x=CD3, y=CD56))+
-  geom_hex(bins=128)+
-  # scale_x_flowCore_fasinh()+
-  # scale_y_flowCore_fasinh()+
-  scale_fill_viridis(option="A")
-
-ggplot(big_table, aes(x=CD3, y=CD16))+
-  geom_hex(bins=128)+
-  # scale_x_flowCore_fasinh()+
-  # scale_y_flowCore_fasinh()+
-  scale_fill_viridis(option="A")
-
-ggplot(big_table, aes(x=CD4, y=CD8))+
-  geom_point(shape=".")+
-  #geom_hex(bins=128)+
-  facet_wrap(~timepoint)+
-  scale_x_flowCore_fasinh()+
-  scale_y_flowCore_fasinh()+
-  scale_color_viridis(option="A")+
-  scale_fill_viridis(option="A")+
-  theme_minimal()
-
-
 # umap projections ####
-start <- Sys.time(); smol_daf <- runUMAP(smol_daf,
-                                         exprs_values = "exprs",
-                                         feature_set=refined_markers)
-                                        ; end <- Sys.time()
+start <- Sys.time(); smol_daf <- runDR(smol_daf,
+                                       feature_set=refined_markers); end <- Sys.time()
 
 (duration <- round(end - start)) #2min
+
+
+
+
 plotDR(smol_daf, color_by = "CD4")+facet_wrap("timepoint")
 
 # pca 50 / NULL ?
@@ -239,5 +269,47 @@ ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, 
 #   ylim(c(-10, 10))+
 #   theme_minimal()+
 #   UMAP_theme
+
+
+
+
+# regular scatter plots ####
+big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
+big_table <- data.frame(cbind(big_table, colData(smol_daf)))
+
+ggplot(big_table, aes(x=CD3, y=CD56))+
+  geom_hex(bins=128)+
+  # scale_x_flowCore_fasinh()+
+  # scale_y_flowCore_fasinh()+
+  scale_fill_viridis(option="A")
+
+ggplot(big_table, aes(x=CD3, y=CD16))+
+  geom_hex(bins=128)+
+  # scale_x_flowCore_fasinh()+
+  # scale_y_flowCore_fasinh()+
+  scale_fill_viridis(option="A")
+
+ggplot(big_table, aes(x=CD4, y=CD8))+
+  geom_point(shape=".")+
+  #geom_hex(bins=128)+
+  facet_wrap(~timepoint)+
+  scale_x_flowCore_fasinh()+
+  scale_y_flowCore_fasinh()+
+  scale_color_viridis(option="A")+
+  scale_fill_viridis(option="A")+
+  theme_minimal()
+
+
+# p <- ggcyto(smaller_vac69a, aes(x=CD3, y=CD56))
+#   
+# #   geom_hex(bins=8000)+
+# #   geom_point(shape='.')+
+# #   scale_x_flowCore_fasinh()+
+# #   scale_y_flowCore_fasinh()+
+# #   theme_minimal()
+# 
+# p+geom_point(shape='.')+
+#   scale_x_flowCore_fasinh()+
+#   scale_y_flowCore_fasinh()
 
  
