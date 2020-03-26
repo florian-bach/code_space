@@ -3,6 +3,8 @@ library(flowCore)
 library(CATALYST)
 library(ggplot2)
 library(viridis)
+library(SingleCellExperiment)
+library(cowplot)
 
 #functions, palettes etc. ####
 
@@ -87,6 +89,7 @@ setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
 #setwd("/home/flobuntu/PhD/cytof/vac69a/T_cells_only/fcs")
 #setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
+RNGversion("3.6.3")
 
 md <- read.csv("new_files.csv", header=T) 
 
@@ -100,6 +103,9 @@ md$file_name <- as.character(md$file_name)
 #change number of volunteers/timepoints here
 md <- dplyr::filter(md, timepoint %in% c("Baseline", "C10" , "DoD", "T6"))
 
+#import panel 
+panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
+colnames(panel)[2] <- "marker_name"
 
 # select whose files to import
 fcs_files <- grep("fcs", list.files(), value = T)
@@ -148,25 +154,30 @@ smol_daf <- cluster(smol_daf, features = refined_markers, xdim = 10, ydim = 10, 
 
 
 smol_daf <- filterSCE(smol_daf, timepoint!="C10")
-
+set.seed(66)
 
 # umap projections ####
-start <- Sys.time(); smol_daf <- runDR(smol_daf,
-                                       feature_set=refined_markers); end <- Sys.time()
-
-(duration <- round(end - start)) #2min
-
-
+smol_daf <- scater::runUMAP(smol_daf,
+                             subset_row=refined_markers,
+                             exprs_values = "exprs",
+                             scale=T)
 
 
-plotDR(smol_daf, color_by = "CD4")+facet_wrap("timepoint")
-
-# pca 50 / NULL ?
-
-start <- Sys.time(); smol_daf <- runDR(smol_daf, dr="UMAP", features=refined_markers); end <- Sys.time()
-(duration <- round(end - start)) #2min
-
-plotDR(smol_daf, color_by = "CD4")+facet_wrap("timepoint")
+# 
+# not_scaled7 <- plotDR(not_scaled_daf, color_by = "CCR7")+facet_wrap("timepoint")
+# not_scaled45 <- plotDR(not_scaled_daf, color_by = "CD45RA")+facet_wrap("timepoint")
+# 
+# cata <- runDR(smol_daf, "UMAP", features = refined_markers, assay = "exprs")
+# plotDR(cata, color_by="CD4")
+# 
+# cowplot::plot_grid(not_scaled7, scaled7,not_scaled45, scaled45, ncol=2)
+# 
+# # pca 50 / NULL ?
+# 
+# start <- Sys.time(); smol_daf <- runDR(smol_daf, cells=2500, dr="UMAP", features=refined_markers, assay = "exprs"); end <- Sys.time()
+# (duration <- round(end - start)) #2min
+# 
+# plotDR(smol_daf, "UMAP", color_by = "CD4")
 
 
 
@@ -180,23 +191,22 @@ big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
 
 smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=12)+
+  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=11)+
   scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-12, 12))+
-  ylim(c(-10, 10))+
+  xlim(c(-10, 13))+
+  ylim(c(-8, 9))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
   theme(strip.text = element_text(size=14))
 
+ggsave("smol_time12.png", smol_time12, height=6, width=9)
 
 #ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
 ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
 
 
-
-
-
+plotDR(smol_daf, color_by="CD4")+facet_grid(timepoint~volunteer)
 
 
 
@@ -206,7 +216,8 @@ vd2_plot <- flo_umap(big_table, "Vd2")
 va72_plot <- flo_umap(big_table, "Va72")
 
 
-lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
+scaled_lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
+ggsave("scaled_lineage_plot.png", scaled_lineage_plot)
 # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
 ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
 
