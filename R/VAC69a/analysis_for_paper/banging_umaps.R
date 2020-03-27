@@ -70,7 +70,7 @@ flo_umap <- function(df, color_by, facet_by=NULL){
   
 
   (plt <- ggplot(data, aes(x=UMAP1, y=UMAP2, color=color))+
-      geom_point(shape=".")+
+      geom_point(size=0.7)+
       scale_color_gradientn(colors = inferno_mega_lite)+
       #facet_wrap(facet_two~facet_one)
       UMAP_theme+
@@ -108,7 +108,8 @@ panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
 colnames(panel)[2] <- "marker_name"
 
 # select whose files to import
-fcs_files <- grep("fcs", list.files(), value = T)
+fcs_file
+s <- grep("fcs", list.files(), value = T)
 
 primaries <- c()
 
@@ -191,10 +192,10 @@ big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
 
 smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=11)+
+  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
   scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-10, 13))+
-  ylim(c(-8, 9))+
+  xlim(c(-11, 14))+
+  ylim(c(-9, 10))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
@@ -202,11 +203,30 @@ smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
 
 ggsave("smol_time12.png", smol_time12, height=6, width=9)
 
+
 #ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
-ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
+#ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
 
 
-plotDR(smol_daf, color_by="CD4")+facet_grid(timepoint~volunteer)
+big_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
+  scale_fill_gradientn(colors = inferno_mega_lite)+
+  xlim(c(-11, 14))+
+  ylim(c(-9, 10))+
+  theme_minimal()+
+  facet_grid(timepoint~volunteer, switch = "y")+
+  UMAP_theme+
+  theme(strip.text.y.left = element_text(size=14, angle = 0),
+        strip.text.x = element_text(size=14),
+        strip.placement = "outside")
+
+
+
+ggsave("big_time12.png", big_time12, height=12, width=18)
+
+
+
+plotDR(smol_daf, color_by="CD45RO")+facet_grid(timepoint~volunteer)
 
 
 
@@ -227,7 +247,7 @@ hladr_plot <- flo_umap(big_table, "HLADR")
 bcl2_plot <- flo_umap(big_table, "BCL2")
 cd27_plot <- flo_umap(big_table, "CD27")
 
-activation_plot <- plot_grid(cd38_plot, hladr_plot, bcl2_plot, cd27_plot, ncol=2)
+activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
 # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
 ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
 
