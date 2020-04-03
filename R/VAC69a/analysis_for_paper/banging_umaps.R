@@ -191,15 +191,15 @@ colnames(slim_umap) <- c("UMAP1", "UMAP2")
 big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
 
-smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
+(smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=22)+
   scale_fill_gradientn(colors = inferno_mega_lite)+
   xlim(c(-11, 14))+
-  ylim(c(-9, 10))+
+  ylim(c(-10, 11))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
-  theme(strip.text = element_text(size=14))
+  theme(strip.text = element_text(size=14)))
 
 ggsave("smol_time12.png", smol_time12, height=6, width=9)
 
