@@ -5,6 +5,7 @@ library(ggplot2)
 library(viridis)
 library(SingleCellExperiment)
 library(cowplot)
+library(SummarizedExperiment)
 
 #functions, palettes etc. ####
 
@@ -129,12 +130,17 @@ sampling_ceiling <- 3000
 set.seed(1234)
 
 # sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-smaller_vac69a <- fsApply(vac69a, function(ff) {
-  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
+# smaller_vac69a <- fsApply(vac69a, function(ff) {
+#   idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
+#   ff[idx,]  # alt. ff[order(idx),]
+# })
+
+downsample <- function(fs, floor){fsApply(fs, function(ff) {
+  idx <- sample.int(nrow(ff), nrow(ff)/min(fsApply(fs, nrow))*floor)
   ff[idx,]  # alt. ff[order(idx),]
-})
+})}
 
-
+smaller_vac69a <- downsample(vac69a, 2000)
 
 smol_daf <- prepData(smaller_vac69a, panel, md, md_cols =
                   list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
@@ -155,7 +161,7 @@ smol_daf <- cluster(smol_daf, features = refined_markers, xdim = 10, ydim = 10, 
 
 
 smol_daf <- filterSCE(smol_daf, timepoint!="C10")
-set.seed(66)
+set.seed(1234)
 
 # umap projections ####
 smol_daf <- scater::runUMAP(smol_daf,
@@ -192,16 +198,18 @@ big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
 
 (smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=22)+
+  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=20)+
   scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-11, 14))+
+  xlim(c(-14, 12))+
   ylim(c(-10, 11))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
   theme(strip.text = element_text(size=14)))
 
-ggsave("smol_time12.png", smol_time12, height=6, width=9)
+setwd("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper")
+
+ggsave("proportional_contour_umap.png", smol_time12, height=6, width=9)
 
 
 #ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)

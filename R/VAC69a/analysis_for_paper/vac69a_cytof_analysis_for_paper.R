@@ -9,6 +9,8 @@ library(tidyr)
 library(dplyr)
 library(cowplot)
 library(viridis)
+library(SummarizedExperiment)
+library(SingleCellExperiment)
 
 
 #a couple of extra functions defined here ####
@@ -104,8 +106,8 @@ smooth_inferno_lite <- colorRampPalette(inferno_lite)
 
 
 ### read in metadata etc. ####
-setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
-#setwd("/home/flobuntu/PhD/cytof/vac69a/T_cells_only/fcs")
+#setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only")
 #setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
 # md <- read.csv("meta_data.csv", header=T) 
@@ -117,7 +119,7 @@ setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
 
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
 ## reorder so that it's neat 
-md <- read.csv("new_files.csv", header=T) 
+md <- read.csv("meta_data.csv", header=T) 
 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
 md <- md[
