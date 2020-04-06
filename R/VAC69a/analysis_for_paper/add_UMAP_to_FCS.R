@@ -46,8 +46,7 @@ colnames(slim_umap) <- c("UMAP1", "UMAP2")
 
 big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
-write.csv(big_table, "big_table.csv")
-
+data.table::fwrite(big_table, "big_table.csv")
 
 
 for (i in md$file_name){

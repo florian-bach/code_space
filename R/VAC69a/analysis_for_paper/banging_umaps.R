@@ -86,13 +86,11 @@ flo_umap <- function(df, color_by, facet_by=NULL){
 
 # read in data ####
 
-setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
-#setwd("/home/flobuntu/PhD/cytof/vac69a/T_cells_only/fcs")
+#setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only")
 #setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
-RNGversion("3.6.3")
-
-md <- read.csv("new_files.csv", header=T) 
+md <- read.csv("meta_data.csv", header=T) 
 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
 md <- md[
@@ -109,8 +107,7 @@ panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
 colnames(panel)[2] <- "marker_name"
 
 # select whose files to import
-fcs_file
-s <- grep("fcs", list.files(), value = T)
+fcs_files <- grep("fcs", list.files(), value = T)
 
 primaries <- c()
 
@@ -129,18 +126,18 @@ sampling_ceiling <- 3000
 # Being reproducible is a plus
 set.seed(1234)
 
-# sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-# smaller_vac69a <- fsApply(vac69a, function(ff) {
-#   idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
-#   ff[idx,]  # alt. ff[order(idx),]
-# })
-
-downsample <- function(fs, floor){fsApply(fs, function(ff) {
-  idx <- sample.int(nrow(ff), nrow(ff)/min(fsApply(fs, nrow))*floor)
+#sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
+smaller_vac69a <- fsApply(vac69a, function(ff) {
+  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
   ff[idx,]  # alt. ff[order(idx),]
-})}
+})
 
-smaller_vac69a <- downsample(vac69a, 2000)
+# downsample <- function(fs, floor){fsApply(fs, function(ff) {
+#   idx <- sample.int(nrow(ff), nrow(ff)/min(fsApply(fs, nrow))*floor)
+#   ff[idx,]  # alt. ff[order(idx),]
+# })}
+# 
+# smaller_vac69a <- downsample(vac69a, 2000)
 
 smol_daf <- prepData(smaller_vac69a, panel, md, md_cols =
                   list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
@@ -187,29 +184,31 @@ smol_daf <- scater::runUMAP(smol_daf,
 # plotDR(smol_daf, "UMAP", color_by = "CD4")
 
 
+# 
+# big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
+# big_table <- data.frame(cbind(big_table, colData(smol_daf)))
+# 
+# 
+# slim_umap <- data.frame(reducedDim(smol_daf, "UMAP"))
+# colnames(slim_umap) <- c("UMAP1", "UMAP2")
+# 
+# big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
-big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
-big_table <- data.frame(cbind(big_table, colData(smol_daf)))
-
-slim_umap <- data.frame(reducedDim(smol_daf, "UMAP"))
-colnames(slim_umap) <- c("UMAP1", "UMAP2")
-
-big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
 
 
 (smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=20)+
   scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-14, 12))+
-  ylim(c(-10, 11))+
+  xlim(c(-10, 14))+
+  ylim(c(-12, 11))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
   theme(strip.text = element_text(size=14)))
 
-setwd("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper")
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
 
-ggsave("proportional_contour_umap.png", smol_time12, height=6, width=9)
 
 
 #ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
@@ -237,60 +236,48 @@ ggsave("big_time12.png", big_time12, height=12, width=18)
 plotDR(smol_daf, color_by="CD45RO")+facet_grid(timepoint~volunteer)
 
 
-
-cd4_plot <- flo_umap(big_table, "CD4")
-cd8_plot <- flo_umap(big_table, "CD8")
-vd2_plot <- flo_umap(big_table, "Vd2")
-va72_plot <- flo_umap(big_table, "Va72")
-
-
-scaled_lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
-ggsave("scaled_lineage_plot.png", scaled_lineage_plot)
-# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
-ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
-
-
-cd38_plot <- flo_umap(big_table, "CD38")
-hladr_plot <- flo_umap(big_table, "HLADR")
-bcl2_plot <- flo_umap(big_table, "BCL2")
-cd27_plot <- flo_umap(big_table, "CD27")
-
-activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
-# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-
-
-cd45ro_plot <- flo_umap(big_table, "CD45RO")
-ccr7_plot <- flo_umap(big_table, "CCR7")
-cd57_plot <- flo_umap(big_table, "CD57")
-cd28_plot <- flo_umap(big_table, "CD28")
-
-memory_plot <- plot_grid(cd45ro_plot, ccr7_plot, cd57_plot, cd28_plot, ncol=2)
-# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
-ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
-
-
-
   
-cd38_time_plot <- flo_umap(big_table, "CD38")
-hladr_time_plot <- flo_umap(big_table, "HLADR")
-bcl2_time_plot <- flo_umap(big_table, "BCL2")
-cd27_time_plot <- flo_umap(big_table, "CD27")
-
-activation_time_plot <- plot_grid(cd38_time_plot, hladr_time_plot, bcl2_time_plot, cd27_time_plot, ncol=2)
-# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_time_plot.png", activation_time_plot, width=8, height=5.54)
-ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/activation_time_plot.png", activation_time_plot, width=8, height=5.54)
-
-
-
-cd25_plot <- flo_umap(big_table, "CD25")
-cd127_plot <- flo_umap(big_table, "CD127")
-foxp3_plot <- flo_umap(big_table, "FoxP3")
-cd39_plot <- flo_umap(big_table, "CD39")
-
-treg_plot <- plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
-# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
-ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
+  cd4_plot <- flo_umap(big_table, "CD4")
+  cd8_plot <- flo_umap(big_table, "CD8")
+  vd2_plot <- flo_umap(big_table, "Vd2")
+  va72_plot <- flo_umap(big_table, "Va72")
+  
+  
+  lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
+  
+  
+  cd38_plot <- flo_umap(big_table, "CD38")
+  hladr_plot <- flo_umap(big_table, "HLADR")
+  bcl2_plot <- flo_umap(big_table, "BCL2")
+  cd27_plot <- flo_umap(big_table, "CD27")
+  
+  activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+  
+  
+  cd45ro_plot <- flo_umap(big_table, "CD45RO")
+  ccr7_plot <- flo_umap(big_table, "CCR7")
+  cd57_plot <- flo_umap(big_table, "CD57")
+  cd28_plot <- flo_umap(big_table, "CD28")
+  
+  memory_plot <- plot_grid(cd45ro_plot, ccr7_plot, cd57_plot, cd28_plot, ncol=2)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
+  
+  
+  
+  
+  cd25_plot <- flo_umap(big_table, "CD25")
+  cd127_plot <- flo_umap(big_table, "CD127")
+  foxp3_plot <- flo_umap(big_table, "FoxP3")
+  cd39_plot <- flo_umap(big_table, "CD39")
+  
+  treg_plot <- plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
 
 
 # plot with points and contour lines

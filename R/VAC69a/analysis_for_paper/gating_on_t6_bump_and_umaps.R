@@ -13,14 +13,14 @@ cd4_t6_markers <- c(#"CD4",
                      #"CD8",
                      #"Vd2",
                      #"Va72",
-                     "CD38",
+                     #"CD38",
                      "HLADR",
                      "ICOS",
                      "CD28",
                      "PD1",
                      #"TIM3",
                      "CD95",
-                     "BCL2",
+                     #"BCL2",
                      "CD27",
                      "Perforin",
                      "GZB",
@@ -41,8 +41,8 @@ cd4_t6_markers <- c(#"CD4",
                      #"CLA",
                      #"CXCR5",
                      "CD57",
-                     "CD45RA",
-                     "CD45RO",
+                     #"CD45RA",
+                     #"CD45RO",
                      "CCR7")
 
 inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
@@ -93,11 +93,11 @@ flo_umap <- function(df, color_by, facet_by=NULL){
 # GATING ####
 
 # read in data
-setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs/post_umap")
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/")
 
 flz <- list.files(pattern = "*.fcs")
 
-vac69a <- read.flowSet(flz)
+umap_vac69a <- read.flowSet(flz)
 
 
 sampling_ceiling <- 3000
@@ -105,36 +105,50 @@ sampling_ceiling <- 3000
 set.seed(1234)
 
 # sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-smaller_vac69a <- fsApply(vac69a, function(ff) {
+smaller_umap_vac69a <- fsApply(umap_vac69a, function(ff) {
   idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
   ff[idx,]  # alt. ff[order(idx),]
 })
 
 #gate that mf
 
-t6_gate <-rectangleGate("UMAP2"=c(1, 2.85), "UMAP1"=c(-2.4, -0.5))
+t6_gate <-rectangleGate("UMAP2"=c(-4.5, -2.5), "UMAP1"=c(-2.4, 0))
 
-result <- Subset(smaller_vac69a, flowCore::filter(smaller_vac69a, t6_gate))
-
-
-ggcyto(vac69a[c(7,8,15,16, 23, 24)], aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
+t6_gate_plot <- ggcyto(umap_vac69a[c(4,8,16, 20, 24)], aes(x=UMAP1, y=UMAP2))+
+  #stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
   xlim(c(-11, 14))+
-  ylim(c(-9, 10))+
-  #geom_hex(bins = 190)+
+  ylim(c(-10, 10))+
+  geom_hex(bins = 190)+
   #geom_point(shape=".")+
   #geom_density()+
   geom_gate(t6_gate)+
   geom_stats(type = "percent", adjust =1.85)+
   theme_minimal()
 
-t6_bump <- Subset(vac69a, flowCore::filter(vac69a, t6_gate))
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_gate_umap.png", t6_gate_plot, height=6, width=9)
+
+baseline_t6_gate_plot <- ggcyto(umap_vac69a[c(4,8,16, 20, 24)-3], aes(x=UMAP1, y=UMAP2))+
+  #stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
+  xlim(c(-11, 14))+
+  ylim(c(-10, 10))+
+  geom_hex(bins = 190)+
+  #geom_point(shape=".")+
+  #geom_density()+
+  geom_gate(t6_gate)+
+  geom_stats(type = "percent", adjust =1.85)+
+  theme_minimal()
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/baseline_t6_gate_plot.png", baseline_t6_gate_plot, height=6, width=9)
+
+
+t6_bump <- Subset(umap_vac69a, flowCore::filter(umap_vac69a, t6_gate))
+
 
 #import into CATALYST ####
 
-setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
-md <- read.csv("new_files.csv", header=T) 
+md <- read.csv("meta_data.csv", header=T) 
 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C10", "DoD", "T6"))
 
@@ -146,6 +160,9 @@ md$file_name <- paste(substr(md$file_name, 0, nchar(md$file_name)-4),"_post_umap
 panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
 colnames(panel)[2] <- "marker_name"
 
+#add umap channels into panel
+panel <- rbind(panel, c("UMAP1", "UMAP1", "none"), c("UMAP2", "UMAP2", "none"))
+
 #the order of entries in the md file matter, be careful
 t6_daf <- prepData(t6_bump, panel, md, md_cols =
                        list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
@@ -155,14 +172,15 @@ t6_daf <- prepData(t6_bump, panel, md, md_cols =
 t6_daf <- cluster(t6_daf, features = cd4_t6_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
 
-# plotClusterHeatmap(smol_daf, hm2 = NULL,
-#                    k = "meta45",
-#                    # m = "flo_merge",
-#                    cluster_anno = TRUE,
-#                    draw_freqs = TRUE,
-#                    scale=T
-# )
-# 
+plotClusterHeatmap(t6_daf, hm2 = NULL,
+                   k = "meta7",
+                   # m = "flo_merge",
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale=T,
+                   palette = inferno_mega_lite)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_bump_meta7_heatmap.png", unlist(meta7_heatmap))
 
 
 t6_daf <- filterSCE(t6_daf, timepoint!="C10")
@@ -174,7 +192,9 @@ t6_daf <- scater::runUMAP(t6_daf,
                             exprs_values = "exprs",
                             scale=T)
 
-plotDR(t6_daf, color_by = "meta10")+facet_grid(volunteer~timepoint)
+
+t6_bump_meta7 <- plotDR(t6_daf, color_by = "meta7")+facet_grid(~timepoint)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_bump_meta7.png", t6_bump_meta7)
 # 
 # not_scaled7 <- plotDR(not_scaled_daf, color_by = "CCR7")+facet_wrap("timepoint")
 # not_scaled45 <- plotDR(not_scaled_daf, color_by = "CD45RA")+facet_wrap("timepoint")
@@ -202,18 +222,20 @@ colnames(slim_umap) <- c("UMAP1", "UMAP2")
 big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
 
-smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
+(smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+  #stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
   scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-11, 14))+
-  ylim(c(-9, 10))+
+  geom_point(shape=".")+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
-  theme(strip.text = element_text(size=14))
+  theme(strip.text = element_text(size=14)))
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_bump_through_time.png", smol_time12)
 
 
-
+big_table <- dplyr::select(big_table, -UMAP1, -UMAP2)
+colnames(big_table)[c(ncol(big_table)-1,ncol(big_table))] <- c("UMAP1", "UMAP2")
 
 cd38_plot <- flo_umap(big_table, "CD38")
 hladr_plot <- flo_umap(big_table, "HLADR")
@@ -222,9 +244,10 @@ cd27_plot <- flo_umap(big_table, "CD27")
 
 activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
 
-ggsave("C:/Users/bachf/PhD/cytof/vac69a/figures_for_paper/umap/t6_activation_plot.png", activation_plot)
+
+#ggsave("C:/Users/bachf/PhD/cytof/vac69a/figures_for_paper/umap/t6_activation_plot.png", activation_plot)
 # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-# ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_t6_activation_plot.png", activation_plot)
 
 
 cd45ro_plot <- flo_umap(big_table, "CD45RO")
@@ -258,7 +281,7 @@ icos_plot <- flo_umap(big_table, "ICOS")
 cd161_plot <- flo_umap(big_table, "CD161")
 
 t6_bump_plot <- plot_grid(pd1_plot, ctla4_plot, icos_plot, cd161_plot, ncol=2)
-ggsave("C:/Users/bachf/PhD/cytof/vac69a/figures_for_paper/umap/t6_bump_plot.png", t6_bump_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_bump_plot.png", t6_bump_plot)
 
 
 ki67_plot <- flo_umap(big_table, "Ki67")
@@ -267,7 +290,7 @@ foxp3_plot <- flo_umap(big_table, "FoxP3")
 gzb_plot <- flo_umap(big_table, "GZB")
 
 t6_bump_2_plot <- plot_grid(ki67_plot, tbet_plot, foxp3_plot, gzb_plot, ncol=2)
-ggsave("C:/Users/bachf/PhD/cytof/vac69a/figures_for_paper/umap/t6_bump_2_plot.png", t6_bump_2_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_bump_2_plot.png", t6_bump_2_plot)
 
 
 
