@@ -71,13 +71,14 @@ smooth_inferno_lite <- colorRampPalette(inferno_lite)
 
 ### read in metadata etc. ####
 #setwd("C:/Users/Florian/PhD/cytof/vac63c/t_cells/fcs")
-setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
+# read in data ####
+
+#setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only")
+#setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
 
 md <- read.csv("meta_data.csv", header=T) 
 
-
-## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
-## reorder so that it's neat 
 md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
 md <- md[
   with(md, order(md$volunteer, md$timepoint)),
@@ -88,13 +89,15 @@ md$file_name <- as.character(md$file_name)
 #change number of volunteers/timepoints here
 md <- dplyr::filter(md, timepoint %in% c("Baseline", "C10" , "DoD", "T6"))
 
+#import panel 
+panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
+colnames(panel)[2] <- "marker_name"
 
 # select whose files to import
 fcs_files <- grep("fcs", list.files(), value = T)
 
 primaries <- c()
 
-#change number of volunteers here
 timepoints <- c("C-1", "C_10", "DoD", "T_6")
 
 for(i in timepoints){
@@ -104,6 +107,7 @@ for(i in timepoints){
 
 ### read in flowfiles using flowCore
 vac69a <- read.flowSet(md$file_name)
+
 
 
 ### define panel using first fcs file in flowset, then clean up
@@ -125,15 +129,30 @@ vac69a <- read.flowSet(md$file_name)
 panel <- read.csv("VAC69_PANEL.CSV", header=T)
 ####
 
+sampling_ceiling <- 3000
+# Being reproducible is a plus
+set.seed(1234)
+
+#sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
+smaller_vac69a <- fsApply(vac69a, function(ff) {
+  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
+  ff[idx,]  # alt. ff[order(idx),]
+})
+
+
 ### CATALYST ####
 #construct daFrame #
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
-daf <- prepData(vac69a, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")))
+
+
+smaller_daf <- prepData(smaller_vac69a, panel, md, md_cols =
+                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
+                panel_cols = list(channel = "fcs_colname", antigen = "antigen", class =
+                                    "marker_class"))
 
 
 # this gets rid of barcoding and quality control channels so clustering is easier
-proper_channels <- colnames(daf)[c(3,13:14,22:56,62,64)]
+proper_channels <- colnames(smaller_daf)[c(3,13:14,22:56,62,64)]
 # get rid of CD45, CD14, CD20, CD3
 t_cell_channels <- proper_channels[c(-1, -2, -10, -32)]
 
@@ -173,6 +192,8 @@ t_cell_channels <- c("CD4",
                      "CD45RO",
                      "CCR7")
 
+
+
 refined_markers <- c("CD4",
                      "CD8",
                      "Vd2",
@@ -188,7 +209,7 @@ refined_markers <- c("CD4",
                      "CD27",
                      "Perforin",
                      "GZB",
-                     #"CX3CR1",
+                     "CX3CR1",
                      "Tbet",
                      "CTLA4",
                      "Ki67",
@@ -202,30 +223,31 @@ refined_markers <- c("CD4",
                      "CD25",
                      "FoxP3",
                      "CD39",
-                     #"CLA",
+                     "CLA",
                      #"CXCR5",
                      "CD57",
                      "CD45RA",
                      "CD45RO",
                      "CCR7")
-set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
+
+set.seed(123);smaller_daf <- cluster(smaller_daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
 
 #daf <- filterSCE(daf, volunteer=="V03")
 
-big_table <- t(data.frame(assays(daf)$exprs))
+# big_table <- t(data.frame(assays(daf)$exprs))
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
 
-slim_table <- data.frame(big_table[,colnames(big_table) %in% refined_markers])
-dim(slim_table)
 
+slim_table <- as.data.frame(big_table)[, colnames(big_table) %in% refined_markers]
 
 # check that this is arcsinh transformed (cofactor=5) before running Phenograph!! this is default when
 # processing with CATALYST beforehand
 
-start_time <- Sys.time()
-pheno <- Rphenograph(slim_table) # 33 clusters
-end_time <- Sys.time()
-
-end_time-start_time # 2h7min
+  start_time <- Sys.time()
+  pheno <- Rphenograph(slim_table) # 33 clusters
+  end_time <- Sys.time()
+  
+  end_time-start_time # 2h7min; ~3h on laptop
 
 
 UMAP_theme <- theme_minimal()+theme(
@@ -240,7 +262,16 @@ colnames(slim_umap) <- c("UMAP1", "UMAP2")
 
 slim_table <- cbind(slim_table, slim_umap)
 
-slim_table$pheno_cluster <- factor(membership(pheno[[2]]))
+slim_table$phenograph_cluster <- factor(membership(pheno[[2]]))
+#data.table::fwrite(slim_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/slim_table_with_phenograph.csv")
+
+slim_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/slim_table_with_phenograph.csv")
+slim_table$som100<- cluster_ids(daf, k="som100")
+
+
+
+ slim_table$phenograph_cluster
+
 
 slim_table$meta40 <- cluster_ids(daf, k="meta40")
 slim_table$meta32 <- cluster_ids(daf, k="meta32")

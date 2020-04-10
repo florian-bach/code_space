@@ -12,6 +12,10 @@ library(viridis)
 library(SummarizedExperiment)
 library(SingleCellExperiment)
 
+# library(cluster.vac69a)
+# 
+# daf <- import_vac69a_and_cluster("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+
 
 #a couple of extra functions defined here ####
 `%!in%` = Negate(`%in%`)
@@ -174,8 +178,7 @@ colnames(panel)[2] <- "marker_name"
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
 daf <- prepData(vac69a, panel, md, md_cols =
                   list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
-                  panel_cols = list(channel = "fcs_colname", antigen = "marker_name", class =
-                                    "marker_class"))
+                  panel_cols = list(channel = "fcs_colname", antigen = "marker_name", class = "marker_class"))
 
 
 # this gets rid of barcoding and quality control channels so clustering is easier
@@ -234,7 +237,7 @@ refined_markers <- c("CD4",
                      "CD27",
                      "Perforin",
                      "GZB",
-                     #"CX3CR1",
+                     "CX3CR1",
                      "Tbet",
                      "CTLA4",
                      "Ki67",
@@ -248,7 +251,7 @@ refined_markers <- c("CD4",
                      "CD25",
                      "FoxP3",
                      "CD39",
-                     #"CLA",
+                     "CLA",
                      #"CXCR5",
                      "CD57",
                      "CD45RA",
@@ -293,13 +296,20 @@ UMAP_markers <- c("CD4",
 
 
 # clustering ####
-start <- Sys.time(); set.seed(1234);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234); end <- Sys.time()
+start <- Sys.time(); set.seed(123);daf <- cluster(daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 50, seed = 1234); end <- Sys.time()
+
+plotClusterHeatmap(daf, hm2=NULL,
+                   k = "meta20",
+                   #m = "flo_merge",
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale = TRUE, 
+                   palette=inferno_lite
+)
 
 
-
-
-start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
-(duration <- round(end - start)) # ~20-25 min
+# start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
+# (duration <- round(end - start)) # ~20-25 min
 
 
 #print(c("UMAP took ", duration, " minutes to run on 861161 cells"), sep='')
@@ -377,7 +387,7 @@ plotDR(clean_daf, "UMAP", color_by = "CX3CR1")+
   facet_wrap("timepoint")+
   scale_color_gradientn(colors=inferno_lite)
 
-plotClusterHeatmap(daf, hm2 = NULL,
+plotClusterHeatmap(daf, hm2 = "state_markers",
                    k = "meta45",
                   # m = "flo_merge",
                    cluster_anno = TRUE,

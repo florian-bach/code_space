@@ -6,146 +6,14 @@ library(viridis)
 library(SingleCellExperiment)
 library(cowplot)
 library(SummarizedExperiment)
+library(vac69a.cytof)
 
 #functions, palettes etc. ####
 
 `%!in%` = Negate(`%in%`)
 
-refined_markers <- c("CD4",
-                     "CD8",
-                     "Vd2",
-                     "Va72",
-                     "CD38",
-                     "HLADR",
-                     "ICOS",
-                     "CD28",
-                     "PD1",
-                     #"TIM3",
-                     "CD95",
-                     "BCL2",
-                     "CD27",
-                     "Perforin",
-                     "GZB",
-                     #"CX3CR1",
-                     "Tbet",
-                     "CTLA4",
-                     "Ki67",
-                     "CD127",
-                     #"IntegrinB7",
-                     #"CD56",
-                     #"CD16",
-                     "CD161",
-                     #"CD49d",
-                     #"CD103",
-                     "CD25",
-                     "FoxP3",
-                     "CD39",
-                     #"CLA",
-                     #"CXCR5",
-                     "CD57",
-                     "CD45RA",
-                     "CD45RO",
-                     "CCR7")
-
-inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
-
-UMAP_theme <- theme_minimal()+theme(
-  panel.grid.major = element_blank(),
-  legend.position = "none",
-  axis.title = element_blank(),
-  plot.title = element_text(hjust = 0.5)
-)
-
-
-flo_umap <- function(df, color_by, facet_by=NULL){
-  
-  if(is.null(facet_by))
-    assign("facet", ~"")
-    assign("facet_title", element_blank())
-  
-  data <- dplyr::select(df, UMAP1, UMAP2, color_by, facet_by)
-  colnames(data)[3] <- "color"
-  
-
-  data$color <- scales::rescale(data$color, to=c(0,5))
-  
-
-  (plt <- ggplot(data, aes(x=UMAP1, y=UMAP2, color=color))+
-      geom_point(size=0.7)+
-      scale_color_gradientn(colors = inferno_mega_lite)+
-      #facet_wrap(facet_two~facet_one)
-      UMAP_theme+
-      facet_wrap(facet)+
-      ggtitle(color_by)+
-      theme(strip.text = facet_title)
-      
-    )
-  
-  
-}
-
-# read in data ####
-
-#setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
-setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only")
-#setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
-
-md <- read.csv("meta_data.csv", header=T) 
-
-md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
-md <- md[
-  with(md, order(md$volunteer, md$timepoint)),
-  ]
-md$file_name <- as.character(md$file_name)
-
-
-#change number of volunteers/timepoints here
-md <- dplyr::filter(md, timepoint %in% c("Baseline", "C10" , "DoD", "T6"))
-
-#import panel 
-panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
-colnames(panel)[2] <- "marker_name"
-
-# select whose files to import
-fcs_files <- grep("fcs", list.files(), value = T)
-
-primaries <- c()
-
-timepoints <- c("C-1", "C_10", "DoD", "T_6")
-
-for(i in timepoints){
-  one_moment <- grep(i, fcs_files, value=T)
-  primaries <- c(timepoints, one_moment)
-}
-
-### read in flowfiles using flowCore
-vac69a <- read.flowSet(md$file_name)
-
-#downsampling to equal size
-sampling_ceiling <- 3000
-# Being reproducible is a plus
-set.seed(1234)
-
-#sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-smaller_vac69a <- fsApply(vac69a, function(ff) {
-  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
-  ff[idx,]  # alt. ff[order(idx),]
-})
-
-# downsample <- function(fs, floor){fsApply(fs, function(ff) {
-#   idx <- sample.int(nrow(ff), nrow(ff)/min(fsApply(fs, nrow))*floor)
-#   ff[idx,]  # alt. ff[order(idx),]
-# })}
-# 
-# smaller_vac69a <- downsample(vac69a, 2000)
-
-smol_daf <- prepData(smaller_vac69a, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
-                panel_cols = list(channel = "fcs_colname", antigen = "marker_name", class =
-                                    "marker_class"))
-
-smol_daf <- cluster(smol_daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
-
+smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=800)
+smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
 
 # plotClusterHeatmap(smol_daf, hm2 = NULL,
 #                    k = "meta45",
@@ -158,56 +26,40 @@ smol_daf <- cluster(smol_daf, features = refined_markers, xdim = 10, ydim = 10, 
 
 
 smol_daf <- filterSCE(smol_daf, timepoint!="C10")
-set.seed(1234)
 
+refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
 # umap projections ####
-smol_daf <- scater::runUMAP(smol_daf,
-                             subset_row=refined_markers,
+set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
+                             subset_row=refined_markers[,1],
                              exprs_values = "exprs",
                              scale=T)
 
+big_table <- prep_sce_for_ggplot(smol_daf)
 
-# 
-# not_scaled7 <- plotDR(not_scaled_daf, color_by = "CCR7")+facet_wrap("timepoint")
-# not_scaled45 <- plotDR(not_scaled_daf, color_by = "CD45RA")+facet_wrap("timepoint")
-# 
-# cata <- runDR(smol_daf, "UMAP", features = refined_markers, assay = "exprs")
-# plotDR(cata, color_by="CD4")
-# 
-# cowplot::plot_grid(not_scaled7, scaled7,not_scaled45, scaled45, ncol=2)
-# 
-# # pca 50 / NULL ?
-# 
-# start <- Sys.time(); smol_daf <- runDR(smol_daf, cells=2500, dr="UMAP", features=refined_markers, assay = "exprs"); end <- Sys.time()
-# (duration <- round(end - start)) #2min
-# 
-# plotDR(smol_daf, "UMAP", color_by = "CD4")
+#write.csv(big_table, "equal_small_vac69a_umap.csv")
+#write.csv(big_table, "proportional_small_vac69a_umap.csv")
 
+#big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
+inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
 
-# 
-# big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
-# big_table <- data.frame(cbind(big_table, colData(smol_daf)))
-# 
-# 
-# slim_umap <- data.frame(reducedDim(smol_daf, "UMAP"))
-# colnames(slim_umap) <- c("UMAP1", "UMAP2")
-# 
-# big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
-
-big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
-
+UMAP_theme <- theme_minimal()+theme(
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  legend.position = "none",
+  axis.title = element_blank()
+)
 
 (smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=20)+
-  scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-10, 14))+
+  stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=18)+
+  xlim(c(-12, 12))+
   ylim(c(-12, 11))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
-  theme(strip.text = element_text(size=14)))
+  theme(strip.text = element_text(size=14))+
+  scale_fill_gradientn(colours = inferno_mega_lite))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
 
 
 
@@ -215,35 +67,25 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_u
 #ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
 
 
-big_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
-  scale_fill_gradientn(colors = inferno_mega_lite)+
-  xlim(c(-11, 14))+
-  ylim(c(-9, 10))+
-  theme_minimal()+
-  facet_grid(timepoint~volunteer, switch = "y")+
-  UMAP_theme+
-  theme(strip.text.y.left = element_text(size=14, angle = 0),
-        strip.text.x = element_text(size=14),
-        strip.placement = "outside")
+# (big_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+#   stat_density_2d(aes(fill = after_stat(nlevel)), geom="polygon", bins=25)+
+#   scale_fill_gradientn(colors = inferno_mega_lite)+
+#   xlim(c(-11, 14))+
+#   ylim(c(-9, 10))+
+#   theme_minimal()+
+#   facet_grid(timepoint~volunteer, switch = "y")+
+#   UMAP_theme+
+#   theme(strip.text.y.left = element_text(size=14, angle = 0),
+#         strip.text.x = element_text(size=14),
+#         strip.placement = "outside")
 
-
-
-ggsave("big_time12.png", big_time12, height=12, width=18)
-
-
-
-plotDR(smol_daf, color_by="CD45RO")+facet_grid(timepoint~volunteer)
-
-
-  
   cd4_plot <- flo_umap(big_table, "CD4")
   cd8_plot <- flo_umap(big_table, "CD8")
   vd2_plot <- flo_umap(big_table, "Vd2")
   va72_plot <- flo_umap(big_table, "Va72")
   
   
-  lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
+(  lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2))
   # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
   
@@ -280,6 +122,57 @@ plotDR(smol_daf, color_by="CD45RO")+facet_grid(timepoint~volunteer)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
 
 
+  
+  
+  
+  
+  cd38_plot_through_time <- flo_umap(big_table, "CD38", "timepoint")
+  hladr_plot_through_time <- flo_umap(big_table, "HLADR", "timepoint")
+  bcl2_plot_through_time <- flo_umap(big_table, "BCL2", "timepoint")
+  cd27_plot_through_time <- flo_umap(big_table, "CD27", "timepoint")
+  
+  activation_plots_through_time  <- list(cd38_plot_through_time, bcl2_plot_through_time,  hladr_plot_through_time, cd27_plot_through_time)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+  
+  
+  lapply(activation_plots_through_time, function(x){
+    ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
+           width = 8, height=4.5)
+    })
+  
+
+  
+  GZB_plot_through_time <- flo_umap(big_table, "GZB", "timepoint")
+  perforin_plot_through_time <- flo_umap(big_table, "Perforin", "timepoint")
+  Tbet_plot_through_time <- flo_umap(big_table, "Tbet", "timepoint")
+  ki67_plot_through_time <- flo_umap(big_table, "Ki67", "timepoint")
+  
+  intracellular_plots_through_time  <- list(GZB_plot_through_time, perforin_plot_through_time,  Tbet_plot_through_time, ki67_plot_through_time)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+  
+  
+  lapply(intracellular_plots_through_time, function(x){
+    ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
+           width = 8, height=4.5)
+  })
+  
+
+  ctla4_plot_through_time <- flo_umap(big_table, "CTLA4", "timepoint")
+  pd1_plot_through_time <- flo_umap(big_table, "PD1", "timepoint")
+  CD28_plot_through_time <- flo_umap(big_table, "CD28", "timepoint")
+  CD127_plot_through_time <- flo_umap(big_table, "CD127", "timepoint")
+  
+  exhaustion_plots_through_time  <- list(ctla4_plot_through_time, pd1_plot_through_time,  CD28_plot_through_time, CD127_plot_through_time)
+  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+  
+  
+  lapply(exhaustion_plots_through_time, function(x){
+    ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
+           width = 8, height=4.5)
+  })
+  
+
+  
 # plot with points and contour lines
 
 # smol_time+
