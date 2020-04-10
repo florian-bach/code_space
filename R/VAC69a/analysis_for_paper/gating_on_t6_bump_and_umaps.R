@@ -3,47 +3,11 @@ library(flowCore)
 library(CATALYST)
 library(SingleCellExperiment)
 library(cowplot)
-
+library(vac69a.cytof)
 
 #functions, palettes etc. ####
 
 `%!in%` = Negate(`%in%`)
-
-refined_markers <- c("CD4",
-                     "CD8",
-                     "Vd2",
-                     "Va72",
-                     "CD38",
-                     "HLADR",
-                     "ICOS",
-                     "CD28",
-                     "PD1",
-                     #"TIM3",
-                     "CD95",
-                     "BCL2",
-                     "CD27",
-                     "Perforin",
-                     "GZB",
-                     "CX3CR1",
-                     "Tbet",
-                     "CTLA4",
-                     "Ki67",
-                     "CD127",
-                     #"IntegrinB7",
-                     #"CD56",
-                     #"CD16",
-                     "CD161",
-                     #"CD49d",
-                     #"CD103",
-                     "CD25",
-                     "FoxP3",
-                     "CD39",
-                     "CLA",
-                     #"CXCR5",
-                     "CD57",
-                     "CD45RA",
-                     "CD45RO",
-                     "CCR7")
 
 inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
 
@@ -64,34 +28,6 @@ UMAP_theme <- theme_minimal()+theme(
 )
 
 
-
-flo_umap <- function(df, color_by, facet_by=NULL){
-  
-  if(is.null(facet_by))
-    assign("facet_title", element_blank())
-  
-  if(!is.null(facet_by))
-    assign("facet_title", element_text())
-  
-  data <- df[,c('UMAP1', 'UMAP2', color_by, facet_by)]
-  colnames(data)[3] <- "color"
-  
-  
-  #data$color <- scales::rescale(data$color, to=c(0,5))
-  
-  
-  plt <- ggplot(data, aes(x=UMAP1, y=UMAP2, color=color))+
-    geom_point(shape = ".")+
-    scale_color_gradientn(colors = inferno_mega_lite)+
-    #facet_wrap(facet_two~facet_one)
-    UMAP_theme+
-    facet_wrap(facet_by)+
-    ggtitle(color_by)+
-    theme(strip.text = facet_title)
-  
-}
-
-  
 
 # GATING ####
 

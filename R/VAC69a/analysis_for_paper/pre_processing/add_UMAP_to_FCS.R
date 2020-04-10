@@ -1,90 +1,31 @@
-library(ggcyto)
 library(flowCore)
-library(scater)
-library(SingleCellExperiment)
-library(CATALYST)
+library(vac69a.cytof)
 
-ggcyto(smaller_vac69a, aes(x=`BCL-2`, y=CD38))+
-  geom_hex(bins=64)+
-  scale_x_flowjo_fasinh()+
-  scale_y_flowjo_fasinh()
+daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
-
-fcs_files <- grep("fcs", list.files("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/"), value = T)
-
-primaries <- c()
-
-timepoints <- c("C-1", "C_10", "DoD", "T_6")
-
-for(i in timepoints){
-  one_moment <- grep(i, fcs_files, value=T)
-  primaries <- c(timepoints, one_moment)
-}
-
- ### read in flowfiles using flowCore
-vac69a <- read.flowSet(md$file_name)
-
-
-
-
-daf <- prepData(vac69a, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
-                panel_cols = list(channel = "fcs_colname", antigen = "marker_name", class =
-                                    "marker_class"))
-
-refined_markers <- c("CD4",
-                     "CD8",
-                     "Vd2",
-                     "Va72",
-                     "CD38",
-                     "HLADR",
-                     "ICOS",
-                     "CD28",
-                     "PD1",
-                     #"TIM3",
-                     "CD95",
-                     "BCL2",
-                     "CD27",
-                     "Perforin",
-                     "GZB",
-                     "CX3CR1",
-                     "Tbet",
-                     "CTLA4",
-                     "Ki67",
-                     "CD127",
-                     #"IntegrinB7",
-                     #"CD56",
-                     #"CD16",
-                     "CD161",
-                     #"CD49d",
-                     #"CD103",
-                     "CD25",
-                     "FoxP3",
-                     "CD39",
-                     "CLA",
-                     #"CXCR5",
-                     "CD57",
-                     "CD45RA",
-                     "CD45RO",
-                     "CCR7")
-
+refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv")
 
 daf <- scater::runUMAP(daf,
-                            subset_row=refined_markers,
+                            subset_row=refined_markers[,1],
                             exprs_values = "exprs",
                             scale=T)
 
 #this is potentially inefficent... maybe investigate!
-big_table <- data.frame(t(data.frame(assays(daf)$exprs)))
-big_table <- data.frame(cbind(big_table, colData(daf)))
+# big_table <- data.frame(t(data.frame(assays(daf)$exprs)))
+# big_table <- data.frame(cbind(big_table, colData(daf)))
+# 
+# slim_umap <- data.frame(reducedDim(daf, "UMAP"))
+# colnames(slim_umap) <- c("UMAP1", "UMAP2")
+# 
+# big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
 
-slim_umap <- data.frame(reducedDim(daf, "UMAP"))
-colnames(slim_umap) <- c("UMAP1", "UMAP2")
+big_table <- prep_sce_for_ggplot(daf)
 
-big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
+data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv")
 
-data.table::fwrite(big_table, "big_table.csv")
 
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+md <- read.csv("meta_data.csv", stringsAsFactors = F)
 
 for (i in md$file_name){
   

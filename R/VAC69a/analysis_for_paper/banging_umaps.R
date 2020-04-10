@@ -12,8 +12,8 @@ library(vac69a.cytof)
 
 `%!in%` = Negate(`%in%`)
 
-smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=800)
-smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=1500)
+#smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
 
 # plotClusterHeatmap(smol_daf, hm2 = NULL,
 #                    k = "meta45",
@@ -50,16 +50,18 @@ UMAP_theme <- theme_minimal()+theme(
 )
 
 (smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=18)+
+  stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=14)+
   xlim(c(-12, 12))+
   ylim(c(-12, 11))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
   theme(strip.text = element_text(size=14))+
-  scale_fill_gradientn(colours = inferno_mega_lite))
+  scale_fill_gradientn(colours = inferno_mega_lite)
+  #scale_fill_viridis(option = "A")
+    )
 
-#ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
 
 
 
