@@ -1,22 +1,18 @@
-library(ggcyto)
 library(flowCore)
 library(CATALYST)
 library(ggplot2)
-library(viridis)
-library(SingleCellExperiment)
 library(cowplot)
-library(SummarizedExperiment)
 library(vac69a.cytof)
 
 #functions, palettes etc. ####
 
 `%!in%` = Negate(`%in%`)
 
-smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=1500)
+smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=2500)
 #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
-
+# 
 # plotClusterHeatmap(smol_daf, hm2 = NULL,
-#                    k = "meta45",
+#                    k = "meta12",
 #                    # m = "flo_merge",
 #                    cluster_anno = TRUE,
 #                    draw_freqs = TRUE,
@@ -25,7 +21,7 @@ smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_com
 # 
 
 
-smol_daf <- filterSCE(smol_daf, timepoint!="C10")
+#smol_daf <- filterSCE(smol_daf, timepoint!="C10")
 
 refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
 # umap projections ####
@@ -35,7 +31,7 @@ set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
                              scale=T)
 
 big_table <- prep_sce_for_ggplot(smol_daf)
-
+(foxp3_plot <- flo_umap(big_table, "FoxP3"))
 #write.csv(big_table, "equal_small_vac69a_umap.csv")
 #write.csv(big_table, "proportional_small_vac69a_umap.csv")
 
@@ -51,10 +47,10 @@ UMAP_theme <- theme_minimal()+theme(
 
 (smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=14)+
-  xlim(c(-12, 12))+
-  ylim(c(-12, 11))+
+  xlim(c(-12, 10))+
+  ylim(c(-8, 8))+
   theme_minimal()+
-  facet_wrap(~timepoint)+
+  #facet_wrap(~timepoint)+
   UMAP_theme+
   theme(strip.text = element_text(size=14))+
   scale_fill_gradientn(colours = inferno_mega_lite)
@@ -87,7 +83,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_u
   va72_plot <- flo_umap(big_table, "Va72")
   
   
-(  lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2))
+lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
   # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
   
@@ -97,7 +93,8 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_u
   bcl2_plot <- flo_umap(big_table, "BCL2")
   cd27_plot <- flo_umap(big_table, "CD27")
   
-  activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
+  
+activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
   # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
   
@@ -233,4 +230,64 @@ ggplot(big_table, aes(x=CD4, y=CD8))+
 #   scale_x_flowCore_fasinh()+
 #   scale_y_flowCore_fasinh()
 
- 
+
+coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
+most_coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/most_coarse_merge.csv", stringsAsFactors = F)
+
+smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = coarse_merging_table, id = "coarse_merge")
+smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = most_coarse_merging_table, id = "most_coarse_merge")
+
+plotDR(smol_merged_daf, color_by = "most_coarse_merge")
+
+
+big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
+big_table$coarse_label <- cluster_ids(smol_merged_daf, k = "most_coarse_merge")
+
+
+# colourCount <- length(unique(big_table$coarse_label))
+colourCount <- 18
+
+getPalette <- colorRampPalette(rev(brewer.pal(8, "Dark2")))
+
+
+ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+  geom_point(size=0.3, aes(color=coarse_label))+
+  scale_color_manual(values = cols$hex)+
+  UMAP_theme+
+  theme(legend.position = "right")
+
+scales::show_col(brewer.pal(8, "Dark2"))  
+
+cols <-read.csv("~/PhD/code/discrete_colors.csv", stringsAsFactors = F)
+# cols$hex <- substr(cols$hex, 2, 8)
+# write.csv(cols, "~/PhD/code/discrete_colors.csv")
+scales::show_col(cols$hex)
+
+
+CD4_naive <- data.frame(x=c(9, 7.7, 3, 3), y=c(3, -2.3,0,4))
+CD4_central_memory <- data.frame(x=c(3, 6, 5.5, 1.7, 2), y=c(-0.5, -2,-5,-3.3, -2))
+
+  ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+    #stat_density_2d(contour=T, bins=24, color="#F781BF")+
+    xlim(c(-12, 10))+
+    # geom_polygon(data=CD4_naive, aes(x=x, y=y), fill=NA, color=cols$hex[1])+
+    # geom_polygon(data=CD4_central_memory, aes(x=x, y=y), fill=NA, color=cols$hex[2])+
+    ylim(c(-8, 8))+
+    theme_minimal()+
+    geom_point(size=0.3,aes(color=coarse_label))+
+    UMAP_theme+
+    theme(strip.text = element_text(size=14),
+          legend.position = "bottom")
+
+
+    
+    CD8_naive <- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    CD8_effector <- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    CD8_effector_memory <- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    CD8_central_memory <- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    Treg <- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    gamma_delta<- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    MAIT<- geom_rect(xmin=, xmax=, ymin=, ymax=)
+    
+
+

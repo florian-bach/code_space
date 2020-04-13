@@ -3,25 +3,17 @@ library(vac69a.cytof)
 
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
-refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv")
+refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
 
-daf <- scater::runUMAP(daf,
-                            subset_row=refined_markers[,1],
-                            exprs_values = "exprs",
-                            scale=T)
-
-#this is potentially inefficent... maybe investigate!
-# big_table <- data.frame(t(data.frame(assays(daf)$exprs)))
-# big_table <- data.frame(cbind(big_table, colData(daf)))
-# 
-# slim_umap <- data.frame(reducedDim(daf, "UMAP"))
-# colnames(slim_umap) <- c("UMAP1", "UMAP2")
-# 
-# big_table <- data.frame(cbind(big_table, slim_umap), stringsAsFactors = F)
+set.seed(1234);daf <- scater::runUMAP(daf,subset_row=refined_markers[,1],
+                                          exprs_values = "exprs",
+                                          scale=T)
 
 big_table <- prep_sce_for_ggplot(daf)
+(flo_umap(big_table, color_by = "FoxP3", facet_by = "timepoint"))
 
 data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv")
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv")
 
 
 setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")

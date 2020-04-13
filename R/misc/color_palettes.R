@@ -3,6 +3,8 @@ red_palette <- c(myPalette(100), rep(myPalette(100)[100], 200))
 
 sc <- scale_colour_gradientn(colours = red_palette, limits=c(0, 8))
 
+
+
 magma <- c("#FCFFB2","#FCDF96","#FBC17D","#FBA368","#FA8657","#F66B4D","#ED504A",
            "#E03B50","#C92D59","#B02363","#981D69","#81176D","#6B116F","#57096E","#43006A",
            "#300060","#1E0848","#110B2D","#080616","#000005")
@@ -49,4 +51,7 @@ color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#0
 inferno_mega_lite <-inferno_lite[seq(1,19, by=3)]
 inferno_mega_lite <- c("#000004", "#460B68", "#9A2964", "#EF802B", "#FFC751", "#FCFFA4")
 smooth_inferno_lite <- colorRampPalette(inferno_lite)
+
+
+scales::show_col(palette)
 
