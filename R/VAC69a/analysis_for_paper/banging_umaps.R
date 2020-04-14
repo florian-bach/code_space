@@ -23,7 +23,7 @@ smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_com
 #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
 
 refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
-umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA", "CX3CR1"))
+# umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
 
 # umap projections ####
 set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
@@ -32,6 +32,7 @@ set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
                              scale=T)
 
 big_table <- prep_sce_for_ggplot(smol_daf)
+
 (foxp3_plot <- flo_umap(big_table, "FoxP3"))
 
 #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv", header=T, stringsAsFactors = F)
@@ -91,7 +92,6 @@ lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
   # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
   
-  
   cd38_plot <- flo_umap(big_table, "CD38")
   hladr_plot <- flo_umap(big_table, "HLADR")
   bcl2_plot <- flo_umap(big_table, "BCL2")
@@ -106,9 +106,9 @@ activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol
   cd45ro_plot <- flo_umap(big_table, "CD45RO")
   ccr7_plot <- flo_umap(big_table, "CCR7")
   cd57_plot <- flo_umap(big_table, "CD57")
-  cd28_plot <- flo_umap(big_table, "CD28")
+  cd45ra_plot <- flo_umap(big_table, "CD45RA")
   
-  memory_plot <- plot_grid(cd45ro_plot, ccr7_plot, cd57_plot, cd28_plot, ncol=2)
+  memory_plot <- plot_grid(cd45ro_plot, ccr7_plot, cd57_plot, cd45ra_plot, ncol=2)
   # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
   
@@ -122,7 +122,7 @@ activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol
     
     treg_plot <- cowplot::plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
     # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
-    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
+   ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
   
   
     
@@ -135,7 +135,7 @@ activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol
   cd27_plot_through_time <- flo_umap(big_table, "CD27", "timepoint")
   
   activation_plots_through_time  <- list(cd38_plot_through_time, bcl2_plot_through_time,  hladr_plot_through_time, cd27_plot_through_time)
-  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+  ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
   
   
   lapply(activation_plots_through_time, function(x){
@@ -163,11 +163,10 @@ activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol
   ctla4_plot_through_time <- flo_umap(big_table, "CTLA4", "timepoint")
   pd1_plot_through_time <- flo_umap(big_table, "PD1", "timepoint")
   CD28_plot_through_time <- flo_umap(big_table, "CD28", "timepoint")
-  CD127_plot_through_time <- flo_umap(big_table, "CD127", "timepoint")
+  CD95_plot_through_time <- flo_umap(big_table, "CD95", "timepoint")
   
   exhaustion_plots_through_time  <- list(ctla4_plot_through_time, pd1_plot_through_time,  CD28_plot_through_time, CD127_plot_through_time)
-  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-  
+
   
   lapply(exhaustion_plots_through_time, function(x){
     ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
