@@ -1,29 +1,30 @@
-library(flowCore)
-library(CATALYST)
+
 library(ggplot2)
 library(cowplot)
 library(vac69a.cytof)
 
 #functions, palettes etc. ####
-
+# 
 `%!in%` = Negate(`%in%`)
-
+# 
 smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=2500)
-#smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+# #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+# # 
+# # plotClusterHeatmap(smol_daf, hm2 = NULL,
+# #                    k = "meta12",
+# #                    # m = "flo_merge",
+# #                    cluster_anno = TRUE,
+# #                    draw_freqs = TRUE,
+# #                    scale=T
+# # )
+# # 
 # 
-# plotClusterHeatmap(smol_daf, hm2 = NULL,
-#                    k = "meta12",
-#                    # m = "flo_merge",
-#                    cluster_anno = TRUE,
-#                    draw_freqs = TRUE,
-#                    scale=T
-# )
 # 
-
-
 #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
 
 refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
+umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA", "CX3CR1"))
+
 # umap projections ####
 set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
                              subset_row=refined_markers[,1],
@@ -32,6 +33,9 @@ set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
 
 big_table <- prep_sce_for_ggplot(smol_daf)
 (foxp3_plot <- flo_umap(big_table, "FoxP3"))
+
+#big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv", header=T, stringsAsFactors = F)
+
 #write.csv(big_table, "equal_small_vac69a_umap.csv")
 #write.csv(big_table, "proportional_small_vac69a_umap.csv")
 
@@ -45,17 +49,17 @@ UMAP_theme <- theme_minimal()+theme(
   axis.title = element_blank()
 )
 
-(smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=14)+
   xlim(c(-12, 10))+
-  ylim(c(-8, 8))+
+  ylim(c(-9.5, 11))+
   theme_minimal()+
-  #facet_wrap(~timepoint)+
+  facet_wrap(~timepoint)+
   UMAP_theme+
   theme(strip.text = element_text(size=14))+
   scale_fill_gradientn(colours = inferno_mega_lite)
   #scale_fill_viridis(option = "A")
-    )
+
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
 
@@ -111,17 +115,17 @@ activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol
   
   
   
-  cd25_plot <- flo_umap(big_table, "CD25")
-  cd127_plot <- flo_umap(big_table, "CD127")
-  foxp3_plot <- flo_umap(big_table, "FoxP3")
-  cd39_plot <- flo_umap(big_table, "CD39")
+    cd25_plot <- flo_umap(big_table, "CD25")
+    cd127_plot <- flo_umap(big_table, "CD127")
+    foxp3_plot <- flo_umap(big_table, "FoxP3")
+    cd39_plot <- flo_umap(big_table, "CD39")
+    
+    treg_plot <- cowplot::plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
+    # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
+    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
   
-  treg_plot <- plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
-  # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
-
-
   
+    
   
   
   
