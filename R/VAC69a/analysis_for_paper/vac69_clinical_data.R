@@ -6,8 +6,9 @@ library(cowplot)
 
 
 #setwd("C:/Users/Florian/PhD/cytof/vac69a/clinical_data")
-setwd("/Users/s1249052/PhD/clinical_data/vac69a")
-##########   symptoms findings   #################
+#setwd("/Users/s1249052/PhD/clinical_data/vac69a")
+setwd("~/PhD/clinical_data/vac69a/")
+#########   symptoms findings   #################
 
 
 
@@ -162,17 +163,45 @@ ggplot(data, aes(x=factor(timepoint, levels=c("C-1", "DoD", "T+6")), y=T.cell.co
 
   ggsave("T_Cell_Count.png", height=8.5, width=7)
 
+###########       extra figure for B cells     ##########
+  
+data <- read.csv("lymph_counts.csv", header = TRUE, stringsAsFactors = FALSE)
+colnames(data)[2:3] <- c("B Cells", "T Cells")
+data <- tidyr::gather(data, cell_type, count, colnames(data)[2:3])  
+data$count <- data$count*1000  
+#data$cell_typef <- factor(data$cell_type, levels=c("B cells", "T cells"))
+data <- subset(data, cell_type=="T Cells")
 
+data$Timepoint <- data$Timepoint %>%
+  gsub("C-1", "Baseline", .) %>%
+  gsub("T+6", "T6", ., fixed = T)
 
-
-ggsave("haematological.png", width=10, height=10)
+ggplot(data, aes(x=factor(Timepoint, levels=c("Baseline", "DoD", "T6")), y=count, group=Volunteer))+
+    geom_point(aes(colour=as.character(Volunteer)), size=3)+
+    geom_line(aes(colour=as.character(Volunteer)), size=1.5)+
+    scale_colour_manual(values=my_paired_palette)+
+    theme_bw()+
+    #facet_wrap(~cell_type, scales="free")+
+    ylab(expression(paste("T Cells / ", mu*"L")))+
+    ylim(0,1750)+
+    theme(axis.title.x = element_blank(),
+          strip.background = element_blank(),
+          # legend.text = element_text(size=20),
+          # strip.text = element_text(size=20, face = "bold"),
+          axis.text.x = element_text(angle = 60, hjust = 1),
+          # axis.text.y = element_text(size=16),
+          # axis.title.y = element_text(size=20),
+          # legend.position = "bottom",
+          legend.title = element_blank())
+  
+ggsave("~/PhD/cytof/vac69a/figures_for_paper/t_cell_counts.png")  
 
 #######################     clinical chemistry    ########################
 
 
 
 data <- read.csv("biochem.csv", header=T)
-
+\
 data_no_ae <- select(data, -c(colnames(data)[grep("_ae",colnames(data) ,fixed=T)]))
 
 long_data <- gather(data_no_ae, biochem, value, colnames(data_no_ae)[13:20])
