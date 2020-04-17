@@ -46,6 +46,8 @@ big_table <- prep_sce_for_ggplot(smol_daf)
 inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
 sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
 
+inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
+
 UMAP_theme <- theme_minimal()+theme(
   panel.grid.minor = element_blank(),
   legend.position = "none",
@@ -63,21 +65,24 @@ smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   scale_fill_gradientn(colours = inferno_mega_lite)
   #scale_fill_viridis(option = "A")
 
-(hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
+hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   #stat_density_2d(aes(fill = after_stat(level)), geom="raster", bins=14)+
   #geom_hex(bins=150)+
-  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 500)+
-  stat_density_2d(contour = TRUE, bins=14, color="white",)+
+  geom_point(color="black")+
+  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
+  stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
   xlim(c(-13, 10))+
-  ylim(c(-9.5, 11))+
+  ylim(c(-9.5, 13))+
   theme_minimal()+
   facet_wrap(~timepoint)+
   UMAP_theme+
   theme(panel.grid.major = element_blank())+
   theme(strip.text = element_text(size=14))+
-  scale_fill_gradientn(colors=sunset_white))
+  scale_fill_gradientn(colors=inferno_white)
   #viridis::scale_fill_viridis(option="B"))
+
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
+system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap.png", hex_through_time, height=6, width=9))
 
 
 
