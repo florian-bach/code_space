@@ -5,8 +5,8 @@ library(tidyr)
 library(gtools)
 library(directlabels)
 
-setwd("/Users/s1249052/PhD/oxford/vac69")
-
+#setwd("/Users/s1249052/PhD/oxford/vac69")
+setwd("~/PhD")
 data <- read.csv("vac69a_parasitaemia.csv", header=T)
 
 # get rid of garbage timepoints that mess up graph
@@ -72,3 +72,5 @@ ggplot(dods, aes(x=vol, y=paras, fill=vol))+
         axis.text.y = element_text(size=20, color="black"))
  
 ggsave ("/Users/s1249052/PhD/oxford/vac69/dod_parasitaemias_vac69.pdf", height = 8, width=10)
+
+
