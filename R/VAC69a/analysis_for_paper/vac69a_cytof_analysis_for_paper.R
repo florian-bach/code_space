@@ -89,8 +89,16 @@ merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
 merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
 
+flo_32_cluster_heatmap <- plotClusterHeatmap(merged_daf, hm2=NULL,
+                   k = "meta45",
+                   #m = "flo_merge",
+                   cluster_anno = FALSE,
+                   draw_freqs = TRUE,
+                   scale = TRUE, 
+                   palette=inferno
+)
 
-
+ggsave("flo_32_cluster_heatmap.png", flo_32_cluster_heatmap)
 
 ### diffcyt ####z
 ei <- metadata(merged_daf)$experiment_info
@@ -355,7 +363,7 @@ plotDiffHeatmap(merged_daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = 
 
 ###  make boxplots of cluster counts/frequencies ####
 # topTable(da_t6_vol, show_counts = T)
-dod_vol <- data.frame(topTable(pair_base_dod, all=T, show_counts = T))
+dod_vol <- data.frame(topTable(pair_base_dod, _freq=T, show_counts = T))
 up_dod <-  dplyr::filter(dod_vol, dod_vol$p_adj < FDR_cutoff)
 
 long_up_dod <- gather(up_dod, sample_id, count, colnames(up_dod)[4:ncol(up_dod)])

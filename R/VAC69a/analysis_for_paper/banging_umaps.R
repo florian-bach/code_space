@@ -68,12 +68,14 @@ smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
 # don't try to render this plot in rstudio- jsut write out and look at it with
 # photo viewer- way faster!
 
+for (i in c(8, 12, 14, 16, 18)){
+
 hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   #stat_density_2d(aes(fill = after_stat(level)), geom="raster", bins=14)+
   #geom_hex(bins=150)+
   #geom_point(color="black")+
   stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
-  stat_density_2d(contour = TRUE, bins=24, color="white", size=0.1)+
+  stat_density_2d(contour = TRUE, bins=i, color="white", size=0.1)+
   xlim(c(-13, 10))+
   ylim(c(-9.5, 13))+
   theme_minimal()+
@@ -84,8 +86,10 @@ hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   scale_fill_gradientn(colors=inferno_white)
   #viridis::scale_fill_viridis(option="B"))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap.png", smol_time12, height=6, width=9)
-system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap24.png", hex_through_time, height=6, width=9))
+ggsave(paste0("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_", i, "_bins",".png", sep=''), hex_through_time, height=6, width=9)
+}
+
+# system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap24.png", hex_through_time, height=6, width=9))
 
 
 
