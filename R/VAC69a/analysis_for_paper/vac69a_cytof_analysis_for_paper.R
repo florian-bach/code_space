@@ -267,7 +267,7 @@ contrast_t6 <- createContrast(c(0,0,0,1))
 
 da_formula2 <- createFormula(ei,
                              cols_fixed = c("timepoint"),
-                             cols_random ="sample_id")
+                             cols_random ="volunteer")
 
 da_baseline_vol <- diffcyt(merged_daf,
                            #design = design,
@@ -298,7 +298,7 @@ da_dod_vol <- diffcyt(merged_daf,
 
 da_t6_vol <- diffcyt(merged_daf,
                      #design = design,
-                     formula = c,
+                     formula = da_formula2,
                      contrast = contrast_t6,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-GLMM",
@@ -312,8 +312,7 @@ table(rowData(da_dod_vol$res)$p_adj < FDR_cutoff)
 # # 35
 table(rowData(da_t6_vol$res)$p_adj < FDR_cutoff)
 # # FALSE  TRUE
-# # 23
-9
+# # 23     9
 
 
 
