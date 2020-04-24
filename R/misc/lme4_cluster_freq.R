@@ -18,6 +18,7 @@ list_of_clusters <- split(cluster_freqs, cluster_freqs$cluster_id)
 # test_model2 <- lme(frequency~timepoint, random = c(~1|sample_id), data=test)
 
 freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~timepoint, random = c(~1|volunteer, ~1|sample_id), data=x))
+freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~volunteer+timepoint, random = ~1|sample_id, data=x))
 
 freq_time_results <- lapply(freq_time_models, FUN=function(x)(summary(x)))
 
