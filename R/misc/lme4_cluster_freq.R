@@ -2,8 +2,11 @@ library(ggplot2)
 library(nlme)
 library(dplyr)
 library(tidyr)
+library(lme4)
 
 cluster_freqs <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_counts_and_freqs.csv", header=T, stringsAsFactors = F)
+cluster_freqs$frequency <- cluster_freqs$frequency/100
+
 cluster_freqs$timepoint <- factor(cluster_freqs$timepoint)
 cluster_freqs$volunteer <- factor(cluster_freqs$volunteer)
 cluster_freqs$sample_id <- factor(cluster_freqs$sample_id)
@@ -17,8 +20,14 @@ list_of_clusters <- split(cluster_freqs, cluster_freqs$cluster_id)
 # test_model1 <- lme(frequency~timepoint, random = c(~1|volunteer, ~1|sample_id), data=test)
 # test_model2 <- lme(frequency~timepoint, random = c(~1|sample_id), data=test)
 
-freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~timepoint, random = c(~1|volunteer, ~1|sample_id), data=x))
-freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~volunteer+timepoint, random = ~1|sample_id, data=x))
+freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+(1|timepoint)+(1|volunteer), data=x, family="binomial"))
+freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+volunteer+(1|sample_id), data=x, family="binomial"))
+freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+(1|volunteer)+(1|sample_id), data=x, family = "binomial"))
+freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+volunteer+(1|volunteer)+(1|sample_id), data=x, family = "binomial"))
+
+
+# freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~timepoint, random = c(~1|volunteer, ~1|sample_id), data=x))
+# freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~volunteer+timepoint, random = ~1|sample_id, data=x))
 
 freq_time_results <- lapply(freq_time_models, FUN=function(x)(summary(x)))
 

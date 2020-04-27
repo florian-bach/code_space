@@ -122,8 +122,8 @@ refined_markers <- read.csv(paste(working_directory, "refined_markers.csv", sep 
 # clustering ####
 set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers[,1], xdim = 10, ydim = 10, maxK = 45)
 
-daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-
+# daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+daf <- sce
 
 
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
@@ -230,7 +230,7 @@ states <- states[-c(1:21,
 
 logic <- names(marker_classes(daf)) %in% states
 
-ds_formula2 <- createFormula(ei, cols_fixed = "timepoint", cols_random = "sample_id") 
+ds_formula2 <- createFormula(ei, cols_fixed = "timepoint", cols_random = c("timepoint", "volunteer")) 
 
 contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
 contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
