@@ -101,10 +101,19 @@ flo_32_cluster_heatmap <- plotClusterHeatmap(merged_daf, hm2=NULL,
 ggsave("flo_32_cluster_heatmap.png", flo_32_cluster_heatmap)
 
 ### diffcyt ####z
+#merged_daf <- filterSCE(merged_daf, timepoint != "C10")
+
 ei <- metadata(merged_daf)$experiment_info
-
-design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
-
+# ei$continuous_time <- ei$timepoint
+# ei$continuous_time <- ei$continuous_time %>%
+#   gsub("Baseline", "0", .) %>%
+#   gsub("C10", "11", .) %>%
+#   gsub("DoD", "15", .) %>%
+#   gsub("T6", "21", .)
+  
+  
+design <- createDesignMatrix(ei, c("timepoint", "volunteer", "batch"))
+#design[,1] <- rep(c(1,0,0,0), times=6)
 levels(ei$timepoint)
 
 ###If a design matrix has been used, the entries of contrast correspond to the columns of the design
@@ -114,15 +123,37 @@ levels(ei$timepoint)
 
 
 
-FDR_cutoff <- 0.05
+FDR_cutoff <- 0.1
 
 # edgeR models with all timepoints####
 
-contrast_baseline <- createContrast(c(-1, rep(0, 8)))
-contrast_c10 <- createContrast(c(c(0, 1), rep(0,7)))
-contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
-contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+contrast_baseline <- createContrast(c(1, rep(0, 9)))
+contrast_c10 <- createContrast(c(c(0, 1), rep(0,8)))
+contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,7)))
+contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,6)))
 
+
+pairwise_contrast_c10 <- createContrast(c(c(-1, 1), rep(0,8)))
+pairwise_contrast_dod<- createContrast(c(c(-1, 0, 1), rep(0,7)))
+pairwise_contrast_t6 <- createContrast(c(c(-1, 0, 0, 1), rep(0,6)))
+
+
+ncol(design) == length(pairwise_contrast_c10 & pairwise_contrast_dod & pairwise_contrast_t6)
+
+
+# 
+# groups <- rep(
+#   paste(
+#     rep(c("V06", "V07", "V09", "V02", "V03", "V05"), each=3),
+#     rep(c("Baseline", "DoD", "T6"), times=6), sep='_'), times=2)
+# 
+# #groups <- gsub("T.6", "DoD.6", groups, fixed=T) 
+# 
+# # create design matrix & give it proper column names
+# design <- model.matrix(~0 + groups)
+# 
+# colnames(design) <- substr(colnames(design), 7, 20)
+# 
 
 da_baseline <- diffcyt(merged_daf,
                        design = design,
@@ -134,47 +165,56 @@ da_baseline <- diffcyt(merged_daf,
 
 da_c10 <- diffcyt(merged_daf,
                   design = design,
-                  contrast = contrast_c10,
+                  #contrast = contrast_c10,
+                  contrast = pairwise_contrast_c10,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
                   clustering_to_use = "flo_merge",
                   verbose = T)
+
 
 da_dod <- diffcyt(merged_daf,
                   design = design,
-                  contrast = contrast_dod,
+                  #contrast = contrast_dod,
+                  contrast = pairwise_contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
                   clustering_to_use = "flo_merge",
                   verbose = T)
 
+
 da_t6 <- diffcyt(merged_daf,
                  design = design,
-                 contrast = contrast_t6,
+                 #contrast = contrast_t6,
+                 contrast = pairwise_contrast_t6,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-edgeR",
                  clustering_to_use = "flo_merge",
                  verbose = T)
 
-# results  ###
-table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
-
-
-table(rowData(da_c10$res)$p_adj < FDR_cutoff)
-# FALSE 
-# 38 
-table(rowData(da_dod$res)$p_adj < FDR_cutoff)
-# FALSE  TRUE 
-# 24    8
-table(rowData(da_t6$res)$p_adj < FDR_cutoff)
-# FALSE  TRUE 
-# 23    15 
 
 plotDiffHeatmap(merged_daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = F)
-plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F)
-plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
+da_dod_heatmap <- plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+da_t6_heatmap <- plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
+
+save_plot("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/da_dod_heatmap.png", da_dod_heatmap)
+save_plot("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/da_t6_heatmap.png", da_t6_heatmap)
+
+png(filename = "/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/da_dod_heatmap.png", width = 2000, height = 1300)
+da_dod_heatmap+theme(axis.text = element_text(size = 40))
+dev.off()
+
+table(rowData(da_c10$res)$p_adj < FDR_cutoff)
+
+table(rowData(da_dod$res)$p_adj < FDR_cutoff)
+# # FALSEFALSE  TRUE 
+   24     8 
+# # 35
+table(rowData(da_t6$res)$p_adj < FDR_cutoff)
+# # FALSE  TRUE
+# # 15     17
 
 
 #### edger with two timepoints for pairwise comparisons #### 
@@ -266,7 +306,7 @@ contrast_dod <- createContrast(c(0,0,1,0))
 contrast_t6 <- createContrast(c(0,0,0,1))
 
 da_formula2 <- createFormula(ei,
-                             cols_fixed = c("timepoint"),
+                             cols_fixed = c("continuous_time"),
                              cols_random ="volunteer")
 
 da_baseline_vol <- diffcyt(merged_daf,
@@ -299,7 +339,7 @@ da_dod_vol <- diffcyt(merged_daf,
 da_t6_vol <- diffcyt(merged_daf,
                      #design = design,
                      formula = da_formula2,
-                     contrast = contrast_t6,
+                     #contrast = contrast_t6,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-GLMM",
                      clustering_to_use = "flo_merge",
@@ -362,7 +402,7 @@ plotDiffHeatmap(merged_daf, da_t6_vol, th = FDR_cutoff, normalize = TRUE, hm1 = 
 
 ###  make boxplots of cluster counts/frequencies ####
 # topTable(da_t6_vol, show_counts = T)
-dod_vol <- data.frame(topTable(pair_base_dod, _freq=T, show_counts = T))
+dod_vol <- data.frame(topTable(da_dod, all=T, show_counts = T))
 up_dod <-  dplyr::filter(dod_vol, dod_vol$p_adj < FDR_cutoff)
 
 long_up_dod <- gather(up_dod, sample_id, count, colnames(up_dod)[4:ncol(up_dod)])
@@ -370,19 +410,30 @@ long_up_dod$volunteer <- stringr::str_match(long_up_dod$sample_id, "V[0-9]*")[, 
 long_up_dod$timepoint <- substr(long_up_dod$sample_id, 12,nchar(long_up_dod$sample_id))
 
 long_up_dod$sample_id <- gsub("counts_", "", long_up_dod$sample_id)
-counts <- n_cells(daf)
+counts <- n_cells(merged_daf)
 long_up_dod$frequency <- long_up_dod$count / counts[long_up_dod$sample_id] *100
 
-ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$count))+
+sig_dod_countz <- ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$count))+
   geom_boxplot(aes(fill=long_up_dod$timepoint))+
   geom_point(aes(shape=long_up_dod$volunteer))+
-  facet_wrap(~long_up_dod$cluster_id, scales = "free", ncol=5)+
+  facet_wrap(~long_up_dod$cluster_id, scales = "free", ncol=5, labeller=label_wrap_gen())+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+sig_dod_freqs <- ggplot(long_up_dod, aes(x=factor(long_up_dod$timepoint), y=long_up_dod$frequency))+
+  geom_boxplot(aes(fill=long_up_dod$timepoint))+
+  geom_point(aes(shape=long_up_dod$volunteer))+
+  facet_wrap(~long_up_dod$cluster_id, scales = "free", ncol=5, labeller=label_wrap_gen())+
   theme_minimal()+
   theme(axis.title = element_blank(),
         legend.title = element_blank())
 
 
-t6_vol <- data.frame(topTable(pair_base_t6, all=T, show_counts = T))
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/sig_dod_counts.png", sig_dod_countz, width = 12, height = 6.2)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/sig_dod_freqs.png", sig_dod_freqs, width = 12, height = 6.2)
+
+t6_vol <- data.frame(topTable(da_t6, all=T, show_counts = T))
 up_t6 <-  dplyr::filter(t6_vol, t6_vol$p_adj < FDR_cutoff)
 
 long_up_t6 <- gather(up_t6, sample_id, count, colnames(up_t6)[4:ncol(up_t6)])
@@ -390,16 +441,57 @@ long_up_t6$volunteer <- stringr::str_match(long_up_t6$sample_id, "V[0-9]*")[, 1]
 long_up_t6$timepoint <- substr(long_up_t6$sample_id, 12,nchar(long_up_t6$sample_id))
 
 long_up_t6$sample_id <- gsub("counts_", "", long_up_t6$sample_id)
-counts <- n_cells(daf)
+counts <- n_cells(merged_daf)
 long_up_t6$frequency <- long_up_t6$count / counts[long_up_t6$sample_id] *100
 
-ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count))+
+sig_t6_countz <- ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$count+1))+
   geom_boxplot(aes(fill=long_up_t6$timepoint))+
   geom_point(aes(shape=long_up_t6$volunteer))+
-  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=5)+
+  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=5, labeller=label_wrap_gen())+
+  theme_minimal()+
+  #scale_y_log10()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+
+sig_t6_freqs <- ggplot(long_up_t6, aes(x=factor(long_up_t6$timepoint), y=long_up_t6$frequency))+
+  geom_boxplot(aes(fill=long_up_t6$timepoint))+
+  geom_point(aes(shape=long_up_t6$volunteer))+
+  #scale_y_()
+  facet_wrap(~long_up_t6$cluster_id, scales = "free", ncol=5, labeller=label_wrap_gen())+
   theme_minimal()+
   theme(axis.title = element_blank(),
         legend.title = element_blank())
+
+
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/sig_t6_counts.png", sig_t6_countz, width = 12, height = 6.2)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/sig_t6_freqs.png", sig_t6_freqs, width = 12, height = 6.2)
+
+
+c10_vol <- data.frame(topTable(da_c10, all=T, show_counts = T))
+up_c10 <-  dplyr::filter(c10_vol, c10_vol$p_adj < FDR_cutoff)
+
+long_up_c10 <- gather(up_c10, sample_id, count, colnames(up_c10)[4:ncol(up_c10)])
+long_up_c10$volunteer <- stringr::str_match(long_up_c10$sample_id, "V[0-9]*")[, 1]
+long_up_c10$timepoint <- substr(long_up_c10$sample_id, 12,nchar(long_up_c10$sample_id))
+
+long_up_c10$sample_id <- gsub("counts_", "", long_up_c10$sample_id)
+counts <- n_cells(merged_daf)
+long_up_c10$frequency <- long_up_c10$count / counts[long_up_c10$sample_id] *100
+
+ggplot(long_up_c10, aes(x=factor(long_up_c10$timepoint), y=long_up_c10$frequency))+
+  geom_boxplot(aes(fill=long_up_c10$timepoint))+
+  geom_point(aes(shape=long_up_c10$volunteer))+
+  facet_wrap(~long_up_c10$cluster_id, scales = "free", ncol=5)+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+
+
+
+
 
 
 # cluster x cluster correlation matrices
