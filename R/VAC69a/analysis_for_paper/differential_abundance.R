@@ -93,11 +93,13 @@ plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F)
 
 # glmms #
 
+#this one works, don't change
 da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
                              cols_random = "volunteer")
 
-da_formula2 <- createFormula(ei, cols_fixed = "timepoint",
-                             cols_random = "sample_id")
+# this one you're allowe to play with
+da_formula2 <- createFormula(ei, cols_fixed = "timepoint", 
+                             cols_random = "volunteer")
 
 
 glm_contrast_t6 <- createContrast(c(0, 0, 0, 1))
