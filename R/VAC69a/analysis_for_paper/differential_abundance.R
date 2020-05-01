@@ -100,8 +100,8 @@ da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
                              cols_random = "volunteer")
 
 # this one you're allowe to play with
-da_formula2 <- createFormula(ei, cols_fixed = c("timepoint", "volunteer"),
-                             cols_random = c("sample_id"))
+da_formula2 <- createFormula(ei, cols_fixed = c("timepoint"),
+                             cols_random = c("batch"))
 
 
 
