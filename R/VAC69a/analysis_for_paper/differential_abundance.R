@@ -163,17 +163,37 @@ edger_t6_sig <- topTable(da_t6, top_n = 14)$cluster_id
 all(edger_dod_sig %in% glm_dod_sig) # TRUE
 all(edger_t6_sig %in% glm_t6_sig) # TRUE
 
-glm_c10_sig %in% glm_dod_sig
+
+# BOXPLOTS OF CLUSTER COUNTS AND FREQUENCIES ####
+
+all_cluster_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1)
+all_cluster_log_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1)+scale_y_log10()
+all_cluster_freqs <- diffcyt_boxplot(da_dod, merged_daf, counts=F, FDR=1)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png",all_cluster_counts , height = 12, width=18)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_log_counts.png",all_cluster_log_counts, height = 12, width=18)# works
 
 
 
+da_dod_freq_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05)
+da_t6_freq_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05)
+
+da_dod_count_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, counts=T)
+da_t6_count_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, counts=T)
+
+da_dod_log_count_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, counts=T)+scale_y_log10()
+da_t6_log_count_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, counts=T)+scale_y_log10()
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png", diffcyt_boxplot(glm_t6, merged_daf, counts=T, FDR=0.5), height = 12, width=12)# works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png", diffcyt_boxplot(glm_t6, merged_daf, counts=F, FDR=0.5), height = 12, width=12)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_freq_box005.png", da_dod_freq_box, height = 7, width = 14)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_freq_box005.png", da_t6_freq_box, height = 7, width = 14)# works
 
-diffcyt_boxplot(glm_c10, merged_daf, FDR=0.01)# works
-diffcyt_boxplot(glm_c10, merged_daf, counts=T, FDR=0.01)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_count_box005.png", da_dod_count_box, height = 7, width = 14)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_count_box005.png", da_t6_count_box, height = 7, width = 14)# works
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_log_count_box005.png", da_dod_log_count_box, height = 7, width = 14)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_log_count_box005.png", da_t6_log_count_box, height = 7, width = 14)# works
 
 
 
