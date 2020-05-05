@@ -25,8 +25,10 @@ freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoi
 freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+(1|volunteer)+(1|sample_id), data=x, family = "binomial"))
 freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+volunteer+(1|volunteer)+(1|sample_id), data=x, family = "binomial"))
 
+freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint+(1+timepoint|volunteer), data=x, family = "binomial"))
+freq_time_models <- lapply(list_of_clusters, function(x) glmer(frequency~timepoint*volunteer+(1|volunteer), data=x, family = "binomial"))
 
-# freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~timepoint, random = c(~1|volunteer, ~1|sample_id), data=x))
+  # freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~timepoint, random = c(~1|volunteer, ~1|sample_id), data=x))
 # freq_time_models <- lapply(list_of_clusters, function(x) lme(frequency~volunteer+timepoint, random = ~1|sample_id, data=x))
 
 freq_time_results <- lapply(freq_time_models, FUN=function(x)(summary(x)))

@@ -5,7 +5,10 @@ library(ggbiplot)
 library(plotly)
 library(viridis)
 
-data <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
+data <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv", header=T, stringsAsFactors = F)
+
+data <- read.csv("/home/flobuntu/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv", header=T, stringsAsFactors = F)
+
 # data<- na.omit(data)
 # data$timepoint <- gsub("D", "DoD", data$timepoint, fixed=T)
 # data$timepoint <- gsub("DoDoDoD+6", "T+6", data$timepoint, fixed=T)
@@ -232,5 +235,37 @@ for(i in 1:length(list_of_long_p)){
   
   ggsave(paste("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/plasma_matrices/", names(list_of_long_p)[i], ".png", sep=''), plt, width=7, height=5)
 }
+
+
+
+
+
+
+library(lme4)
+
+long_data$timepoint <- factor(long_data$timepoint, levels=c("Baseline", "DoD", "T+6", "C+45"))
+
+list_of_analytes <- split(long_data, long_data$Analyte)
+plasma_time_models <- lapply(list_of_analytes, function(x) lmer(Concentration~timepoint+(1|Volunteer), data=x))
+
+
+plasma_time_results <- lapply(plasma_time_models, FUN=function(x)(summary(x)))
+
+pvals <- lapply(plasma_time_results, function(x) x$tTable)
+pvals <- lapply(pvals, function(x){data.frame(x)})
+pvals <- mapply(cbind, pvals, "model"= names(pvals), SIMPLIFY = F)
+pvals <- lapply(pvals, function(x) data.frame(x, "timepoint"=rownames(x)))
+
+results_df <- data.table::rbindlist(pvals)
+results_df <- subset(results_df, results_df$timepoint!="(Intercept)")
+results_df$p_adjust <-  p.adjust(results_df$p.value)
+
+stable_through_time <- subset(results_df, p_adjust>0.05)
+varies_through_time <- subset(results_df, p_adjust<0.05)
+
+paste(varies_through_time$model, varies_through_time$timepoint)
+
+
+
 
 
