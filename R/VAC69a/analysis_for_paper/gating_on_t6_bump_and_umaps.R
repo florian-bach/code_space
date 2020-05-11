@@ -4,6 +4,7 @@ library(CATALYST)
 library(SingleCellExperiment)
 library(cowplot)
 library(vac69a.cytof)
+library(CytoML)
 
 #functions, palettes etc. ####
 
@@ -39,7 +40,7 @@ flz <- list.files(pattern = "*.fcs")
 umap_vac69a <- read.flowSet(flz)
 
 
-sampling_ceiling <- 3000
+sampling_ceiling <- 2500
 # Being reproducible is a plus
 set.seed(1234)
 
@@ -48,6 +49,34 @@ smaller_umap_vac69a <- fsApply(umap_vac69a, function(ff) {
   idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
   ff[idx,]  # alt. ff[order(idx),]
 })
+
+
+lin_gates <- CytoML::cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/gating_ml_for_umap.xml", flz[8])
+flow_file <- read.FCS(flz[8])
+#lin_gates <- CytoML::read.gatingML.cytobank("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/gating_ml_for_umap.xml")
+
+
+ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2, color=CD38))+
+  #geom_hex(bins=228)+
+  geom_point()+
+  UMAP_theme+
+  geom_gate(c(gs_get_pop_paths(lin_gates)[c(6, 8, 17:22)]))
+  
+
+
+nodes <- gs_pop_get_children(lin_gates[[1]], "root")
+nodes <- nodes[-c(1, 4, 5, 6, 7, 14)]
+nodes <- substr(nodes, 2, nchar(nodes))
+
+ggcyto(smaller_umap_vac69a[[1]], aes(x=UMAP2, y=UMAP1))+
+  
+  #geom_hex(bins=190)+
+  # geom_gate(nodes)+
+  geom_gate("Naive CD4+")
+
+
+     geom_stats(type = "gate_name")
+
 
 #gate that mf
 
@@ -234,15 +263,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_bump_2_plot.png", t
 
 
 
+DrawGate(flz[1], c("UMAP1, UMAP2"), gate_type=polygon, N = 1, axis = "x", adjust = 1.5)
 
 
 
-
-
-plotClusterHeatmap(t6_daf, hm2 = NULL,
-                   k = "meta20",
-                   # m = "flo_merge",
-                   cluster_anno = TRUE,
-                   draw_freqs = TRUE,
-                   scale=T
-)

@@ -7,18 +7,19 @@ library(vac69a.cytof)
 # 
 `%!in%` = Negate(`%in%`)
 # 
-smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=2500)
+smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
+#smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
 # # 
-# # plotClusterHeatmap(smol_daf, hm2 = NULL,
-# #                    k = "meta12",
-# #                    # m = "flo_merge",
-# #                    cluster_anno = TRUE,
-# #                    draw_freqs = TRUE,
-# #                    scale=T
-# # )
-# # 
-# 
+plotClusterHeatmap(smol_daf, hm2 = NULL,
+                   k = "meta45",
+                   # m = "flo_merge",
+                   cluster_anno = TRUE,
+                   draw_freqs = TRUE,
+                   scale=T
+)
+
+
 # 
 #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
 
@@ -37,22 +38,23 @@ big_table <- prep_sce_for_ggplot(smol_daf)
 
 (foxp3_plot <- flo_umap(big_table, "FoxP3"))
 
+
 #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv", header=T, stringsAsFactors = F)
 
 #write.csv(big_table, "equal_small_vac69a_umap.csv")
 #write.csv(big_table, "proportional_small_vac69a_umap.csv")
 
-#big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
-inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
-sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
-
-inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
-
-UMAP_theme <- theme_minimal()+theme(
-  panel.grid.minor = element_blank(),
-  legend.position = "none",
-  axis.text = element_blank()
-)
+  #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
+  inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
+  sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
+  
+  inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
+  
+  UMAP_theme <- theme_minimal()+theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.text = element_blank()
+  )
 
 smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=14)+
@@ -217,6 +219,11 @@ for (i in refined_markers[,1]){
 
 #first: include my merge to DAF
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+vis_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/merge_for_vis.csv", header=T, stringsAsFactors = F)
+
+#get rid of spaces at beginning of string
+library(CATALYST)
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
@@ -225,6 +232,12 @@ merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)=="
 merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
 merged_daf<- mergeClusters(smol_daf, k = "meta45", table = merging_table1, id = "flo_merge")
+
+
+vis_merge$new_cluster <- factor(vis_merge$new_cluster)
+merged_daf <- mergeClusters(merged_daf, k = "meta45", table = vis_merge, id = "vis_merge")
+
+
 
 
 #bigass color palette
@@ -245,21 +258,56 @@ color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#0
 
 
 
+# make a dictionary for assigning colors to cluster numbers for meta45
+color_dic <- color_103_scheme[1:45]
+names(color_dic) <- c(1:45)
 
-flumap <- plotDR(merged_daf, color_by = "flo_merge")+
+# make a dictionary for assigning colors to cluster numbers from vis_merge, while preserving names from
+# flo_merge
+ordered_meta_dic <- merging_table1[order(merging_table1$old_cluster),]
+final_dic <- ordered_meta_dic[!duplicated(ordered_meta_dic$new_cluster),]
+
+
+
+
+flumap <- plotDR(merged_daf, color_by = "vis_merge")+
   facet_wrap("timepoint")+
-  scale_color_manual(values = color_103_scheme)+
-  theme(legend.position = "bottom")
+  scale_color_manual(values = color_dic, labels=as.character(final_dic$new_cluster))+
+  theme(legend.position = "right", 
+        legend.title = element_blank())
+
 
 meta45_map <- plotDR(merged_daf, color_by = "meta45")+
   facet_wrap("timepoint")+
-  scale_color_manual(values = color_103_scheme)+
-  theme(legend.position = "bottom")
-  
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/flo_merge_umap.png", flumap, width = 12, height=6)
+  scale_color_manual(values = color_dic)+
+  theme(legend.position = "right",
+        legend.title = element_blank())
+
+meta_leg <-get_legend(meta45_map)
+leg <- get_legend(flumap)  
+
+(right_col <- cowplot::plot_grid(meta_leg, leg, ncol=1, axis= "rl", rel_widths=c(2,1)))
+(left_col <- cowplot::plot_grid(meta45_map, flumap, ncol=1, axis = "trbl"))
+both <- cowplot::plot_grid(left_col, leg, ncol=1, rel_heights = c(5,1), align="h", axis = "l")
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/both_umaps.png", top_row, width = 12, height=12)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/flo_merge_umap.png", flumap, width = 13, height=6)
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/meta45_map.png", meta45_map, width = 12, height=6)
 
-    
+
+flo_merge_map <- plotDR(merged_daf, color_by = "flo_merge")+
+  facet_wrap("timepoint")+
+  #scale_color_manual(values=color_dic, labels=as.character(merging_table1$new_cluster))+
+  scale_color_manual(values=unique(color_dic))+
+  theme(legend.position = "bottom", 
+        legend.title = element_text())
+
+library(plotly)
+flumap_ly <- ggplotly(flumap)
+meta45_map_ly <- ggplotly(meta45_map)
+flo_merge_map_ly <- ggplotly(flo_merge_map)    
+
+
 # plot with points and contour lines
 
 # smol_time+
@@ -379,3 +427,19 @@ CD4_central_memory <- data.frame(x=c(3, 6, 5.5, 1.7, 2), y=c(-0.5, -2,-5,-3.3, -
     
 
 
+    
+    
+    library(plotly)
+    
+    # set plotly user name
+    Sys.setenv("plotly_username"="emilsinclair")
+    # set plotly API key
+    Sys.setenv("plotly_api_key"="lAUy8X6l3WjwtuZzwftA")
+    
+    
+    # meta45_map_plotly <-  ggplotly(meta45_map)
+    # api_create(meta45_map_plotly)
+    # 
+    # flumap_plotly <- ggplotly(flumap)
+    # api_create(flumap_plotly)
+    # 

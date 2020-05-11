@@ -17,133 +17,30 @@ library(CATALYST)
 # if(character.check==FALSE) stop("path_to_direcory isn't a string")
 # if(space.check==FALSE) stop("path_to_direcory contains spaces")
 
-working_directory <- "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/"
-
-md <- read.csv(paste(working_directory, "meta_data.csv", sep=''), header=T, stringsAsFactors = F)
-md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
-md <- md[with(md, order(md$volunteer, md$timepoint)),]
-md$file_name <- paste(working_directory, md$file_name, sep='')
-
-#read in panel
-panel <- read.csv(paste(working_directory, "VAC69_PANEL.CSV", sep=''), header = T, stringsAsFactors = F)
-colnames(panel)[2] <- "marker_name"
-
-### read in flowfiles using flowCore
-vac69a <- flowCore::read.flowSet(md$file_name)
-
-
-#sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-# set.seed(1234); smaller_vac69a <- fsApply(vac69a, function(ff) {
-#   idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
-#   ff[idx,]  # alt. ff[order(idx),]
-# })
-
-proportional=TRUE
-event_number=3500
-if(isTRUE(proportional))
-  assign("downsample", function(fs, event_number){
-    flowCore::fsApply(fs, function(ff){
-      idx <- sample.int(nrow(ff), nrow(ff)/min(flowCore::fsApply(fs, nrow))*event_number)
-      ff[idx,]
-    })
-  })
-
-if(xor(isFALSE(proportional), is.null(proportional)))
-  assign("downsample", function(fs, event_number){
-    flowCore::fsApply(fs, function(ff){
-      idx <- sample.int(nrow(ff), min(event_number, nrow(ff)))
-      ff[idx,]
-    })
-  })
-
-
-set.seed(1234); smaller_vac69a <- downsample(vac69a, event_number)
-
 
 
 ### CATALYST ####
 #construct daFrame #
 ## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
-sce <- CATALYST::prepData(smaller_vac69a, panel, md,
-                          
-                          md_cols = list(file = "file_name",
-                                         id = "sample_id",
-                                         factors = c("timepoint", "batch", "volunteer")
-                          ),
-                          
-                          panel_cols = list(channel = "fcs_colname",
-                                            antigen = "marker_name",
-                                            class = "marker_class"
-                          )
-)
 
-typs <- type_markers(sce)
-typs <- typs[-match(c("CD20", "CXCR5", "CD103", "TCRgd", "IntegrinB7", "CD56", "CD3", "CD49d"), typs)]
+#daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 3000)
+daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
-# refined_markers <- c("CD4",
-#                      "CD8",
-#                      "Vd2",
-#                      "Va72",
-#                      "CD38",
-#                      "HLADR",
-#                      "ICOS",
-#                      "CD28",
-#                      "PD1",
-#                      #"TIM3",
-#                      "CD95",
-#                      "BCL2",
-#                      "CD27",
-#                      "Perforin",
-#                      "GZB",
-#                      "CX3CR1",
-#                      "Tbet",
-#                      "CTLA4",
-#                      "Ki67",
-#                      "CD127",
-#                      #"IntegrinB7",
-#                      #"CD56",
-#                      #"CD16",
-#                      "CD161",
-#                      #"CD49d",
-#                      #"CD103",
-#                      "CD25",
-#                      "FoxP3",
-#                      "CD39",
-#                      "CLA",
-#                      #"CXCR5",
-#                      "CD57",
-#                      "CD45RA",
-#                      "CD45RO",
-#                      "CCR7")
-
-#write.csv(data.frame(refined_markers), paste(working_directory, "refined_markers.csv", sep = ''),  row.names = F)
-refined_markers <- read.csv(paste(working_directory, "refined_markers.csv", sep = ''), stringsAsFactors = F)
-
-# clustering ####
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers[,1], xdim = 10, ydim = 10, maxK = 45)
-
-# daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-daf <- sce
-
-
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/most_coarse_merge.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
-merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
-merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
 
 merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
-merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
+merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "coarse_merge")
 
 
 plotClusterHeatmap(merged_daf, hm2=NULL,
-                   k = "flo_merge",
+                   k = "coarse_merge",
                    #m = "flo_merge",
                    cluster_anno = FALSE,
                    draw_freqs = TRUE,
-                   scale = TRUE, 
-                   palette=inferno
+                   scale = TRUE
 )
 
 
@@ -159,116 +56,105 @@ levels(ei$timepoint)
 #has been used, the entries correspond to the levels of the fixed effect terms;
 #and the length equals the number of levels of the fixed effect terms.
 
-FDR_cutoff <- 0.05
+FDR_cutoff <- 0.01
 
 # edgeR models with all timepoints####
 
-contrast_baseline <- createContrast(c(0, rep(1, 3), rep(0, 5)))
-contrast_c10 <- createContrast(c(c(0, 1), rep(0,7)))
-contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
-contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
+pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
+
+# copntrasts for models excluding volunteer
+# pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,1)))
+# pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,1)))
+# pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,1)))
 
 
-# da_baseline <- diffcyt(merged_daf,
-#                        design = design,
-#                        contrast = contrast_baseline,
-#                        analysis_type = "DA",
-#                        method_DA = "diffcyt-DA-edgeR",
-#                        clustering_to_use = "meta40",
-#                        verbose = T)
-# 
-# da_c10 <- diffcyt(merged_daf,
-#                   design = design,
-#                   contrast = contrast_c10,
-#                   analysis_type = "DA",
-#                   method_DA = "diffcyt-DA-edgeR",
-#                   clustering_to_use = "meta40",
-#                   verbose = T)
-# 
-# da_dod <- diffcyt(merged_daf,
-#                   design = design,
-#                   contrast = C,
-#                   analysis_type = "DA",
-#                   method_DA = "diffcyt-DA-edgeR",
-#                   clustering_to_use = "meta40",
-#                   verbose = T)
-# 
-# da_t6 <- diffcyt(merged_daf,
-#                  design = design,
-#                  contrast = contrast_t6,
-#                  analysis_type = "DA",
-#                  method_DA = "diffcyt-DA-edgeR",
-#                  clustering_to_use = "meta40",
-#                  verbose = T)
-# 
-# # results  ###
-# table(rowData(da_baseline$res)$p_adj < FDR_cutoff)
-# 
-# 
-# table(rowData(da_c10$res)$p_adj < FDR_cutoff)
-# # FALSE 
-# # 38 
-# table(rowData(da_dod$res)$p_adj < FDR_cutoff)
-# # FALSE  TRUE 
-# # 24    8
-# table(rowData(da_t6$res)$p_adj < FDR_cutoff)
-# # FALSE  TRUE 
-# # 23    15 
-# 
-# plotDiffHeatmap(merged_daf, da_baseline, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-# plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-# plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-# plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = T)
-
-
-states <- names(marker_classes(daf))
+states <- names(marker_classes(merged_daf))
 states <- states[-c(1:21,
                     match(c("CCR7", "CD127", "CD20", "CXCR5", "CD103", "TCRgd", "TIM3", "IntegrinB7", "CD56", "CD3", "CD49d", "CD45RA", "CD4", "Vd2", "Va72", "CD161", "FoxP3", "CD45RO"), states),
-                    53:length(states)
+                    53, 54, 56:length(states)
                     )
                  ]
 
-logic <- names(marker_classes(daf)) %in% states
+# logic <- names(marker_classes(merged_daf)) %in% states
 
-ds_formula2 <- createFormula(ei, cols_fixed = "timepoint", cols_random = c("timepoint", "volunteer")) 
+metadata(merged_daf)$id_state_markers <- states
 
-contrast_dod<- createContrast(c(c(0, 0, 1), rep(0,6)))
-contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+ds_c10 <- diffcyt(merged_daf,                                            
+                  design = design, contrast = pairwise_contrast_c10,                    
+                  analysis_type = "DS", method_DS = "diffcyt-DS-limma",       
+                  clustering_to_use = "coarse_merge", verbose = TRUE)               
+
 
 ds_dod <- diffcyt(merged_daf,                                            
-                   design = design, contrast = contrast_dod,                    
+                   design = design, contrast = pairwise_contrast_dod,                    
                    analysis_type = "DS", method_DS = "diffcyt-DS-limma",       
-                   clustering_to_use = "flo_merge", verbose = TRUE, markers_to_test = logic)               
+                   clustering_to_use = "coarse_merge", verbose = TRUE)               
 
 
 ds_t6 <- diffcyt(merged_daf,                                            
-                   design = design, contrast = contrast_t6,                    
+                   design = design, contrast = pairwise_contrast_t6,                    
                    analysis_type = "DS",  method_DS =  "diffcyt-DS-limma",         
-                   clustering_to_use = "flo_merge", verbose = TRUE, markers_to_test = logic)
+                   clustering_to_use = "coarse_merge", verbose = TRUE)
 
 
 
 topTable(ds_dod, top_n = 5, order_by = "cluster_id",
          show_meds = TRUE, format_vals = TRUE, digits = 3)
-topTable(ds_t6, top_n = 5, order_by = "cluster_id",
+topTable(ds_t6, top_n = 55, order_by = "cluster_id",
          show_meds = TRUE, format_vals = TRUE, digits = 3)
 
-res_DA_dod <- topTable(ds_dod, all = TRUE)
+
+res_DA_c10 <- topTable(ds_c10, all = TRUE, show_logFC = T)
+table(res_DA_c10$p_adj <= 0.05)
+
+res_DA_dod <- topTable(ds_dod, all = TRUE, show_logFC = T)
 table(res_DA_dod$p_adj <= 0.05)
 
-res_DA_t6 <- topTable(ds_t6, all = TRUE)
+res_DA_t6 <- topTable(ds_t6, all = TRUE, show_logFC = T)
 table(res_DA_t6$p_adj <= 0.05)
 
-sigs_t6 <- subset(res_DA_t6, p_adj<=0.05)
-sigs_dod <- subset(res_DA_dod, p_adj<=0.05)
+sigs_t6 <- subset(res_DA_t6, p_adj<=0.01)
+sigs_dod <- subset(res_DA_dod, p_adj<=0.01)
+
+spider_sigs_t6 <- data.frame(sigs_t6$cluster_id, sigs_t6$marker_id, sigs_t6$logFC)
+spider_sigs_t6$direction <- ifelse(sigs_t6$logFC>=0, "up", "down")
+
+ds_limma_t6_heatmap <- ggplot(spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_t6.marker_id, label=round(2^sigs_t6.logFC, digits = 2)))+
+  #geom_tile(aes(fill=rescale(sigs_t6.logFC, to=c(-5, 5))))+
+  geom_tile(aes(fill=sigs_t6.logFC*5))+
+  geom_text()+
+  scale_fill_gradient2(low = "blue", high="red", midpoint = 0)+
+  # scale_fill_gradientn(colours = c("blue", "white", "red"),
+  #                      values = c(min(spider_sigs_t6$sigs_t6.logFC), 0, 0.000001, max(spider_sigs_t6$sigs_t6.logFC)),
+  #                      guide = guide_colourbar(nbin = 1000)
+  #                       )+
+  theme_minimal()+
+  ggtitle("Fold Change in Intensity of Marker Expression\nper Cluster at T6 relative to Baseline")+
+  theme(axis.title = element_blank(),
+        axis.text = element_text(size=14),
+        axis.text.x = element_text(hjust=1, angle = 60),
+        legend.position = "none",
+        panel.grid = element_blank(),
+        plot.title = element_text(hjust = 0.5))
 
 
-plotDiffHeatmap(merged_daf, ds_dod, top_n = 50, order = TRUE,    
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/ds_limma/timepoint_batch_t6_heatmap.png", ds_limma_t6_heatmap, width = 7, height = 7)
+
+plotDiffHeatmap(merged_daf, ds_dod, top_n = 5, order = TRUE,    
+                th = FDR_cutoff, normalize = TRUE, hm1 = FALSE)   
+
+
+plotDiffHeatmap(merged_daf, ds_t6, top_n = 55, order = TRUE,    
                 th = FDR_cutoff, normalize = TRUE, hm1 = FALSE)   
 
 
 table(sigs_t6$cluster_id)
 table(sigs_dod$cluster_id)
+
+
+t6_table <- 
 
 # table(sigs_dod$marker_id)[order(table(sigs_dod$marker_id), decreasing = T)]
 # Tbet  CD38 HLADR   PD1  CD25  BCL2   GZB  ICOS  CD27 CTLA4  CD28  Ki67  CD95 

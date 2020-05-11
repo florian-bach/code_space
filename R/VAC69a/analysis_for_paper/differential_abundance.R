@@ -176,24 +176,75 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_log_count
 
 
 
-da_dod_freq_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05)
-da_t6_freq_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05)
+da_dod_freq_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, logFC=1)
+da_t6_freq_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, logFC=1)
 
-da_dod_count_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, counts=T)
-da_t6_count_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, counts=T)
+da_dod_count_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, counts=T, logFC=1)
+da_t6_count_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, counts=T, logFC=1)
 
-da_dod_log_count_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, counts=T)+scale_y_log10()
-da_t6_log_count_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, counts=T)+scale_y_log10()
-
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_freq_box005.png", da_dod_freq_box, height = 7, width = 14)# works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_freq_box005.png", da_t6_freq_box, height = 7, width = 14)# works
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_count_box005.png", da_dod_count_box, height = 7, width = 14)# works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_count_box005.png", da_t6_count_box, height = 7, width = 14)# works
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_log_count_box005.png", da_dod_log_count_box, height = 7, width = 14)# works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_log_count_box005.png", da_t6_log_count_box, height = 7, width = 14)# works
+da_dod_log_count_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, counts=T, logFC=1)+scale_y_log10()
+da_t6_log_count_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, counts=T, logFC=1)+scale_y_log10()
 
 
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_freq_box005_log2fc.png", da_dod_freq_box, height = 7, width = 7)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_freq_box005_log2fc.png", da_t6_freq_box, height = 7, width = 14)# works
 
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_count_box005_log2fc.png", da_dod_count_box, height = 7, width = 7)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_count_box005_log2fc.png", da_t6_count_box, height = 7, width = 14)# works
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_log_count_box005_log2fc.png", da_dod_log_count_box, height = 7, width = 7)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_log_count_box005_log2fc.png", da_t6_log_count_box, height = 7, width = 14)# works
+
+
+asinTransform <- function(x){asin(sqrt(x))}
+t6_map_data <- da_t6_log_count_box$data
+
+t6_map_data <- t6_map_data%>%
+  group_by(cluster_id) %>%
+  #group_by(volunteer) %>%
+  mutate(trans_freq=asin(sqrt(frequency/100))) %>%
+  mutate(max_freq=max(frequency)) %>%
+  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE))
+
+# 
+# > range(t6_map_data$trans_norm_freq)
+# [1] -1.749399  3.660068
+
+# t6_map_data$scaled_trans_norm <- scales::rescale(t6_map_data$trans_norm_freq,
+#                                                  from=min(t6_map_data$trans_norm_freq, 0), to=c(-2,0)
+#                                                  )
+
+col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$volunteer),]$sample_id)
+
+t6_map_data$sample_id <- factor(t6_map_data$sample_id, levels=col_levels) 
+
+flo_berlin <- colorspace::diverging_hcl(palette = "Berlin",15)
+cute <- flo_berlin[c(4:15)]
+
+(da_edger_t6_heatmap <- ggplot(t6_map_data, aes(x=factor(sample_id, levels=col_levels), y=cluster_id))+
+  #geom_tile(aes(fill=viridis_rescaler(t6_map_data$trans_norm_freq)))+
+  geom_tile(aes(fill=trans_norm_freq))+
+  scale_fill_gradientn(#colours = colorspace::diverging_hcl(palette = "Berlin",8), 
+                       colours=cute,
+                       values = rescale(c(min(t6_map_data$trans_norm_freq), 0, max(t6_map_data$trans_norm_freq)), to=c(0,1)), 
+                       guide = guide_colourbar(nbin = 1000))+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(angle = 60, hjust = 1),
+        axis.text = element_text(size=14),
+        legend.position="right",
+        legend.title = element_blank())
+)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_edger_t6_heatmap.png", da_edger_t6_heatmap, height=7, width=11)
+
+
+viridis_rescaler <- function(x){
+  ifelse(x<0,
+         scales::rescale(x,
+                         to=c(-max(x),0),
+                         from=c(min(x, na.rm = TRUE), 0)
+                         ), 
+         x
+  )
+}
