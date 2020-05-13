@@ -57,5 +57,31 @@ p1 <- ggplot(cluster_freqs, aes(x=factor(timepoint), y=count, group=volunteer))+
 
 
   
+#gamma delta clustering busines stuff et cetera
+  
+  
+  
+  subset(merging_table1$new_cluster, grepl("^45$", merging_table1$old_cluster, fixed=F))
+  
+  vd2 <- as.character(subset(merging_table1$new_cluster, grepl("^35$", merging_table1$old_cluster, fixed=F)))
+  
+  
+  vd2_old <- subset(merging_table1$old_cluster, grepl(vd2, merging_table1$new_cluster, fixed=T))
+  
+  
+  play <- da_t6_count_box$data
+  
+  play <- subset(play, play$cluster_id %in% c(vd2_old))
+  #play <- subset(play, play$timepoint %in% c("Baseline", "T6"))
+  
+  gamma_delta_count_plot <- ggplot(play, aes(x=timepoint, y=count))+
+    geom_boxplot(aes(fill=timepoint))+
+    geom_point(aes(shape=volunteer))+
+    theme_minimal()+
+    facet_wrap(~cluster_id, scales="free")+
+    scale_y_log10()
+  
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/gamma_delta_count_plot.png", gamma_delta_count_plot)
   
   

@@ -5,6 +5,8 @@ library(diffcyt)
 library(vac69a.cytof)
 library(SummarizedExperiment)
 library(SingleCellExperiment)
+library(dplyr)
+library(ggplot2)
 
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 1000)
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
@@ -205,6 +207,96 @@ t6_map_data <- t6_map_data%>%
   mutate(trans_freq=asin(sqrt(frequency/100))) %>%
   mutate(max_freq=max(frequency)) %>%
   mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE))
+
+
+t6_barchart_data <- subset(t6_map_data, t6_map_data$timepoint=="T6")
+
+
+ggplot(t6_barchart_data, aes(x=cluster_id, y=frequency))+
+  geom_boxplot(aes(fill=cluster_id))+
+  geom_point(aes(shape=volunteer))+
+  theme_minimal()
+
+
+
+t6_barchart_data <- t6_barchart_data %>%
+  group_by(volunteer) %>%
+  mutate(., total_cd3=sum(frequency))
+
+
+
+
+
+flo_merge_cd3_stacked_barchart <- ggplot(t6_barchart_data, aes(x=timepoint, y=frequency/100, group=volunteer))+
+  geom_bar(stat="identity", position="stack", aes(fill=cluster_id))+
+  geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
+  theme_minimal()+
+  facet_wrap(~volunteer)+
+  ggtitle("Significant flo_merge Clusters at T6")+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=percent_format(accuracy = 1))+
+  #ylim(0,25)+
+  #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust=0.5, size=15),
+    axis.text.x = element_blank(),
+    strip.text = element_text(hjust=0.5, size=12, face = "bold"),
+    panel.grid.minor.y = element_blank())
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/flo_merge_cd3_stacked_barchart.png", flo_merge_cd3_stacked_barchart, height=7, width=11)
+
+
+
+
+
+
+
+
+
+
+
+
+# 
+# meta45_cd3_stacked_barchart <- ggplot(t6_barchart_data, aes(x=timepoint, y=frequency/100, group=volunteer))+
+#   geom_bar(stat="identity", position="stack", aes(fill=cluster_id))+
+#   geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
+#   theme_minimal()+
+#   facet_wrap(~volunteer)+
+#   ggtitle("Significant meta45 Clusters at T6")+
+#   scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=percent_format(accuracy = 1))+
+#   #ylim(0,25)+
+#   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
+#   theme(#legend.position = "none",
+#         plot.title = element_text(hjust=0.5, size=15),
+#         axis.text.x = element_blank(),
+#         strip.text = element_text(hjust=0.5, size=12, face = "bold"),
+#         panel.grid.minor.y = element_blank())
+# 
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/meta45_cd3_stacked_barchart.png", meta45_cd3_stacked_barchart, height=7, width=11)
+# 
+
+
+
+barchart_list <- lapply(res_table, function(x){
+  
+  ggplot(x, aes(x=timepoint, y=frequency))+
+    geom_bar(stat="identity", position="stack", aes(fill=cluster_id))+
+    theme_minimal()+
+    ggtitle(paste(unique(x$volunteer)))+
+    ylim(0,25)+
+    geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
+    theme(legend.position = "none",
+          plot.title = element_text(hjust=0.5))
+  
+  })
+
+cowplot::plot_grid(plotlist = barchart_list)
+
+
+
+
+meta_45_sums <- data.frame("cd3_percentage"=stack(lapply(res_table, function(x){sum(x$frequency)})))
+
+ 
 
 # 
 # > range(t6_map_data$trans_norm_freq)
