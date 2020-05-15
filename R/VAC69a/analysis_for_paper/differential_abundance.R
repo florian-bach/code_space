@@ -6,6 +6,7 @@ library(vac69a.cytof)
 library(SummarizedExperiment)
 library(SingleCellExperiment)
 library(dplyr)
+library(scales)
 library(ggplot2)
 
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 1000)
@@ -198,16 +199,11 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_dod_l
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_t6_log_count_box005_log2fc.png", da_t6_log_count_box, height = 7, width = 14)# works
 
 
-asinTransform <- function(x){asin(sqrt(x))}
+
+# stacked barcharts ####
+
+
 t6_map_data <- da_t6_log_count_box$data
-
-t6_map_data <- t6_map_data%>%
-  group_by(cluster_id) %>%
-  #group_by(volunteer) %>%
-  mutate(trans_freq=asin(sqrt(frequency/100))) %>%
-  mutate(max_freq=max(frequency)) %>%
-  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE))
-
 
 t6_barchart_data <- subset(t6_map_data, t6_map_data$timepoint=="T6")
 
@@ -244,80 +240,74 @@ flo_merge_cd3_stacked_barchart <- ggplot(t6_barchart_data, aes(x=timepoint, y=fr
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/flo_merge_cd3_stacked_barchart.png", flo_merge_cd3_stacked_barchart, height=7, width=11)
 
-
-
-
-
-
-
-
-
-
-
-
-# 
-# meta45_cd3_stacked_barchart <- ggplot(t6_barchart_data, aes(x=timepoint, y=frequency/100, group=volunteer))+
-#   geom_bar(stat="identity", position="stack", aes(fill=cluster_id))+
-#   geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
-#   theme_minimal()+
-#   facet_wrap(~volunteer)+
-#   ggtitle("Significant meta45 Clusters at T6")+
-#   scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=percent_format(accuracy = 1))+
-#   #ylim(0,25)+
-#   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
-#   theme(#legend.position = "none",
-#         plot.title = element_text(hjust=0.5, size=15),
-#         axis.text.x = element_blank(),
-#         strip.text = element_text(hjust=0.5, size=12, face = "bold"),
-#         panel.grid.minor.y = element_blank())
-# 
-# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/meta45_cd3_stacked_barchart.png", meta45_cd3_stacked_barchart, height=7, width=11)
-# 
-
-
-
-barchart_list <- lapply(res_table, function(x){
-  
-  ggplot(x, aes(x=timepoint, y=frequency))+
-    geom_bar(stat="identity", position="stack", aes(fill=cluster_id))+
-    theme_minimal()+
-    ggtitle(paste(unique(x$volunteer)))+
-    ylim(0,25)+
-    geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
-    theme(legend.position = "none",
-          plot.title = element_text(hjust=0.5))
-  
-  })
-
-cowplot::plot_grid(plotlist = barchart_list)
-
-
-
-
-meta_45_sums <- data.frame("cd3_percentage"=stack(lapply(res_table, function(x){sum(x$frequency)})))
-
- 
-
-# 
-# > range(t6_map_data$trans_norm_freq)
-# [1] -1.749399  3.660068
+# heatmap of normalised significant cluster frequencies ####
 
 # t6_map_data$scaled_trans_norm <- scales::rescale(t6_map_data$trans_norm_freq,
 #                                                  from=min(t6_map_data$trans_norm_freq, 0), to=c(-2,0)
 #                                                  )
 
+
+asinTransform <- function(x){asin(sqrt(x))}
+
+t6_map_data <- da_t6_log_count_box$data
+
+t6_map_data <- t6_map_data%>%
+  group_by(cluster_id) %>%
+  #group_by(volunteer) %>%
+  mutate(trans_freq=asin(sqrt(frequency/100))) %>%
+  mutate(max_freq=max(frequency)) %>%
+  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE))
+
+
+
 col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$volunteer),]$sample_id)
 
 t6_map_data$sample_id <- factor(t6_map_data$sample_id, levels=col_levels) 
 
-flo_berlin <- colorspace::diverging_hcl(palette = "Berlin",15)
-cute <- flo_berlin[c(4:15)]
+
+#color bullshit (flo_berlin best) #### 
+
+
+berlin <- colorspace::diverging_hcl(palette = "Berlin",15)
+flo_berlin <- berlin[c(4:15)]
+
+
+cute <- colorspace::diverging_hcl(palette="Blue-Yellow 2", 12)
+yellow_half <- colorspace::diverging_hcl(palette="Blue-Yellow 2", 12)[6:12]
+blue_half <- colorspace::diverging_hcl(palette="Blue-Yellow 3", 12)[1:5]
+
+flo_blue_yellow <- c(blue_half, yellow_half)
+
+cute <- rev(colorspace::sequential_hcl(palette="YlGnBu", 12))
+
+
+flo_blue_red <-  c("#061B29", "#FFFFFF", "#411C19")
+
+
+
+
+berlin <- colorspace::diverging_hcl(palette = "Berlin",16)
+
+red_half <- rev(berlin[12:16])
+blue_half <- rev(berlin[1:5])
+
+yellow_half <- rev(c("#FFD400", "#FFDD3C", "#FFEA61", "#FFF192", "#FFFFB7"))
+
+
+yellow_half <- rev(c("#FFC30B", "#FFD400", "#FFFFB7"))
+
+
+#show_col(c(blue_half[3:5], yellow_half))
+
+# flo diff heatmap ####
+
 
 (da_edger_t6_heatmap <- ggplot(t6_map_data, aes(x=factor(sample_id, levels=col_levels), y=cluster_id))+
   #geom_tile(aes(fill=viridis_rescaler(t6_map_data$trans_norm_freq)))+
   geom_tile(aes(fill=trans_norm_freq))+
   scale_fill_gradientn(#colours = colorspace::diverging_hcl(palette = "Berlin",8), 
-                       colours=cute,
+                       #colours=rev(c("#FFC125", "#FFFFFF", "#4169E1")),
+                       colours=c(blue_half[3:5], yellow_half),
                        values = rescale(c(min(t6_map_data$trans_norm_freq), 0, max(t6_map_data$trans_norm_freq)), to=c(0,1)), 
                        guide = guide_colourbar(nbin = 1000))+
   theme_minimal()+

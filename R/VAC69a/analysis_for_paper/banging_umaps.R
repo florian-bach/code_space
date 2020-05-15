@@ -6,7 +6,7 @@ library(vac69a.cytof)
 #functions, palettes etc. ####
 # 
 `%!in%` = Negate(`%in%`)
-# 
+# 3000 is the magic number
 smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
 #smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
@@ -32,7 +32,7 @@ set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
                              exprs_values = "exprs",
                              scale=T)
 
-smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
+#smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
 
 big_table <- prep_sce_for_ggplot(smol_daf)
 
@@ -56,28 +56,52 @@ big_table <- prep_sce_for_ggplot(smol_daf)
     axis.text = element_blank()
   )
 
-smol_time12 <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = after_stat(level)), geom="polygon", bins=14)+
-  xlim(c(-12, 10))+
-  ylim(c(-9.5, 11))+
-  theme_minimal()+
-  facet_wrap(~timepoint)+
-  UMAP_theme+
-  theme(strip.text = element_text(size=14))+
-  scale_fill_gradientn(colours = inferno_mega_lite)
+  
+list_of_data <- split(big_table, big_table$timepoint)  
+
+list_of_plots <- lapply(list_of_data, function(x){
+  ggplot(x, aes(x=UMAP1, y=UMAP2))+
+    #stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
+    #stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
+    xlim(c(-13, 10))+
+    ylim(c(-9.5, 13))+
+    ggtitle(unique(x$timepoint))+
+    theme_minimal()+
+    #facet_wrap(~timepoint)+
+    UMAP_theme+
+    theme(panel.grid.major = element_blank(),
+          plot.title = element_text(hjust=0.5, size=14),
+          plot.title.position = "bottom")+
+    scale_fill_gradientn(colors=inferno_white)
+  })
   #scale_fill_viridis(option = "A")
 
 # don't try to render this plot in rstudio- jsut write out and look at it with
 # photo viewer- way faster!
 
-for (i in c(8, 12, 14, 16, 18)){
+plot_grid(plotlist=list_of_plots, label)
+
+dir_name <- "/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/"
+
+system.time(
+  lapply(list_of_plots, function(x){
+    ggsave(
+      paste0(dir_name, "proportional_contour_umap_", unique(x$data$timepoint), ".png", sep=''),
+      x, height=6, width=9)
+  })
+)
+
+ggsave(
+  paste(dir_name, "labeled_contour_umap_through_time", ".png", sep=''),
+  plot_grid(plotlist=list_of_plots, labels="AUTO", nrow = 1), width=5.8, height=3)
+
 
 hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   #stat_density_2d(aes(fill = after_stat(level)), geom="raster", bins=14)+
   #geom_hex(bins=150)+
   #geom_point(color="black")+
   stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
-  stat_density_2d(contour = TRUE, bins=i, color="white", size=0.1)+
+  stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
   xlim(c(-13, 10))+
   ylim(c(-9.5, 13))+
   theme_minimal()+
@@ -88,11 +112,10 @@ hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   scale_fill_gradientn(colors=inferno_white)
   #viridis::scale_fill_viridis(option="B"))
 
-ggsave(paste0("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_", i, "_bins",".png", sep=''), hex_through_time, height=6, width=9)
-}
 
 # system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap24.png", hex_through_time, height=6, width=9))
 
+ggsave(paste0("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_", i, "_bins",".png", sep=''), hex_through_time, height=6, width=9)
 
 
 #ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
