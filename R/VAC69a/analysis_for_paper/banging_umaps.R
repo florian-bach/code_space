@@ -1,60 +1,60 @@
-
-library(ggplot2)
-library(cowplot)
-library(vac69a.cytof)
-
-#functions, palettes etc. ####
-# 
-`%!in%` = Negate(`%in%`)
-# 3000 is the magic number
-smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
-#smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-# #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
-# # 
-plotClusterHeatmap(smol_daf, hm2 = NULL,
-                   k = "meta45",
-                   # m = "flo_merge",
-                   cluster_anno = TRUE,
-                   draw_freqs = TRUE,
-                   scale=T
-)
-
-
-# 
-#smol_daf <- filterSCE(smol_daf, timepoint!="C10")
-
-refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
-# umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
-
-# umap projections ####
-set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
-                             subset_row=refined_markers[,1],
-                             exprs_values = "exprs",
-                             scale=T)
-
-#smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
-
-big_table <- prep_sce_for_ggplot(smol_daf)
-
-(foxp3_plot <- flo_umap(big_table, "FoxP3"))
-
-
-#big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv", header=T, stringsAsFactors = F)
-
-#write.csv(big_table, "equal_small_vac69a_umap.csv")
-#write.csv(big_table, "proportional_small_vac69a_umap.csv")
-
-  #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
-  inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
-  sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
   
-  inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
+  library(ggplot2)
+  library(cowplot)
+  library(vac69a.cytof)
   
-  UMAP_theme <- theme_minimal()+theme(
-    panel.grid.minor = element_blank(),
-    legend.position = "none",
-    axis.text = element_blank()
+  #functions, palettes etc. ####
+  # 
+  `%!in%` = Negate(`%in%`)
+  # 3000 is the magic number
+  #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
+  smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+  # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+  # # 
+  plotClusterHeatmap(smol_daf, hm2 = NULL,
+                     k = "meta45",
+                     # m = "flo_merge",
+                     cluster_anno = TRUE,
+                     draw_freqs = TRUE,
+                     scale=T
   )
+  
+  
+  # 
+  #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
+  
+  refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
+  # umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
+  
+  # umap projections ####
+  set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
+                               subset_row=refined_markers[,1],
+                               exprs_values = "exprs",
+                               scale=T)
+  
+  #smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
+  
+  big_table <- prep_sce_for_ggplot(smol_daf)
+  
+  (foxp3_plot <- flo_umap(big_table, "FoxP3"))
+  
+  
+  #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv", header=T, stringsAsFactors = F)
+  
+  #write.csv(big_table, "equal_small_vac69a_umap.csv")
+  #write.csv(big_table, "proportional_small_vac69a_umap.csv")
+  
+    #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
+    inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
+    sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
+    
+    inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
+    
+    UMAP_theme <- theme_minimal()+theme(
+      panel.grid.minor = element_blank(),
+      legend.position = "none",
+      axis.text = element_blank()
+    )
 
   
 list_of_data <- split(big_table, big_table$timepoint)  
@@ -241,12 +241,12 @@ for (i in refined_markers[,1]){
 # making umap projections colored by cluster identity
 
 #first: include my merge to DAF
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 vis_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/merge_for_vis.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
 library(CATALYST)
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
@@ -377,45 +377,69 @@ ggplot(big_table, aes(x=CD4, y=CD8))+
   theme_minimal()
 
 
-# p <- ggcyto(smaller_vac69a, aes(x=CD3, y=CD56))
-#   
-# #   geom_hex(bins=8000)+
-# #   geom_point(shape='.')+
-# #   scale_x_flowCore_fasinh()+
-# #   scale_y_flowCore_fasinh()+
-# #   theme_minimal()
-# 
-# p+geom_point(shape='.')+
-#   scale_x_flowCore_fasinh()+
-#   scale_y_flowCore_fasinh()
+
+# scatterplots colored by clsuters ####
 
 
-coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
-most_coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/most_coarse_merge.csv", stringsAsFactors = F)
+#coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
+most_coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/most_coarse_merge.csv", stringsAsFactors = F)
 
-smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = coarse_merging_table, id = "coarse_merge")
+#smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = coarse_merging_table, id = "coarse_merge")
 smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = most_coarse_merging_table, id = "most_coarse_merge")
 
 plotDR(smol_merged_daf, color_by = "most_coarse_merge")
 
 
 big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
-big_table$coarse_label <- cluster_ids(smol_merged_daf, k = "most_coarse_merge")
 
+big_table <- prep_sce_for_ggplot(sce = merged_daf)
+
+big_table$flo_label <- as.character(cluster_ids(merged_daf, k = "flo_merge"))
+
+sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
+
+big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters[,2], big_table$flo_label, "black")
+big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
 
 # colourCount <- length(unique(big_table$coarse_label))
 colourCount <- 18
 
 getPalette <- colorRampPalette(rev(brewer.pal(8, "Dark2")))
 
+cluster_palette <- color_103_scheme[1:length(unique(big_table$significant))]
+names(cluster_palette) <- unique(big_table$significant)
 
-ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  geom_point(size=0.3, aes(color=coarse_label))+
-  scale_color_manual(values = cols$hex)+
+big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+
+t6_sig_clusters_umap <- ggplot(big_table_t6, aes(x=UMAP1, y=UMAP2))+
+  geom_point(shape=".", aes(color=significant, alpha=alpha))+
+  #geom_polygon(data = list_of_hulls[[5]], alpha = 0.5)+ 
+  #scale_color_manual(values = cols$hex)+
+  #UMAP_theme+
+  scale_color_manual(values = cluster_palette)+
+  theme_minimal()+
+  ggtitle("Differentially Abundant\nClusters at T6")+
   UMAP_theme+
-  theme(legend.position = "right")
+  xlim(c(-13, 10))+
+  ylim(c(-11.2, 11.3))+
+  theme(legend.position = "none",
+        axis.title.x = element_text(colour = "white"),
+        plot.title = element_text(hjust=0.5))
 
-scales::show_col(brewer.pal(8, "Dark2"))  
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap.png",  t6_sig_clusters_umap, height=5, width=5)
+
+
+
+
+cd38_plot <- flo_umap(big_table_t6, "CD38")+theme(axis.title.y = element_blank())
+bcl2_plot <- flo_umap(big_table_t6, "BCL2")+theme(axis.title.y = element_blank(),
+                                                  axis.title.x =element_text(colour = "white"))
+
+panels_d_e <- plot_grid(t6_sig_clusters_umap, cd38_plot, bcl2_plot, nrow=1)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panels_d_e.png",  panels_d_e, height=4, width=6)
+
+
 
 cols <-read.csv("~/PhD/code/discrete_colors.csv", stringsAsFactors = F)
 # cols$hex <- substr(cols$hex, 2, 8)
@@ -438,31 +462,27 @@ CD4_central_memory <- data.frame(x=c(3, 6, 5.5, 1.7, 2), y=c(-0.5, -2,-5,-3.3, -
     theme(strip.text = element_text(size=14),
           legend.position = "bottom")
 
+  
+  find_hull <- function(df) df[chull(df$UMAP1, df$UMAP2), ]
+  
+  list_of_coarse_clusters <- split(big_table, big_table$coarse_label)
+  
+  list_of_hulls <- lapply(list_of_coarse_clusters, function(x) plyr::ddply(x, "coarse_label", find_hull))
+  
+  bound_hulls <- do.call(rbind, list_of_hulls)
+  
+  
+  hulls <- plyr::ddply(x, "coarse_label", find_hull)
+  
+  
+  
+  
 
     
-    CD8_naive <- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    CD8_effector <- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    CD8_effector_memory <- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    CD8_central_memory <- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    Treg <- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    gamma_delta<- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    MAIT<- geom_rect(xmin=, xmax=, ymin=, ymax=)
-    
-
-
-    
-    
-    library(plotly)
-    
-    # set plotly user name
-    Sys.setenv("plotly_username"="emilsinclair")
-    # set plotly API key
-    Sys.setenv("plotly_api_key"="lAUy8X6l3WjwtuZzwftA")
-    
-    
-    # meta45_map_plotly <-  ggplotly(meta45_map)
-    # api_create(meta45_map_plotly)
-    # 
-    # flumap_plotly <- ggplotly(flumap)
-    # api_create(flumap_plotly)
-    # 
+    CD8_naive <- data.frame(xmin=, xmax=, ymin=, ymax=)
+    CD8_effector <- data.frame(xmin=, xmax=, ymin=, ymax=)
+    CD8_effector_memory <- data.frame(xmax=, ymin=, ymax=)
+    CD8_central_memory <- data.frame(xmin=, xmax=, ymin=, ymax=)
+    Treg <- data.frame(xmin=, xmax=, ymin=, ymax=)
+    gamma_delta<- data.frame(xmin=, xmax=, ymin=, ymax=)
+    MAIT<- data.frame(xmin=, xmax=, ymin=, ymax=)

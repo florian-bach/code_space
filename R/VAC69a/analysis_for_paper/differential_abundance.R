@@ -12,7 +12,7 @@ library(ggplot2)
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 1000)
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 #
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
@@ -171,7 +171,7 @@ all(edger_t6_sig %in% glm_t6_sig) # TRUE
 
 all_cluster_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1)
 all_cluster_log_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1)+scale_y_log10()
-all_cluster_freqs <- diffcyt_boxplot(da_dod, merged_daf, counts=F, FDR=1)
+all_cluster_freqs <- diffcyt_boxplot(da_dod, merged_daf, counts=F, FDR=1, logFC = 0)
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png",all_cluster_counts , height = 12, width=18)# works
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18)# works
@@ -207,6 +207,9 @@ t6_map_data <- da_t6_log_count_box$data
 
 t6_barchart_data <- subset(t6_map_data, t6_map_data$timepoint=="T6")
 
+sig_t6_clusters <- as.character(unique(t6_barchart_data$cluster_id))
+
+write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
 
 ggplot(t6_barchart_data, aes(x=cluster_id, y=frequency))+
   geom_boxplot(aes(fill=cluster_id))+
@@ -229,7 +232,7 @@ flo_merge_cd3_stacked_barchart <- ggplot(t6_barchart_data, aes(x=timepoint, y=fr
   theme_minimal()+
   facet_wrap(~volunteer)+
   ggtitle("Significant flo_merge Clusters at T6")+
-  scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=percent_format(accuracy = 1))+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=scales::percent_format(accuracy = 1))+
   #ylim(0,25)+
   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
   theme(#legend.position = "none",
