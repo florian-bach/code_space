@@ -45,7 +45,7 @@ da_c10 <- diffcyt(merged_daf,
                   contrast = pairwise_contrast_c10,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "flo_merge",
+                  clustering_to_use = "som100",
                   verbose = T)
 
 
@@ -55,7 +55,7 @@ da_dod <- diffcyt(merged_daf,
                   contrast = pairwise_contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "flo_merge",
+                  clustering_to_use = "som100",
                   verbose = T)
 
 
@@ -65,7 +65,7 @@ da_t6 <- diffcyt(merged_daf,
                  contrast = pairwise_contrast_t6,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-edgeR",
-                 clustering_to_use = "flo_merge",
+                 clustering_to_use = "som100",
                  verbose = T)
 
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
@@ -90,8 +90,8 @@ table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 # removing the cluster term returns 0 significant clusters at dod and 5 at t6 (37, 32, 36, 15, 42) so there's a small effect;
 # all the mismatched clusters between those models are detected in the full design matrix
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
-plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
-plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
+plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 45)
+plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 45)
 
 
 
@@ -263,9 +263,9 @@ t6_map_data <- t6_map_data%>%
 
 
 
-col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$volunteer),]$sample_id)
+t6_col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$volunteer),]$sample_id)
 
-t6_map_data$sample_id <- factor(t6_map_data$sample_id, levels=col_levels) 
+t6_map_data$sample_id <- factor(t6_map_data$sample_id, levels=t6_col_levels) 
 
 
 #color bullshit (flo_berlin best) #### 
@@ -305,7 +305,7 @@ yellow_half <- rev(c("#FFC30B", "#FFD400", "#FFFFB7"))
 # flo diff heatmap ####
 
 
-(da_edger_t6_heatmap <- ggplot(t6_map_data, aes(x=factor(sample_id, levels=col_levels), y=cluster_id))+
+  (da_edger_t6_heatmap <- ggplot(t6_map_data, aes(x=factor(sample_id, levels=t6_col_levels), y=cluster_id))+
   #geom_tile(aes(fill=viridis_rescaler(t6_map_data$trans_norm_freq)))+
   geom_tile(aes(fill=trans_norm_freq))+
   scale_fill_gradientn(#colours = colorspace::diverging_hcl(palette = "Berlin",8), 
@@ -314,6 +314,7 @@ yellow_half <- rev(c("#FFC30B", "#FFD400", "#FFFFB7"))
                        values = rescale(c(min(t6_map_data$trans_norm_freq), 0, max(t6_map_data$trans_norm_freq)), to=c(0,1)), 
                        guide = guide_colourbar(nbin = 1000))+
   theme_minimal()+
+  ggtitle("T6, FDR=0.05, logFC=1")+
   theme(axis.title = element_blank(),
         axis.text.x = element_text(angle = 60, hjust = 1),
         axis.text = element_text(size=14),
@@ -322,6 +323,80 @@ yellow_half <- rev(c("#FFC30B", "#FFD400", "#FFFFB7"))
 )
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_edger_t6_heatmap.png", da_edger_t6_heatmap, height=7, width=11)
+
+
+
+
+
+dod_map_data <- da_dod_log_count_box$data
+
+dod_map_data <- dod_map_data%>%
+  group_by(cluster_id) %>%
+  #group_by(volunteer) %>%
+  mutate(trans_freq=asin(sqrt(frequency/100))) %>%
+  mutate(max_freq=max(frequency)) %>%
+  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE))
+
+
+
+dod_col_levels <- unique(dod_map_data[order(dod_map_data$timepoint, dod_map_data$volunteer),]$sample_id)
+
+dod_map_data$sample_id <- factor(dod_map_data$sample_id, levels=dod_col_levels) 
+
+
+
+
+
+
+(da_edger_dod_heatmap <- ggplot(dod_map_data, aes(x=factor(sample_id, levels=col_levels), y=cluster_id))+
+    #geom_tile(aes(fill=viridis_rescaler(dod_map_data$trans_norm_freq)))+
+    geom_tile(aes(fill=trans_norm_freq))+
+    scale_fill_gradientn(#colours = colorspace::diverging_hcl(palette = "Berlin",8), 
+      #colours=rev(c("#FFC125", "#FFFFFF", "#4169E1")),
+      colours=c(blue_half[3:5], yellow_half),
+      values = rescale(c(min(dod_map_data$trans_norm_freq), 0, max(dod_map_data$trans_norm_freq)), to=c(0,1)), 
+      guide = guide_colourbar(nbin = 1000))+
+    ggtitle("DoD, FDR=0.05, logFC=1")+
+    theme_minimal()+
+    theme(axis.title = element_blank(),
+          axis.text.x = element_text(angle = 60, hjust = 1),
+          axis.text = element_text(size=14),
+          legend.position="right",
+          legend.title = element_blank())
+)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_edger_dod_heatmap.png", da_edger_dod_heatmap, height=7, width=11)
+
+
+
+
+heat <-  grid::grid.grabExpr(
+  plotClusterHeatmap(merged_daf, hm2 = "state_markers",
+                   k = "som100",
+                   m = "flo_merge",
+                   cluster_anno = FALSE,
+                   draw_freqs = FALSE,
+                   scale=TRUE, draw_dend = FALSE)
+)
+
+
+ggsave("heat.png", heat, width=20, height=15)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 viridis_rescaler <- function(x){

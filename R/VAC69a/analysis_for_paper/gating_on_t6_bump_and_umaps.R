@@ -55,16 +55,34 @@ lin_gates <- CytoML::cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/repr
 flow_file <- read.FCS(flz[8])
 #lin_gates <- CytoML::read.gatingML.cytobank("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/gating_ml_for_umap.xml")
 
+gate_name <- substr(gs_get_pop_paths(lin_gates)[2:10], 2, 30)
+gate_name <- gsub(" ", "\n", gate_name)
+x_coord <- c(-1.1, -2.5,   5, -10,   -9,    7,    1,   -4.8, -10.6)
+y_coord <- c(5,    -2.4, 7.5,   7,     -8, -5.8, -0.7,    8.3, -4.5)
 
-ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2, color=CD38))+
-  #geom_hex(bins=228)+
-  geom_point()+
+gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
+
+(umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
+  geom_hex(bins=228)+
+ #geom_point()+
   UMAP_theme+
-  geom_gate(c(gs_get_pop_paths(lin_gates)[c(6, 8, 17:22)]))
-  
+  geom_gate(c(gs_get_pop_paths(lin_gates)[2:10]))+
+  geom_text(data=gate_label_positions, aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
+  theme(axis.title=element_text(),
+        axis.text = element_blank(),
+        panel.grid = element_blank(),
+        strip.text = element_blank(),
+        plot.title = element_blank()))
 
+gate_labeled_gg <- as.ggplot(umap_gate_labeled)
 
-nodes <- gs_pop_get_children(lin_gates[[1]], "root")
+gate_labeled_gg <- gate_labeled_gg+
+  scale_x_continuous(limits=c(-13, 10))+
+  scale_y_continuous(limits = c(-9.5, 13))
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_gate_labeled.png", umap_gate_labeled, height=4, width=4)
+
+  nodes <- gs_pop_get_children(lin_gates[[1]], "root")
 nodes <- nodes[-c(1, 4, 5, 6, 7, 14)]
 nodes <- substr(nodes, 2, nchar(nodes))
 

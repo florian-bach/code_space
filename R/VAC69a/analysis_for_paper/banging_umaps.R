@@ -7,8 +7,10 @@
   # 
   `%!in%` = Negate(`%in%`)
   # 3000 is the magic number
-  #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
-  smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+  smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
+  
+  #   ONLY RUN THIS WHEN CLUSTERING RESULTS ARE NEEDED, THE UMAP PROJECTION TAKES FOREVER (20+ MIN)
+  #smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
   # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
   # # 
   plotClusterHeatmap(smol_daf, hm2 = NULL,
@@ -95,6 +97,7 @@ ggsave(
   paste(dir_name, "labeled_contour_umap_through_time", ".png", sep=''),
   plot_grid(plotlist=list_of_plots, labels="AUTO", nrow = 1), width=5.8, height=3)
 
+# DOPE CONTOUR PLOT ####
 
 hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   #stat_density_2d(aes(fill = after_stat(level)), geom="raster", bins=14)+
@@ -102,21 +105,24 @@ hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   #geom_point(color="black")+
   stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
   stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
-  xlim(c(-13, 10))+
-  ylim(c(-9.5, 13))+
+  scale_x_continuous(limits=c(-13, 10))+
+  scale_y_continuous(limits = c(-9.5, 13))+
   theme_minimal()+
-  facet_wrap(~timepoint)+
+  facet_wrap(~timepoint, ncol = 4)+
   UMAP_theme+
-  theme(panel.grid.major = element_blank())+
-  theme(strip.text = element_text(size=14))+
+  theme(panel.grid = element_blank(),
+        strip.text = element_text(size=14),
+        axis.title = element_text())+
   scale_fill_gradientn(colors=inferno_white)
   #viridis::scale_fill_viridis(option="B"))
 
 
 # system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap24.png", hex_through_time, height=6, width=9))
 
-ggsave(paste0("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_", i, "_bins",".png", sep=''), hex_through_time, height=6, width=9)
+ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_14", "_bins",".png", sep=''), hex_through_time, height=6, width=9)
 
+panelA_B  <- plot_grid(hex_through_time, gate_labeled_gg, ncol=2, rel_widths=c(3,1.5), labels = c("A", "B"))
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panelA_B.png", panelA_B, height=6, width=11.25)
 
 #ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
 #ggsave("/home/flo/PhD/cytof/vac69a/figures_for_paper/umap_through_time.png", smol_time12, width=15, height=5.54)
