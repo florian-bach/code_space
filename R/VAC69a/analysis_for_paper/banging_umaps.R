@@ -2,25 +2,26 @@
   library(ggplot2)
   library(cowplot)
   library(vac69a.cytof)
+  library(CATALYST)
   
   #functions, palettes etc. ####
   # 
   `%!in%` = Negate(`%in%`)
   # 3000 is the magic number
-  smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
+  #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
   
   #   ONLY RUN THIS WHEN CLUSTERING RESULTS ARE NEEDED, THE UMAP PROJECTION TAKES FOREVER (20+ MIN)
-  #smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+  smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
   # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
   # # 
-  plotClusterHeatmap(smol_daf, hm2 = NULL,
-                     k = "meta45",
-                     # m = "flo_merge",
-                     cluster_anno = TRUE,
-                     draw_freqs = TRUE,
-                     scale=T
-  )
-  
+  # plotClusterHeatmap(smol_daf, hm2 = NULL,
+  #                    k = "meta45",
+  #                    # m = "flo_merge",
+  #                    cluster_anno = TRUE,
+  #                    draw_freqs = TRUE,
+  #                    scale=T
+  # )
+  # 
   
   # 
   #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
@@ -38,10 +39,12 @@
   
   big_table <- prep_sce_for_ggplot(smol_daf)
   
-  (foxp3_plot <- flo_umap(big_table, "FoxP3"))
+  (test1 <- flo_umap(big_table, "CD38"))
+  (test2 <- flo_umap(big_table, "ICOS"))
   
   
-  #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP.csv", header=T, stringsAsFactors = F)
+  
+data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
   
   #write.csv(big_table, "equal_small_vac69a_umap.csv")
   #write.csv(big_table, "proportional_small_vac69a_umap.csv")
@@ -58,55 +61,18 @@
       axis.text = element_blank()
     )
 
-  
-list_of_data <- split(big_table, big_table$timepoint)  
 
-list_of_plots <- lapply(list_of_data, function(x){
-  ggplot(x, aes(x=UMAP1, y=UMAP2))+
-    #stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
-    #stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
-    xlim(c(-13, 10))+
-    ylim(c(-9.5, 13))+
-    ggtitle(unique(x$timepoint))+
-    theme_minimal()+
-    #facet_wrap(~timepoint)+
-    UMAP_theme+
-    theme(panel.grid.major = element_blank(),
-          plot.title = element_text(hjust=0.5, size=14),
-          plot.title.position = "bottom")+
-    scale_fill_gradientn(colors=inferno_white)
-  })
-  #scale_fill_viridis(option = "A")
 
-# don't try to render this plot in rstudio- jsut write out and look at it with
-# photo viewer- way faster!
-
-plot_grid(plotlist=list_of_plots, label)
-
-dir_name <- "/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/"
-
-system.time(
-  lapply(list_of_plots, function(x){
-    ggsave(
-      paste0(dir_name, "proportional_contour_umap_", unique(x$data$timepoint), ".png", sep=''),
-      x, height=6, width=9)
-  })
-)
-
-ggsave(
-  paste(dir_name, "labeled_contour_umap_through_time", ".png", sep=''),
-  plot_grid(plotlist=list_of_plots, labels="AUTO", nrow = 1), width=5.8, height=3)
-
+down_big_table <- big_table[seq(1,nrow(big_table), by=3), ]
+    
+    
 # DOPE CONTOUR PLOT ####
 
-hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-  #stat_density_2d(aes(fill = after_stat(level)), geom="raster", bins=14)+
-  #geom_hex(bins=150)+
-  #geom_point(color="black")+
+hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
-  stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
-  scale_x_continuous(limits=c(-13, 10))+
-  scale_y_continuous(limits = c(-9.5, 13))+
+  stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
+  scale_x_continuous(limits=c(-14, 10), breaks = seq(-10, 10, by=5))+
+  scale_y_continuous(limits=c(-11.2, 11.3), breaks = seq(-10, 10, by=5))+
   theme_minimal()+
   facet_wrap(~timepoint, ncol = 4)+
   UMAP_theme+
@@ -117,7 +83,7 @@ hex_through_time <- ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
   #viridis::scale_fill_viridis(option="B"))
 
 
-# system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap24.png", hex_through_time, height=6, width=9))
+system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap13_005.png", hex_through_time, height=4, width=16))
 
 ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_14", "_bins",".png", sep=''), hex_through_time, height=6, width=9)
 
@@ -139,104 +105,6 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panelA_B.png", panelA_
 #   theme(strip.text.y.left = element_text(size=14, angle = 0),
 #         strip.text.x = element_text(size=14),
 #         strip.placement = "outside")
-
-    cd4_plot <- flo_umap(big_table, "CD4")
-    cd8_plot <- flo_umap(big_table, "CD8")
-    vd2_plot <- flo_umap(big_table, "Vd2")
-    va72_plot <- flo_umap(big_table, "Va72")
-    
-    
-  lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
-    # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
-    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
-    
-    cd38_plot <- flo_umap(big_table, "CD38")
-    hladr_plot <- flo_umap(big_table, "HLADR")
-    bcl2_plot <- flo_umap(big_table, "BCL2")
-    cd27_plot <- flo_umap(big_table, "CD27")
-    
-  
-  cd38_bcl2_plot <-   plot_grid(cd38_plot, bcl2_plot, ncol=1)
-  activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
-    # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd38_bcl2_plot.png", cd38_bcl2_plot)
-    
-    
-    cd45ro_plot <- flo_umap(big_table, "CD45RO")
-    ccr7_plot <- flo_umap(big_table, "CCR7")
-    cd57_plot <- flo_umap(big_table, "CD57")
-    cd45ra_plot <- flo_umap(big_table, "CD45RA")
-    
-    memory_plot <- plot_grid(cd45ro_plot, ccr7_plot, cd57_plot, cd45ra_plot, ncol=2)
-    # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
-    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
-    
-    
-    
-    
-      cd25_plot <- flo_umap(big_table, "CD25")
-      cd127_plot <- flo_umap(big_table, "CD127")
-      foxp3_plot <- flo_umap(big_table, "FoxP3")
-      cd39_plot <- flo_umap(big_table, "CD39")
-      
-      treg_plot <- cowplot::plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
-      # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
-     ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
-    
-    
-      
-    
-    
-    
-    cd38_plot_through_time <- flo_umap(big_table, "CD38", "timepoint")
-    hladr_plot_through_time <- flo_umap(big_table, "HLADR", "timepoint")
-    bcl2_plot_through_time <- flo_umap(big_table, "BCL2", "timepoint")
-    cd27_plot_through_time <- flo_umap(big_table, "CD27", "timepoint")
-    
-    activation_plots_through_time  <- list(cd38_plot_through_time, bcl2_plot_through_time,  hladr_plot_through_time, cd27_plot_through_time)
-    ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-    
-    
-    lapply(activation_plots_through_time, function(x){
-      ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
-             width = 8, height=4.5)
-      })
-    
-  
-    
-    GZB_plot_through_time <- flo_umap(big_table, "GZB", "timepoint")
-    perforin_plot_through_time <- flo_umap(big_table, "Perforin", "timepoint")
-    Tbet_plot_through_time <- flo_umap(big_table, "Tbet", "timepoint")
-    ki67_plot_through_time <- flo_umap(big_table, "Ki67", "timepoint")
-    
-    intracellular_plots_through_time  <- list(GZB_plot_through_time, perforin_plot_through_time,  Tbet_plot_through_time, ki67_plot_through_time)
-    # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-    
-    
-    lapply(intracellular_plots_through_time, function(x){
-      ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
-             width = 8, height=4.5)
-    })
-    
-  
-    ctla4_plot_through_time <- flo_umap(big_table, "CTLA4", "timepoint")
-    pd1_plot_through_time <- flo_umap(big_table, "PD1", "timepoint")
-    CD28_plot_through_time <- flo_umap(big_table, "CD28", "timepoint")
-    CD95_plot_through_time <- flo_umap(big_table, "CD95", "timepoint")
-    
-    exhaustion_plots_through_time  <- list(ctla4_plot_through_time, pd1_plot_through_time,  CD28_plot_through_time, CD95_plot_through_time)
-  
-    
-    lapply(exhaustion_plots_through_time, function(x){
-      ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
-             width = 8, height=4.5)
-    })
-    
-
-flo_umap(big_table, "CTLA4", "timepoint")+
-  ggplot2::xlim(c(-13, 10))+
-  ggplot2::ylim(c(-11, 11.5))
     
 # loop that makes the umap_through_time figures for each marker used in the clustering   
 for (i in refined_markers[,1]){
@@ -244,7 +112,75 @@ for (i in refined_markers[,1]){
   ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_through_time/", i, "_through_time.png", sep=''), plt, height=6, width=9)
   }      
 
-# making umap projections colored by cluster identity
+
+# for (i in refined_markers[,1]){
+#   plt <- flo_umap(down_big_table, i, "timepoint")
+#   ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_through_time/downsampled_75_percent/", i, "_through_time.png", sep=''), plt, height=6, width=9)
+# }     
+
+
+# scatterplots colored by clusters ####
+
+# add flo_merge cluster codes to daf
+#coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+
+#smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = coarse_merging_table, id = "coarse_merge")
+smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = merging_table1, id = "flo_merge")
+
+
+# turn into ggplottable object and add coumns for flo_merge name and whether it should be black or coloured
+big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
+
+big_table$flo_label <- as.character(cluster_ids(smol_merged_daf, k = "flo_merge"))
+
+sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
+
+big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters[,2], big_table$flo_label, "black")
+big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
+
+
+
+#define the colour palette
+cluster_palette <- color_103_scheme[1:length(unique(big_table$significant))]
+names(cluster_palette)[1] <- "black"
+names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significant)[-match("black", unique(big_table$significant))]
+
+
+# restrict data to T6 and downsample by 33% to make it look nice
+big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+big_table_t6 <- big_table_t6[seq(1,nrow(big_table_t6), by=3), ]
+
+t6_sig_clusters_umap <- ggplot(big_table_t6, aes(x=UMAP1, y=UMAP2))+
+  geom_point(shape=".", aes(color=significant, alpha=alpha))+
+  #geom_polygon(data = list_of_hulls[[5]], alpha = 0.5)+ 
+  #scale_color_manual(values = cols$hex)+
+  #UMAP_theme+
+  scale_color_manual(values = cluster_palette)+
+  theme_minimal()+
+  ggtitle("Differentially Abundant\nClusters at T6")+
+  UMAP_theme+
+  xlim(c(-13, 10))+
+  ylim(c(-11.2, 11.3))+
+  theme(legend.position = "none",
+        axis.title.x = element_text(colour = "white"),
+        plot.title = element_text(hjust=0.5))
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap.png",  t6_sig_clusters_umap, height=5, width=5)
+
+cd38_plot <- flo_umap(big_table_t6, "CD38")+theme(axis.title.y = element_blank())
+bcl2_plot <- flo_umap(big_table_t6, "BCL2")+theme(axis.title.y = element_blank(),
+                                                  axis.title.x =element_text(colour = "white"))
+
+panels_d_e <- plot_grid(t6_sig_clusters_umap, cd38_plot, bcl2_plot, nrow=1)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panels_d_e.png",  panels_d_e, height=4, width=12)
+
+
+
+
+
+# making umap projections colored by cluster identity ####
 
 #first: include my merge to DAF
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
@@ -298,7 +234,6 @@ final_dic <- ordered_meta_dic[!duplicated(ordered_meta_dic$new_cluster),]
 
 
 
-
 flumap <- plotDR(merged_daf, color_by = "vis_merge")+
   facet_wrap("timepoint")+
   scale_color_manual(values = color_dic, labels=as.character(final_dic$new_cluster))+
@@ -331,12 +266,6 @@ flo_merge_map <- plotDR(merged_daf, color_by = "flo_merge")+
   theme(legend.position = "bottom", 
         legend.title = element_text())
 
-library(plotly)
-flumap_ly <- ggplotly(flumap)
-meta45_map_ly <- ggplotly(meta45_map)
-flo_merge_map_ly <- ggplotly(flo_merge_map)    
-
-
 # plot with points and contour lines
 
 # smol_time+
@@ -356,139 +285,169 @@ flo_merge_map_ly <- ggplotly(flo_merge_map)
 
 
 
-# regular scatter plots ####
-big_table <- data.frame(t(data.frame(assays(smol_daf)$exprs)))
-big_table <- data.frame(cbind(big_table, colData(smol_daf)))
 
-ggplot(big_table, aes(x=CD3, y=CD56))+
-  geom_hex(bins=128)+
-  # scale_x_flowCore_fasinh()+
-  # scale_y_flowCore_fasinh()+
-  scale_fill_viridis(option="A")
 
-ggplot(big_table, aes(x=CD3, y=CD16))+
-  geom_hex(bins=128)+
-  # scale_x_flowCore_fasinh()+
-  # scale_y_flowCore_fasinh()+
-  scale_fill_viridis(option="A")
-
-ggplot(big_table, aes(x=CD4, y=CD8))+
-  geom_point(shape=".")+
-  #geom_hex(bins=128)+
-  facet_wrap(~timepoint)+
-  scale_x_flowCore_fasinh()+
-  scale_y_flowCore_fasinh()+
-  scale_color_viridis(option="A")+
-  scale_fill_viridis(option="A")+
-  theme_minimal()
+# make a bunch of contour plots with lapply ####
 
 
 
-# scatterplots colored by clsuters ####
+list_of_data <- split(big_table, big_table$timepoint)  
 
-
-#coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
-most_coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/most_coarse_merge.csv", stringsAsFactors = F)
-
-#smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = coarse_merging_table, id = "coarse_merge")
-smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = most_coarse_merging_table, id = "most_coarse_merge")
-
-plotDR(smol_merged_daf, color_by = "most_coarse_merge")
-
-
-big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
-
-big_table <- prep_sce_for_ggplot(sce = merged_daf)
-
-big_table$flo_label <- as.character(cluster_ids(merged_daf, k = "flo_merge"))
-
-sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
-
-big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters[,2], big_table$flo_label, "black")
-big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
-
-# colourCount <- length(unique(big_table$coarse_label))
-colourCount <- 18
-
-getPalette <- colorRampPalette(rev(brewer.pal(8, "Dark2")))
-
-cluster_palette <- color_103_scheme[1:length(unique(big_table$significant))]
-names(cluster_palette) <- unique(big_table$significant)
-
-big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
-
-t6_sig_clusters_umap <- ggplot(big_table_t6, aes(x=UMAP1, y=UMAP2))+
-  geom_point(shape=".", aes(color=significant, alpha=alpha))+
-  #geom_polygon(data = list_of_hulls[[5]], alpha = 0.5)+ 
-  #scale_color_manual(values = cols$hex)+
-  #UMAP_theme+
-  scale_color_manual(values = cluster_palette)+
-  theme_minimal()+
-  ggtitle("Differentially Abundant\nClusters at T6")+
-  UMAP_theme+
-  xlim(c(-13, 10))+
-  ylim(c(-11.2, 11.3))+
-  theme(legend.position = "none",
-        axis.title.x = element_text(colour = "white"),
-        plot.title = element_text(hjust=0.5))
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap.png",  t6_sig_clusters_umap, height=5, width=5)
-
-
-
-
-cd38_plot <- flo_umap(big_table_t6, "CD38")+theme(axis.title.y = element_blank())
-bcl2_plot <- flo_umap(big_table_t6, "BCL2")+theme(axis.title.y = element_blank(),
-                                                  axis.title.x =element_text(colour = "white"))
-
-panels_d_e <- plot_grid(t6_sig_clusters_umap, cd38_plot, bcl2_plot, nrow=1)
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panels_d_e.png",  panels_d_e, height=4, width=6)
-
-
-
-cols <-read.csv("~/PhD/code/discrete_colors.csv", stringsAsFactors = F)
-# cols$hex <- substr(cols$hex, 2, 8)
-# write.csv(cols, "~/PhD/code/discrete_colors.csv")
-scales::show_col(cols$hex)
-
-
-CD4_naive <- data.frame(x=c(9, 7.7, 3, 3), y=c(3, -2.3,0,4))
-CD4_central_memory <- data.frame(x=c(3, 6, 5.5, 1.7, 2), y=c(-0.5, -2,-5,-3.3, -2))
-
-  ggplot(big_table, aes(x=UMAP1, y=UMAP2))+
-    #stat_density_2d(contour=T, bins=24, color="#F781BF")+
-    xlim(c(-12, 10))+
-    # geom_polygon(data=CD4_naive, aes(x=x, y=y), fill=NA, color=cols$hex[1])+
-    # geom_polygon(data=CD4_central_memory, aes(x=x, y=y), fill=NA, color=cols$hex[2])+
-    ylim(c(-8, 8))+
+list_of_plots <- lapply(list_of_data, function(x){
+  ggplot(x, aes(x=UMAP1, y=UMAP2))+
+    #stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
+    #stat_density_2d(contour = TRUE, bins=14, color="white", size=0.1)+
+    xlim(c(-13, 10))+
+    ylim(c(-9.5, 13))+
+    ggtitle(unique(x$timepoint))+
     theme_minimal()+
-    geom_point(size=0.3,aes(color=coarse_label))+
+    #facet_wrap(~timepoint)+
     UMAP_theme+
-    theme(strip.text = element_text(size=14),
-          legend.position = "bottom")
+    theme(panel.grid.major = element_blank(),
+          plot.title = element_text(hjust=0.5, size=14),
+          plot.title.position = "bottom")+
+    scale_fill_gradientn(colors=inferno_white)
+})
+#scale_fill_viridis(option = "A")
 
-  
-  find_hull <- function(df) df[chull(df$UMAP1, df$UMAP2), ]
-  
-  list_of_coarse_clusters <- split(big_table, big_table$coarse_label)
-  
-  list_of_hulls <- lapply(list_of_coarse_clusters, function(x) plyr::ddply(x, "coarse_label", find_hull))
-  
-  bound_hulls <- do.call(rbind, list_of_hulls)
-  
-  
-  hulls <- plyr::ddply(x, "coarse_label", find_hull)
-  
-  
-  
-  
+# don't try to render this plot in rstudio- jsut write out and look at it with
+# photo viewer- way faster!
 
-    
-    CD8_naive <- data.frame(xmin=, xmax=, ymin=, ymax=)
-    CD8_effector <- data.frame(xmin=, xmax=, ymin=, ymax=)
-    CD8_effector_memory <- data.frame(xmax=, ymin=, ymax=)
-    CD8_central_memory <- data.frame(xmin=, xmax=, ymin=, ymax=)
-    Treg <- data.frame(xmin=, xmax=, ymin=, ymax=)
-    gamma_delta<- data.frame(xmin=, xmax=, ymin=, ymax=)
-    MAIT<- data.frame(xmin=, xmax=, ymin=, ymax=)
+plot_grid(plotlist=list_of_plots, label)
+
+dir_name <- "/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/"
+
+system.time(
+  lapply(list_of_plots, function(x){
+    ggsave(
+      paste0(dir_name, "proportional_contour_umap_", unique(x$data$timepoint), ".png", sep=''),
+      x, height=6, width=9)
+  })
+)
+
+ggsave(
+  paste(dir_name, "labeled_contour_umap_through_time", ".png", sep=''),
+  plot_grid(plotlist=list_of_plots, labels="AUTO", nrow = 1), width=5.8, height=3)
+
+
+# a bunch of multiplanel plots for related markers ####
+
+cd4_plot <- flo_umap(big_table, "CD4")
+cd8_plot <- flo_umap(big_table, "CD8")
+vd2_plot <- flo_umap(big_table, "Vd2")
+va72_plot <- flo_umap(big_table, "Va72")
+
+
+lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
+# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
+
+cd38_plot <- flo_umap(big_table, "CD38")
+hladr_plot <- flo_umap(big_table, "HLADR")
+bcl2_plot <- flo_umap(big_table, "BCL2")
+cd27_plot <- flo_umap(big_table, "CD27")
+
+
+cd38_bcl2_plot <-   plot_grid(cd38_plot, bcl2_plot, ncol=1)
+activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
+# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd38_bcl2_plot.png", cd38_bcl2_plot)
+
+
+cd45ro_plot <- flo_umap(big_table, "CD45RO")
+ccr7_plot <- flo_umap(big_table, "CCR7")
+cd57_plot <- flo_umap(big_table, "CD57")
+cd45ra_plot <- flo_umap(big_table, "CD45RA")
+
+memory_plot <- plot_grid(cd45ro_plot, ccr7_plot, cd57_plot, cd45ra_plot, ncol=2)
+# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/memory_plot.png", memory_plot)
+
+
+
+
+cd25_plot <- flo_umap(big_table, "CD25")
+cd127_plot <- flo_umap(big_table, "CD127")
+foxp3_plot <- flo_umap(big_table, "FoxP3")
+cd39_plot <- flo_umap(big_table, "CD39")
+
+treg_plot <- cowplot::plot_grid(cd25_plot, cd127_plot, foxp3_plot, cd39_plot, ncol=2)
+# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot, width=8, height=5.54)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/treg_plot.png", treg_plot)
+
+
+
+
+
+
+cd38_plot_through_time <- flo_umap(big_table, "CD38", "timepoint")
+hladr_plot_through_time <- flo_umap(big_table, "HLADR", "timepoint")
+bcl2_plot_through_time <- flo_umap(big_table, "BCL2", "timepoint")
+cd27_plot_through_time <- flo_umap(big_table, "CD27", "timepoint")
+
+activation_plots_through_time  <- list(cd38_plot_through_time, bcl2_plot_through_time,  hladr_plot_through_time, cd27_plot_through_time)
+ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+
+
+lapply(activation_plots_through_time, function(x){
+  ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
+         width = 8, height=4.5)
+})
+
+
+
+GZB_plot_through_time <- flo_umap(big_table, "GZB", "timepoint")
+perforin_plot_through_time <- flo_umap(big_table, "Perforin", "timepoint")
+Tbet_plot_through_time <- flo_umap(big_table, "Tbet", "timepoint")
+ki67_plot_through_time <- flo_umap(big_table, "Ki67", "timepoint")
+
+intracellular_plots_through_time  <- list(GZB_plot_through_time, perforin_plot_through_time,  Tbet_plot_through_time, ki67_plot_through_time)
+# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+
+
+lapply(intracellular_plots_through_time, function(x){
+  ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
+         width = 8, height=4.5)
+})
+
+
+ctla4_plot_through_time <- flo_umap(big_table, "CTLA4", "timepoint")
+pd1_plot_through_time <- flo_umap(big_table, "PD1", "timepoint")
+CD28_plot_through_time <- flo_umap(big_table, "CD28", "timepoint")
+CD95_plot_through_time <- flo_umap(big_table, "CD95", "timepoint")
+
+exhaustion_plots_through_time  <- list(ctla4_plot_through_time, pd1_plot_through_time,  CD28_plot_through_time, CD95_plot_through_time)
+
+
+lapply(exhaustion_plots_through_time, function(x){
+  ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
+         width = 8, height=4.5)
+})
+
+
+
+
+# loop to make a bunch of beautiful contour plots ####
+
+n_bins <- c(8, 9, 11, 13)
+n_bins <- 13
+#system.time(for (i in n_bins){
+  
+plt <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
+  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
+  stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
+  scale_x_continuous(limits=c(-14, 10), breaks = seq(-10, 10, by=5))+
+  scale_y_continuous(limits=c(-11.2, 11.3), breaks = seq(-10, 10, by=5))+
+  theme_minimal()+
+  facet_wrap(~timepoint, ncol = 4)+
+  UMAP_theme+
+  theme(panel.grid = element_blank(),
+        strip.text = element_text(size=14),
+        axis.title = element_text())+
+  scale_fill_gradientn(colors=inferno_white)
+
+# ggsave(paste0("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/countour_with_", i ,"_bins.png", sep=''), plt,
+#        height = 4, width = 16)
+# 
+# })

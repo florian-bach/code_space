@@ -1,21 +1,16 @@
 library(Rphenograph)
-library(readxl) 
 library(CATALYST)
 library(flowCore)
 library(ggplot2)
 library(RColorBrewer)
 library(SingleCellExperiment)
-library(CytoNorm)
-library(diffcyt)
 library(tidyr)
 library(dplyr)
 library(cowplot)
-library(scater)
-library(purrr)
-library(Rtsne)
+library(vac69a.cytof)
 
 
-BiocManager::install("cytofkit")
+#BiocManager::install("cytofkit")
 
 #extra functions defined here ####
 `%!in%` = Negate(`%in%`)
@@ -76,186 +71,28 @@ smooth_inferno_lite <- colorRampPalette(inferno_lite)
 #setwd("C:/Users/bachf/PhD/cytof/vac69a/T_cells_only/fcs")
 setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only")
 #setwd("/Users/s1249052/PhD/cytof/vac69a/T_cells_only/fcs")
-
-md <- read.csv("meta_data.csv", header=T) 
-
-md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "DoD", "T6"))
-md <- md[
-  with(md, order(md$volunteer, md$timepoint)),
-  ]
-md$file_name <- as.character(md$file_name)
-
-
-#change number of volunteers/timepoints here
-md <- dplyr::filter(md, timepoint %in% c("Baseline", "C10" , "DoD", "T6"))
-
-#import panel 
-panel <- read.csv("VAC69_PANEL.CSV", header=T, stringsAsFactors = F)
-colnames(panel)[2] <- "marker_name"
-
-# select whose files to import
-fcs_files <- grep("fcs", list.files(), value = T)
-
-primaries <- c()
-
-timepoints <- c("C-1", "C_10", "DoD", "T_6")
-
-for(i in timepoints){
-  one_moment <- grep(i, fcs_files, value=T)
-  primaries <- c(timepoints, one_moment)
-}
-
-### read in flowfiles using flowCore
-vac69a <- read.flowSet(md$file_name)
-
-
-
-### define panel using first fcs file in flowset, then clean up
-
-# panel <- data.frame("fcs_colname"=colnames(vac69a[[1]]), "antigen"=c("Time", markernames(vac69a[[1]])))
-# panel$antigen <- gsub("_", "", panel$antigen)
-# 
-# panel$antigen <- ifelse(nchar(panel$antigen)>6,
-#                         substr(panel$antigen, 6, nchar(panel$antigen)),
-#                         panel$antigen
-# )
-# 
-# panel$antigen[3] <- "CD45"
-# 
-# panel$antigen <- gsub("-", "", panel$antigen)
-# panel$antigen <- gsub(".", "", panel$antigen, fixed=T)
-# 
-# write.csv(panel, "VAC69_PANEL.CSV")
-panel <- read.csv("VAC69_PANEL.CSV", header=T)
-####
-
-sampling_ceiling <- 3000
-# Being reproducible is a plus
-set.seed(1234)
-
-#sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-smaller_vac69a <- fsApply(vac69a, function(ff) {
-  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
-  ff[idx,]  # alt. ff[order(idx),]
-})
-
-
-### CATALYST ####
-#construct daFrame #
-## md has to have particular properties: file_name=NAMED LIST (chr), ID and everything else in factors
-
-
-smaller_daf <- prepData(smaller_vac69a, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
-                panel_cols = list(channel = "fcs_colname", antigen = "antigen", class =
-                                    "marker_class"))
-
-
-# this gets rid of barcoding and quality control channels so clustering is easier
-proper_channels <- colnames(smaller_daf)[c(3,13:14,22:56,62,64)]
-# get rid of CD45, CD14, CD20, CD3
-t_cell_channels <- proper_channels[c(-1, -2, -10, -32)]
-
-t_cell_channels <- c("CD4",
-                     "CD8",
-                     "Vd2",
-                     "Va72",
-                     "CD38",
-                     "HLADR",
-                     "ICOS",
-                     "CD28",
-                     "PD1",
-                     "TIM3",
-                     "CD95",
-                     "BCL2",
-                     "CD27",
-                     "Perforin",
-                     "GZB",
-                     "CX3CR1",
-                     "Tbet",
-                     "CTLA4",
-                     "Ki67",
-                     "CD127",
-                     "IntegrinB7",
-                     "CD56",
-                     "CD16",
-                     "CD161",
-                     "CD49d",
-                     "CD103",
-                     "CD25",
-                     "FoxP3",
-                     "CD39",
-                     "CLA",
-                     "CXCR5",
-                     "CD57",
-                     "CD45RA",
-                     "CD45RO",
-                     "CCR7")
-
-
-
-refined_markers <- c("CD4",
-                     "CD8",
-                     "Vd2",
-                     "Va72",
-                     "CD38",
-                     "HLADR",
-                     "ICOS",
-                     "CD28",
-                     "PD1",
-                     #"TIM3",
-                     "CD95",
-                     "BCL2",
-                     "CD27",
-                     "Perforin",
-                     "GZB",
-                     "CX3CR1",
-                     "Tbet",
-                     "CTLA4",
-                     "Ki67",
-                     "CD127",
-                     #"IntegrinB7",
-                     #"CD56",
-                     #"CD16",
-                     "CD161",
-                     #"CD49d",
-                     #"CD103",
-                     "CD25",
-                     "FoxP3",
-                     "CD39",
-                     "CLA",
-                     #"CXCR5",
-                     "CD57",
-                     "CD45RA",
-                     "CD45RO",
-                     "CCR7")
-
-set.seed(123);smaller_daf <- cluster(smaller_daf, features = refined_markers, xdim = 10, ydim = 10, maxK = 45, seed = 1234)
-
-#daf <- filterSCE(daf, volunteer=="V03")
+daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
 # big_table <- t(data.frame(assays(daf)$exprs))
-big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
 
+df <- data.frame(t(data.frame(SummarizedExperiment::assays(daf)$exprs)))
+big_table <- data.frame(cbind(df, SingleCellExperiment::colData(daf)))
 
-slim_table <- as.data.frame(big_table)[, colnames(big_table) %in% refined_markers]
+refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
+
+slim_table <- as.data.frame(df)[, colnames(df) %in% refined_markers[,1]]
 
 # check that this is arcsinh transformed (cofactor=5) before running Phenograph!! this is default when
 # processing with CATALYST beforehand
 
-  start_time <- Sys.time()
-  pheno <- Rphenograph(slim_table) # 33 clusters
-  end_time <- Sys.time()
-  
-  end_time-start_time # 2h7min; ~3h on laptop
+system.time(pheno <- Rphenograph(slim_table)) # 32 clusters
 
 
-UMAP_theme <- theme_minimal()+theme(
-  panel.grid.major = element_blank(),
-  panel.grid.minor = element_blank(),
-  legend.position = "none",
-  axis.title = element_blank()
-)
+
+set.seed(1234);daf <- scater::runUMAP(daf,
+                                           subset_row=refined_markers[,1],
+                                           exprs_values = "exprs",
+                                           scale=T)
 
 slim_umap <- data.frame(reducedDim(daf, "UMAP"))
 colnames(slim_umap) <- c("UMAP1", "UMAP2")
@@ -263,18 +100,33 @@ colnames(slim_umap) <- c("UMAP1", "UMAP2")
 slim_table <- cbind(slim_table, slim_umap)
 
 slim_table$phenograph_cluster <- factor(membership(pheno[[2]]))
-#data.table::fwrite(slim_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/slim_table_with_phenograph.csv")
+data.table::fwrite(slim_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/slim_table_with_phenograph.csv")
 
 slim_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/slim_table_with_phenograph.csv")
 slim_table$som100<- cluster_ids(daf, k="som100")
 
 
 
- slim_table$phenograph_cluster
+
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
+
+#get rid of spaces at beginning of string
+merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
+merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
+
+merging_table1$new_cluster <- factor(merging_table1$new_cluster)
+
+merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
 
 
-slim_table$meta40 <- cluster_ids(daf, k="meta40")
-slim_table$meta32 <- cluster_ids(daf, k="meta32")
+#merged_daf <- daf
+
+
+
+
+
+slim_table$meta32 <- cluster_ids(merged_daf, k="meta32")
+slim_table$flo_merge <- cluster_ids(merged_daf, k="flo_merge")
 
 # create dataset with only ~40,000 cells to make plotting faster
 slimmed <- slim_table[seq(1, nrow(slim_table), by = 20),]
@@ -308,18 +160,30 @@ color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#0
 
 # plots to compare clustering #
 
-pheno_graph <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$pheno_cluster))+
+
+UMAP_theme <- theme_minimal()+theme(
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(),
+  legend.title = element_blank(),
+  legend.position = "none",
+  axis.title = element_blank()
+)
+
+
+
+
+pheno_graph <- ggplot(slimmed, aes(x=UMAP1, y=UMAP2, color=phenograph_cluster))+
   geom_point(shape=1)+UMAP_theme+ggtitle("pheno_cluster, m=32")+scale_color_manual(values = color_35_scheme)
 
-meta32_graph <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$meta32))+
+meta32_graph <- ggplot(slimmed, aes(x=UMAP1, y=UMAP2, color=meta32))+
   geom_point(shape=1)+UMAP_theme+ggtitle("flowSOM, m=32")+scale_color_manual(values = color_35_scheme)
 
-meta40_graph <- ggplot(slimmed, aes(x=slimmed$UMAP1, y=slimmed$UMAP2, color=slimmed$meta40))+
-  geom_point(shape=1)+UMAP_theme+ggtitle("flowSOM, m=40")+scale_color_manual(values = color_103_scheme)
+meta40_graph <- ggplot(slimmed, aes(x=UMAP1, y=UMAP2, color=flo_merge))+
+  geom_point(shape=1)+UMAP_theme+ggtitle("flowSOM, m=32(flo_merge)")+scale_color_manual(values = color_103_scheme)
 
 
 three_plots <- plot_grid(pheno_graph, meta32_graph, meta40_graph, ncol=3)
-ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/phenograph_vs_flowsom.png", three_plots, height = 2.85, width=11.295)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/phenograph_vs_flowsom.png", three_plots, height = 9, width=16)
 
 
 # plots with important lineage markers

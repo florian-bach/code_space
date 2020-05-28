@@ -33,43 +33,50 @@ UMAP_theme <- theme_minimal()+theme(
 # GATING ####
 
 # read in data
-setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/")
+# setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/")
+# 
+# flz <- list.files(pattern = "*.fcs")
+# 
+# umap_vac69a <- read.flowSet(flz)
+# 
+# 
+# sampling_ceiling <- 2500
+# # Being reproducible is a plus
+# set.seed(1234)
+# 
+# # sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
+# smaller_umap_vac69a <- fsApply(umap_vac69a, function(ff) {
+#   idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
+#   ff[idx,]  # alt. ff[order(idx),]
+# })
 
-flz <- list.files(pattern = "*.fcs")
+fcs_name <- "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/concat/all.fcs"
 
-umap_vac69a <- read.flowSet(flz)
-
-
-sampling_ceiling <- 2500
-# Being reproducible is a plus
-set.seed(1234)
-
-# sample.int takes a sample of the specified size from the elements of x using either with or without replacement.
-smaller_umap_vac69a <- fsApply(umap_vac69a, function(ff) {
-  idx <- sample.int(nrow(ff), min(sampling_ceiling, nrow(ff)))
-  ff[idx,]  # alt. ff[order(idx),]
-})
+lin_gates <- CytoML::cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/CytExp_295996_Gates_simplified.xml", FCS=fcs_name)
 
 
-lin_gates <- CytoML::cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/gating_ml_for_umap.xml", flz[8])
-flow_file <- read.FCS(flz[8])
+#flow_file <- read.FCS(filename = fcs_name)
 #lin_gates <- CytoML::read.gatingML.cytobank("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/gating_ml_for_umap.xml")
 
-gate_name <- substr(gs_get_pop_paths(lin_gates)[2:10], 2, 30)
+gate_name <- substr(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))], 2, 30)
 gate_name <- gsub(" ", "\n", gate_name)
-x_coord <- c(-1.1, -2.5,   5, -10,   -9,    7,    1,   -4.8, -10.6)
-y_coord <- c(5,    -2.4, 7.5,   7,     -8, -5.8, -0.7,    8.3, -4.5)
+gate_name[7] <- "paste(gamma, delta)"
+# x_coord <- c(-1.1, -2.5,   5, -10,   -9,    7,    1,   -4.8, -10.6)
+# y_coord <- c(5,    -2.4, 7.5,   7,     -8, -5.8, -0.7,    8.3, -4.5)
+x_coord <- c(-1.1, -2.5,   5, -10,   -9,    7,    -4.8, -10.6)
+y_coord <- c(5,    -2.4, 7.5,   7,    -8,  -5.8,   8.3, -4.5)
 
 gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
 
 (umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
   geom_hex(bins=228)+
- #geom_point()+
-  UMAP_theme+
-  geom_gate(c(gs_get_pop_paths(lin_gates)[2:10]))+
-  geom_text(data=gate_label_positions, aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
-  theme(axis.title=element_text(),
-        axis.text = element_blank(),
+  geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
+  geom_text(data=gate_label_positions[7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7, parse = T)+
+  geom_text(data=gate_label_positions[-7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
+    UMAP_theme+
+  xlab("UMAP1")+
+  ylab("UMAP2")+
+  theme(axis.title = element_text(), 
         panel.grid = element_blank(),
         strip.text = element_blank(),
         plot.title = element_blank()))
@@ -78,11 +85,18 @@ gate_labeled_gg <- as.ggplot(umap_gate_labeled)
 
 gate_labeled_gg <- gate_labeled_gg+
   scale_x_continuous(limits=c(-13, 10))+
-  scale_y_continuous(limits = c(-9.5, 13))
+  scale_y_continuous(limits = c(-11.2, 11.3))+
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_gate_labeled.png", umap_gate_labeled, height=4, width=4)
 
-  nodes <- gs_pop_get_children(lin_gates[[1]], "root")
+
+
+
+
+
+
+
+nodes <- gs_pop_get_children(lin_gates[[1]], "root")
 nodes <- nodes[-c(1, 4, 5, 6, 7, 14)]
 nodes <- substr(nodes, 2, nchar(nodes))
 
