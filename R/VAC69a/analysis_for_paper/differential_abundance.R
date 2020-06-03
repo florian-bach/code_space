@@ -12,17 +12,20 @@ library(ggplot2)
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 1000)
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 #
+meta_45_mod_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/modified_ccp_meta45_merge.csv", header = T, stringsAsFactors = F)
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
+
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
+# 
+# merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
-merging_table1$new_cluster <- factor(merging_table1$new_cluster)
+merged_daf<- mergeClusters(daf, k = "som100", table = meta_45_mod_table, id = "mod_meta45")
+merged_daf<- mergeClusters(merged_daf, k = "mod_meta45", table = merging_table1, id = "flo_merge")
 
-merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
-
-
+plotClusterHeatmap(merged_daf, k = "som100", m = "mod_meta45")
 #merged_daf <- daf
 
 ei <- metadata(merged_daf)$experiment_info
@@ -45,7 +48,7 @@ da_c10 <- diffcyt(merged_daf,
                   contrast = pairwise_contrast_c10,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "som100",
+                  clustering_to_use = "flo_merge",
                   verbose = T)
 
 
@@ -55,7 +58,7 @@ da_dod <- diffcyt(merged_daf,
                   contrast = pairwise_contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "som100",
+                  clustering_to_use = "flo_merge",
                   verbose = T)
 
 
@@ -65,7 +68,7 @@ da_t6 <- diffcyt(merged_daf,
                  contrast = pairwise_contrast_t6,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-edgeR",
-                 clustering_to_use = "som100",
+                 clustering_to_use = "flo_merge",
                  verbose = T)
 
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
@@ -91,7 +94,7 @@ table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 # all the mismatched clusters between those models are detected in the full design matrix
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
 plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 45)
-plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 45)
+plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
 
 
 
@@ -169,8 +172,8 @@ all(edger_t6_sig %in% glm_t6_sig) # TRUE
 
 # BOXPLOTS OF CLUSTER COUNTS AND FREQUENCIES ####
 
-all_cluster_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1)
-all_cluster_log_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1)+scale_y_log10()
+all_cluster_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1, logFC = 0)
+all_cluster_log_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1, logFC = 0)+scale_y_log10()
 all_cluster_freqs <- diffcyt_boxplot(da_dod, merged_daf, counts=F, FDR=1, logFC = 0)
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png",all_cluster_counts , height = 12, width=18)# works
@@ -259,8 +262,10 @@ t6_map_data <- t6_map_data%>%
   #group_by(volunteer) %>%
   mutate(trans_freq=asin(sqrt(frequency/100))) %>%
   mutate(max_freq=max(frequency)) %>%
-  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE))
+  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE)) %>%
+  ungroup()
 
+#write.csv(t6_map_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/t6_map_data.csv")
 
 
 t6_col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$volunteer),]$sample_id)
@@ -311,6 +316,7 @@ yellow_half <- rev(c("#FFC30B", "#FFD400", "#FFFFB7"))
   scale_fill_gradientn(#colours = colorspace::diverging_hcl(palette = "Berlin",8), 
                        #colours=rev(c("#FFC125", "#FFFFFF", "#4169E1")),
                        colours=c(blue_half[3:5], yellow_half),
+                       #values = rescale(c(min(t6_map_data$trans_norm_freq), 0, max(t6_map_data$trans_norm_freq)), to=c(0,1)), 
                        values = rescale(c(min(t6_map_data$trans_norm_freq), 0, max(t6_map_data$trans_norm_freq)), to=c(0,1)), 
                        guide = guide_colourbar(nbin = 1000))+
   theme_minimal()+
@@ -372,7 +378,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/da_edger
 
 heat <-  grid::grid.grabExpr(
   plotClusterHeatmap(merged_daf, hm2 = "state_markers",
-                   k = "som100",
+                   k = "meta45",
                    m = "flo_merge",
                    cluster_anno = FALSE,
                    draw_freqs = FALSE,

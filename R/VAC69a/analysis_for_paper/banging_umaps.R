@@ -123,10 +123,18 @@ for (i in refined_markers[,1]){
 
 # add flo_merge cluster codes to daf
 #coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
+meta_45_mod_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/modified_ccp_meta45_merge.csv", header = T, stringsAsFactors = F)
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
-#smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = coarse_merging_table, id = "coarse_merge")
-smol_merged_daf<- mergeClusters(smol_daf, k = "meta45", table = merging_table1, id = "flo_merge")
+#get rid of spaces at beginning of string
+
+merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
+merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
+
+merging_table1$new_cluster <- factor(merging_table1$new_cluster)
+
+smol_merged_daf<- mergeClusters(smol_daf, k = "som100", table = meta_45_mod_table, id = "mod_meta45")
+smol_merged_daf<- mergeClusters(smol_merged_daf, k = "mod_meta45", table = merging_table1, id = "flo_merge")
 
 
 # turn into ggplottable object and add coumns for flo_merge name and whether it should be black or coloured
@@ -183,20 +191,23 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panels_d_e.png",  pane
 # making umap projections colored by cluster identity ####
 
 #first: include my merge to DAF
+
+#get rid of spaces at beginning of string
+library(CATALYST)
+meta_45_mod_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/modified_ccp_meta45_merge.csv", header = T, stringsAsFactors = F)
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 vis_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figures_for_phil/merge_for_vis.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
-library(CATALYST)
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
-#get rid of spaces at beginning of string
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
 
 merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
-merged_daf<- mergeClusters(smol_daf, k = "meta45", table = merging_table1, id = "flo_merge")
+merged_daf<- mergeClusters(daf, k = "som100", table = meta_45_mod_table, id = "mod_meta45")
+merged_daf<- mergeClusters(merged_daf, k = "mod_meta45", table = merging_table1, id = "flo_merge")
+
 
 
 vis_merge$new_cluster <- factor(vis_merge$new_cluster)
