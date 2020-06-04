@@ -4,6 +4,36 @@
   library(vac69a.cytof)
   library(CATALYST)
   
+  #bigass color palette
+  
+  color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
+                        "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
+                        "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
+                        "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
+                        "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
+                        "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
+                        "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
+                        "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
+                        "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
+                        "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
+                        "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
+                        "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
+                        "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
+  
+  inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
+  sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
+  
+  inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
+  
+  UMAP_theme <- theme_minimal()+theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.text = element_blank()
+  )
+  
+  
+  
+  
   #functions, palettes etc. ####
   # 
   `%!in%` = Negate(`%in%`)
@@ -44,22 +74,13 @@
   
   
   
-data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+#data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
   
   #write.csv(big_table, "equal_small_vac69a_umap.csv")
   #write.csv(big_table, "proportional_small_vac69a_umap.csv")
   
-    #big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/big_table.csv")
-    inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
-    sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
     
-    inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
-    
-    UMAP_theme <- theme_minimal()+theme(
-      panel.grid.minor = element_blank(),
-      legend.position = "none",
-      axis.text = element_blank()
-    )
 
 
 
@@ -138,11 +159,15 @@ smol_merged_daf<- mergeClusters(smol_merged_daf, k = "mod_meta45", table = mergi
 
 
 # turn into ggplottable object and add coumns for flo_merge name and whether it should be black or coloured
-big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
+#big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
 
 big_table$flo_label <- as.character(cluster_ids(smol_merged_daf, k = "flo_merge"))
+data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
 
-sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
+
+# ATTENTION: for some reason in the writing of this there were some spaces at the end of some names so if the cluster coloring
+# doesn't work check that the significant column contains all the significant clusters!
+sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
 
 big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters[,2], big_table$flo_label, "black")
 big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
@@ -150,17 +175,20 @@ big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
 
 
 #define the colour palette
-cluster_palette <- color_103_scheme[1:length(unique(big_table$significant))]
+cluster_palette <- color_103_scheme[2:(length(unique(big_table$significant))+1)]
+cluster_palette[8] <- "#FFA500"
+cluster_palette[9] <- "red"
+cluster_palette[1] <- "#000000"
 names(cluster_palette)[1] <- "black"
 names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significant)[-match("black", unique(big_table$significant))]
 
 
 # restrict data to T6 and downsample by 33% to make it look nice
-big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
-big_table_t6 <- big_table_t6[seq(1,nrow(big_table_t6), by=3), ]
+short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+short_big_table_t6 <- big_table_t6[seq(1,nrow(big_table_t6), by=3), ]
 
-t6_sig_clusters_umap <- ggplot(big_table_t6, aes(x=UMAP1, y=UMAP2))+
-  geom_point(shape=".", aes(color=significant, alpha=alpha))+
+t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+  geom_point(aes(color=significant, alpha=alpha), shape=".")+
   #geom_polygon(data = list_of_hulls[[5]], alpha = 0.5)+ 
   #scale_color_manual(values = cols$hex)+
   #UMAP_theme+
@@ -168,9 +196,13 @@ t6_sig_clusters_umap <- ggplot(big_table_t6, aes(x=UMAP1, y=UMAP2))+
   theme_minimal()+
   ggtitle("Differentially Abundant\nClusters at T6")+
   UMAP_theme+
+  guides(colour = guide_legend(override.aes = list(size = 4)),
+         alpha= "none")+
+  #guides(alpha = guide_legend(override.aes = list(size = 10)))+
   xlim(c(-13, 10))+
   ylim(c(-11.2, 11.3))+
   theme(legend.position = "none",
+        legend.title = element_blank(),
         axis.title.x = element_text(colour = "white"),
         plot.title = element_text(hjust=0.5))
 
@@ -188,7 +220,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panels_d_e.png",  pane
 
 
 
-# making umap projections colored by cluster identity ####
+  # making umap projections colored by cluster identity ####
 
 #first: include my merge to DAF
 
@@ -214,23 +246,6 @@ vis_merge$new_cluster <- factor(vis_merge$new_cluster)
 merged_daf <- mergeClusters(merged_daf, k = "meta45", table = vis_merge, id = "vis_merge")
 
 
-
-
-#bigass color palette
-
-color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
-                      "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
-                      "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
-                      "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
-                      "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
-                      "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
-                      "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
-                      "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
-                      "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
-                      "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
-                      "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
-                      "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
-                      "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
 
 
 

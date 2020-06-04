@@ -1,7 +1,8 @@
 library(colorspace)
 library(scales)
 library(ComplexHeatmap)
-
+library(dplyr)
+library(tidyr)
 #get experiment info
 cd <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/experiment_info.csv")
 # batch <- rep(rep(levels(cd$batch), each=3), 4)
@@ -68,30 +69,30 @@ freq_hm
 
 
 #save as pdf
-pdf("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/freq_hm.pdf", width=11, height=6)
-freq_hm
-dev.off()
-
-#add raster arguments in order to save as png
-freq_hm <- Heatmap(matrix = hm_matrix,
-                   cluster_rows = FALSE,
-                   cluster_columns = FALSE,
-                   row_names_side = "left",
-                   col = col_fun4,
-                   rect_gp = gpar(col = "white"),
-                   top_annotation = top_anno,
-                   show_heatmap_legend = TRUE,
-                   width = unit(14, "cm"),
-                   height = unit(8, "cm"),
-                   use_raster = TRUE,
-                   raster_device = "png")
-
-#save as png
-png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/freq_hm.png", width=11, height=6, units = "in", res=400)
-freq_hm
-dev.off()
-
-
+  pdf("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/freq_hm.pdf", width=12, height=6)
+  freq_hm
+  dev.off()
+  
+  #add raster arguments in order to save as png
+  freq_hm <- Heatmap(matrix = hm_matrix,
+                     cluster_rows = FALSE,
+                     cluster_columns = FALSE,
+                     row_names_side = "left",
+                     col = col_fun4,
+                     rect_gp = gpar(col = "white"),
+                     top_annotation = top_anno,
+                     show_heatmap_legend = TRUE,
+                     width = unit(14, "cm"),
+                     height = unit(8, "cm"),
+                     use_raster = TRUE,
+                     raster_device = "png")
+  
+  #save as png
+  png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/freq_hm.png", width=12, height=6, units = "in", res=400)
+  freq_hm
+  dev.off()
+  
+  
 
 
 
