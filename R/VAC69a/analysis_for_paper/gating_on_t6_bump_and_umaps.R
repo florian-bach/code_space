@@ -50,7 +50,7 @@ UMAP_theme <- theme_minimal()+theme(
 #   ff[idx,]  # alt. ff[order(idx),]
 # })
 
-fcs_name <- "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/concat/all.fcs"
+fcs_name <- "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/concat/all_t6.fcs"
 
 lin_gates <- CytoML::cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/CytExp_295996_Gates_simplified.xml", FCS=fcs_name)
 
@@ -69,48 +69,78 @@ y_coord <- c(5,    -2.4, 7.5,   7,    -8,  -5.8,   8.3, -4.5)
 gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
 
 (umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
-  geom_hex(bins=228)+
+  #geom_hex(bins=228)+
+  geom_point(color="black", alpha=0.5, shape=".")+
   geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
   geom_text(data=gate_label_positions[7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7, parse = T)+
   geom_text(data=gate_label_positions[-7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
     UMAP_theme+
-  xlab("UMAP1")+
-  ylab("UMAP2")+
-  theme(axis.title = element_text(), 
-        panel.grid = element_blank(),
+  ggtitle("Major T cell\nlineages")+
+  theme(axis.title = element_blank(), 
         strip.text = element_blank(),
-        plot.title = element_blank()))
+        plot.title = element_text(hjust=0.5))
+  )
 
 gate_labeled_gg <- as.ggplot(umap_gate_labeled)
 
 gate_labeled_gg <- gate_labeled_gg+
-  scale_x_continuous(limits=c(-13, 10))+
-  scale_y_continuous(limits = c(-11.2, 11.3))+
+  coord_cartesian(xlim=c(-13, 10), ylim=c(-11.2, 11.3))
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_gate_labeled.png", umap_gate_labeled, height=4, width=4)
 
 
 
+empty_gates <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
+  #geom_hex(bins=228)+
+  #geom_point(color="black", alpha=0.5, shape=".")+
+  geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
+  geom_text(data=gate_label_positions[7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7, parse = T)+
+  geom_text(data=gate_label_positions[-7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
+  UMAP_theme+
+  xlab("UMAP1")+
+  ylab("UMAP2")+
+  scale_fill_gradientn(colors=inferno_white)+
+  theme(axis.title = element_text(), 
+        panel.grid = element_blank(),
+        strip.text = element_blank(),
+        plot.title = element_blank())
+
+empty_gates <- as.ggplot(empty_gates)
+
+
+
+
+empty_gates_plus_sig_clusters <- empty_gates+
+  geom_point(data=short_big_table_t6, aes(color=significant, alpha=alpha), shape=".")+
+  scale_color_manual(values = cluster_palette)+
+  theme_minimal()+
+  ggtitle("Differentially Abundant\nClusters at T6")+
+  UMAP_theme+
+  guides(colour = guide_legend(override.aes = list(size = 4)),
+         alpha= "none")+
+  #guides(alpha = guide_legend(override.aes = list(size = 10)))+
+  coord_cartesian(xlim=c(-13, 10),
+                  ylim=c(-11.2, 11.3))+
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        axis.title.x = element_text(colour = "white"),
+        plot.title = element_text(hjust=0.5),
+        strip.text = element_blank())
+
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_sig_clusters_and_gates.png", empty_gates_plus_sig_clusters, height=4, width=4)
 
 
 
 
 
-nodes <- gs_pop_get_children(lin_gates[[1]], "root")
-nodes <- nodes[-c(1, 4, 5, 6, 7, 14)]
-nodes <- substr(nodes, 2, nchar(nodes))
-
-ggcyto(smaller_umap_vac69a[[1]], aes(x=UMAP2, y=UMAP1))+
-  
-  #geom_hex(bins=190)+
-  # geom_gate(nodes)+
-  geom_gate("Naive CD4+")
 
 
-     geom_stats(type = "gate_name")
 
 
-#gate that mf
+
+
+#gate that mf ####
 
 t6_gate <-rectangleGate("UMAP2"=c(-4.5, -2.5), "UMAP1"=c(-2.4, 0))
 

@@ -74,7 +74,7 @@ da_t6 <- diffcyt(merged_daf,
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
 # FALSE
 #    42
-table(rowData(da_dod$res)$p_adj < FDR_cutoff)
+table()
 # # FALSEFALSE  TRUE
 # 34     8
 table(rowData(da_t6$res)$p_adj < FDR_cutoff)
@@ -93,8 +93,8 @@ table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 # removing the cluster term returns 0 significant clusters at dod and 5 at t6 (37, 32, 36, 15, 42) so there's a small effect;
 # all the mismatched clusters between those models are detected in the full design matrix
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
-plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 45)
-plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
+plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 10)
+  plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 30)
 
 
 
@@ -172,9 +172,9 @@ all(edger_t6_sig %in% glm_t6_sig) # TRUE
 
 # BOXPLOTS OF CLUSTER COUNTS AND FREQUENCIES ####
 
-all_cluster_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1, logFC = 0)
-all_cluster_log_counts <- diffcyt_boxplot(da_dod, merged_daf, counts=T, FDR=1, logFC = 0)+scale_y_log10()
-all_cluster_freqs <- diffcyt_boxplot(da_dod, merged_daf, counts=F, FDR=1, logFC = 0)
+all_cluster_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
+all_cluster_log_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)+scale_y_log10()
+all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png",all_cluster_counts , height = 12, width=18)# works
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18)# works

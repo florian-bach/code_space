@@ -159,15 +159,22 @@ smol_merged_daf<- mergeClusters(smol_merged_daf, k = "mod_meta45", table = mergi
 
 
 # turn into ggplottable object and add coumns for flo_merge name and whether it should be black or coloured
+
 #big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
+#big_table$flo_label <- as.character(cluster_ids(smol_merged_daf, k = "flo_merge"))
 
-big_table$flo_label <- as.character(cluster_ids(smol_merged_daf, k = "flo_merge"))
-data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+#data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+# making umap projections colored by cluster identity ####
 
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
 
 # ATTENTION: for some reason in the writing of this there were some spaces at the end of some names so if the cluster coloring
 # doesn't work check that the significant column contains all the significant clusters!
 sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
+
+#get rid of resting Vd cluster
+sig_clusters <- sig_clusters[-9,]
+
 
 big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters[,2], big_table$flo_label, "black")
 big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
@@ -185,12 +192,10 @@ names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significan
 
 # restrict data to T6 and downsample by 33% to make it look nice
 short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
-short_big_table_t6 <- big_table_t6[seq(1,nrow(big_table_t6), by=3), ]
+short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), ]
 
 t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   geom_point(aes(color=significant, alpha=alpha), shape=".")+
-  #geom_polygon(data = list_of_hulls[[5]], alpha = 0.5)+ 
-  #scale_color_manual(values = cols$hex)+
   #UMAP_theme+
   scale_color_manual(values = cluster_palette)+
   theme_minimal()+
@@ -198,29 +203,67 @@ t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   UMAP_theme+
   guides(colour = guide_legend(override.aes = list(size = 4)),
          alpha= "none")+
+  # scale_y_continuous(limits = c(-11.2, 11.3))+
+  # scale_x_continuous(limits=c(-13, 10))+
   #guides(alpha = guide_legend(override.aes = list(size = 10)))+
-  xlim(c(-13, 10))+
-  ylim(c(-11.2, 11.3))+
   theme(legend.position = "none",
         legend.title = element_blank(),
-        axis.title.x = element_text(colour = "white"),
-        plot.title = element_text(hjust=0.5))
+        axis.title = element_blank(),
+        plot.title = element_text(hjust=0.5))+
+  coord_cartesian(xlim=c(-13, 10),
+                  ylim=c(-11.2, 11.3))
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap.png",  t6_sig_clusters_umap, height=5, width=5)
 
-cd38_plot <- flo_umap(big_table_t6, "CD38")+theme(axis.title.y = element_blank())
-bcl2_plot <- flo_umap(big_table_t6, "BCL2")+theme(axis.title.y = element_blank(),
-                                                  axis.title.x =element_text(colour = "white"))
+cd38_plot <- flo_umap(short_big_table_t6, "CD38")+theme(axis.title = element_blank())
+bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_blank())
+
+
 
 panels_d_e <- plot_grid(t6_sig_clusters_umap, cd38_plot, bcl2_plot, nrow=1)
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panels_d_e.png",  panels_d_e, height=4, width=12)
 
+new_panels_d_e <- plot_grid(gate_labeled_gg, t6_sig_clusters_umap, cd38_plot, bcl2_plot, nrow=2)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/new_panels_d_e.png",  new_panels_d_e, height=8, width=8)
+
+
+new_panels_d_ever2 <- plot_grid(empty_gates_plot,  cd38_plot, bcl2_plot, nrow=1)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/new_panels_d_e_ver2.png",  new_panels_d_ever2, height=4, width=12)
 
 
 
+#all clusters colored in
+expanded_cluster_palette <- c(cluster_palette, color_103_scheme[22:46])
 
-  # making umap projections colored by cluster identity ####
+names(expanded_cluster_palette)[11:length(expanded_cluster_palette)] <- unique(big_table$flo_label)[-match(unique(big_table$significant), unique(big_table$flo_label), nomatch = 0)]
+
+t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+    #geom_point(aes(color=flo_label, alpha=scales::rescale(alpha, to=c(0.1, 1))), shape=".")+
+    geom_point(aes(color=flo_label), shape=".", alpha=0.4)+
+    #UMAP_theme+
+    scale_color_manual(values = expanded_cluster_palette)+
+    theme_minimal()+
+    ggtitle("All Cells at T6 coloured\nby Cluster ID")+
+    UMAP_theme+
+    guides(colour = guide_legend(override.aes = list(size = 2, shape=16, alpha=1), ncol = 3),
+           alpha= "none")+
+    # scale_y_continuous(limits = c(-11.2, 11.3))+
+    # scale_x_continuous(limits=c(-13, 10))+
+    #guides(alpha = guide_legend(override.aes = list(size = 10)))+
+    theme(legend.position = "none",
+          legend.title = element_blank(),
+          legend.text = element_text(size=6),
+          axis.title = element_blank(),
+          plot.title = element_text(hjust=0.5),
+          #legend.key.width=unit(4,"cm"),
+          )+
+    coord_cartesian(xlim=c(-13, 10),
+                    ylim=c(-11.2, 11.3))
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=5, width=5)
+
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_with_legend.png",  t6_all_clusters_umap, height=8, width=6)
 
 #first: include my merge to DAF
 
@@ -374,11 +417,11 @@ bcl2_plot <- flo_umap(big_table, "BCL2")
 cd27_plot <- flo_umap(big_table, "CD27")
 
 
-cd38_bcl2_plot <-   plot_grid(cd38_plot, bcl2_plot, ncol=1)
-activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
-# ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd38_bcl2_plot.png", cd38_bcl2_plot)
+# cd38_bcl2_plot <-   plot_grid(cd38_plot, bcl2_plot, ncol=1)
+# activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
+# # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd38_bcl2_plot.png", cd38_bcl2_plot)
 
 
 cd45ro_plot <- flo_umap(big_table, "CD45RO")

@@ -1,45 +1,59 @@
 # open diffuerential_abundance.R and run until diffcyt constructs edgeR comparisons for each timepoint
 # then proceed
 
-all_cluster_freqs <- diffcyt_boxplot(da_dod, merged_daf, counts=F, FDR=1, logFC = 0)
-
-
-stacked_bar_data <-  all_cluster_freqs$data
-
-#write.csv(t6_map_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
-
-t6_map_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
-
-activated_clusters <- subset(merging_table1$new_cluster, grepl("activated", merging_table1$new_cluster))
-activated_clusters <- unique(activated_clusters)
-
-#write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
-
-activated_barchart_data <- subset(stacked_bar_data, stacked_bar_data$cluster_id %in% activated_clusters)
-
-# get lineage gates
-lineage_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/lineage_merge.csv", header=T, stringsAsFactors = F)
-merged_daf<- mergeClusters(merged_daf, k = "meta45", table = lineage_merge, id = "lineage")
-
-cluster_dic <- cbind(merging_table1, "lineage"=lineage_merge$new_cluster)
-
-#categorise significant clusters into their respective lineages
-activated_barchart_data$lineage <- cluster_dic$lineage[match(activated_barchart_data$cluster_id, cluster_dic$new_cluster)]
-
-
-
-summary <- activated_barchart_data %>%
-  group_by(timepoint, cluster_id) %>%
-  mutate(mean=base::mean(frequency), sd=stats::sd(frequency))
-
-tail(summary)
-
-summary$lineage <- factor(summary$lineage, levels=c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting"))
-
+# all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
+# 
+# 
+# 
+# stacked_bar_data <-  all_cluster_freqs$data
+# 
+# #write.csv(t6_map_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
+# 
+# t6_map_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
+# 
+# activated_clusters <- subset(merging_table1$new_cluster, grepl("activated", merging_table1$new_cluster))
+# activated_clusters <- unique(activated_clusters)
+# 
+# #write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
+# 
+# activated_barchart_data <- subset(stacked_bar_data, stacked_bar_data$cluster_id %in% activated_clusters)
+# 
+# # get lineage gates
+# lineage_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/lineage_merge.csv", header=T, stringsAsFactors = F)
+# merged_daf<- mergeClusters(merged_daf, k = "meta45", table = lineage_merge, id = "lineage")
+# 
+# cluster_dic <- cbind(merging_table1, "lineage"=lineage_merge$new_cluster)
+# 
+# #categorise significant clusters into their respective lineages
+# activated_barchart_data$lineage <- cluster_dic$lineage[match(activated_barchart_data$cluster_id, cluster_dic$new_cluster)]
+# 
+# 
+# 
+# summary <- activated_barchart_data %>%
+#   group_by(timepoint, cluster_id) %>%
+#   mutate(mean=base::mean(frequency), sd=stats::sd(frequency))
+# 
+# tail(summary)
+# 
+# summary$lineage <- factor(summary$lineage, levels=c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting"))
+# 
 
 #taken from khroma bright 6
-lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#CCBB44", "#BBBBBB")
+
+#data.table::fwrite(summary,  "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+
+library(ggplot2)
+library(dplyr)
+library(cowplot)
+
+
+summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+
+
+lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
 names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
+
+
 
 activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100, fill=lineage))+
   geom_bar(stat="identity", position="stack")+
@@ -48,7 +62,7 @@ activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100,
   facet_wrap(~timepoint, strip.position = "bottom")+
   ggtitle("Overall T cell activation")+
   scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
-  scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=scales::percent_format(accuracy = 1))+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
   #ylim(0,25)+
   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
   theme(#legend.position = "none",
@@ -61,40 +75,47 @@ activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100,
 
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=4)
+# 
+# 
+# 
+# 
+# lineage_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/lineage_merge.csv", header=T, stringsAsFactors = F)
+# 
+# merged_daf<- mergeClusters(merged_daf, k = "meta45", table = lineage_merge, id = "lineage")
+# 
+# cluster_dic <- cbind(merging_table1, "lineage"=lineage_merge$new_cluster)
+# 
+# 
+# barchart_data <- all_cluster_freqs$data
+# 
+# barchart_data$lineage <- cluster_dic$lineage[match(barchart_data$cluster_id, cluster_dic$new_cluster)]
+# 
+# barchart_data <- barchart_data %>%
+#   group_by(timepoint, lineage) %>%
+#   mutate("lin_max_count" = sum(count)) %>%
+#   ungroup()
+# 
+# barchart_data <- barchart_data %>%
+#   group_by(timepoint, cluster_id) %>%
+#   mutate("cluster_max_count" = sum(count)) %>%
+#   ungroup()
+# 
+# barchart_data$lin_freq <- barchart_data$cluster_max_count/barchart_data$lin_max_count
+# 
+# 
+# write.csv(barchart_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv")
 
 
+# PIES ####
 
-
-lineage_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/lineage_merge.csv", header=T, stringsAsFactors = F)
-
-merged_daf<- mergeClusters(merged_daf, k = "meta45", table = lineage_merge, id = "lineage")
-
-cluster_dic <- cbind(merging_table1, "lineage"=lineage_merge$new_cluster)
-
-
-barchart_data <- all_cluster_freqs$data
-
-barchart_data$lineage <- cluster_dic$lineage[match(barchart_data$cluster_id, cluster_dic$new_cluster)]
-
-barchart_data <- barchart_data %>%
-  group_by(timepoint, lineage) %>%
-  mutate("lin_max_count" = sum(count)) %>%
-  ungroup()
-
-barchart_data <- barchart_data %>%
-  group_by(timepoint, cluster_id) %>%
-  mutate("cluster_max_count" = sum(count)) %>%
-  ungroup()
-
-barchart_data$lin_freq <- barchart_data$cluster_max_count/barchart_data$lin_max_count
-
-
-write.csv(barchart_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv")
 
 barchart_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header=T, stringsAsFactors = FALSE)
 
 
+
+activated_clusters <- grep("activated", unique(barchart_data$cluster_id), value = T)
 barchart_data <- subset(barchart_data, barchart_data$cluster_id %in% activated_clusters)
+
 
 barchart_data <- subset(barchart_data, barchart_data$timepoint=="T6")
 
@@ -135,7 +156,7 @@ lineage_activation_pies <- ggplot(barchart_plot_data)+
   scale_fill_manual(values=pie_lineage_palette)+
   # scale_fill_manual(values=lineage_palette, breaks = levels(barchart_plot_data$lineage))+
   guides()+
-  ggtitle("Average Proportion of Activation by Lineage,\nacross all samples at T6")+
+  ggtitle("Average Proportion of Activated Cells\nacross all samples at T6")+
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         panel.grid = element_blank(),
@@ -147,14 +168,14 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pie
 
 
 
-panel_f <- plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(1.8,1))
+panel_f <- plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(1.7,1))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=6, width=9)
-
-
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=6, width=9.5)
 
 
-pie_data <- barchart_data
+
+
+  pie_data <- barchart_data
 
 t6_pie_data <- subset(pie_data, pie_data$timepoint=="T6")
 

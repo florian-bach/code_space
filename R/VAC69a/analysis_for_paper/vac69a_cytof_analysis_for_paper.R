@@ -17,16 +17,6 @@ inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
 
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
-plotClusterHeatmap(daf, hm2=NULL,
-                   k = "meta45",
-                   #m = "flo_merge",
-                   cluster_anno = TRUE,
-                   draw_freqs = TRUE,
-                   scale = TRUE, 
-                   palette=inferno
-)
-
-
 # start <- Sys.time(); daf <- runUMAP(daf, exprs_values = "exprs", feature_set=refined_markers); end <- Sys.time()
 # (duration <- round(end - start)) # ~20-25 min
 
@@ -79,26 +69,31 @@ plotClusterHeatmap(daf, hm2=NULL,
 ####  the mergening 
 
 #32 clusters, mostly delineated along CD28, CD27, CD57, after lineage, memory and activation markers
+meta_45_mod_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/modified_ccp_meta45_merge.csv", header = T, stringsAsFactors = F)
 merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
 
 #get rid of spaces at beginning of string
+
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
 merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
+# 
+# merging_table1$new_cluster <- factor(merging_table1$new_cluster)
 
-merging_table1$new_cluster <- factor(merging_table1$new_cluster)
+merged_daf<- mergeClusters(daf, k = "som100", table = meta_45_mod_table, id = "mod_meta45")
+merged_daf<- mergeClusters(merged_daf, k = "mod_meta45", table = merging_table1, id = "flo_merge")
 
-merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "flo_merge")
-
-flo_32_cluster_heatmap <- plotClusterHeatmap(merged_daf, hm2=NULL,
-                   k = "meta45",
-                   #m = "flo_merge",
+plotClusterHeatmap(merged_daf, hm2 = "state_markers",
+                   #k = "flo_merge",
+                   k = "flo_merge",
                    cluster_anno = FALSE,
-                   draw_freqs = TRUE,
+                   draw_freqs = FALSE,
                    scale = TRUE, 
                    palette=inferno
 )
 
-ggsave("flo_32_cluster_heatmap.png", flo_32_cluster_heatmap)
+#heat_grob <- grid::grid.grabExpr(flo_34_cluster_heatmap)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/flo_34_cluster_heatmap_20200608.png", width = 8, height = 6)
 
 ### diffcyt ####z
 #merged_daf <- filterSCE(merged_daf, timepoint != "C10")

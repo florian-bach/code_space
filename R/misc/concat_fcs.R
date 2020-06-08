@@ -9,5 +9,5 @@ list_of_files <- list.files(path=".", pattern="*.fcs")
 
 t6_files <- list_of_files[grep(pattern = "T+6", list_of_files)]
 
-premessa::concatenate_fcs_files(files.list=list_of_files, output.file = "./concat/all.fcs")
+premessa::concatenate_fcs_files(files.list=list_of_files, output.file = "./concat/all_t6.fcs")
 
