@@ -164,7 +164,10 @@ glm_t6_sig <- topTable(glm_t6, top_n = 24)$cluster_id
 
 
 edger_dod_sig <- topTable(da_dod, top_n = 8)$cluster_id
-edger_t6_sig <- topTable(da_t6, top_n = 14)$cluster_id
+edger_t6_sig <- topTable(da_t6, all = T, show_logFC = T)
+
+
+#write.csv(edger_t6_sig, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/edger_t6_FC_padj.csv")
 
 all(edger_dod_sig %in% glm_dod_sig) # TRUE
 all(edger_t6_sig %in% glm_t6_sig) # TRUE
@@ -266,6 +269,9 @@ t6_map_data <- t6_map_data%>%
   ungroup()
 
 #write.csv(t6_map_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/t6_map_data.csv")
+all_t6_data <- all_cluster_counts$data
+write.csv(all_t6_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv")
+
 
 
 t6_col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$volunteer),]$sample_id)
