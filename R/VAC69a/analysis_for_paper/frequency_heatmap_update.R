@@ -140,6 +140,12 @@ p_adj <- c(head(fold_change$p_adj, n=nrow(top_mat)), tail(fold_change$p_adj, n=n
 log2_fc <- c(head(fold_change$logFC, n=nrow(top_mat)), tail(fold_change$logFC, n=nrow(bot_mat)))
 
 significant <- ifelse((p_adj<0.05 & abs(log2_fc)>1), "yes", "no")
+sig <- c("yes"="darkgreen", "no"="lightgrey")
+
+Volunteer <- c("V02" = "#FB9A99","V03" = "#E31A1C","V05" = "#A6CEE3", "V06" = "#1F78B4", "V07" = "#B2DF8A", "V09" = "#33A02C")
+Timepoint <- c("Baseline"=time_col[4], "C10"=time_col[3], "DoD"=time_col[2], "T6"=time_col[1])
+Batch <- c("batch_1"="lightgrey", "batch_2"="darkgrey")
+
 
 
 combo_line_anno <-  rowAnnotation(gap = unit(2, "mm"),
@@ -159,7 +165,7 @@ combo_line_anno <-  rowAnnotation(gap = unit(2, "mm"),
 )
 
 
-combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"),
+combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = "left",
   Volunteer = rep(levels(cd$volunteer), 4),
   Timepoint = rep(levels(cd$timepoint), each=6),
   Batch = rep(rep(levels(cd$batch), each=3), 4),
@@ -209,7 +215,6 @@ draw(combo_map,
      #padding = unit(c(2, 20, 2, 2), "mm")
 )
 dev.off()
-
 
 
 
