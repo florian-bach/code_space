@@ -4,7 +4,7 @@ library(dplyr)
 library(cowplot)
 library(SummarizedExperiment)
 library(SingleCellExperiment)
-
+library(ggplot2)
 library(vac69a.cytof)
 library(CATALYST)
 
@@ -26,18 +26,20 @@ library(CATALYST)
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 3000)
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/most_coarse_merge.csv", header=T, stringsAsFactors = F)
+coarse_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/most_coarse_merge.csv", header=T, stringsAsFactors = F)
+
+
 
 #get rid of spaces at beginning of string
 
-merging_table1$new_cluster <- factor(merging_table1$new_cluster)
+coarse_table$new_cluster <- factor(coarse_table$new_cluster)
 
-merged_daf<- mergeClusters(daf, k = "meta45", table = merging_table1, id = "coarse_merge")
+merged_daf<- mergeClusters(daf, k = "mod_meta45", table = coarse_table, id = "coarse_merge")
 
 
 plotClusterHeatmap(merged_daf, hm2=NULL,
-                   k = "coarse_merge",
-                   #m = "flo_merge",
+                   k = "mod_meta45",
+                   m = "coarse_merge",
                    cluster_anno = FALSE,
                    draw_freqs = TRUE,
                    scale = TRUE
@@ -56,7 +58,7 @@ levels(ei$timepoint)
 #has been used, the entries correspond to the levels of the fixed effect terms;
 #and the length equals the number of levels of the fixed effect terms.
 
-FDR_cutoff <- 0.01
+FDR_cutoff <- 0.05
 
 # edgeR models with all timepoints####
 
@@ -115,17 +117,22 @@ table(res_DA_dod$p_adj <= 0.05)
 res_DA_t6 <- topTable(ds_t6, all = TRUE, show_logFC = T)
 table(res_DA_t6$p_adj <= 0.05)
 
-sigs_t6 <- subset(res_DA_t6, p_adj<=0.01)
-sigs_dod <- subset(res_DA_dod, p_adj<=0.01)
+sigs_t6 <- subset(res_DA_t6, p_adj<=0.05)
+sigs_dod <- subset(res_DA_dod, p_adj<=0.05)
 
 spider_sigs_t6 <- data.frame(sigs_t6$cluster_id, sigs_t6$marker_id, sigs_t6$logFC)
 spider_sigs_t6$direction <- ifelse(sigs_t6$logFC>=0, "up", "down")
 
-ds_limma_t6_heatmap <- ggplot(spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_t6.marker_id, label=round(2^sigs_t6.logFC, digits = 2)))+
+trimmed_spider_sigs_t6 <- subset(spider_sigs_t6, 2^spider_sigs_t6$sigs_t6.logFC>= 1.1 |  2^spider_sigs_t6$sigs_t6.logFC<=0.9)
+
+#trimmed_spider_sigs_t6$sigs_t6.cluster_id <- gsub("gamma delta", expression(alpha) , trimmed_spider_sigs_t6$sigs_t6.cluster_id)
+
+(ds_limma_t6_heatmap <- ggplot(trimmed_spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_t6.marker_id, label=round(2^sigs_t6.logFC, digits = 2)))+
   #geom_tile(aes(fill=rescale(sigs_t6.logFC, to=c(-5, 5))))+
   geom_tile(aes(fill=sigs_t6.logFC*5))+
-  geom_text()+
+  geom_text(parse = TRUE)+
   scale_fill_gradient2(low = "blue", high="red", midpoint = 0)+
+  scale_x_discrete(labels=c("gamma delta"=expression(paste(gamma, delta))))+
   # scale_fill_gradientn(colours = c("blue", "white", "red"),
   #                      values = c(min(spider_sigs_t6$sigs_t6.logFC), 0, 0.000001, max(spider_sigs_t6$sigs_t6.logFC)),
   #                      guide = guide_colourbar(nbin = 1000)
@@ -138,6 +145,7 @@ ds_limma_t6_heatmap <- ggplot(spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_
         legend.position = "none",
         panel.grid = element_blank(),
         plot.title = element_text(hjust = 0.5))
+)
 
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/ds_limma/timepoint_batch_t6_heatmap.png", ds_limma_t6_heatmap, width = 7, height = 7)

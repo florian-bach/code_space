@@ -96,6 +96,38 @@ combo_right_anno <-  rowAnnotation(gap = unit(2, "mm"),
 )
 
 
+
+combo_right_anno_var <-  rowAnnotation(gap = unit(2, "mm"),
+                                   #space = rep("a", 24),
+                                   #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-6, 6), axis_param = list(at=seq(-6, 6, by=2)), smooth = FALSE, add_points = TRUE),
+                                   "significant"=significant,
+                                   #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-4, 6), axis_param = list(at=seq(-4, 6, by=2)), add_points = TRUE, smooth = FALSE),
+                                   
+                                   #"p_adj"= anno_text(scales::scientific(p_adj, digits = 2), which="row"),
+                                   width = unit(3, "cm"), # width of the line graph
+                                   simple_anno_size = unit(2, "mm"), # width of the significance bar
+                                   col=list(significant = c("yes"="darkgreen", "no"="lightgrey"),
+                                            space=c("a"="white")),
+                                   annotation_legend_param = list(significant = list(title ="Significant",at = rev(names(sig)), legend_gp = gpar(fill = unname(sig)), title_position = "topleft")
+                                   )
+                                   
+)
+
+
+
+combo_left_anno_var <-  rowAnnotation(gap = unit(2, "mm"), 
+                                        
+                                       "significant"=significant,
+                                       simple_anno_size = unit(2, "mm"), # width of the significance bar
+                                       col=list(significant = c("yes"="darkgreen", "no"="lightgrey"),
+                                                space=c("a"="white")),
+                                       
+                                       annotation_legend_param = list(significant = list(labels_rot = 45, title ="Significant", at = rev(names(sig)), legend_gp = gpar(fill = unname(sig)), title_position = "topleft")
+                                       )
+                                       
+)
+
+
 combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = "left",
   Volunteer = rep(levels(cd$volunteer), 4),
   Timepoint = rep(levels(cd$timepoint), each=6),
@@ -126,7 +158,8 @@ combo_map <- Heatmap(matrix = combo_matrix,
         rect_gp = gpar(col = "white"),
         row_title = c("",""),
         top_annotation = combo_top_anno,
-        right_annotation = combo_right_anno,
+        #right_annotation = combo_right_anno_var,
+        left_annotation = combo_left_anno_var,
         show_heatmap_legend = TRUE,
         column_names_rot = 45,
         heatmap_legend_param = list(col = col_fun4, title = "Normalised Frequency", title_position = "topleft"),
@@ -140,7 +173,7 @@ draw(combo_map,
      )
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/improved_freq_hm.png", width=14, height=10, units = "in", res=400)
+  png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/improved_freq_hm_no_right.png", width=14, height=10, units = "in", res=400)
 draw(combo_map,
      merge_legends = TRUE,
      #padding = unit(c(2, 20, 2, 2), "mm")
