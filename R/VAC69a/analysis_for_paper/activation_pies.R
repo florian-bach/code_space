@@ -46,6 +46,7 @@ library(ggplot2)
 library(dplyr)
 library(cowplot)
 
+# Stacked Barchart Figure 1E ####
 
 summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
 
@@ -59,22 +60,22 @@ activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100,
   geom_bar(stat="identity", position="stack")+
   #geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
   theme_minimal()+
-  facet_wrap(~timepoint, strip.position = "bottom")+
+  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
   ggtitle("Overall T cell activation")+
   scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
   scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
   #ylim(0,25)+
   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
   theme(#legend.position = "none",
-    plot.title = element_text(hjust=0.5, size=15),
-    strip.text = element_text(hjust=0.5, size=12, face = "bold"),
+    plot.title = element_text(hjust=0.5, size=11),
+    strip.text = element_text(hjust=0.5, size=10, face = "bold"),
     axis.title.x = element_blank(),
     panel.grid.minor.y = element_blank(),
     legend.position = "none",
     strip.placement = "outside")
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=4)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=8)
 # 
 # 
 # 
@@ -106,7 +107,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_bar
 # write.csv(barchart_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv")
 
 
-# PIES ####
+# PIES Figure 1F ####
 
 
 barchart_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header=T, stringsAsFactors = FALSE)
@@ -152,91 +153,204 @@ lineage_activation_pies <- ggplot(barchart_plot_data)+
   geom_bar(stat="identity", position = "stack", width=1, aes(x="", y=lin_activation, fill=state))+
   theme_minimal()+
   coord_polar(theta = "y", start = 0)+
-  facet_wrap(~lineage, labeller = label_parsed, ncol=2)+
+  facet_wrap(~lineage, labeller = label_parsed, ncol=2, strip.position = "left")+
   scale_fill_manual(values=pie_lineage_palette)+
   # scale_fill_manual(values=lineage_palette, breaks = levels(barchart_plot_data$lineage))+
   guides()+
-  ggtitle("Average Proportion of Activated Cells\nacross all samples at T6")+
+  ggtitle("Average Proportion of Activated Cells\nin Major T cell Lineages at T6")+
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         panel.grid = element_blank(),
-        plot.title = element_text(hjust=0.5, size=15),
-        strip.text = element_text(hjust=0.5, size=18, face = "bold"),
+        plot.title = element_text(hjust = 0.5, size=11),
+        strip.text.y.left = element_text(hjust=0.5, size=14, face = "bold", angle = 0),
         legend.position = "none")
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
 
 
 
-panel_f <- plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(1.7,1))
+panel_f <- plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(4,1), rel_heights = c(1,1), axis = "bt", align = "hv")
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=6, width=9.5)
-
-
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=4, width=17)
 
 
-  pie_data <- barchart_data
 
-t6_pie_data <- subset(pie_data, pie_data$timepoint=="T6")
 
-t6_lin_counts <- t6_pie_data %>%
-  group_by(volunteer, lineage) %>%
-  mutate("sum_of_lineage"=sum(count)) %>%
-  select(volunteer, lineage, sum_of_lineage) %>%
-  ungroup()
+# FIGURE 2B ####
 
-t6_lin_counts <- t6_lin_counts[!duplicated(t6_lin_counts), ]
+library(gridBase)
+library(grid)
+library(circlize)
+
+inferno <- colorspace::sequential_hcl("inferno", n=8)
+col_inferno <-colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)
+
+reordered_sig_scaled_mat <- as.matrix(read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_medians_heatmap_t6.csv", header = T, row.names = 1))
+
+sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
+sig_clusters <- sig_clusters <- sig_clusters[-9,2]
+
+all_t6_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = FALSE, header = T)
+
+t6_map_data <- all_t6_data%>%
+  group_by(cluster_id, timepoint) %>%
+  mutate(mean_freq=mean(frequency)) %>%
+  ungroup() %>%
+  select(cluster_id, mean_freq, timepoint)
+
+t6_map_data <- filter(t6_map_data, timepoint=="T6")
+t6_map_data <- t6_map_data[!duplicated(t6_map_data), ]
+
+
+t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, 1, 1)==" ", substr(t6_map_data$cluster_id, 2, nchar(t6_map_data$cluster_id)), t6_map_data$cluster_id)
+t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, 1, 1)==" ", substr(t6_map_data$cluster_id, 2, nchar(t6_map_data$cluster_id)), t6_map_data$cluster_id)
+
+t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, nchar(t6_map_data$cluster_id), nchar(t6_map_data$cluster_id))==" ", substr(t6_map_data$cluster_id, 1, nchar(t6_map_data$cluster_id)-1), t6_map_data$cluster_id)
+t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, nchar(t6_map_data$cluster_id), nchar(t6_map_data$cluster_id))==" ", substr(t6_map_data$cluster_id, 1, nchar(t6_map_data$cluster_id)-1), t6_map_data$cluster_id)
+
+
+
+t6_map_data <- filter(t6_map_data, cluster_id %in% sig_clusters)
+t6_map_data <- t6_map_data[order(t6_map_data$mean_freq, decreasing = T),]
+
+
+pie_data <- data.frame(t6_map_data)
+
+
+pie_data$lineage <- as.factor(c("gd", "CD4", "CD4", "MAIT", "CD4", "CD4", "CD4", "CD8", "CD8"))
+pie_data <- pie_data[order(pie_data$lineage),]
+
+pie_data$lineage <- gsub("gd", expression(paste(gamma, delta)), pie_data$lineage)
+
+
+
+circlize_plot = function() {
   
+  circos.par("track.height" = 0.5)
+  circos.initialize(factors = pie_data$cluster_id, xlim=c(0,1), sector.width = pie_data$mean_freq)
   
+  o.cell.padding = circos.par("cell.padding")
   
+  circos.trackPlotRegion(ylim = c(0, 1), track.height = 0.2, bg.border = NA, 
+                         cell.padding = c(0, o.cell.padding[2], 0, o.cell.padding[4]))
   
-t6_act_counts <- subset(t6_pie_data, t6_pie_data$cluster_id %in% activated_clusters)
-
-t6_act_counts <- t6_act_counts %>%
-  group_by(volunteer, lineage) %>%
-  mutate("sum_of_activated"=sum(count)) %>%
-  select(volunteer, lineage, sum_of_activated) %>%
-  ungroup()
+  circos.track(factors = pie_data$cluster_id,
+               ylim = c(0, 1),
+               x=pie_data$mean_freq,
+               bg.col = rev(pie_palette))
+  highlight.sector(sector.index = grep("CD4", pie_data$cluster_id, value = T), track.index = 1, 
+                   col = pie_palette[1], border = NA)
+  highlight.sector(sector.index = grep("CD8", pie_data$cluster_id, value = T), track.index = 1, 
+                   col = pie_palette[2], border = NA)
+  highlight.sector(sector.index = grep("MAIT", pie_data$cluster_id, value = T), track.index = 1, 
+                   col = pie_palette[3], border = NA)
+  highlight.sector(sector.index = grep("Vd2", pie_data$cluster_id, value = T), track.index = 1, 
+                   col = pie_palette[4], border = NA)
   
-t6_act_counts <- t6_act_counts[!duplicated(t6_act_counts), ]
-
-t6_act_counts <- t6_act_counts[order(t6_act_counts$volunteer, t6_act_counts$lineage),]
-t6_lin_counts <- t6_lin_counts[order(t6_lin_counts$volunteer, t6_lin_counts$lineage),]
-
-pie_data <- cbind(t6_lin_counts, t6_act_counts)  
-pie_data[,1:2] <- NULL
-pie_data$ratio <- pie_data$sum_of_activated/pie_data$sum_of_lineage
-
-final_pie <- pie_data %>%
-  group_by(lineage) %>%
-  mutate("mean_lin_act"= mean(ratio))
-
-pie_final_pie <- select(final_pie, lineage, mean_lin_act)
-pie_final_pie$lineage <- gsub("gd", expression(paste(gamma, delta)), pie_final_pie$lineage)
-
-
-lineage_activation_pies <- ggplot(pie_final_pie)+
-  geom_rect(aes(xmin=0, xmax=1, ymin=0, ymax=mean_lin_act, fill=lineage))+
-  geom_rect(aes(xmin=0, xmax=1, ymin=mean_lin_act, ymax=1), fill="grey")+
-  facet_wrap(~lineage, labeller = label_parsed, ncol=2)+
-  coord_polar(theta = "y", start = 0)+
-  theme_minimal()+
-  scale_fill_manual(values=pie_lineage_palette)+
-  ggtitle("Average Proportion of Activation by Lineage, \nacross all samples at T6")+
-  theme(axis.title = element_blank(),
-        axis.text = element_blank(),
-        panel.grid = element_blank(),
-        plot.title = element_text(hjust=0.5, size=15),
-        strip.text = element_text(hjust=0.5, size=18, face = "bold"),
-        legend.position = "none")
+  circos.clear()
   
-  
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
+}
+
+# discrete
+lgd_cluster= Legend(at = pie_data$cluster_id, type = "grid", 
+                    legend_gp = gpar(fill = unname(pie_palette)[5:length(pie_palette)]),
+                    title_position = "topleft",
+                    labels_gp = gpar(fontsize = 10),
+                    title = "Cluster ID")
+# discrete
+lgd_lineage = Legend(at = unique(pie_data$lineage), type = "grid", 
+                     legend_gp = gpar(fill = unname(pie_palette)[1:4]),
+                     title_position = "topleft",
+                     labels_gp = gpar(fontsize = 10, parse = TRUE),
+                     title = "Lineage", )
+
+lgd_list <- packLegend(lgd_cluster, lgd_lineage)
+
+circlize_plot()
+
+draw(lgd_list)
+
+lgd_lineage@grob$children
 
 
 
-ggplot(pie_data, aes(x="", y=ratio, fill=lineage))+
-  geom_point(aes(shape=volunteer))+
-  geom_boxplot()+
-  facet_wrap(~lineage, scales="free")+
-  theme_minimal()
+
+png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_activation_pie.png", width=7, height=4, units = "in", res=400)
+
+plot.new()
+circle_size = unit(1, "snpc") # snpc unit gives you a square region
+
+pushViewport(viewport(x = 0, y = 0.5, width = circle_size, height = circle_size,
+                      just = c("left", "center")))
+par(omi = gridOMI(), new = TRUE)
+circlize_plot()
+upViewport()
+draw(lgd_list, x = circle_size, just = "left")
+
+dev.off()
+
+
+
+# old code you probably won't need again; this sums the activated counts and divides by the sums of lineages, rather thandisaplying averages
+
+
+# pie_data <- barchart_data
+# 
+# t6_pie_data <- subset(pie_data, pie_data$timepoint=="T6")
+# 
+# t6_lin_counts <- t6_pie_data %>%
+#   group_by(volunteer, lineage) %>%
+#   mutate("sum_of_lineage"=sum(count)) %>%
+#   select(volunteer, lineage, sum_of_lineage) %>%
+#   ungroup()
+# 
+# t6_lin_counts <- t6_lin_counts[!duplicated(t6_lin_counts), ]
+# 
+# 
+# 
+# 
+# t6_act_counts <- subset(t6_pie_data, t6_pie_data$cluster_id %in% activated_clusters)
+# 
+# t6_act_counts <- t6_act_counts %>%
+#   group_by(volunteer, lineage) %>%
+#   mutate("sum_of_activated"=sum(count)) %>%
+#   select(volunteer, lineage, sum_of_activated) %>%
+#   ungroup()
+# 
+# t6_act_counts <- t6_act_counts[!duplicated(t6_act_counts), ]
+# 
+# t6_act_counts <- t6_act_counts[order(t6_act_counts$volunteer, t6_act_counts$lineage),]
+# t6_lin_counts <- t6_lin_counts[order(t6_lin_counts$volunteer, t6_lin_counts$lineage),]
+# 
+# pie_data <- cbind(t6_lin_counts, t6_act_counts)  
+# pie_data[,1:2] <- NULL
+# pie_data$ratio <- pie_data$sum_of_activated/pie_data$sum_of_lineage
+# 
+# final_pie <- pie_data %>%
+#   group_by(lineage) %>%
+#   mutate("mean_lin_act"= mean(ratio))
+# 
+# pie_final_pie <- select(final_pie, lineage, mean_lin_act)
+# pie_final_pie$lineage <- gsub("gd", expression(paste(gamma, delta)), pie_final_pie$lineage)
+# 
+# 
+# lineage_activation_pies <- ggplot(pie_final_pie)+
+#   geom_rect(aes(xmin=0, xmax=1, ymin=0, ymax=mean_lin_act, fill=lineage))+
+#   geom_rect(aes(xmin=0, xmax=1, ymin=mean_lin_act, ymax=1), fill="grey")+
+#   facet_wrap(~lineage, labeller = label_parsed, ncol=2)+
+#   coord_polar(theta = "y", start = 0)+
+#   theme_minimal()+
+#   scale_fill_manual(values=pie_lineage_palette)+
+#   ggtitle("Average Proportion of Activation by Lineage, \nacross all samples at T6")+
+#   theme(axis.title = element_blank(),
+#         axis.text = element_blank(),
+#         panel.grid = element_blank(),
+#         plot.title = element_text(hjust=0.5, size=15),
+#         strip.text = element_text(hjust=0.5, size=18, face = "bold"),
+#         legend.position = "none")
+# 
+# 
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
+
+
+

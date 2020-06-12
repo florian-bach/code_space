@@ -82,50 +82,51 @@ Batch <- c("batch_1"="lightgrey", "batch_2"="darkgrey")
 combo_right_anno <-  rowAnnotation(gap = unit(2, "mm"),
                                   #space = rep("a", 24),
                                   #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-6, 6), axis_param = list(at=seq(-6, 6, by=2)), smooth = FALSE, add_points = TRUE),
-                                  "significant"=significant,
-                                  "log2FC" = anno_barplot(log2_fc, which="row", axis = TRUE, ylim = c(-4, 6), axis_param = list(at=seq(-4, 6, by=2)),gp = gpar(fill = col_fun4(log2_fc))),
+                                  #"significant"=significant,
+                                  "log2FC" = anno_barplot(log2_fc, which="row", axis = TRUE, ylim = c(-2, 6), axis_param = list(at=seq(-2, 6, by=2)),gp = gpar(fill = col_fun4(log2_fc))),
                                   
                                   #"p_adj"= anno_text(scales::scientific(p_adj, digits = 2), which="row"),
-                                  width = unit(3, "cm"), # width of the line graph
-                                  simple_anno_size = unit(2, "mm"), # width of the significance bar
-                                  col=list(significant = c("yes"="darkgreen", "no"="lightgrey"),
-                                           space=c("a"="white")),
-                                  annotation_legend_param = list(significant = list(title ="Significant",at = rev(names(sig)), legend_gp = gpar(fill = unname(sig)), title_position = "topleft")
+                                  width = unit(3, "cm") # width of the line graph
+                                  #simple_anno_size = unit(2, "mm"), # width of the significance bar
                                   )
                                   
-)
 
 
 
-combo_right_anno_var <-  rowAnnotation(gap = unit(2, "mm"),
-                                   #space = rep("a", 24),
-                                   #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-6, 6), axis_param = list(at=seq(-6, 6, by=2)), smooth = FALSE, add_points = TRUE),
-                                   "significant"=significant,
-                                   #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-4, 6), axis_param = list(at=seq(-4, 6, by=2)), add_points = TRUE, smooth = FALSE),
-                                   
-                                   #"p_adj"= anno_text(scales::scientific(p_adj, digits = 2), which="row"),
-                                   width = unit(3, "cm"), # width of the line graph
-                                   simple_anno_size = unit(2, "mm"), # width of the significance bar
-                                   col=list(significant = c("yes"="darkgreen", "no"="lightgrey"),
-                                            space=c("a"="white")),
-                                   annotation_legend_param = list(significant = list(title ="Significant",at = rev(names(sig)), legend_gp = gpar(fill = unname(sig)), title_position = "topleft")
-                                   )
-                                   
-)
+
+# combo_right_anno_var <-  rowAnnotation(gap = unit(5, "mm"),
+#                                    #space = rep("a", 24),
+#                                    #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-6, 6), axis_param = list(at=seq(-6, 6, by=2)), smooth = FALSE, add_points = TRUE),
+#                                    "significant"=significant,
+#                                    #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-4, 6), axis_param = list(at=seq(-4, 6, by=2)), add_points = TRUE, smooth = FALSE),
+#                                    
+#                                    #"p_adj"= anno_text(scales::scientific(p_adj, digits = 2), which="row"),
+#                                    width = unit(3, "cm"), # width of the line graph
+#                                    simple_anno_size = unit(2, "mm"), # width of the significance bar
+#                                    col=list(significant = c("yes"="darkgreen", "no"="lightgrey"),
+#                                             space=c("a"="white")),
+#                                    annotation_legend_param = list(significant = list(title ="Significant",at = rev(names(sig)), legend_gp = gpar(fill = unname(sig)), title_position = "topleft")
+#                                    )
+#                                    
+# )
 
 
 
-combo_left_anno_var <-  rowAnnotation(gap = unit(2, "mm"), 
-                                        
-                                       "significant"=significant,
-                                       simple_anno_size = unit(2, "mm"), # width of the significance bar
-                                       col=list(significant = c("yes"="darkgreen", "no"="lightgrey"),
-                                                space=c("a"="white")),
-                                       
-                                       annotation_legend_param = list(significant = list(labels_rot = 45, title ="Significant", at = rev(names(sig)), legend_gp = gpar(fill = unname(sig)), title_position = "topleft")
+combo_left_anno_var <-  rowAnnotation(gap = unit(5, "mm"),
+                                      #annotation_name_gp = gpar(angle=45),
+                                      show_annotation_name = FALSE,
+                                      "significant"=significant,
+                                       simple_anno_size = unit(2.5, "mm"), # width of the significance bar
+                                       col=list("significant" = c("yes"="darkgreen", "no"="lightgrey")),
+                                       annotation_legend_param = list(significant = list(title ="Significant",
+                                                                                         at = rev(names(sig)),
+                                                                                         #title_gp=gpar(angle=45),
+                                                                                         legend_gp = gpar(fill = unname(sig)),
+                                                                                         title_position = "topleft")
                                        )
                                        
 )
+
 
 
 combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = "left",
@@ -137,7 +138,7 @@ combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = 
            Volunteer = c("V02" = "#FB9A99","V03" = "#E31A1C","V05" = "#A6CEE3", "V06" = "#1F78B4", "V07" = "#B2DF8A", "V09" = "#33A02C")
            
   ),
-  simple_anno_size = unit(2, "mm"),
+  simple_anno_size = unit(2.5, "mm"),
   annotation_legend_param = list(
   Volunteer = list(title = "Volunteer", at = names(Volunteer), legend_gp = gpar(fill = unname(Volunteer)), title_position = "topleft"),
   Timepoint = list(title ="Timepoint",at = names(Timepoint), legend_gp = gpar(fill = unname(Timepoint)), title_position = "topleft"),
@@ -158,7 +159,7 @@ combo_map <- Heatmap(matrix = combo_matrix,
         rect_gp = gpar(col = "white"),
         row_title = c("",""),
         top_annotation = combo_top_anno,
-        #right_annotation = combo_right_anno_var,
+        right_annotation = combo_right_anno,
         left_annotation = combo_left_anno_var,
         show_heatmap_legend = TRUE,
         column_names_rot = 45,

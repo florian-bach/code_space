@@ -1,8 +1,9 @@
-  
   library(ggplot2)
   library(cowplot)
   library(vac69a.cytof)
   library(CATALYST)
+  library(scales)
+
   
   #bigass color palette
   
@@ -79,33 +80,7 @@
   #write.csv(big_table, "equal_small_vac69a_umap.csv")
   #write.csv(big_table, "proportional_small_vac69a_umap.csv")
   
-big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
-    
-
-
-
-down_big_table <- big_table[seq(1,nrow(big_table), by=3), ]
-    
-    
-# DOPE CONTOUR PLOT ####
-
-hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
-  stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
-  scale_x_continuous(limits=c(-14, 10), breaks = seq(-10, 10, by=5))+
-  scale_y_continuous(limits=c(-11.2, 11.3), breaks = seq(-10, 10, by=5))+
-  theme_minimal()+
-  facet_wrap(~timepoint, ncol = 4)+
-  UMAP_theme+
-  theme(panel.grid = element_blank(),
-        strip.text = element_text(size=14),
-        axis.title = element_text())+
-  scale_fill_gradientn(colors=inferno_white)
-  #viridis::scale_fill_viridis(option="B"))
-
-
-system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap13_005.png", hex_through_time, height=4, width=16))
-
+ 
 ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_14", "_bins",".png", sep=''), hex_through_time, height=6, width=9)
 
 panelA_B  <- plot_grid(hex_through_time, gate_labeled_gg, ncol=2, rel_widths=c(3,1.5), labels = c("A", "B"))
@@ -183,12 +158,22 @@ big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
 
 #define the colour palette
 cluster_palette <- color_103_scheme[2:(length(unique(big_table$significant))+1)]
+cluster_palette[5] <- "#40fd14"
+#cluster_palette[2] <- "#006FA6"
+cluster_palette[6] <- "#0000A6"
 cluster_palette[8] <- "#FFA500"
 cluster_palette[9] <- "red"
 cluster_palette[1] <- "#000000"
+cluster_palette[10] <- "#4dabf5" 
 names(cluster_palette)[1] <- "black"
 names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significant)[-match("black", unique(big_table$significant))]
+cluster_palette[5:9] <- rev(cluster_palette[5:9])
 
+# write.csv(cluster_palette,"/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", )
+# colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+# 
+# col_pal <- abvc$x
+# names(col_pal) <- abvc$X
 
 # restrict data to T6 and downsample by 33% to make it look nice
 short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
@@ -208,12 +193,13 @@ t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   #guides(alpha = guide_legend(override.aes = list(size = 10)))+
   theme(legend.position = "none",
         legend.title = element_blank(),
+        axis.text = element_blank(),
         axis.title = element_blank(),
         plot.title = element_text(hjust=0.5))+
   coord_cartesian(xlim=c(-13, 10),
                   ylim=c(-11.2, 11.3))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap.png",  t6_sig_clusters_umap, height=5, width=5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=5, width=5)
 
 cd38_plot <- flo_umap(short_big_table_t6, "CD38")+theme(axis.title = element_blank())
 bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_blank())
@@ -231,6 +217,9 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/new_panels_d_e.png",  
 new_panels_d_ever2 <- plot_grid(empty_gates_plot,  cd38_plot, bcl2_plot, nrow=1)
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/new_panels_d_e_ver2.png",  new_panels_d_ever2, height=4, width=12)
 
+
+vertical_d_e <- plot_grid(gate_labeled_gg, t6_sig_clusters_umap, ncol = 1)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/vertical_d_e.png", vertical_d_e, height = 8, width = 4)
 
 
 #all clusters colored in
@@ -252,16 +241,16 @@ t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
     # scale_x_continuous(limits=c(-13, 10))+
     #guides(alpha = guide_legend(override.aes = list(size = 10)))+
     theme(legend.position = "none",
-          legend.title = element_blank(),
           legend.text = element_text(size=6),
           axis.title = element_blank(),
+          axis.text = element_blank(),
           plot.title = element_text(hjust=0.5),
           #legend.key.width=unit(4,"cm"),
           )+
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=5, width=5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
 
 #ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_with_legend.png",  t6_all_clusters_umap, height=8, width=6)
 

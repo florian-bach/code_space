@@ -78,6 +78,7 @@ gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
   ggtitle("Major T cell\nlineages")+
   theme(axis.title = element_blank(), 
         strip.text = element_blank(),
+        axis.text = element_blank(),
         plot.title = element_text(hjust=0.5))
   )
 

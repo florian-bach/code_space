@@ -226,10 +226,13 @@ pie_data$ceiling <- ceiling
 
 pie_palette <- c(lineage_palette[c(1,3,4,5)], colorspace::qualitative_hcl("dark3", n=9))
 names(pie_palette)[5:length(pie_palette)] <- pie_data$cluster_id
+
+
+myAng <-  seq(-30,-360,length.out = 9)
   
 ggplot(pie_data)+
-  geom_rect(aes(xmin=3.2, xmax=3.5, ymin=floor, ymax=ceiling, fill=lineage))+
-  geom_rect(aes(xmin=1, xmax=3, ymin=floor, ymax=ceiling), fill="white", colour="black")+
+  geom_rect(aes(xmin=1, xmax=3, ymin=floor, ymax=ceiling, fill=lineage))+
+  geom_rect(aes(xmin=3.2, xmax=3.5, ymin=floor, ymax=ceiling, fill=cluster_id), colour="black")+
 
   #geom_col(aes(x=1, y=mean_freq, fill=factor(cluster_id, levels=cluster_id)), color="black", )+
   #geom_bar(stat="identity", position = "stack", width = 1, aes(x=1, y=0.1502437))+
@@ -240,7 +243,7 @@ ggplot(pie_data)+
   #geom_bar(stat="identity", position = "stack", width=1,  aes(x=1, y=mean_freq/sum(mean_freq)), fill="white", color="white")+
   
   #geom_text(aes(label = cluster_id, x=5, y=label_position, angle=360), size = 3.5, hjust = 0)+
-  #geom_text(aes(label=cluster_id, x=2 , y=label_position))+
+  circlize::circos.text()+
   scale_fill_manual(values=pie_palette)+
   coord_polar(theta = "y", start = 0)+
     theme_minimal()+
@@ -249,4 +252,4 @@ ggplot(pie_data)+
           panel.grid = element_blank(),
           legend.title = element_blank()
           )
-
+  
