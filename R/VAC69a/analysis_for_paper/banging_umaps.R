@@ -79,7 +79,36 @@
   
   #write.csv(big_table, "equal_small_vac69a_umap.csv")
   #write.csv(big_table, "proportional_small_vac69a_umap.csv")
-  
+
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+
+
+down_big_table <- big_table[seq(1,nrow(big_table), by=3), ]
+
+
+
+
+# DOPE CONTOUR PLOT #### n=13 is your friend :*
+hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
+  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
+  stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
+  scale_x_continuous(limits=c(-13.5, 10))+
+  scale_y_continuous(limits=c(-11.2, 11.3))+
+  theme_minimal()+
+  facet_wrap(~timepoint, ncol = 4)+
+  UMAP_theme+
+  theme(panel.grid = element_blank(),
+  strip.text = element_text(size=11),
+  axis.title = element_blank(),
+  axis.text = element_blank())+
+  scale_fill_gradientn(colors=inferno_white)+
+  coord_cartesian(xlim=c(-13.5, 10),
+  ylim=c(-11.2, 11.3))
+#viridis::scale_fill_viridis(option="B"))
+
+
+system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap13_005_no_axis_title.png", hex_through_time, height=4, width=16))
+
  
 ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_14", "_bins",".png", sep=''), hex_through_time, height=6, width=9)
 

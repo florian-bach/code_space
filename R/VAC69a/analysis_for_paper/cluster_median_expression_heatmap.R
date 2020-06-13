@@ -134,12 +134,22 @@ names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
 short_lineage_palette <- lineage_palette[c(1,3,4,5)]
 
 
+colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+
+col_pal <- colcsv$x
+names(col_pal) <- colcsv$X
+
+colz <- unname(col_pal[match(rownames(rereordered_sig_scaled_mat), names(col_pal))])
+breakz <- names(col_pal[match(rownames(rereordered_sig_scaled_mat), names(col_pal))])
+
 cd3_right_anno_var <- rowAnnotation(gap = unit(2, "mm"),
-                                    "Mean Frequency at T6" = anno_boxplot(slim_wide_t6_map_data, which="row", axis = TRUE, gp=gpar(fill=c("#228833","#AA3377", "#AA3377", "#66CCEE", "#AA3377", "#AA3377", "#AA3377", "#4477AA", "#4477AA" ))),
+                                    # "Mean Frequency at T6" = anno_boxplot(slim_wide_t6_map_data, which="row", axis = TRUE, gp=gpar(fill=c("#228833","#AA3377", "#AA3377", "#66CCEE", "#AA3377", "#AA3377", "#AA3377", "#4477AA", "#4477AA" ))),
+                                    "Mean Percentage\nof CD3+ at T6" = anno_barplot(t6_map_data$mean_freq, which="row", axis = TRUE, ylim = c(0, 4), gp=gpar(fill=colz)),
+
                                     width = unit(4, "cm"),
-                                    annotation_legend_param = list("Mean Frequency at T6" = list(title ="Lineage",
-                                                                                                 at = names(short_lineage_palette)),
-                                                                                                 legend_gp = gpar(fill = unname(short_lineage_palette)),
+                                    annotation_legend_param = list("Mean Percentage\nof CD3+ at T6" = list(title ="Lineage",
+                                                                                                 at = breakz),
+                                                                                                 legend_gp = gpar(fill = colz),
                                                                                                  title_position = "topleft")
                                     )
                                                                    
@@ -149,10 +159,10 @@ cd3_right_anno_var <- rowAnnotation(gap = unit(2, "mm"),
 draw(cd3_right_anno_var)
 
 
-box_lgd <- Legend(labels =  names(short_lineage_palette),
-                  title = "Lineage",
-                  type = "boxplot",
-                  legend_gp = gpar(fill = unname(short_lineage_palette))
+box_lgd <- Legend(labels =  breakz,
+                  title = "Cluster_ID",
+                  type = "grid",
+                  legend_gp = gpar(fill = colz)
 )
 
 
@@ -174,11 +184,11 @@ box_lgd <- Legend(labels =  names(short_lineage_palette),
   )
   
   
-  png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/sig_cluster_t6_phenotype_heat_var.png", width=14, height=10, units = "in", res=400)
+  png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/sig_cluster_t6_phenotype_heat_var.png", width=13, height=4, units = "in", res=400)
   draw(median_cluster_heat,
-       annotation_legend_list = list(box_lgd),
-       merge_legends = TRUE,
-       #padding = unit(c(2, 20, 2, 2), "mm")
+       #annotation_legend_list = list(box_lgd),
+       merge_legends = FALSE,
+       #padding = unit(c(200, 200, 200, 200), "mm")
   )
   dev.off()
 
@@ -224,8 +234,10 @@ pie_data$ceiling <- ceiling
 
 
 
-pie_palette <- c(lineage_palette[c(1,3,4,5)], colorspace::qualitative_hcl("dark3", n=9))
-names(pie_palette)[5:length(pie_palette)] <- pie_data$cluster_id
+# pie_palette <- c(lineage_palette[c(1,3,4,5)], colorspace::qualitative_hcl("dark3", n=9))
+# names(pie_palette)[5:length(pie_palette)] <- pie_data$cluster_id
+
+
 
 
 myAng <-  seq(-30,-360,length.out = 9)

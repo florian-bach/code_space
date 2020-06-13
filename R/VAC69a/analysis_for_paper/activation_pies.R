@@ -181,6 +181,8 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f,
 library(gridBase)
 library(grid)
 library(circlize)
+library(ComplexHeatmap)
+library(dplyr)
 
 inferno <- colorspace::sequential_hcl("inferno", n=8)
 col_inferno <-colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)
@@ -222,7 +224,12 @@ pie_data <- pie_data[order(pie_data$lineage),]
 
 pie_data$lineage <- gsub("gd", expression(paste(gamma, delta)), pie_data$lineage)
 
+colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
 
+col_pal <- colcsv$x
+names(col_pal) <- colcsv$X
+
+ordered_col_pal <- col_pal[match(pie_data$cluster_id, names(col_pal))]
 
 circlize_plot = function() {
   
@@ -237,7 +244,7 @@ circlize_plot = function() {
   circos.track(factors = pie_data$cluster_id,
                ylim = c(0, 1),
                x=pie_data$mean_freq,
-               bg.col = rev(pie_palette))
+               bg.col = ordered_col_pal)
   highlight.sector(sector.index = grep("CD4", pie_data$cluster_id, value = T), track.index = 1, 
                    col = pie_palette[1], border = NA)
   highlight.sector(sector.index = grep("CD8", pie_data$cluster_id, value = T), track.index = 1, 
@@ -251,9 +258,15 @@ circlize_plot = function() {
   
 }
 
+lvl_data <- pie_data
+lvl_data$lineage <- factor(lvl_data$lineage, levels=c(expression(paste(gamma, delta)), "MAIT", "CD4", "CD8"))
+
+lvls <- lvl_data$cluster_id[c(8, 9, seq(1,7))]
+
+
 # discrete
-lgd_cluster= Legend(at = pie_data$cluster_id, type = "grid", 
-                    legend_gp = gpar(fill = unname(pie_palette)[5:length(pie_palette)]),
+lgd_cluster= Legend(at =lvls, type = "grid", 
+                    legend_gp = gpar(fill = unname(ordered_col_pal)[c(8, 9, seq(1,7))]),
                     title_position = "topleft",
                     labels_gp = gpar(fontsize = 10),
                     title = "Cluster ID")
