@@ -46,6 +46,12 @@ library(ggplot2)
 library(dplyr)
 library(cowplot)
 
+colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+
+col_pal <- colcsv$x
+names(col_pal) <- colcsv$X
+
+
 # Stacked Barchart Figure 1E ####
 
 summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
@@ -304,7 +310,63 @@ dev.off()
 
 
 
-# old code you probably won't need again; this sums the activated counts and divides by the sums of lineages, rather thandisaplying averages
+# figure 2 D memory activation barchart ####
+
+
+summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+
+cd4_summary <- subset(summary, grepl("CD4", summary$cluster_id))
+
+lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
+names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
+
+cd4_summary <- cd4_summary[cd4_summary$timepoint=="T6",]
+
+
+
+
+all_t6_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = FALSE, header = T)
+all_t6_data <- subset(all_t6_data, all_t6_data$timepoint == "T6")
+cd4_t6_data <- subset(all_t6_data, grepl("CD4 ", all_t6_data$cluster_id))
+  
+cd4_memory_t6_data <- subset(cd4_t6_data, !grepl("Naïve", cd4_t6_data$cluster_id))
+
+cd4_memory_t6_summary <- cd4_memory_t6_data %>%
+  group_by(volunteer) %>%
+  mutate("CD4_memory_percentage"=sum(frequency)) %>%
+  select(volunteer, CD4_memory_percentage)
+
+cd4_memory_t6_summary <- cd4_memory_t6_summary[!duplicated(cd4_memory_t6_summary), ]
+
+cd4_bar_data <- cd4_summary %>%
+  group_by(volunteer) %>%
+  mutate("cd4_freq" = frequency/cd4_memory_t6_summary$CD4_memory_percentage[match(volunteer, cd4_memory_t6_summary$volunteer)])
+
+
+
+cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=timepoint, y=cd4_freq, fill=cluster_id))+
+  geom_bar(stat="identity", position="stack")+
+  facet_wrap(~volunteer, strip.position = "bottom", ncol=3)+
+  ggtitle("Activation of CD4 Memory Cells\n")+
+  scale_fill_manual(values=col_pal)+
+  scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells", labels=scales::percent_format(accuracy = 1))+
+  theme_minimal()+
+  guides(fill=guide_legend(ncol=2))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        legend.title = element_blank(),
+    strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    legend.position = "none",
+    panel.grid.minor.y = element_blank(),
+    strip.placement = "outside")
+
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=5, height = 5)
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart_no_leg.png", cd4_memory_activation_stacked_barchart, width=5, height = 5)
+
+  # old code you probably won't need again; this sums the activated counts and divides by the sums of lineages, rather thandisaplying averages
 
 
 # pie_data <- barchart_data

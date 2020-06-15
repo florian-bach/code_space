@@ -5,6 +5,12 @@
   library(scales)
 
   
+  big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+  sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
+  
+  #get rid of resting Vd cluster
+  sig_clusters <- sig_clusters[-9,2]
+  
   #bigass color palette
   
   color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
@@ -24,6 +30,12 @@
   inferno_mega_lite <- c("#000004", "#8A2267", "#EF802B", "#FFEC89", "#FCFFA4")
   sunset_white <- rev(c("#7D1D67", "#A52175", "#CB2F7A", "#ED4572", "#FA716C", "#FF9772", "#FFB985", "#FFD99F", "#FFFFFF"))
   
+  colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+  
+  col_pal <- colcsv$x
+  names(col_pal) <- colcsv$X
+  
+  
   inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
   
   UMAP_theme <- theme_minimal()+theme(
@@ -37,50 +49,49 @@
   
   #functions, palettes etc. ####
   # 
-  `%!in%` = Negate(`%in%`)
-  # 3000 is the magic number
-  #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
-  
-  #   ONLY RUN THIS WHEN CLUSTERING RESULTS ARE NEEDED, THE UMAP PROJECTION TAKES FOREVER (20+ MIN)
-  smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-  # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+  # `%!in%` = Negate(`%in%`)
+  # # 3000 is the magic number
+  # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
+  # 
+  # #   ONLY RUN THIS WHEN CLUSTERING RESULTS ARE NEEDED, THE UMAP PROJECTION TAKES FOREVER (20+ MIN)
+  # smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+  # # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+  # # # 
+  # # plotClusterHeatmap(smol_daf, hm2 = NULL,
+  # #                    k = "meta45",
+  # #                    # m = "flo_merge",
+  # #                    cluster_anno = TRUE,
+  # #                    draw_freqs = TRUE,
+  # #                    scale=T
+  # # )
   # # 
-  # plotClusterHeatmap(smol_daf, hm2 = NULL,
-  #                    k = "meta45",
-  #                    # m = "flo_merge",
-  #                    cluster_anno = TRUE,
-  #                    draw_freqs = TRUE,
-  #                    scale=T
-  # )
   # 
-  
+  # # 
+  # #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
   # 
-  #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
-  
-  refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
-  # umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
-  
-  # umap projections ####
-  set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
-                               subset_row=refined_markers[,1],
-                               exprs_values = "exprs",
-                               scale=T)
-  
-  #smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
-  
-  big_table <- prep_sce_for_ggplot(smol_daf)
-  
-  (test1 <- flo_umap(big_table, "CD38"))
-  (test2 <- flo_umap(big_table, "ICOS"))
-  
-  
-  
+  # refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
+  # # umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
+  # 
+  # # umap projections ####
+  # set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
+  #                              subset_row=refined_markers[,1],
+  #                              exprs_values = "exprs",
+  #                              scale=T)
+  # 
+  # #smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
+  # 
+  # big_table <- prep_sce_for_ggplot(smol_daf)
+  # 
+  # (test1 <- flo_umap(big_table, "CD38"))
+  # (test2 <- flo_umap(big_table, "ICOS"))
+  # 
+  # 
+  # 
 #data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
   
   #write.csv(big_table, "equal_small_vac69a_umap.csv")
   #write.csv(big_table, "proportional_small_vac69a_umap.csv")
 
-big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
 
 
 down_big_table <- big_table[seq(1,nrow(big_table), by=3), ]
@@ -103,7 +114,7 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   axis.text = element_blank())+
   scale_fill_gradientn(colors=inferno_white)+
   coord_cartesian(xlim=c(-13.5, 10),
-  ylim=c(-11.2, 11.3))
+                  ylim=c(-11.2, 11.3))
 #viridis::scale_fill_viridis(option="B"))
 
 
@@ -186,23 +197,22 @@ big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
 
 
 #define the colour palette
-cluster_palette <- color_103_scheme[2:(length(unique(big_table$significant))+1)]
-cluster_palette[5] <- "#40fd14"
-#cluster_palette[2] <- "#006FA6"
-cluster_palette[6] <- "#0000A6"
-cluster_palette[8] <- "#FFA500"
-cluster_palette[9] <- "red"
-cluster_palette[1] <- "#000000"
-cluster_palette[10] <- "#4dabf5" 
-names(cluster_palette)[1] <- "black"
-names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significant)[-match("black", unique(big_table$significant))]
-cluster_palette[5:9] <- rev(cluster_palette[5:9])
+# cluster_palette <- color_103_scheme[2:(length(unique(big_table$significant))+1)]
+# cluster_palette[5] <- "#40fd14"
+# cluster_palette[6] <- "#0000A6"
+# cluster_palette[8] <- "#FFA500"
+# cluster_palette[9] <- "#FF0000"
+# cluster_palette[1] <- "#000000"
+# cluster_palette[10] <- "#4dabf5" 
+# names(cluster_palette)[1] <- "black"
+# names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significant)[-match("black", unique(big_table$significant))]
+# cluster_palette[5:9] <- rev(cluster_palette[5:9])
 
-# write.csv(cluster_palette,"/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", )
-# colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
-# 
-# col_pal <- abvc$x
-# names(col_pal) <- abvc$X
+#write.csv(cluster_palette,"/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", )
+colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+
+col_pal <- colcsv$x
+names(col_pal) <- colcsv$X
 
 # restrict data to T6 and downsample by 33% to make it look nice
 short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
@@ -211,7 +221,7 @@ short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), 
 t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   geom_point(aes(color=significant, alpha=alpha), shape=".")+
   #UMAP_theme+
-  scale_color_manual(values = cluster_palette)+
+  scale_color_manual(values = col_pal)+
   theme_minimal()+
   ggtitle("Differentially Abundant\nClusters at T6")+
   UMAP_theme+
@@ -252,9 +262,10 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/vertical_d_e.png", ver
 
 
 #all clusters colored in
-expanded_cluster_palette <- c(cluster_palette, color_103_scheme[22:46])
+expanded_cluster_palette <- c(col_pal, color_103_scheme[22:46])
 
 names(expanded_cluster_palette)[11:length(expanded_cluster_palette)] <- unique(big_table$flo_label)[-match(unique(big_table$significant), unique(big_table$flo_label), nomatch = 0)]
+
 
 t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
     #geom_point(aes(color=flo_label, alpha=scales::rescale(alpha, to=c(0.1, 1))), shape=".")+
@@ -280,6 +291,11 @@ t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
                     ylim=c(-11.2, 11.3))
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
+
+
+horizontal_d_f_panel <- plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=4, width=16)
+
 
 #ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_with_legend.png",  t6_all_clusters_umap, height=8, width=6)
 
@@ -511,6 +527,95 @@ lapply(exhaustion_plots_through_time, function(x){
   ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/", x$labels$title ,"_through_time.png", sep=''), x,
          width = 8, height=4.5)
 })
+
+
+
+# FIGURE 2 PANEL ####
+sig_cd4_clusters <- grep("CD4", sig_clusters, value=T)
+shorter_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+shorter_big_table_t6 <- subset(shorter_big_table_t6, shorter_big_table_t6$flo_label %in% sig_clusters)
+
+
+
+CD27_plot <- flo_umap(shorter_big_table_t6, "CD27")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                        ylim = c(2,4))
+
+Ki67_plot <- flo_umap(shorter_big_table_t6, "Ki67")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                        ylim = c(2,4))
+CD28_plot <- flo_umap(shorter_big_table_t6, "CD28")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                        ylim = c(2,4))
+PD1_plot <- flo_umap(shorter_big_table_t6, "PD1")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                      ylim = c(2,4))
+CTLA4_plot <- flo_umap(shorter_big_table_t6, "CTLA4")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                      ylim = c(2,4))
+
+Tbet_plot <- flo_umap(shorter_big_table_t6, "Tbet")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                        ylim = c(2,4))
+Perforin_plot <- flo_umap(shorter_big_table_t6, "Perforin")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                      ylim = c(2,4))
+
+GZB_plot <- flo_umap(shorter_big_table_t6, "GZB")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                                ylim = c(2,4))
+
+
+HLADR_plot <- flo_umap(shorter_big_table_t6, "HLADR")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                          ylim = c(2,4))
+ICOS_plot <- flo_umap(shorter_big_table_t6, "ICOS")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+                                                                                                        ylim = c(2,4))
+
+
+
+short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), ]
+
+
+
+fig2_sig_clusters_umap <- ggplot(shorter_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+  geom_point(aes(color=significant), shape=".")+
+  scale_color_manual(values = col_pal)+
+  theme_minimal()+
+  ggtitle("Cluster ID\n")+
+  UMAP_theme+
+  guides(colour = guide_legend(override.aes = list(size = 4)),
+         alpha= "none")+
+  theme(legend.position = "none",
+        legend.title = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(hjust=0.5))+
+  coord_cartesian(xlim = c(0,4),
+                  ylim = c(2,4))
+  
+  
+  zoom_plot <-ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+    geom_point(aes(color=significant,  alpha=alpha), shape=".")+
+    theme_minimal()+
+    scale_color_manual(values=col_pal)+
+    geom_rect(xmin=0, xmax=4, ymin=2, ymax=4, color="red", fill=NA, size=0.5)+
+    UMAP_theme+
+    guides(colour = guide_legend(override.aes = list(size = 4)),
+           alpha= "none")+
+    theme(legend.position = "none",
+          legend.title = element_blank(),
+          axis.text = element_blank(),
+          axis.title = element_blank(),
+          plot.margin = unit(c(2.5,0.2,2.5,0.2), "cm"),
+          plot.title = element_text(hjust=0.5))+
+    coord_cartesian(xlim=c(-13, 10),
+                    ylim=c(-11.2, 11.3))
+  
+  
+  
+  
+  fig_2_umaps <- plot_grid(fig2_sig_clusters_umap, Ki67_plot, CTLA4_plot, PD1_plot, CD28_plot,
+                           GZB_plot, Perforin_plot, HLADR_plot, CD27_plot, ICOS_plot,  ncol=5)
+  
+  fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,5))
+  #fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,4x))
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/fig_2_umaps_var3.png", fig_2_umaps_var, height=4, width=8, units = "in")
+
+    ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/fig_2_umaps.png", fig_2_umaps, height=4, width=8, units = "in")
 
 
 
