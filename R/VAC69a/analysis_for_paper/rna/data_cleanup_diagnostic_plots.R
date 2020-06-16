@@ -16,8 +16,16 @@ list_of_sig_unique <- lapply(list_of_sig, function(x)
      top_n(n = -1, wt = padj)
      )
 
-# $C14_Baseline
-# [1] 294
+list_of_sig_unique_FC <- lapply(list_of_sig_unique, function(x) filter(x, abs(log2FoldChange)>=1))
+
+
+#DE_counts with FC correction 
+# C14_Baseline DoD_Baseline C56_Baseline  T6_Baseline       T6_DoD 
+# 141         1318           15          228         1051
+
+# No FC correction
+# C14_Baseline DoD_Baseline C56_Baseline  T6_Baseline       T6_DoD 
+# 294         3795           19          446         3057 
 # 
 # $DoD_Baseline
 # [1] 3795
@@ -33,11 +41,11 @@ list_of_sig_unique <- lapply(list_of_sig, function(x)
 
 
 
-C14_Baseline <- list_of_sig_unique[[1]]
-DoD_Baseline <- list_of_sig_unique[[2]]
-C56_Baseline <- list_of_sig_unique[[3]]
-T6_Baseline <- list_of_sig_unique[[4]]
-T6_DoD <- list_of_sig_unique[[5]]
+C14_Baseline <- list_of_sig_unique_FC[[1]]
+DoD_Baseline <- list_of_sig_unique_FC[[2]]
+C56_Baseline <- list_of_sig_unique_FC[[3]]
+T6_Baseline <- list_of_sig_unique_FC[[4]]
+T6_DoD <- list_of_sig_unique_FC[[5]]
 
 #volcano
 list_of_named_files <- lapply(names(list_of_files), function(x) {
@@ -69,11 +77,13 @@ comp_levels <- c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_B
 ggsave("./figures/all_volcanoes.png", all_volcanoes, width=12, height=5)
 
 
-sig_gene_counts <- data.frame(lapply(list_of_sig_unique, nrow))
+# sig_gene_counts <- rbind(data.frame(lapply(list_of_sig_unique_FC, nrow), "FC"="With Correction"),
+#   data.frame(lapply(list_of_sig_unique, nrow), "FC"="No Correction")
+# )
+sig_gene_counts <- data.frame(lapply(list_of_sig_unique_FC, nrow))
+sig_gene_counts <- gather(sig_gene_counts, Comparison, DE_Genes, colnames(sig_gene_counts)[1:5])
 
-sig_gene_counts <- gather(sig_gene_counts, Comparison, DE_Genes)
-
-sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=comp_levels), y=DE_Genes))+
+(sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=comp_levels), y=DE_Genes))+
   geom_bar(stat="identity", aes(fill=Comparison))+
   geom_text(aes(label=DE_Genes), vjust = -0.2)+
   theme_minimal()+
@@ -81,7 +91,7 @@ sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=
   theme(legend.position = "none",
         axis.title.x=element_blank(),
         axis.text.x = element_text(angle=45, hjust=1))+
-  coord_cartesian(ylim = c(0,4000))
+  coord_cartesian(ylim = c(0,1500)))
 
 ggsave("./figures/sig_gene_count_plots.png", sig_gene_count_plots, width=4.5, height=4)
 
