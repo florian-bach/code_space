@@ -3,18 +3,14 @@ library(tidyr)
 library(ggplot2)
 library(ggbiplot)
 library(plotly)
+library(shadowtext)
 
 #library(rgl) # want some 3d?
 
 #data <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 
 plasma <- read.csv("~/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv", header=T, stringsAsFactors = F)
-# data<- na.omit(data)
-# data$timepoint <- gsub("D", "DoD", data$timepoint, fixed=T)
-# data$timepoint <- gsub("DoDoDoD+6", "T+6", data$timepoint, fixed=T)
-# data$timepoint <- gsub("DoD+6", "T+6", data$timepoint, fixed=T)
-# 
-# write.csv(data, "/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
+plasma <- filter(plasma, Volunteer!="v009")
 
 long_data <- gather(plasma, Analyte, Concentration, colnames(plasma)[3:ncol(plasma)])
 
@@ -26,17 +22,27 @@ long_data$Concentration <- as.numeric(long_data$Concentration)
 my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
 
 
-ggplot(long_data, aes(x=factor(long_data$timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer), group=Volunteer)+
+setwd("~/PhD/plasma/vac69a/figures/")
+
+# big figure with all analytes through time ####
+
+all_analytes_sans_v9_plot <- ggplot(long_data, aes(x=factor(timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer), group=Volunteer)+
   geom_point()+
-  geom_line(aes(group=long_data$Volunteer))+
-  facet_wrap(~ Analyte, scales = "free")+
+  geom_line(aes(group=Volunteer))+
+  facet_wrap(~ Analyte, scales = "free", ncol=6)+
+  scale_y_log10()+
   theme_bw()+
   scale_color_manual(values=my_paired_palette)+
   theme(axis.title.x = element_blank(),
         strip.background = element_rect(fill = "white", color = "white"))
 
+  ggsave(filename = "all_analytes_sans_v9_log_plot.png", all_analytes_sans_v9_plot, width = 8, height=9)
+
 #viva_data <- filter(long_data, Analyte %in% c("CXCL10", "IL12p70", "IL10", "TNFRII", "IL1RA", "ICAM1"))
 
+  
+# figures of fold change ####  
+  
 fc_data <- long_data
 #'fc_data$Sample_ID <- paste(fc_data$Volunteer, fc_data$Timepoint, sep="_")
 fc_data <- pivot_wider(long_data, values_from = Concentration, names_from = timepoint)
@@ -44,7 +50,7 @@ colnames(fc_data)[3:6] <- c("Baseline", "DoD", "T6", "C45")
 fc_data$Baseline_DoD <- fc_data$DoD/fc_data$Baseline
 fc_data$Baseline_T6 <- fc_data$T6/fc_data$Baseline
 fc_data$Baseline_C45 <- fc_data$C45/fc_data$Baseline
-fc_data <- subset(fc_data, !fc_data$Volunteer=="v007")
+fc_data <- subset(fc_data, !fc_data$Volunteer=="v009")
 
 long_fc_data <- gather(fc_data, Comparison, Fold_Change, c("Baseline_DoD", "Baseline_T6"))
 
@@ -70,6 +76,9 @@ base_dod_hclust <- hclust(baseline_dist)
 
 fc_levels <- rownames(cluster_mat)[order(cluster_mat, decreasing = F)]
 
+
+#fold change at DOD and T6 split by volunteer #
+
 fc_split_by_volunteer <- ggplot(long_fc_data, aes(x=Volunteer, y=factor(Analyte, levels=fc_levels)))+
   geom_tile(aes(fill=log2(Fold_Change)))+
   scale_fill_gradientn(name="log2FC",
@@ -86,6 +95,10 @@ fc_split_by_volunteer <- ggplot(long_fc_data, aes(x=Volunteer, y=factor(Analyte,
     legend.position = "right",
     legend.box.margin=margin(0,0,0,0))
 
+ggsave("fc_split_by_volunteer.png", fc_split_by_volunteer, height=6, width=6)
+
+
+#mean fold change at DoD and T6 ##
 
 mean_fc3 <- mean_fc %>%
   select(Analyte, Mean_FC_DoD, Mean_FC_T6) %>%
@@ -95,7 +108,7 @@ mean_fc3 <- mean_fc %>%
 mean_fc3 <- mean_fc3[!duplicated(mean_fc3),]
 
 
-ggplot(mean_fc3, aes(x=Comparison, y=factor(Analyte, levels=fc_levels)))+
+mean_fc_plot <- ggplot(mean_fc3, aes(x=Comparison, y=factor(Analyte, levels=fc_levels)))+
   geom_tile(aes(fill=log2_Fold_Change))+
   scale_fill_gradientn(name="log2FC",
                        values = scales::rescale(c(min(mean_fc3$log2_Fold_Change), 0, max(mean_fc3$log2_Fold_Change)), to=c(0,1)),
@@ -110,115 +123,77 @@ ggplot(mean_fc3, aes(x=Comparison, y=factor(Analyte, levels=fc_levels)))+
     legend.position = "right",
     legend.box.margin=margin(0,0,0,0))
 
+ggsave("mean_fc_plot.png", mean_fc_plot, height=6, width=6)
 
 
-pca_theme <- theme(strip.background = element_blank(),
-                   legend.position = "none",
-                   strip.text = element_text(size=20, face = "bold"),
-                   axis.text.x = element_text(angle = 60, hjust = 1, size=14),
-                   axis.text.y = element_text(size=16),
-                   axis.title.y = element_text(size=20),
-                   axis.title.x = element_blank())
 
-viva_data <- long_data
-(viva_plot <- ggplot(viva_data, aes(x=factor(viva_data$timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer), group=Volunteer)+
-  geom_point(size=2.5)+
-  geom_line(aes(group=viva_data$Volunteer), size=2)+
-  scale_y_log10()+
-  facet_wrap(~ Analyte, scales = "free")+
-  theme_bw()+
-  ylab("Plasma Concentration in pg / mL")+
-  scale_color_manual(values=my_paired_palette)+
-  theme_bw()+
-  pca_theme)
-)
-
-ggsave("/Users/s1249052/PhD/plasma/vac69a/log_all_hail_legendplex.png", viva_plot, width=35.5, height = 20)
-####     pca plot
-
-
+####     pca stuff ####
 
 
 data2 <- spread(long_data, Analyte, Concentration)
 split_data <- split(data2, data2$Volunteer)
 
-
-
-
-# 
-# ####
-# 
-# pca <- lapply(split_data[2], FUN=function(x){
-#   prcomp(x[,3:ncol(x)], center = T)}
-#   )
-# 
-# ####
-# list_of_plots <- lapply(list_of_pcas, FUN=function(p){
-#   ggplot()+
-#   geom_text(aes(x=p$x[,1], y=p$x[,2], color=data$Volunteer, label=data$timepoint), size=7, fontface="bold")+
-#   xlab(paste("PC1 ", summary(p)$importance[2,1]*100, "%", sep = ""))+
-#   ylab(paste("PC2 ", summary(p)$importance[2,2]*100, "%", sep = ""))+
-#   scale_shape_manual(values=c(16:19))+
-#   #scale_color_manual(values=my_paired_palette)+
-#   theme_minimal()+
-#   theme(legend.title = element_blank(),
-#         axis.text = element_text(size=20),
-#         axis.title = element_text(size=25))
-#   }
-#   )
-# 
-# meta_list <- lapply(list_of_pcas, fucntion(x))
-
 my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
 names(my_paired_palette) <- names(list_of_pcas)
 
+data3 <- data2
+data3[,3:ncol(data3)] <- log10(data3[,3:ncol(data3)])
 
-transformed_list_of_analytes <- lapply(
-  split_data, function(x){scales::rescale(as.matrix(x[,3:ncol(x)], to=c(1,100)))
-    })
-
-list_of_pcas <- lapply(transformed_list_of_analytes, function(x){
-  pca <- prcomp(x[,3:ncol(x)], center = T)
-  cbind(x[,1:2], pca$x)
-})
-
-
-list_of_perc <- lapply(transformed_list_of_analytes, function(x){
-  pca <- prcomp(x[,3:ncol(x)], center = T)
-})
+big_pca <-  prcomp(data3[,3:ncol(data3)], center = T)
+big_pca2 <- cbind(data3[, 1:2], big_pca$x)
 
 
 
-for(i in 1:length(list_of_pcas)){
-  
-  p <- NULL
-  p <- list_of_pcas[[i]]
-  q <-list_of_perc[[i]]
-  
-  assign(paste(names(list_of_pcas[i]), "_pca_plot", sep=''),
-  ggplot(p, aes(x=PC1, y=PC2, colour=Volunteer))+
+all_vols_together_vol_color <- ggplot(big_pca2, aes(x=PC1, y=PC2))+
+  geom_shadowtext(aes(label=timepoint, color=Volunteer), size=5, fontface="bold")+
   scale_color_manual(values=my_paired_palette)+
-  geom_text(label=p$timepoint, size=6, fontface="bold")+
-  ggtitle(paste(names(list_of_pcas[i])))+
-  xlab(paste("PC1 ", data.frame(summary(q)[6])[2,1]*100, "%", sep = ""))+
-  ylab(paste("PC2 ", data.frame(summary(q)[6])[2,2]*100, "%", sep = ""))+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
   theme(legend.position = "none",
-        axis.text = element_text(size=20),
-        axis.title = element_text(size=25),
+        axis.text = element_text(size=10),
+        panel.border = element_rect(color="black", fill=NA),
+        axis.title = element_text(size=12),
         #axis.text = element_blank(),
-        plot.title = element_text(size=16, hjust=0.5)
-        )
+        
+        plot.title = element_text(size=14, hjust=0.5)
   )
-  }
 
-
-gridExtra::grid.arrange(v002_pca_plot, v003_pca_plot, v005_pca_plot, v006_pca_plot, v007_pca_plot, v009_pca_plot)
-
+ggsave("all_vols_together_vol_color.png", all_vols_together_vol_color)
 
 
 
-list_of_pcas2 <- lapply(split_data, function(x){
+arrow_pca <- subset(big_pca2, big_pca2$timepoint %in% c("C-1", "DoD"))
+
+wide_arrow_data <- arrow_pca[, 1:4]
+wide_arrow_data <- pivot_wider(wide_arrow_data, names_from = timepoint, values_from = c(PC1, PC2))
+
+
+
+arrow_pca_plot <- ggplot(arrow_pca, aes(x=PC1, y=PC2, group=Volunteer))+
+  geom_point(aes(color=Volunteer))+
+  geom_segment(data=wide_arrow_data, aes(x=`PC1_C-1`,xend=PC1_DoD, y=`PC2_C-1`, yend=PC2_DoD, color=Volunteer), arrow =arrow(length = unit(0.2, "cm")) )+
+  #geom_line(arrow = arrow(length = unit(0.2, "cm")))+
+  scale_color_manual(values=my_paired_palette)+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  theme(
+        axis.text = element_text(size=10),
+        panel.border = element_rect(color="black", fill=NA),
+        axis.title = element_text(size=12),
+        #axis.text = element_blank(),
+        
+        plot.title = element_text(size=14, hjust=0.5)
+  )
+
+ggsave("arrow_pca.png", arrow_pca_plot)
+
+
+
+
+
+  list_of_pcas2 <- lapply(split_data, function(x){
   pca <- prcomp(x[,3:ncol(x)], center = T)
   cbind(x[,1:2], pca$x)
 })
@@ -462,5 +437,98 @@ ggplotly(ggplot()+
 
 
 fiss
+
+# garbage code you'll probably never need again ####
+
+
+# data2 <- spread(long_data, Analyte, Concentration)
+# split_data <- split(data2, data2$Volunteer)
+# 
+# my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
+# names(my_paired_palette) <- names(list_of_pcas)
+# 
+# 
+# transformed_list_of_analytes <- lapply(
+#   split_data, function(x) cbind(x[,1:2],log10(x[,3:ncol(x)])))
+# 
+# 
+# list_of_pcas <- lapply(transformed_list_of_analytes, function(x){
+#   pca <- prcomp(x[,3:ncol(x)], center = T)
+#   cbind(x[,1:2], pca$x)
+# })
+# 
+# 
+# list_of_perc <- lapply(transformed_list_of_analytes, function(x){
+#   pca <- prcomp(x[,3:ncol(x)], center = T)
+# })
+# 
+# time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
+# time_col_scheme <- c("C-1"=time_col[4], "C+45"=time_col[5], "DoD"=time_col[2], "T+6"=time_col[1])
+# 
+# for(i in 1:length(list_of_pcas)){
+#   
+#   p <- list_of_pcas[[i]]
+#   q <-list_of_perc[[i]]
+#   
+#   assign(paste(names(list_of_pcas[i]), "_pca_plot", sep=''),
+#          
+#          ggplot(p, aes(x=PC1, y=PC2, colour=Volunteer))+
+#            scale_color_manual(values=my_paired_palette)+
+#            geom_shadowtext(aes(label=timepoint, color=timepoint), size=5, fontface="bold")+
+#            ggtitle(paste(names(list_of_pcas[i])))+
+#            scale_color_manual(values=time_col_scheme)+
+#            xlab(paste("PC1 ", data.frame(summary(q)[6])[2,1]*100, "%", sep = ""))+
+#            ylab(paste("PC2 ", data.frame(summary(q)[6])[2,2]*100, "%", sep = ""))+
+#            theme_minimal()+
+#            theme(legend.position = "none",
+#                  axis.text = element_text(size=10),
+#                  axis.title = element_text(size=12),
+#                  #axis.text = element_blank(),
+#                  plot.title = element_text(size=14, hjust=0.5)
+#            )
+#   )
+# }
+# 
+# 
+# individual_pcas <- gridExtra::grid.arrange(v002_pca_plot, v003_pca_plot, v005_pca_plot, v006_pca_plot, v007_pca_plot)
+# 
+# ggsave("individual_pcas.png", individual_pcas, width=10, height=10)
+# 
+# all_vols_together <- do.call(rbind, list_of_pcas)
+# all_perc_together <- do.call(rbind, list_of_perc)
+# 
+# all_vols_together_individual_color <- ggplot(all_vols_together, aes(x=PC1, y=PC2, colour=Volunteer))+
+#   scale_color_manual(values=my_paired_palette)+
+#   geom_shadowtext(aes(label=timepoint, color=Volunteer), size=5, fontface="bold")+
+#   #scale_color_manual(values=time_col_scheme)+
+#   xlab(paste("PC1 ", data.frame(summary(q)[6])[2,1]*100, "%", sep = ""))+
+#   ylab(paste("PC2 ", data.frame(summary(q)[6])[2,2]*100, "%", sep = ""))+
+#   theme_minimal()+
+#   theme(legend.position = "none",
+#         axis.text = element_text(size=10),
+#         axis.title = element_text(size=12),
+#         #axis.text = element_blank(),
+#         plot.title = element_text(size=14, hjust=0.5)
+#   )
+# 
+# all_vols_together_time_color <- ggplot(all_vols_together, aes(x=PC1, y=PC2))+
+#   geom_shadowtext(aes(label=timepoint, color=timepoint), size=5, fontface="bold")+
+#   scale_color_manual(values=time_col_scheme)+
+#   xlab(paste("PC1 ", data.frame(summary(q)[6])[2,1]*100, "%", sep = ""))+
+#   ylab(paste("PC2 ", data.frame(summary(q)[6])[2,2]*100, "%", sep = ""))+
+#   theme_minimal()+
+#   theme(legend.position = "none",
+#         axis.text = element_text(size=10),
+#         panel.border = element_rect(color="black", fill=NA),
+#         axis.title = element_text(size=12),
+#         #axis.text = element_blank(),
+#         
+#         plot.title = element_text(size=14, hjust=0.5)
+#   )
+# 
+# 
+# plot_grid(all_vols_together_time_color, all_vols_together_individual_color, ncol=1)
+
+
 
 

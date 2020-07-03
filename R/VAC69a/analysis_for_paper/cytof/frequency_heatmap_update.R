@@ -58,7 +58,7 @@ hm_matrix <- ifelse(hm_matrix < -2.5, -2.5, hm_matrix)
 extreme <- max(abs(range(hm_matrix)))
 
 #bunch of differen color gradients
-col_fun4 <- circlize::colorRamp2(c(-range(hm_matrix)[2], 0, range(hm_matrix)[2]), c("#0859C6", "black", "#FFA500"))
+    col_fun4 <- circlize::colorRamp2(c(-range(hm_matrix)[2], 0, range(hm_matrix)[2]), c("#0859C6", "black", "#FFA500"))
 
 #get 12 most up/down clusters
 top_mat <- head(hm_matrix, n=12)

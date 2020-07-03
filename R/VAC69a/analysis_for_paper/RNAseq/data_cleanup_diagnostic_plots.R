@@ -9,14 +9,50 @@ all_files <- list.files(pattern = "*xls")
 names(all_files) <- c("C14_Baseline","DoD_Baseline","C56_Baseline","T6_Baseline","T6_DoD")
 
 list_of_files <- lapply(all_files, function(x)fread(x, header = T, stringsAsFactors = F))
-list_of_sig <- lapply(list_of_files, function(x) filter(x, padj<0.05))
+list_of_sig <- lapply(list_of_files, function(x) x %>%
+                        filter(padj<0.05) %>%
+                        mutate("FC"=ifelse(log2FoldChange>0, "up", "down"))
+)
+                      
+
 list_of_sig_unique <- lapply(list_of_sig, function(x)
       x %>%
      group_by(Description) %>%
      top_n(n = -1, wt = padj)
      )
 
-list_of_sig_unique_FC <- lapply(list_of_sig_unique, function(x) filter(x, abs(log2FoldChange)>=1))
+list_of_sig_unique_FC <- lapply(list_of_sig_unique, function(x) filter(x, abs(log2FoldChange)>=log2(1.5) & !is.na(Symbol)))
+
+
+
+list_of_sig_unique_FC_named <- lapply(names(list_of_sig_unique_FC), function(x) {
+  list_of_sig_unique_FC[[x]] %>%
+    mutate(file_name = x)
+});names(list_of_sig_unique_FC_named) <- names(list_of_sig_unique_FC)
+
+
+setwd("gene_lists")
+
+
+lapply(names(list_of_sig_unique_FC_named), function(x)
+  write.table(list_of_sig_unique_FC_named[[x]]$Symbol, paste(x, "_ALL_significant_symbol_only.txt", sep=''), sep = "\t", quote = F, row.names = F, col.names = F)
+)
+
+UP_list_of_sig_unique_FC_named <- lapply(list_of_sig_unique_FC_named, function(x) subset(x, log2FoldChange>log2(1.5)))
+
+lapply(names(UP_list_of_sig_unique_FC_named), function(x)
+  write.table(UP_list_of_sig_unique_FC_named[[x]]$Symbol, paste(x, "_UP_significant_symbol_only.txt", sep=''), sep = "\t", quote = F, row.names = F, col.names = F)
+)
+
+
+DOWN_list_of_sig_unique_FC_named <- lapply(list_of_sig_unique_FC_named, function(x) subset(x, log2FoldChange<log2(1.5)))
+
+lapply(names(DOWN_list_of_sig_unique_FC_named), function(x)
+  write.table(DOWN_list_of_sig_unique_FC_named[[x]]$Symbol, paste(x, "_DOWN_significant_symbol_only.txt", sep=''), sep = "\t", quote = F, row.names = F, col.names = F)
+)
+
+
+
 
 
 #DE_counts with FC correction 
@@ -41,32 +77,41 @@ list_of_sig_unique_FC <- lapply(list_of_sig_unique, function(x) filter(x, abs(lo
 
 
 
-C14_Baseline <- list_of_sig_unique_FC[[1]]
-DoD_Baseline <- list_of_sig_unique_FC[[2]]
-C56_Baseline <- list_of_sig_unique_FC[[3]]
-T6_Baseline <- list_of_sig_unique_FC[[4]]
-T6_DoD <- list_of_sig_unique_FC[[5]]
+C14_Baseline <- list_of_sig_unique_FC_named[[1]]
+DoD_Baseline <- list_of_sig_unique_FC_named[[2]]
+C56_Baseline <- list_of_sig_unique_FC_named[[3]]
+T6_Baseline <- list_of_sig_unique_FC_named[[4]]
+T6_DoD <- list_of_sig_unique_FC_named[[5]]
 
 #volcano
 list_of_named_files <- lapply(names(list_of_files), function(x) {
   list_of_files[[x]] %>% 
-    mutate(file_name = x)
+    mutate("file_name" = x) %>%
+    mutate("FC"=ifelse(log2FoldChange>0, "up", "down"))
 })
 
 list_of_named_unique <- lapply(list_of_named_files, function(x)
   x %>%
-    group_by(Description) %>%
+    group_by(Symbol) %>%
     top_n(n = -1, wt = padj)
 )
 
-big_table <- do.call(rbind, list_of_named_unique)
+list_of_named_unique_no_na <- lapply(list_of_named_unique, function(x)
+  filter(x, !is.na(Symbol))
+)
+
+
+big_table <- do.call(rbind, list_of_named_unique_no_na)
+
+fwrite(big_table, "all_unique_genes_cleaned.csv")
+
 
 library(ggplot2)
 
 comp_levels <- c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_Baseline")
 
 (all_volcanoes <- ggplot(big_table, aes(x=log2FoldChange, y=-log10(padj)))+
-  geom_point(shape="o", aes(color=ifelse(abs(log2FoldChange)>1 & padj<0.05, "red", "black")))+
+  geom_point(shape="o", aes(color=ifelse(abs(log2FoldChange)>log2(1.5) & padj<0.05, "red", "black")))+
   theme_minimal()+
   #scale_y_continuous(limits = c(0, 0.1))+
   scale_color_manual(values = c("red"="red", "black"="black"))+
@@ -80,73 +125,36 @@ ggsave("./figures/all_volcanoes.png", all_volcanoes, width=12, height=5)
 # sig_gene_counts <- rbind(data.frame(lapply(list_of_sig_unique_FC, nrow), "FC"="With Correction"),
 #   data.frame(lapply(list_of_sig_unique, nrow), "FC"="No Correction")
 # )
-sig_gene_counts <- data.frame(lapply(list_of_sig_unique_FC, nrow))
-sig_gene_counts <- gather(sig_gene_counts, Comparison, DE_Genes, colnames(sig_gene_counts)[1:5])
+
+try <- lapply(list_of_sig_unique_FC_named, function(x) split(x, x$FC))
+
+sig_gene_counts <- data.frame(
+    lapply(try, function(x)
+    lapply(x, function(y) nrow(y))
+    )
+  )
+
+sig_gene_counts <- gather(sig_gene_counts, Comparison, DE_Genes)
+sig_gene_counts$Direction <- ifelse(grepl("down", sig_gene_counts, fixed=T), "down", "up")
+sig_gene_counts$Comparison <- substr(sig_gene_counts$Comparison, 1, nchar(sig_gene_counts$Comparison)-ifelse(sig_gene_counts$Direction=="down", 5, 3))
+sig_gene_counts$DE_Genes <- ifelse(sig_gene_counts$Direction=="down", -sig_gene_counts$DE_Genes, sig_gene_counts$DE_Genes)
+
 
 (sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=comp_levels), y=DE_Genes))+
   geom_bar(stat="identity", aes(fill=Comparison))+
-  geom_text(aes(label=DE_Genes), vjust = -0.2)+
+  geom_text(aes(label=abs(DE_Genes), vjust= -0.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="up"))+
+  geom_text(aes(label=abs(DE_Genes), vjust= 1.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="down"))+
   theme_minimal()+
+  scale_fill_manual(values=colorspace::sequential_hcl(6, palette = "Purple Yellow"))+
   ylab("Number of Differentially Expressed Genes\n")+
   theme(legend.position = "none",
         axis.title.x=element_blank(),
-        axis.text.x = element_text(angle=45, hjust=1))+
-  coord_cartesian(ylim = c(0,1500)))
+        axis.text.x = element_text(angle=45, hjust=1)))
 
-ggsave("./figures/sig_gene_count_plots.png", sig_gene_count_plots, width=4.5, height=4)
-
-# simple heatmaps ####
+ggsave("./figures/sig_gene_count_plots_log2fc058.png", sig_gene_count_plots)
 
 
-
-ils <- subset(DoD_Baseline, grepl("interleukin", DoD_Baseline$Description))
-ils <- ils[!is.na(ils$Symbol),]
-ils <- ils[order(ils$log2FoldChange),]
-
-cytokine <- subset(DoD_Baseline, grepl("cytokine", DoD_Baseline$Description))
-cytokine <- cytokine[!is.na(cytokine$Symbol),]
-cytokine <- cytokine[order(cytokine$log2FoldChange),]
-
-
-
-chemokines <- subset(DoD_Baseline, grepl("chemokine", DoD_Baseline$Description))
-chemokines <- chemokines[!is.na(chemokines$Symbol),]
-chemokines <- chemokines[order(chemokines$log2FoldChange),]
-
-
-T_cells <- subset(DoD_Baseline, grepl("T cell", DoD_Baseline$Description))
-
-
-ggplot(chemokines, aes(x="", y=factor(Symbol, levels=chemokines$Symbol)))+
-  geom_tile(aes(fill=log2FoldChange))+
-  scale_fill_gradient2(midpoint = 0, low="#0859C6", high="#FFA500", mid="black")+
-  theme_void()+
-  ggtitle("Chemokines at DoD Relative to Baseline")+
-  theme(axis.text.y = element_text(),
-        legend.title = element_text(hjust=0.5),
-        plot.title = element_text(hjust=0.5))
-
-
-ggplot(ils, aes(x="", y=factor(Symbol, levels=ils$Symbol)))+
-  geom_tile(aes(fill=log2FoldChange))+
-  scale_fill_gradient2(midpoint = 0, low="#0859C6", high="#FFA500", mid="black")+
-  theme_void()+
-  ggtitle("Interleukins at DoD Relative to Baseline")+
-  theme(axis.text.y = element_text(),
-        legend.title = element_text(hjust=0.5),
-        plot.title = element_text(hjust=0.5))
-
-ggplot(cytokine, aes(x="", y=factor(Symbol, levels=cytokine$Symbol)))+
-  geom_tile(aes(fill=log2FoldChange))+
-  scale_fill_gradient2(midpoint = 0, low="#0859C6", high="#FFA500", mid="black")+
-  theme_void()+
-  ggtitle("Interleukins at DoD Relative to Baseline")+
-  theme(axis.text.y = element_text(),
-        legend.title = element_text(hjust=0.5),
-        plot.title = element_text(hjust=0.5))
-
-
-# venn diagrams ####
+  # venn diagrams ####
 
 library(VennDiagram)
 

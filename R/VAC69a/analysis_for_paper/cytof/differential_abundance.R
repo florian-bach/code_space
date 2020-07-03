@@ -10,23 +10,7 @@ library(scales)
 library(ggplot2)
 
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 1000)
-daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-#
-meta_45_mod_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/modified_ccp_meta45_merge.csv", header = T, stringsAsFactors = F)
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
-
-#get rid of spaces at beginning of string
-
-merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
-merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
-# 
-# merging_table1$new_cluster <- factor(merging_table1$new_cluster)
-
-merged_daf<- mergeClusters(daf, k = "som100", table = meta_45_mod_table, id = "mod_meta45")
-merged_daf<- mergeClusters(merged_daf, k = "mod_meta45", table = merging_table1, id = "flo_merge")
-
-plotClusterHeatmap(merged_daf, k = "som100", m = "mod_meta45")
-#merged_daf <- daf
+merged_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
 ei <- metadata(merged_daf)$experiment_info
 #ei$timepoint <- factor(ei$timepoint, levels=c("C10", "Baseline", "DoD", "T6"))

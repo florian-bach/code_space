@@ -49,7 +49,7 @@ plotClusterHeatmap(merged_daf, hm2=NULL,
 
 ei <- metadata(merged_daf)$experiment_info
 
-design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
+design <- createDesignMatrix(ei, c("timepoint", "batch"))
 
 levels(ei$timepoint)
 
@@ -60,16 +60,16 @@ levels(ei$timepoint)
 
 FDR_cutoff <- 0.05
 
-# edgeR models with all timepoints####
-
-pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
-pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
-pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
+# edgeR models with all coefficient for volunteer####
+# pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+# pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
+# pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
 
 # copntrasts for models excluding volunteer
-# pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,1)))
-# pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,1)))
-# pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,1)))
+
+pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,1)))
+pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,1)))
+pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,1)))
 
 
 states <- names(marker_classes(merged_daf))
@@ -129,26 +129,23 @@ trimmed_spider_sigs_t6 <- subset(spider_sigs_t6, 2^spider_sigs_t6$sigs_t6.logFC>
 
 (ds_limma_t6_heatmap <- ggplot(trimmed_spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_t6.marker_id, label=round(2^sigs_t6.logFC, digits = 2)))+
   #geom_tile(aes(fill=rescale(sigs_t6.logFC, to=c(-5, 5))))+
-  geom_tile(aes(fill=sigs_t6.logFC*5))+
-  geom_text(parse = TRUE)+
-  scale_fill_gradient2(low = "blue", high="red", midpoint = 0)+
+  geom_tile(aes(fill=round(2^sigs_t6.logFC, digits = 2)))+
+  geom_text(parse = TRUE, aes(color=2^sigs_t6.logFC>0.8))+
+  scale_color_manual(values = c("TRUE"="black", "FALSE"="white"), guide=FALSE)+
+  scale_fill_gradientn("Fold Change", values = scales::rescale(c(2^min(trimmed_spider_sigs_t6$sigs_t6.logFC), 1, 2^max(trimmed_spider_sigs_t6$sigs_t6.logFC)), to=c(0,1)), colors = c("#0859C6","white","#FFA500"))+
   scale_x_discrete(labels=c("gamma delta"=expression(paste(gamma, delta))))+
-  # scale_fill_gradientn(colours = c("blue", "white", "red"),
-  #                      values = c(min(spider_sigs_t6$sigs_t6.logFC), 0, 0.000001, max(spider_sigs_t6$sigs_t6.logFC)),
-  #                      guide = guide_colourbar(nbin = 1000)
-  #                       )+
   theme_minimal()+
   ggtitle("Fold Change in Intensity of Marker Expression\nper Cluster at T6 relative to Baseline")+
   theme(axis.title = element_blank(),
-        axis.text = element_text(size=14),
+        axis.text = element_text(size=14, color = "black"),
         axis.text.x = element_text(hjust=1, angle = 60),
-        legend.position = "none",
+        legend.position = "right",
         panel.grid = element_blank(),
         plot.title = element_text(hjust = 0.5))
 )
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/ds_limma/timepoint_batch_t6_heatmap.png", ds_limma_t6_heatmap, width = 7, height = 7)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/ds_limma/timepoint_batch_t6_heatmap_with_cutoff.png", ds_limma_t6_heatmap, width = 7, height = 7)
 
 plotDiffHeatmap(merged_daf, ds_dod, top_n = 5, order = TRUE,    
                 th = FDR_cutoff, normalize = TRUE, hm1 = FALSE)   

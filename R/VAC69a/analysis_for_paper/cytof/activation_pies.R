@@ -225,10 +225,10 @@ t6_map_data <- t6_map_data[order(t6_map_data$mean_freq, decreasing = T),]
 pie_data <- data.frame(t6_map_data)
 
 
-pie_data$lineage <- as.factor(c("gd", "CD4", "CD4", "MAIT", "CD4", "CD4", "CD4", "CD8", "CD8"))
+pie_data$lineage <- factor(c("gd", "CD4", "CD4", "MAIT", "CD4", "CD4", "CD4", "CD8", "CD8"), levels=c("CD4", "CD8", "MAIT", "gd"))
 pie_data <- pie_data[order(pie_data$lineage),]
 
-pie_data$lineage <- gsub("gd", expression(paste(gamma, delta)), pie_data$lineage)
+#pie_data$lineage <- gsub("gd", expression(paste(gamma, delta)), pie_data$lineage)
 
 colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
 
@@ -239,7 +239,7 @@ ordered_col_pal <- col_pal[match(pie_data$cluster_id, names(col_pal))]
 
 circlize_plot = function() {
   
-  circos.par("track.height" = 0.5)
+  circos.par("track.height" = 0.6, start.degree = 90)
   circos.initialize(factors = pie_data$cluster_id, xlim=c(0,1), sector.width = pie_data$mean_freq)
   
   o.cell.padding = circos.par("cell.padding")
@@ -251,63 +251,84 @@ circlize_plot = function() {
                ylim = c(0, 1),
                x=pie_data$mean_freq,
                bg.col = ordered_col_pal)
+  
+  
+  #no color, just text
+  
   highlight.sector(sector.index = grep("CD4", pie_data$cluster_id, value = T), track.index = 1, 
-                   col = pie_palette[1], border = NA)
+                   border = "black", text = "CD4", col = "white")
   highlight.sector(sector.index = grep("CD8", pie_data$cluster_id, value = T), track.index = 1, 
-                   col = pie_palette[2], border = NA)
+                   border = "black", text = "CD8", col = "white")
   highlight.sector(sector.index = grep("MAIT", pie_data$cluster_id, value = T), track.index = 1, 
-                   col = pie_palette[3], border = NA)
+                   border = "black", text = "MAIT", col = "white")
   highlight.sector(sector.index = grep("Vd2", pie_data$cluster_id, value = T), track.index = 1, 
-                   col = pie_palette[4], border = NA)
+                   border = "black", text = "Vd2", col = "white", )
+  
+  
+  # # Just color, no text
+  # highlight.sector(sector.index = grep("CD4", pie_data$cluster_id, value = T), track.index = 1, 
+  #                  col = pie_palette[1], border = NA)
+  # highlight.sector(sector.index = grep("CD8", pie_data$cluster_id, value = T), track.index = 1, 
+  #                  col = pie_palette[2], border = NA)
+  # highlight.sector(sector.index = grep("MAIT", pie_data$cluster_id, value = T), track.index = 1, 
+  #                  col = pie_palette[3], border = NA)
+  # highlight.sector(sector.index = grep("Vd2", pie_data$cluster_id, value = T), track.index = 1, 
+  #                  col = pie_palette[4], border = NA)
   
   circos.clear()
   
 }
 
+circlize_plot()  
+
 lvl_data <- pie_data
-lvl_data$lineage <- factor(lvl_data$lineage, levels=c(expression(paste(gamma, delta)), "MAIT", "CD4", "CD8"))
-
-lvls <- lvl_data$cluster_id[c(8, 9, seq(1,7))]
-
-
-# discrete
-lgd_cluster= Legend(at =lvls, type = "grid", 
-                    legend_gp = gpar(fill = unname(ordered_col_pal)[c(8, 9, seq(1,7))]),
-                    title_position = "topleft",
-                    labels_gp = gpar(fontsize = 10),
-                    title = "Cluster ID")
-# discrete
-lgd_lineage = Legend(at = unique(pie_data$lineage), type = "grid", 
-                     legend_gp = gpar(fill = unname(pie_palette)[1:4]),
-                     title_position = "topleft",
-                     labels_gp = gpar(fontsize = 10, parse = TRUE),
-                     title = "Lineage", )
-
-lgd_list <- packLegend(lgd_cluster, lgd_lineage)
-
-circlize_plot()
-
-draw(lgd_list)
-
-lgd_lineage@grob$children
-
-
-
-
-png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_activation_pie.png", width=7, height=4, units = "in", res=400)
-
-plot.new()
-circle_size = unit(1, "snpc") # snpc unit gives you a square region
-
-pushViewport(viewport(x = 0, y = 0.5, width = circle_size, height = circle_size,
-                      just = c("left", "center")))
-par(omi = gridOMI(), new = TRUE)
-circlize_plot()
-upViewport()
-draw(lgd_list, x = circle_size, just = "left")
-
-dev.off()
-
+  # lvl_data$lineage <- factor(lvl_data$lineage, levels=c(expression(paste(gamma, delta)), "MAIT", "CD4", "CD8"))
+  lvl_data$lineage <- factor(lvl_data$lineage, levels = c("CD4", "CD8", "MAIT", "gd"))
+  
+  # lvls <- lvl_data$cluster_id[c(8, 9, seq(1,7))]
+  lvls <- lvl_data$cluster_id[c(seq(1,7), 9, 8 )]
+  
+  
+  # discrete
+  lgd_cluster= Legend(at =lvls, type = "grid", 
+                      legend_gp = gpar(fill = unname(ordered_col_pal)[c(seq(1,7), 9, 8 )]),
+                      title_position = "topleft",
+                      labels_gp = gpar(fontsize = 10),
+                      title = "Cluster ID")
+  # discrete
+  # lgd_lineage = Legend(at = c("CD4", "CD8", "MAIT", "gd"), type = "grid", 
+  #                      legend_gp = gpar(fill = unname(pie_palette)[1:4]),
+  #                      title_position = "topleft",
+  #                      labels_gp = gpar(fontsize = 10, parse = TRUE),
+  #                      title = "Lineage", )
+  
+  #lgd_list <- packLegend(lgd_cluster, lgd_lineage)
+  
+  
+  circlize_plot()
+  
+  draw(lgd_list)
+  
+  lgd_lineage@grob$children
+  
+    
+    
+      
+        png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_activation_pie.png", width=7, height=4, units = "in", res=400)
+        
+        plot.new()
+        circle_size = unit(1, "snpc") # snpc unit gives you a square region
+        pushViewport(viewport(x = 0, y = 0.5, width = circle_size, height = circle_size,
+                              just = c("left", "center")))
+        par(omi = gridOMI(), new = TRUE)
+        circlize_plot()
+        par(xpd = NA)
+        upViewport()
+        draw(lgd_cluster, x = circle_size, just = "left")
+        #title("Average Size of Significantly Upregulated Clusters at T6", 0,6)
+        
+        dev.off()
+  
 
 
 # figure 2 D memory activation barchart ####
@@ -343,28 +364,32 @@ cd4_bar_data <- cd4_summary %>%
   mutate("cd4_freq" = frequency/cd4_memory_t6_summary$CD4_memory_percentage[match(volunteer, cd4_memory_t6_summary$volunteer)])
 
 
+#stacked_bar_levels <- levels(factor(cd4_bar_data$cluster_id))[c(3,1,4,2,5)]
+stacked_bar_levels <- lvls[1:5] # defined on line 287
 
-cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=timepoint, y=cd4_freq, fill=cluster_id))+
+cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=cd4_freq, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+
-  facet_wrap(~volunteer, strip.position = "bottom", ncol=3)+
-  ggtitle("Activation of CD4 Memory Cells\n")+
+  #facet_wrap(~volunteer, strip.position = "bottom", ncol=3)+
+  ggtitle("Activation of CD4 Memory Cells at T6\n")+
   scale_fill_manual(values=col_pal)+
   scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells", labels=scales::percent_format(accuracy = 1))+
   theme_minimal()+
+  xlab("Volunteer")+
   guides(fill=guide_legend(ncol=2))+
   theme(plot.title = element_text(hjust=0.5, size=11),
         legend.title = element_blank(),
     strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-    axis.title.x = element_blank(),
-    axis.text.x = element_blank(),
-    legend.position = "none",
+    #axis.title.x = element_blank(),
+    #axis.text.x = element_blank(),
+    legend.position = "bottom",
+    legend.justification = "center",
     panel.grid.minor.y = element_blank(),
     strip.placement = "outside")
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=5, height = 5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=6, height = 6)
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart_no_leg.png", cd4_memory_activation_stacked_barchart, width=5, height = 5)
+      ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart_no_leg.png", cd4_memory_activation_stacked_barchart, width=5, height = 5)
 
   # old code you probably won't need again; this sums the activated counts and divides by the sums of lineages, rather thandisaplying averages
 
