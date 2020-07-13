@@ -29,14 +29,14 @@ setwd("~/PhD/plasma/vac69a/figures/")
 all_analytes_sans_v9_plot <- ggplot(long_data, aes(x=factor(timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer), group=Volunteer)+
   geom_point()+
   geom_line(aes(group=Volunteer))+
-  facet_wrap(~ Analyte, scales = "free", ncol=6)+
+  facet_wrap(~ Analyte, scales = "free", ncol=8)+
   scale_y_log10()+
   theme_bw()+
   scale_color_manual(values=my_paired_palette)+
   theme(axis.title.x = element_blank(),
         strip.background = element_rect(fill = "white", color = "white"))
 
-  ggsave(filename = "all_analytes_sans_v9_log_plot.png", all_analytes_sans_v9_plot, width = 8, height=9)
+ggsave(filename = "all_analytes_sans_v9_log_plot.png", all_analytes_sans_v9_plot, width = 16, height=9)
 
 #viva_data <- filter(long_data, Analyte %in% c("CXCL10", "IL12p70", "IL10", "TNFRII", "IL1RA", "ICAM1"))
 
@@ -144,11 +144,11 @@ big_pca2 <- cbind(data3[, 1:2], big_pca$x)
 
 
 
-all_vols_together_vol_color <- ggplot(big_pca2, aes(x=PC1, y=PC2))+
+all_vols_together_vol_color <- ggplot(big_pca2, aes(x=PC2, y=PC3))+
   geom_shadowtext(aes(label=timepoint, color=Volunteer), size=5, fontface="bold")+
   scale_color_manual(values=my_paired_palette)+
-  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
-  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  xlab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  ylab(paste("PC3 ", data.frame(summary(big_pca)[6])[2,3]*100, "%", sep = ""))+
   theme_minimal()+
   theme(legend.position = "none",
         axis.text = element_text(size=10),
@@ -188,6 +188,47 @@ arrow_pca_plot <- ggplot(arrow_pca, aes(x=PC1, y=PC2, group=Volunteer))+
   )
 
 ggsave("arrow_pca.png", arrow_pca_plot)
+
+
+
+
+pc_one <- rownames(head(abs(big_pca$rotation[order(abs(big_pca$rotation[,1]), decreasing = T),1:3]), n=20))
+pc_one_data <- subset(long_data, long_data$Analyte %in% pc_one)
+pc_one_data$AnalyteF <- factor(pc_one_data$Analyte, levels=pc_one)
+
+pc_two <- rownames(head(abs(big_pca$rotation[order(abs(big_pca$rotation[,2]), decreasing = T),1:3]), n=20))
+pc_two_data <- subset(long_data, long_data$Analyte %in% pc_two)
+pc_two_data$AnalyteF <- factor(pc_two_data$Analyte, levels=pc_two)
+
+
+
+pc_one_plot <- ggplot(pc_one_data, aes(x=factor(timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer), group=Volunteer)+
+  geom_point()+
+  geom_line(aes(group=Volunteer))+
+  facet_wrap(~ AnalyteF, scales = "free", ncol=5)+
+  
+  theme_bw()+
+  scale_color_manual(values=my_paired_palette)+
+  theme(axis.title.x = element_blank(),
+        strip.background = element_rect(fill = "white", color = "white"))
+
+ggsave(filename = "pc_one_deconvoluted.png", pc_one_plot, width = 16, height=9)
+
+
+
+pc_two_plot <- ggplot(pc_two_data, aes(x=factor(timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer), group=Volunteer)+
+  geom_point()+
+  geom_line(aes(group=Volunteer))+
+  facet_wrap(~ AnalyteF, scales = "free", ncol=5)+
+  scale_y_log10()+
+  theme_bw()+
+  scale_color_manual(values=my_paired_palette)+
+  theme(axis.title.x = element_blank(),
+        strip.background = element_rect(fill = "white", color = "white"))
+
+ggsave(filename = "pc_two_deconvoluted.png", pc_two_plot, width = 16, height=9)
+
+
 
 
 
@@ -528,6 +569,48 @@ fiss
 # 
 # 
 # plot_grid(all_vols_together_time_color, all_vols_together_individual_color, ncol=1)
+
+
+list_of_dfs_for_glm <- lapply(colnames(data3)[3:ncol(data3)], function(x) data.frame(select(data3, Volunteer, timepoint, x)))
+
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,3]~x[,2]+x[,1], data=x))
+
+list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[3]))
+
+df_of_model_results <- data.frame(do.call(rbind, list_of_summaries))
+colnames(df_of_model_results) <- c("Estimate", "SE", "t_value", "raw_p", "Analyte")
+df_of_model_results$Coefficient <- rownames(df_of_model_results)
+
+df_of_model_results <- df_of_model_results[!grepl("Intercept", df_of_model_results$Coefficient),]
+df_of_model_results <- df_of_model_results[!grepl("v00", df_of_model_results$Coefficient),]
+df_of_model_results$p_adj <- p.adjust(as.numeric(as.character(df_of_model_results$raw_p)), method = "BH")
+
+sig_hits <- subset(df_of_model_results, df_of_model_results$p_adj<0.05)
+
+
+sig_levels <- as.character(sig_hits[order(sig_hits$p_adj),]$Analyte)
+
+sig_glm_data <- subset(long_data, long_data$Analyte %in% sig_hits$Analyte)
+sig_glm_data$AnalyteF <- factor(sig_glm_data$Analyte, levels=sig_levels)
+
+
+sig_glm_data$p_adj <- sig_hits$p_adj[match(sig_glm_data$Analyte, sig_hits$Analyte)]
+
+sig_glm_plot <- ggplot(sig_glm_data, aes(x=factor(timepoint, levels=c("C-1", "DoD", "T+6", "C+45")), y=Concentration, color=Volunteer))+
+  geom_point()+
+  geom_line(aes(group=Volunteer))+
+  #geom_text(aes(label=p_adj), data=sig_glm_data[])+
+  facet_wrap(~ AnalyteF, scales = "free", ncol=5)+
+  scale_y_log10()+
+  theme_bw()+
+  scale_color_manual(values=my_paired_palette)+
+  theme(axis.title.x = element_blank(),
+        strip.background = element_rect(fill = "white", color = "white"))
+
+ggsave(filename = "glm_sig_analytes.png", sig_glm_plot, width = 16, height=9)
+
+
+
 
 
 

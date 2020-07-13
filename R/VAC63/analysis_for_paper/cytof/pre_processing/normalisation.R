@@ -1,15 +1,15 @@
 # library(Biobase)
 # library(data.table)
-  library(flowCore)
-  library(CATALYST)
-#library(premessa)
+library(flowCore)
+library(CATALYST)
+
 
 
 #    CONCATENATION   ####
 
 #setwd("/media/flobuntu/Backups/cytof_imd/vac63c/unprocessed/09082019/09082019_unprocessed_imd/not_normalised_fcs")
 #setwd("/media/flobuntu/Backups/cytof_imd/vac63c/unprocessed/13082019/13082019_unprocessed/IMD/not_normalised")
-setwd("/media/flobuntu/Backups/cytof_imd/vac63c/unprocessed/15082019/IMD/not_normalised")
+setwd("~/flo_r_biz/")
 
 
 
@@ -43,10 +43,10 @@ setwd(dirs[4])
 
 non_normalised_concat <- read.FCS("comp_beads_06_cells_found.fcs")
 
-normalised_ff <- normCytof(x=non_normalised_concat, y="dvs", k=80, plot=FALSE, verbose=T);
-#dir.create("normalised2")
+normalised_ff <- normCytof(x=non_normalised_concat, y="dvs", k=80, plot=FALSE, verbose=T, remove_beads=T);
+dir.create("normalised2")
 
-write.flowSet(normalised_ff, outdir = "normalised")
+write.flowSet(normalised_ff, outdir = "normalised2")
 
 
 
@@ -76,43 +76,136 @@ write.flowSet(normalised_ff, outdir = "normalised")
 
   vac63c_premessa_table$Parameter <- prm
 
-  write.csv(vac63c_premessa_table, "vac63c_premessa_table.csv")
+  #write.csv(vac63c_premessa_table, "vac63c_premessa_table.csv")
   
   
   
   # apply changes and write out
   system.time(rename_parameters_in_files(".", "renamed", vac63c_premessa_table))
   
+
   
+  
+# CALCULATE COMPENSATION ####
+  
+  # get single-stained control samples
+  # completely irrelevant whther the normalisation beads are still in the file btw
+  ss_exp <- read.FCS("~/PhD/cytof/beads_and_tuning_reports/aug2019/normalised_renamed/vac63c_comp_beads.fcs")
+  
+    # specify mass channels stained for
+  
+  custom_isotope_list <- c(CATALYST::isotope_list,list("BCKG"=190))
+  custom_isotope_list$Cd <- custom_isotope_list$Cd[-3]
+  
+  
+  #bc_ms <-  c(89, 102, 104:106, 108, 110:116, 120, 127, 131, 133, 138, 140:156, 158:176, 190:195, 198, 208, 209)
+  
+  # vac63c_premessa_table <- read.csv("~/PhD/cytof/vac63c/vac63c_premessa_table.csv", header = T, stringsAsFactors = F, row.names = 1)
+  # masses <- as.numeric(gsub("[a-zA-Z ]", "", rownames(vac63c_premessa_table)))
+  # masses <- na.omit(masses)
+  # 
+  #including 190 here is curcial otherwise the compCytof function won't accept the custom isotope list
+  bc_ms <-  c(89, 114, 115, 141:156, 158:176, 198, 209)
+  # debarcode
+  re <- assignPrelim(x=ss_exp, y=bc_ms, verbose=TRUE)
+  re <- estCutoffs(x=re)
+  re <- applyCutoffs(x=re)
+  # compute spillover matrix
+  spillMat <- computeSpillmat(x=re)
+  # 
+  write.csv(spillMat, "~/PhD/cytof/beads_and_tuning_reports/aug2019/aug2019_spillmat_final.csv")
+  # 
+# APPLY COMPENSATION TO FLOWSET####
+# setwd("~/PhD/cytof/vac63c/normalised_renamed/debarcoded_not_comped/")
+# vac63c <- read.flowSet(path = "~/PhD/cytof/vac63c/normalised_renamed/debarcoded_not_comped/", pattern = "*fcs")
+# 
+# test <- read.FCS("~/PhD/cytof/vac69a/reprocessed/relabeled/V02_DoD.fcs")
+# comped_nnls <- compCytof(x=test, y=spillMat, method="nnls", isotope_list=custom_isotope_list, out_path="~/PhD/cytof/vac69a/reprocessed/reprocessed_comped/")
+  
+spillMat <- read.csv("~/PhD/cytof/beads_and_tuning_reports/aug2019/aug2019_spillmat_final.csv", header = T, row.names = 1)
+test <- flowCore::read.FCS("~/PhD/cytof/vac63c/normalised_renamed/batch2_normalised_renamed_concat.fcs")
+system.time(CATALYST::compCytof(x=test, y=spillMat[,-55], method="nnls", out_path="batch2_normalised_renamed_comped_concat.fcs"))
+# 
+# comp <- function(ff){compCytof(x=ff,
+#                                y=spillMat,
+#                                out_path="~/PhD/cytof/vac63c/normalised_renamed_comped/",
+#                                method="nnls",
+#                                isotope_list=custom_isotope_list)}
+# 
+#   compCytof(x=batch1,
+#             isotope_list=custom_isotope_list,
+#             y=spillMat,
+#             out_path="~/PhD/cytof/vac63c/normalised_renamed_comped/",
+#             method="nnls")  
+#   
+
+  # 
+  # 
+  # filez <- list.files(pattern = "*fcs")
+  # 
+  # try <- flowCore::read.flowSet(filez[1:3])
+      
   
 # debarcoding #####
+
+
 # custom_isotope_list <- c(CATALYST::isotope_list,list(BCKG=190))
 # custom_isotope_list$Cd
 # # [1] 106 108 110 111 112 113 114 116
 # custom_isotope_list$Cd <- c(106, 108, 111, 112, 113, 114, 116)
+ 
+
+batch1 <- "/home/irina/flo_r_biz/comped/batch1_normalised_renamed_concat_comped.fcs"
+batch2 <- "/home/irina/flo_r_biz/comped//batch2_normalised_renamed_concat_comped.fcs"
+batch3 <- "/home/irina/flo_r_biz/comped/batch3_normalised_renamed_concat_comped.fcs"
 
 
-normalised_concat <- read.FCS("/media/flobuntu/data/cytof_imd/12022019/IMD/normalised/normalised_cd100_removed_concat.fcs")
+batch1_names <- "/home/irina/flo_r_biz/batch1_debarcoder.csv"
+batch2_names <- "/home/irina/flo_r_biz/batch2_debarcoder.csv"
+batch3_names <- "/home/irina/flo_r_biz/batch3_debarcoder.csv"
+
+batch1_names <- read.csv(batch1_names, stringsAsFactors = F, header=F)
+batch2_names <- read.csv(batch2_names, stringsAsFactors = F, header=F)
+batch3_names <- read.csv(batch3_names, stringsAsFactors = F, header=F)
 
 data(sample_key)
-sample_key <- sample_key[1:15,]
+
+# this step is important because the algorithm will look for every barcode present in the sample_key object, even unused ones
+batch1_sample_key <- sample_key[rownames(sample_key)%in%batch1_names[,1],]
+batch2_sample_key <- sample_key[rownames(sample_key)%in%batch2_names[,1],]
+batch3_sample_key <- sample_key[rownames(sample_key)%in%batch3_names[,1],]
+
+
+flz <- batch3
+smpl_key <- batch3_sample_key
+nmz <- batch3_names[,2]
+
+
+normalised_concat <- read.FCS(flz)
+
+#sample_key <- sample_key[1:15,]
 #15-25 min
-re0 <- assignPrelim(x=normalised_concat, y=sample_key, verbose=FALSE)
+system.time(re0 <- assignPrelim(x=normalised_concat, y=smpl_key, verbose=TRUE))
 re0
 
 re <- estCutoffs(x=re0)
 plotYields(x=re, which=0, plotly=FALSE)
 
 re <- applyCutoffs(x = re)
+re
 
 
-# plotMahal(x = re, which = "B3")
-# 
+system.time(outFCS(x=re,
+                   y=normalised_concat,
+                   out_nms=nmz,
+                   out_path = "flo_r_biz/comped/debarcoded/",
+                   verbose=T)
+            )
 
-names <- read.csv("/home/flobuntu/Documents/barcode_key_20190212.csv", stringsAsFactors = F, header=F)
 
-outFCS(x=re, y=normalised_concat, out_nms=names[,2], out_path = "/media/flobuntu/data/cytof_imd/12022019/IMD/debarcoded", verbose=T)
 
+
+# other stuff ####
 
 setwd("/media/flobuntu/Backups/IMD1402/IMD/debarcoded")
 debarcoded <- read.flowSet(files = list.files(path = ".", pattern = "*.fcs")[2:16])

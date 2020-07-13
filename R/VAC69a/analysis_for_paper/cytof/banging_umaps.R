@@ -433,24 +433,37 @@ ggsave(
   plot_grid(plotlist=list_of_plots, labels="AUTO", nrow = 1), width=5.8, height=3)
 
 
-# a bunch of multiplanel plots for related markers ####
-
-cd4_plot <- flo_umap(big_table, "CD4")
-cd8_plot <- flo_umap(big_table, "CD8")
-vd2_plot <- flo_umap(big_table, "Vd2")
-va72_plot <- flo_umap(big_table, "Va72")
+# supplementary figure 1 ####
 
 
-lineage_plot <- plot_grid(cd4_plot, cd8_plot, vd2_plot, va72_plot, ncol=2)
+#lineage plot
+markers <- c("CD4", "CD8", "Vd2", "Va72", "FoxP3", "CD25", "CLA", "CD161")
+
+lineage_plot_list <- lapply(markers, function(x) flo_umap(big_table, color_by = x, only_show = "T6", facet_by = "timepoint"))
+lineage_plot_list <- lapply(lineage_plot_list, function(x) x=x+theme(axis.title = element_blank()))
+
+lineage_plot <- plot_grid(plotlist = lineage_plot_list, ncol=4)
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figure_1/supplementary/lineage_plot.png", lineage_plot, width = 8, height=4)
+
+
+#differentiation/memory plot
+markers <- c("CCR7","CD45RO","CD45RA","CD57","CD127","CX3CR1")
+differentiation_plot_list <- lapply(markers, function(x) flo_umap(big_table, color_by = x, facet_by = "timepoint"))
+differentiation_plot_list <- lapply(differentiation_plot_list, function(x) x=x+theme(axis.title = element_blank()))
+
+# lapply(differentiation_plot_list, function(x){
+#   ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figure_1/supplementary/", x$labels$title ,"_through_time.png", sep=''), x,
+#          width = 8, height=2)
+# })
+
+
+differentiation_plot <- plot_grid(plotlist = differentiation_plot_list, ncol=1)
 # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/lineage_plot_ring.png", lineage_plot)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_plot.png", lineage_plot)
-
-cd38_plot <- flo_umap(big_table, "CD38")
-hladr_plot <- flo_umap(big_table, "HLADR")
-bcl2_plot <- flo_umap(big_table, "BCL2")
-cd27_plot <- flo_umap(big_table, "CD27")
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figure_1/supplementary/differentiation_plot.png", differentiation_plot, width = 8, height = 13)
 
 
+big_plot <- plot_grid(lineage_plot, differentiation_plot, ncol=1, rel_heights = c(1,3))
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/figure_1/supplementary/big_plot.png", big_plot,  width = 8, height = 16)
 # cd38_bcl2_plot <-   plot_grid(cd38_plot, bcl2_plot, ncol=1)
 # activation_plot  <- plot_grid(cd38_plot, bcl2_plot,  hladr_plot, cd27_plot, ncol=2)
 # # ggsave("/Users/s1249052/PhD/cytof/vac69a/figures_for_paper/activation_plot.png", activation_plot)
