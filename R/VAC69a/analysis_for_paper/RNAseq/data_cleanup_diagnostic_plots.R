@@ -108,6 +108,8 @@ fwrite(big_table, "all_unique_genes_cleaned.csv")
 
 library(ggplot2)
 
+big_table <- read.csv("all_unique_genes_cleaned.csv", header = T, stringsAsFactors = F)
+
 comp_levels <- c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_Baseline")
 
 (all_volcanoes <- ggplot(big_table, aes(x=log2FoldChange, y=-log10(padj)))+
@@ -145,6 +147,7 @@ sig_gene_counts$DE_Genes <- ifelse(sig_gene_counts$Direction=="down", -sig_gene_
   geom_text(aes(label=abs(DE_Genes), vjust= -0.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="up"))+
   geom_text(aes(label=abs(DE_Genes), vjust= 1.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="down"))+
   theme_minimal()+
+  ylim(-1200, 2000)+
   scale_fill_manual(values=colorspace::sequential_hcl(6, palette = "Purple Yellow"))+
   ylab("Number of Differentially Expressed Genes\n")+
   theme(legend.position = "none",
