@@ -1,4 +1,4 @@
-list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,4]~x[,2]*x[,3]+x[,1], data=x))
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,4]~x[,2]*x[,3]+x[,3]+x[,1], data=x))
 # this model showed that IL1RA, MPO were higher in second, TF higher in third
 
 
@@ -27,13 +27,14 @@ df_of_third <- interactive_terms[grepl("Third", interactive_terms$Coefficient, f
 
 combo_df <- rbind(df_of_second, df_of_third)
 
+
 #interactive_terms <- interactive_terms[grepl("DoD", interactive_terms$Coefficient),]
 
 
-combo_df$p_adj <- p.adjust(as.numeric(as.character(combo_df$raw_p)), method = "BH")
+combo_df$p_adj <- p.adjust(as.numeric(as.character(combo_df$raw_p)), method = "fdr")
 
 
-sig_hits <- subset(combo_df, combo_df$p_adj<=0.05)
+sig_hits <- subset(combo_df, combo_df$p_adj<=0.1)
 
 
 
@@ -64,29 +65,36 @@ list_of_models2 <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(x[,4]~x[,2]
 
 # list_of_modelsX <- vector(mode = "list", length = 39)
 # this approach shows no change between infections
+list_of_models_times <- list()
+list_of_models_plus <- list()
+list_of_models_times_plus <- list()
 
-list_of_modelsX <- list()
 for(i in 1:length(list_of_dfs_for_glm)){
   dat <- list_of_dfs_for_glm[[i]]
   print(unique(colnames(dat)[4]))
   biomarker <- colnames(dat)[4]
   colnames(dat)[4] <- "Analyte"
-  lm <- nlme::lme(Analyte~timepoint_with_DoD+N_infection, random = ~ 1 | Volunteer_code, data=dat)
-  list_of_modelsX[[paste(biomarker)]] <- lm
+  lm <- nlme::lme(Analyte~timepoint_with_DoD*N_infection+N_infection, random = ~ 1 | Volunteer_code, data=dat)
+  list_of_models_times_plus[[paste(biomarker)]] <- lm
 
 }
+
+AIC_diff <- cbind(sapply(list_of_models_plus, AIC), sapply(list_of_models_times, AIC), sapply(list_of_models_times_plus, AIC))
+
+#the purely additive model is the best for most, except
+# CXCL10    CXCL9     IFNγ     IL10    IL1RA     IL21      MPO     PAI1 
+#having the additional additive term in the interaction model has 0 change on AIC
   
-resx <- lapply(list_of_modelsX, function(x) anova(x))
+resx <- lapply(list_of_models_times, function(x) anova(x))
 
 ress <- do.call(rbind, resx)
 ress <- ress[!grepl("(Intercept)", rownames(ress)),]
 
 
-
 ress <- ress[grepl(":", rownames(ress), fixed = T),]
 
 
-ress <- ress[!grepl("N_infection", rownames(ress), fixed = T),]
+#ress <- ress[!grepl("N_infection", rownames(ress), fixed = T),]
 
 ress$p_adj <- p.adjust(as.numeric(as.character(ress$`p-value`)), method = "fdr")
 ress <- ress[ress$p_adj<=0.05,]
