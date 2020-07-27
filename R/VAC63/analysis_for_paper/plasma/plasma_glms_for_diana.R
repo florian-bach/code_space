@@ -65,10 +65,11 @@ long_data$Concentration <- as.numeric(long_data$Concentration)
 
 # exploratory plots ####
 
-ggplot(long_data, aes(x=timepoint_with_DoD, y = Concentration, group=Sample_ID))+
-  geom_point(aes(shape=N_infection))+
-  geom_line(aes(color=N_infection))+
-  facet_wrap(~Analyte, scales="free")
+ggplot(long_data, aes(x=timepoint_with_DoD, y = Concentration))+
+  #geom_point(aes(shape=N_infection))+
+  geom_boxplot(aes(fill=N_infection))+
+  facet_wrap(~Analyte, scales="free")+
+  theme_minimal()
 
 
 ####     pca stuff ####
@@ -101,7 +102,7 @@ list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,4]~x[,2]+x[,3]+
 
 
 #                                                         Analyte~Timepoint*N_infection+Volunteer
-list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,4]~x[,2]*x[,3]+x[,1], data=x))
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,4]~x[,2]*x[,3]+x[,3]+x[,1], data=x))
 # this model showed that CXCL9, IL18, IL21 were generally higher through time during second infectoin, IFNa was generally lower in third
 # this refers to their intercepts, not their slopes
 
@@ -175,7 +176,7 @@ sig_glm_plot <- ggplot(sig_glm_data, aes(x=timepoint_with_DoD, y=Concentration))
   
 
 
-ggsave(filename = "~/PhD/plasma/vac63/analyte~timepoint+volunter+n_infection.png", sig_glm_plot, width = 16, height=9)
+ggsave(filename = "~/PhD/plasma/vac63/analyte~timepoint+volunter*n_infection.png", sig_glm_plot, width = 16, height=9)
 
 
 
@@ -195,7 +196,7 @@ sig_glm_plot <- ggplot(sig_glm_data, aes(x=timepoint_with_DoD, y=Concentration))
 
 
 
-ggsave(filename = "~/PhD/plasma/vac63/analyte~timepoint+volunter+n_infection_by_n_infection.png", sig_glm_plot, width = 16, height=9)
+ggsave(filename = "~/PhD/plasma/vac63/analyte~timepoint+volunter*n_infection_by_n_infection.png", sig_glm_plot, width = 16, height=9)
 
 
 

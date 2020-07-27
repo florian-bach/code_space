@@ -17,7 +17,8 @@ ei <- metadata(merged_daf)$experiment_info
 
 design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 # 
-# design <- model.matrix(~ei$time+ei$time:ei$volunteer)
+
+#design <- model.matrix(~ei$time+ei$time:ei$volunteer)
 # batch_design <- createDesignMatrix(ei, c("timepoint", "t"))
 
 FDR_cutoff <- 0.05
@@ -25,6 +26,18 @@ FDR_cutoff <- 0.05
 pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
 pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
 pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
+
+pairwise_contrast_dod_t6 <- createContrast(c(c(0, 0, -1, 1), rep(0,5)))
+
+da_dod_t6 <- diffcyt(merged_daf,
+                  design = design,
+                  #contrast = contrast_c10,
+                  contrast = pairwise_contrast_dod_t6,
+                  analysis_type = "DA",
+                  method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "flo_merge",
+                  verbose = T)
+
 
 da_c10 <- diffcyt(merged_daf,
                   design = design,
@@ -78,7 +91,7 @@ table(rowData(da_t6$res)$p_adj < FDR_cutoff)
 # all the mismatched clusters between those models are detected in the full design matrix
 plotDiffHeatmap(merged_daf, da_c10, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 25)
 plotDiffHeatmap(merged_daf, da_dod, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 10)
-  plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 30)
+plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, top_n = 30)
 
 
 
