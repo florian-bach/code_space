@@ -1,34 +1,94 @@
-data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
+# data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
+# 
+# data_up <- subset(data, data$log2FoldChange>0)
+# 
+# data_down <- subset(data, data$log2FoldChange<0)
+# 
+# write.table(data$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_all.txt", sep = "\t", quote = F, row.names = F, col.names = F)
+# write.table(data_up$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_up.txt", sep = "\t", quote = F, row.names = F, col.names = F)
+# write.table(data_down$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_down.txt", sep = "\t", quote = F, row.names = F, col.names = F)
+# 
+# 
 
-data_up <- subset(data, data$log2FoldChange>0)
+library(magrittr)
 
-data_down <- subset(data, data$log2FoldChange<0)
-
-write.table(data$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_all.txt", sep = "\t", quote = F, row.names = F, col.names = F)
-write.table(data_up$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_up.txt", sep = "\t", quote = F, row.names = F, col.names = F)
-write.table(data_down$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_down.txt", sep = "\t", quote = F, row.names = F, col.names = F)
-
-
-
-
+# DoD sheet
+data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
+# T6 sheet
 data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
 
 # positive means enriched in vivax, negative means enriched in falciparum
 data$Cluster_Difference <- data$`%Genes Cluster #2`-data$`%Genes Cluster #1`
 
-#data$Cluster_Difference <- data$X.Genes.Cluster..2-data$`%Genes Cluster #1`
+
+falci_rich <- subset(data, data$Cluster_Difference < -20)
+vivax_diff <- subset(data, data$Cluster_Difference > 20)
+shared <- subset(data, data$Cluster_Difference < 20 & data$Cluster_Difference > -20)
+
+sapply(list_of_rich, nrow)
+
+# DoD
+# falci_rich vivax_diff     shared 
+# 4            10             275 
+
+# T6
+# falci_rich vivax_diff     shared 
+# 130          0        105 
+
+list_of_rich <- list("falci_rich"=falci_rich, "vivax_diff"=vivax_diff, "shared"=shared)
+
+list_of_rich_genes <- lapply(list_of_rich, function(x)x$`Associated Genes Found`)
+
+#split gene list so that each gene becomes a list entry
+list_unique_genes <- lapply(list_of_rich_genes, function(x)
+  unlist(
+    lapply(x, function(y) strsplit(y, ','))
+    )
+)
+
+# get rid of special characters, order list and get rid of duplicats  
+list_unique_genes <- lapply(list_unique_genes, function(x) x %<>%
+                              gsub(" ", "", .) %>%
+                              gsub("]", "", ., fixed = T) %>%
+                              gsub("[", "", ., fixed = T) %>%
+                              .[order(.)] %>%
+                              unique(.))
+
+sapply(list_unique_genes, length)
+
+# DoD
+# falci_rich vivax_diff     shared 
+# 141          282         3019 
+
+# T6
+# falci_rich vivax_diff     shared 
+# 861              0           395
+
+#DoD genes of note:
+
+falci_unique <- list_unique_genes$falci_rich[!list_unique_genes$falci_rich  %in% list_unique_genes$shared]
+# 473 out of 861
+
+falci_dod_faves <- list("BCL6", "BCR", "CCR2", "CGAS", "HIF1A", "HLA-F", "GATA3", "HLA-G", "IL7R", "JAK2", "JAK3",
+                        "STAT1", "STAT3", "STAT5B", "TBX21")
+
+vivax_dod_faves <- list("CCL5", "OAS2", "TNF", "TNFSF13")
+
+# ALL falci_rich genes AND all vivax_rich genes are also SHARED
+shared_dod_faves <- unlist(subset(falci_dod_faves, falci_dod_faves %in% list_unique_genes$shared))
+
+# T6 genes of note:
+# falciparum:
+falci_t6_faves <- list("CCR5", "CD19", "CD28", "CD38", "CD79A", "CD79B", "CTLA4", "CX3CR1", "CXCL1", "CXCL8", "CXCR3",
+"CXCR4", "CXCR6", "ICOS", "IFNG", "IL12RB1", "IL12RB2", "IL21", "IL32", "IRF8", "LAG3", "TBX21", "TNFRSF13B",
+"TNFRSF13C")  
+
+# shared
+shared_faves <- unlist(subset(falci_faves, falci_faves %in% list_unique_genes$shared))
+# "CD28"  "CD38"  "CXCL8" "IFNG"  "TBX21"
 
 
-diff_data <- subset(data, abs(data$Cluster_Difference)>20)
-
-
-genes <- diff_data$`Associated Genes Found`
-unique_genes <- unique(unlist(lapply(genes, function(x)as.list(unlist(strsplit(x, ','))))))
-
-unique_genes <- gsub(" ", "", unique_genes)
-unique_genes <- gsub("[", "", unique_genes, fixed = T)
-unique_genes <- gsub("]", "", unique_genes, fixed = T)
-
+# up down plots ####
 falciparum_up_down <- data.frame("Timepoint"=c("DoD", "DoD", "T6", "T6"), "Direction"=c(rep(c("up", "down"), times=2)))
 falciparum_up_down$Genes <- c(1861, -1121, 721, -221)
 

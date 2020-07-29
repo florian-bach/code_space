@@ -64,7 +64,7 @@ long_data$Concentration <- as.numeric(long_data$Concentration)
 
 
 # exploratory plots ####
-
+# 
 ggplot(long_data, aes(x=timepoint_with_DoD, y = Concentration))+
   #geom_point(aes(shape=N_infection))+
   geom_boxplot(aes(fill=N_infection))+
@@ -110,7 +110,7 @@ list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,4]~x[,2]*x[,3]+
 
 
 # then we make a list where we extract the glm results as a matrix and add a column with the name of the analyte
-list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[4]))
+list_of_summaries <- lapply(list_of_models_times, function(x) cbind(summary(x)$coefficients, names(x$data)[4]))
 
 # now we pull the list of matrices together as one big data frame
 df_of_model_results <- data.frame(do.call(rbind, list_of_summaries))

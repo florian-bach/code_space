@@ -231,3 +231,15 @@ venn.diagram( x = countz,
 )
 
 
+#genes up at T6 that aren't up on DOD
+
+t6_specific <- UP_list_of_sig_unique_FC_named$T6_Baseline$Symbol[!UP_list_of_sig_unique_FC_named$T6_Baseline$Symbol %in% UP_list_of_sig_unique_FC_named$DoD_Baseline$Symbol]
+t6_specific <- t6_specific[order(t6_specific)]
+
+vivax_t6_faves <- c("CD38", "CTLA4", "CXCR6", "GZMA", "ICOS", "IL21", "MPO", "MKI67")
+
+
+> vivax_t6_faves[vivax_t6_faves %in% t6_specific]
+[1] "CTLA4" "CXCR6" "GZMA"  "ICOS"  "IL21"  "MPO"  
+> vivax_t6_faves[!vivax_t6_faves %in% t6_specific]
+[1] "CD38"  "MKI67"

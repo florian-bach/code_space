@@ -72,20 +72,24 @@ list_of_models2 <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(x[,4]~x[,2]
 # list_of_modelsX <- vector(mode = "list", length = 39)
 # this approach shows no change between infections
 list_of_models_times <- list()
+
 list_of_models_plus <- list()
-list_of_models_times_plus <- list()
+list_of_lm_models_plus <- list()
 
 for(i in 1:length(list_of_dfs_for_glm)){
   dat <- list_of_dfs_for_glm[[i]]
   print(unique(colnames(dat)[4]))
   biomarker <- colnames(dat)[4]
   colnames(dat)[4] <- "Analyte"
-  lm <- nlme::lme(Analyte~timepoint_with_DoD+N_infection, random = ~ 1 | Volunteer_code, data=dat)
-  list_of_models_plus[[paste(biomarker)]] <- lm
-
+  lm1 <- nlme::lme(Analyte~timepoint_with_DoD+N_infection, random= ~1 | Volunteer_code, data=dat)
+  #lm1 <- lme4::lmer(Analyte~timepoint_with_DoD*N_infection+(1|Volunteer_code), data=dat)
+  
+  # lm2 <- lm(Analyte~timepoint_with_DoD+N_infection+Volunteer_code, data=dat)
+  list_of_models_plus[[paste(biomarker)]] <- lm1
+  # list_of_lm_models_plus[[paste(biomarker)]] <- lm2
 }
 
-AIC_diff <- cbind(sapply(list_of_models_plus, AIC)-sapply(list_of_models_times_plus, AIC))
+AIC_diff <- cbind(sapply(list_of_models_plus, AIC), sapply(list_of_lm_models_plus, AIC))
 AIC_diff <- subset(AIC_diff, AIC_diff> 3)
 
 
@@ -93,20 +97,24 @@ AIC_diff <- subset(AIC_diff, AIC_diff> 3)
 # CXCL10    CXCL9     IFNγ     IL10    IL1RA     IL21      MPO     PAI1 
 #having the additional additive term in the interaction model has 0 change on AIC
   
-resx <- lapply(list_of_models_times, function(x) anova(x))
+resx <- lapply(list_of_models_plus, function(x) anova(x))
 
 ress <- do.call(rbind, resx)
-ress <- ress[!grepl("(Intercept)", rownames(ress)),]
+#ress <- ress[!grepl("(Intercept)", rownames(ress)),]
 
 
-ress <- ress[grepl(":", rownames(ress), fixed = T),]
+#ress <- ress[grepl(":", rownames(ress), fixed = T),]
 
+ress <- ress[!grepl("(Intercept)", rownames(ress)) & !grepl("N_infection", rownames(ress), fixed=TRUE),]
 
 #ress <- ress[!grepl("N_infection", rownames(ress), fixed = T),]
 
 ress$p_adj <- p.adjust(as.numeric(as.character(ress$`p-value`)), method = "fdr")
 ress <- ress[ress$p_adj<=0.05,]
 
+# the interaction model returns 23 analytes as significant through time, the additive one 21 (it misses IL33 and leptin, otherwise it's the same)
+# however, generally p values are lower for the additive model which might explain the difference
+# the interaction term is significant for 8 analytes, ICAM1, IL10, IL1RA, IL21, MPO, TF, TIMP1, TNFRII
 
 # in general the purely additive model is better
 #here are the analytes for which this is not true
