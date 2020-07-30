@@ -14,11 +14,14 @@ list_of_sig <- lapply(list_of_files, function(x) x %>%
                         mutate("FC"=ifelse(log2FoldChange>0, "up", "down"))
 )
                       
-
+#formerly group_by(Description)
 list_of_sig_unique <- lapply(list_of_sig, function(x)
       x %>%
-     group_by(Description) %>%
-     top_n(n = -1, wt = padj)
+     group_by(EntrezID) %>%
+     top_n(n = -1, wt = padj) %>%
+     distinct(EntrezID, .keep_all = TRUE) %>%
+     ungroup()
+       
      )
 
 list_of_sig_unique_FC <- lapply(list_of_sig_unique, function(x) filter(x, abs(log2FoldChange)>=log2(1.5) & !is.na(Symbol)))
@@ -90,10 +93,17 @@ list_of_named_files <- lapply(names(list_of_files), function(x) {
     mutate("FC"=ifelse(log2FoldChange>0, "up", "down"))
 })
 
+
+
+
+#formerly Symbol
 list_of_named_unique <- lapply(list_of_named_files, function(x)
   x %>%
-    group_by(Symbol) %>%
-    top_n(n = -1, wt = padj)
+    group_by(EntrezID) %>%
+    top_n(n = -1, wt = padj) %>%
+    distinct(EntrezID, .keep_all = TRUE) %>%
+    ungroup()
+  
 )
 
 list_of_named_unique_no_na <- lapply(list_of_named_unique, function(x)
@@ -103,7 +113,7 @@ list_of_named_unique_no_na <- lapply(list_of_named_unique, function(x)
 
 big_table <- do.call(rbind, list_of_named_unique_no_na)
 
-fwrite(big_table, "all_unique_genes_cleaned.csv")
+fwrite(big_table, "/home/flobuntu/PhD/RNAseq/vac69a/all/xls/all_unique_genes_cleaned.csv")
 
 
 library(ggplot2)
@@ -121,7 +131,7 @@ comp_levels <- c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_B
              ncol=5, scales="fixed")+
   theme(legend.position = "none"))
 
-ggsave("./figures/all_volcanoes.png", all_volcanoes, width=12, height=5)
+ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/all_volcanoes.png", all_volcanoes, width=12, height=5)
 
 
 # sig_gene_counts <- rbind(data.frame(lapply(list_of_sig_unique_FC, nrow), "FC"="With Correction"),
@@ -154,7 +164,7 @@ sig_gene_counts$DE_Genes <- ifelse(sig_gene_counts$Direction=="down", -sig_gene_
         axis.title.x=element_blank(),
         axis.text.x = element_text(angle=45, hjust=1)))
 
-ggsave("./figures/sig_gene_count_plots_log2fc058.png", sig_gene_count_plots)
+ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/sig_gene_count_plots_log2fc058.png", sig_gene_count_plots)
 
 
   # venn diagrams ####

@@ -25,6 +25,11 @@ falci_rich <- subset(data, data$Cluster_Difference < -20)
 vivax_diff <- subset(data, data$Cluster_Difference > 20)
 shared <- subset(data, data$Cluster_Difference < 20 & data$Cluster_Difference > -20)
 
+list_of_rich <- list("falci_rich"=falci_rich, "vivax_diff"=vivax_diff, "shared"=shared)
+
+list_of_rich_genes <- lapply(list_of_rich, function(x)x$`Associated Genes Found`)
+
+
 sapply(list_of_rich, nrow)
 
 # DoD
@@ -35,9 +40,6 @@ sapply(list_of_rich, nrow)
 # falci_rich vivax_diff     shared 
 # 130          0        105 
 
-list_of_rich <- list("falci_rich"=falci_rich, "vivax_diff"=vivax_diff, "shared"=shared)
-
-list_of_rich_genes <- lapply(list_of_rich, function(x)x$`Associated Genes Found`)
 
 #split gene list so that each gene becomes a list entry
 list_unique_genes <- lapply(list_of_rich_genes, function(x)
@@ -67,6 +69,11 @@ sapply(list_unique_genes, length)
 #DoD genes of note:
 
 falci_unique <- list_unique_genes$falci_rich[!list_unique_genes$falci_rich  %in% list_unique_genes$shared]
+
+vivax_unique <- list_unique_genes$vivax_diff[list_unique_genes$falci_rich  %in% list_unique_genes$shared]
+
+vivax_unique <- list(`Unique to Vivax DoD`=vivax_unique)
+
 # 473 out of 861
 
 falci_dod_faves <- list("BCL6", "BCR", "CCR2", "CGAS", "HIF1A", "HLA-F", "GATA3", "HLA-G", "IL7R", "JAK2", "JAK3",
@@ -86,6 +93,8 @@ falci_t6_faves <- list("CCR5", "CD19", "CD28", "CD38", "CD79A", "CD79B", "CTLA4"
 # shared
 shared_faves <- unlist(subset(falci_faves, falci_faves %in% list_unique_genes$shared))
 # "CD28"  "CD38"  "CXCL8" "IFNG"  "TBX21"
+
+vivax_specific_dod <- DoD_Baseline[!scan("~/PhD/RNAseq/vac69a/all/xls/gene_lists/DoD_Baseline_ALL_significant_symbol_only.txt", what = "") %in% scan("~/PhD/RNAseq/vac63c/vac63a_b_sig_dod_baseline_all.txt", what=""),]
 
 
 # up down plots ####

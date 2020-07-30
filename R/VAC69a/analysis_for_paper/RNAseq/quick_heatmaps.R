@@ -55,11 +55,22 @@ Even_More_Inflammation_Markers <- list(`Even More Inflammation Markers` = c("IL3
 )
 
 
+
+vivax_t6_faves <- list(`T6 Specific T cell Genes` = c("CD38", "CTLA4", "CXCR6", "GZMA", "ICOS", "IL21", "MKI67"))
+quick_gene_heatmaps(vivax_t6_faves)
+
+
+ifnas <- list(`Interferon Alpha Genes`=paste0("IFNA", c(1,2,4,5,6,7,8,10,13,14,16,21), sep=""))
+
+ifnbs <- list(`Interferon Beta Genes`=paste0("IFNB", seq(1,100), sep=""))
+
+
 quick_gene_heatmaps(cleaned_search_results)
 quick_gene_heatmaps(Inflammation_markers)
 quick_gene_heatmaps(More_Inflammation_Markers)
 quick_gene_heatmaps(Even_More_Inflammation_Markers)
-
+quick_gene_heatmaps(ifnas)
+quick_gene_heatmaps(ifnbs)
 
   
 # MOST SIGNIFICANT GENES HEATMAPS ####
