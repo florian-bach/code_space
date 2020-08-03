@@ -12,13 +12,19 @@ library(ggplot2)
 #daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional = T, event_number = 1000)
 merged_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
+#merged_daf <- filterSCE(merged_daf, timepoint != "C10")
+
+
 ei <- metadata(merged_daf)$experiment_info
 #ei$timepoint <- factor(ei$timepoint, levels=c("C10", "Baseline", "DoD", "T6"))
 
-design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
+alt <- ifelse(ei$timepoint=="T6"&ei$volunteer!="V05", TRUE, FALSE)
+ei$alt <- alt
+ei$alt <- ei$alt>40
+design <- createDesignMatrix(ei, c("timepoint", "volunteer", "alt"))
 # 
 
-#design <- model.matrix(~ei$time+ei$time:ei$volunteer)
+#design <- model.matrix(~ei$time+ei$volunteer:ei$alt)
 # batch_design <- createDesignMatrix(ei, c("timepoint", "t"))
 
 FDR_cutoff <- 0.05
@@ -28,16 +34,22 @@ pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
 pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
 
 pairwise_contrast_dod_t6 <- createContrast(c(c(0, 0, -1, 1), rep(0,5)))
+pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5), 1))
+pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5), 1))
 
-da_dod_t6 <- diffcyt(merged_daf,
-                  design = design,
-                  #contrast = contrast_c10,
-                  contrast = pairwise_contrast_dod_t6,
-                  analysis_type = "DA",
-                  method_DA = "diffcyt-DA-edgeR",
-                  clustering_to_use = "flo_merge",
-                  verbose = T)
+#pairwise_contrast_t6 <- createContrast(c(0, 0, 1, 1))
 
+
+da_t6 <- diffcyt(merged_daf,
+                 design = design,
+                 #contrast = contrast_t6,
+                 contrast = pairwise_contrast_t6,
+                 analysis_type = "DA",
+                 method_DA = "diffcyt-DA-edgeR",
+                 clustering_to_use = "flo_merge",
+                 verbose = T)
+
+plotDiffHeatmap(merged_daf, da_t6, top_n = 20, th = FDR_cutoff)
 
 da_c10 <- diffcyt(merged_daf,
                   design = design,
@@ -71,7 +83,7 @@ da_t6 <- diffcyt(merged_daf,
 table(rowData(da_c10$res)$p_adj < FDR_cutoff)
 # FALSE
 #    42
-table()
+table(rowData(da_dod$res)$p_adj < FDR_cutoff)
 # # FALSEFALSE  TRUE
 # 34     8
 table(rowData(da_t6$res)$p_adj < FDR_cutoff)

@@ -1,3 +1,4 @@
+setwd("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/gene_lists/")
 
 up_dod <- scan(file = "DoD_Baseline_UP_significant_symbol_only.txt", sep="\t", what = "")
 up_t6 <- scan(file = "T6_Baseline_UP_significant_symbol_only.txt", sep="\t", what = "")
