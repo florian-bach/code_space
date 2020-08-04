@@ -57,7 +57,11 @@ Even_More_Inflammation_Markers <- list(`Even More Inflammation Markers` = c("IL3
 
 
 vivax_t6_faves <- list(`T6 Specific T cell Genes` = c("CD38", "CTLA4", "CXCR6", "GZMA", "ICOS", "IL21", "MKI67"))
-quick_gene_heatmaps(vivax_t6_faves)
+quick_gene_heatmaps(vivax_t6_faves, sort_by = "T6_Baseline")
+
+falci_t6_faves <- list(`T cell genes at vivax T6`=c("CCR5", "CD19", "CD28",
+                                  "CD38", "CD79A", "CD79B", "CTLA4", "CX3CR1", "CXCL1", "CXCL8", "CXCR3","CXCR4", "CXCR6", "ICOS", "IFNG",
+                                  "IL12RB1", "IL12RB2", "IL21", "IL32", "IRF8", "LAG3", "TBX21", "TNFRSF13B","TNFRSF13C"))
 
 
 ifnas <- list(`Interferon Alpha Genes`=paste0("IFNA", c(1,2,4,5,6,7,8,10,13,14,16,21), sep=""))
@@ -65,13 +69,13 @@ ifnas <- list(`Interferon Alpha Genes`=paste0("IFNA", c(1,2,4,5,6,7,8,10,13,14,1
 ifnbs <- list(`Interferon Beta Genes`=paste0("IFNB", seq(1,100), sep=""))
 
 
-quick_gene_heatmaps(cleaned_search_results)
-quick_gene_heatmaps(Inflammation_markers)
-quick_gene_heatmaps(More_Inflammation_Markers)
-quick_gene_heatmaps(Even_More_Inflammation_Markers)
-quick_gene_heatmaps(ifnas)
-quick_gene_heatmaps(ifnbs)
-
+quick_gene_heatmaps(cleaned_search_results, sort_by = "DoD_Baseline")
+quick_gene_heatmaps(Inflammation_markers, sort_by = "DoD_Baseline")
+quick_gene_heatmaps(More_Inflammation_Markers, sort_by = "DoD_Baseline")
+quick_gene_heatmaps(Even_More_Inflammation_Markers, sort_by = "DoD_Baseline")
+quick_gene_heatmaps(ifnas, sort_by = "DoD_Baseline")
+quick_gene_heatmaps(ifnbs, sort_by = "DoD_Baseline")
+quick_gene_heatmaps(falci_t6_faves, sort_by = "T6_Baseline")
   
 # MOST SIGNIFICANT GENES HEATMAPS ####
   

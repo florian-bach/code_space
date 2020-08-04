@@ -1,13 +1,9 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-<<<<<<< HEAD
 library(MOFA) # <3
-=======
-library(MOFA)
 library(MOFAdata)
 library(MultiAssayExperiment)
->>>>>>> 5992d616634ea1357ef19c85c4d7b4f781cc9ca1
 
 library(reticulate)
 
@@ -32,16 +28,16 @@ use_python("/home/flobuntu/anaconda3/bin/python", required = TRUE)
 #consider doing a square root asinh transform, like the complex heatmap
 
 cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_counts_and_freqs.csv", header = T, stringsAsFactors = F)
-cytof_data <- subset(cytof_data, cytof_data$timepoint!="C10")
+#cytof_data <- subset(cytof_data, cytof_data$timepoint!="C10")
 
 #cytof_data$trans_freq=scale(asin(sqrt(cytof_data$frequency/100)), center = TRUE, scale = TRUE)
 
 cytof_data$trans_freq=asin(sqrt(cytof_data$frequency/100))
 
 
-# wide_cytof <- data.frame(cytof_data %>%
-#   select(cluster_id, sample_id, frequency) %>%
-#   pivot_wider(names_from = sample_id, values_from = frequency))
+wide_cytof <- data.frame(cytof_data %>%
+  select(cluster_id, sample_id, frequency) %>%
+  pivot_wider(names_from = sample_id, values_from = frequency))
 
 wide_cytof <- data.frame(cytof_data %>%
                            select(cluster_id, sample_id, trans_freq) %>%
@@ -337,7 +333,7 @@ plotFactorScatter(
 
 plotWeights(
   MOFAobject, 
-  view = "Haem", 
+  view = "CyTOF", 
   factor = 1, 
   nfeatures = 12
 )

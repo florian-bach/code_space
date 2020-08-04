@@ -110,5 +110,7 @@ symptom_heatmap <- ggplot(long_data, aes(x=factor(timepoint, levels=timepoint_le
 ggsave("/home/flobuntu/PhD/clinical_data/vac69b/figures/symtom_heatmap.png", symptom_heatmap, height=8, width=14)
 
 
-
+detach("package:vac69a.cytof", unload = TRUE)
+library(vac69a.cytof)
+vac69a.cytof::quick_gene_heatmaps(falci_t6_faves, sort_by = "T6_Baseline")
 

@@ -20,7 +20,7 @@ ei <- metadata(merged_daf)$experiment_info
 
 alt <- ifelse(ei$timepoint=="T6"&ei$volunteer!="V05", TRUE, FALSE)
 ei$alt <- alt
-ei$alt <- ei$alt>40
+#ei$alt <- ei$alt>40
 design <- createDesignMatrix(ei, c("timepoint", "volunteer", "alt"))
 # 
 

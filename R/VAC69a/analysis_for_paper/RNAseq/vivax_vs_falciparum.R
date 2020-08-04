@@ -1,6 +1,8 @@
-# data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
-# 
-# data_up <- subset(data, data$log2FoldChange>0)
+
+
+
+
+  # data_up <- subset(data, data$log2FoldChange>0)
 # 
 # data_down <- subset(data, data$log2FoldChange<0)
 # 
@@ -11,17 +13,98 @@
 # 
 
 library(magrittr)
+library(ggplot2)
+library(ggrepel)
 
 # DoD sheet
 data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
 # T6 sheet
-data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
+#data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
 
 # positive means enriched in vivax, negative means enriched in falciparum
 data$Cluster_Difference <- data$`%Genes Cluster #2`-data$`%Genes Cluster #1`
 
+threshold <- 30
 
-falci_rich <- subset(data, data$Cluster_Difference < -20)
+#DoD
+falci_rich_data <- subset(data, data$Cluster_Difference< -threshold)
+vivax_rich_data <- subset(data, data$Cluster_Difference> threshold)
+
+#T6 for few labels on dot plot
+# falci_rich_data <- subset(data, data$Cluster_Difference< -50)
+# vivax_rich_data <- subset(data, data$Cluster_Difference> 50)
+
+
+vivax_x_limits <- c(80, NA)
+vivax_y_limits <- c(20, NA)
+  
+  dod_dot_plot <- ggplot(data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
+    theme_minimal()+
+    #T6
+    #coord_cartesian(ylim = c(40,105), expand=F, xlim = c(0,60))+
+    #DoD
+    coord_cartesian(ylim = c(0,70), expand=F, xlim = c(30, 100))+
+    scale_color_gradient2(high="green", low="red", midpoint = 0)+
+    scale_y_continuous(breaks=seq(0,100,by=10))+
+    scale_x_continuous(breaks=seq(0,100,by=10))+
+    # ylab(expression('% of genes contributed to GO term by '~italic("P. falciparum")~'at DoD'))+
+    # xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at DoD'))+
+    ylab(expression('% of genes contributed to GO term by '~italic("P. falciparum")~'at T6'))+
+    xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at T6'))+
+    #ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
+    geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
+                  xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
+    geom_point(aes(color=Cluster_Difference))+
+    geom_label_repel(data=vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=2.8,
+                     box.padding   = 0.35,
+                     point.padding = 0.5, nudge_x = 40, nudge_y = 40, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits,)+
+    geom_label_repel(data=falci_rich_data, aes(label = stringr::str_wrap(GOTerm, 20)), size=2.8,
+                     box.padding   = 0.35,
+                     point.padding = 0.5, nudge_x = -10, segment.alpha = 0.2)+
+    theme(legend.position = "none",
+          plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
+  
+  dod_hist_plot <- ggplot(data, aes(y=`%Genes Cluster #1`))+
+    theme_minimal()+
+    #T6
+    #coord_cartesian(ylim = c(40,105), expand=F)+
+    #DoD
+    coord_cartesian(xlim = c(0,70), expand=F)+
+    xlab("# GO Terms")+
+    geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey")+
+    scale_fill_gradient2(high="red", low="green", midpoint = 50)+
+    theme(axis.title.y =  element_blank(),
+          axis.text.y =  element_blank(),
+          axis.title.x = element_text(),
+          axis.text.x = element_text(),
+          legend.position = "none",
+          plot.margin=unit(c(0.5,0.5,0.5,0),"cm"))
+  
+  
+  vivax_falciparum_dod <- cowplot::plot_grid(dod_dot_plot, dod_hist_plot, ncol=2, rel_widths = c(7,2), align = "hv", axis="b")
+  #ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
+  
+  
+  ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO_var.png", vivax_falciparum_dod, height = 7, width=9)
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        falci_rich <- subset(data, data$Cluster_Difference < -20)
 vivax_diff <- subset(data, data$Cluster_Difference > 20)
 shared <- subset(data, data$Cluster_Difference < 20 & data$Cluster_Difference > -20)
 
@@ -86,9 +169,9 @@ shared_dod_faves <- unlist(subset(falci_dod_faves, falci_dod_faves %in% list_uni
 
 # T6 genes of note:
 # falciparum:
-falci_t6_faves <- list("CCR5", "CD19", "CD28", "CD38", "CD79A", "CD79B", "CTLA4", "CX3CR1", "CXCL1", "CXCL8", "CXCR3",
+falci_t6_faves <- list("T Cell Genes of Interest"=c("CCR5", "CD19", "CD28", "CD38", "CD79A", "CD79B", "CTLA4", "CX3CR1", "CXCL1", "CXCL8", "CXCR3",
 "CXCR4", "CXCR6", "ICOS", "IFNG", "IL12RB1", "IL12RB2", "IL21", "IL32", "IRF8", "LAG3", "TBX21", "TNFRSF13B",
-"TNFRSF13C")  
+"TNFRSF13C")  )
 
 # shared
 shared_faves <- unlist(subset(falci_faves, falci_faves %in% list_unique_genes$shared))
@@ -117,3 +200,71 @@ ggsave("./figures/falciparum_up_down_plot.png", falciparum_up_down_plot)
 
 combo_plot <- cowplot::plot_grid(sig_gene_count_plots, falciparum_up_down_plot, rel_widths = c(5, 2))
 ggsave("./figures/combo_plot.png", combo_plot)  
+
+
+# vivax vs falciparum gene heatmaps ####
+falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
+falci_t6_data <- read.csv("~/PhD/RNAseq/vac63c/T6vBas_First_DEGs_log2fc_cutoff.csv", header = T, stringsAsFactors = F, row.names = 1)
+
+falci_dod_data$file_name <- "DoD_Baseline"
+falci_t6_data$file_name <- "T6_Baseline"
+
+falci_data <- rbind(falci_dod_data, falci_t6_data)
+
+slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
+
+
+vivax_level_data <- dplyr::filter(all_unique_genes, file_name %in% c("DoD_Baseline", "T6_Baseline") & baseMean!=0)
+
+vivax_plot_levels <- vivax_level_data %>%
+  dplyr::filter(file_name=="T6_Baseline") %>%
+  dplyr::arrange(log2FoldChange) %>%
+  dplyr::select(Symbol)
+
+
+
+
+
+
+
+
+
+
+plot_data <- slimmed_falci_data
+
+# plot_levels <- plot_data %>%
+#   dplyr::filter(file_name=="T6_Baseline") %>%
+#   dplyr::arrange(log2FoldChange) %>%
+#   dplyr::select(Symbol)
+
+plot_plot <- ggplot(plot_data, aes(x=factor(file_name, levels=c("DoD_Baseline", "T6_Baseline")),
+                                   y=factor(Symbol, levels = c(vivax_plot_levels$Symbol))))+
+  geom_tile(aes(fill=log2FoldChange, width=0.92, height=0.92), size=0.4, color=ifelse(plot_data$padj<0.05, "darkgreen", "black"))+
+  scale_fill_gradientn(name="log2FC",
+                       values = scales::rescale(c(min(plot_data$log2FoldChange, na.rm = TRUE), 0, max(plot_data$log2FoldChange, na.rm = TRUE)), to=c(0,1)),
+                       colors = c("#0859C6","black","#FFA500"))+
+  theme_void()+
+  ggtitle("T cell genes at falciparum T6\n")+
+  guides(fill=guide_colorbar(nbin=30,
+                             breaks=seq(min(plot_data$log2FoldChange),max(plot_data$log2FoldChange), by=1)))+
+  coord_fixed(ratio = 1)+
+  theme(
+    axis.text.x = element_text(angle=45, hjust = 1, vjust = 1, size = 9),
+    axis.text.y = element_text(),
+    plot.title = element_text(hjust=0.5),
+    legend.title = element_text(),
+    legend.margin=margin(0,0,0,0),
+    legend.position = "right",
+    legend.box.margin=margin(0,0,0,0))
+
+ggsave(paste("~/PhD/RNAseq/vac63c/T cell Genes of Interest falciparum.png"), height=6,width=6, plot_plot)
+
+# combo plot
+
+plot1 <-quick_gene_heatmaps(falci_t6_faves, sort_by = "T6_Baseline")
+
+
+vivax_T_cell_plot <- plot1+theme(plot.margin = unit(c(0.5,0,0.5,0.5),"cm"))
+falci_T_cell_plot <- plot_plot+theme(plot.margin = unit(c(0.5,0.5,0.5,0),"cm"))
+combo_plot <- cowplot::plot_grid(vivax_T_cell_plot,falci_T_cell_plot, ncol=2)
+ggsave(paste("~/PhD/RNAseq/vac63c/T cell Genes of Interest vivax vs falci.png"), height=6,width=6, combo_plot)
