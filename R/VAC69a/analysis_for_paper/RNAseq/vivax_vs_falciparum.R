@@ -16,34 +16,99 @@ library(magrittr)
 library(ggplot2)
 library(ggrepel)
 
+
 # DoD sheet
-data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
-# T6 sheet
-#data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
+dod_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
 
 # positive means enriched in vivax, negative means enriched in falciparum
-data$Cluster_Difference <- data$`%Genes Cluster #2`-data$`%Genes Cluster #1`
+dod_data$Cluster_Difference <- dod_data$`%Genes Cluster #2`-dod_data$`%Genes Cluster #1`
 
 threshold <- 30
 
 #DoD
-falci_rich_data <- subset(data, data$Cluster_Difference< -threshold)
-vivax_rich_data <- subset(data, data$Cluster_Difference> threshold)
-
-#T6 for few labels on dot plot
-# falci_rich_data <- subset(data, data$Cluster_Difference< -50)
-# vivax_rich_data <- subset(data, data$Cluster_Difference> 50)
-
+dod_falci_rich_data <- subset(dod_data, dod_data$Cluster_Difference< -threshold)
+dod_vivax_rich_data <- subset(dod_data, dod_data$Cluster_Difference> threshold)
 
 vivax_x_limits <- c(80, NA)
 vivax_y_limits <- c(20, NA)
+
+dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
+  theme_minimal()+
+  #T6
+  #coord_cartesian(ylim = c(40,105), expand=F, xlim = c(0,60))+
+  #DoD
+  coord_cartesian(ylim = c(0,65), expand=F, xlim = c(35, 100))+
+  scale_color_gradient2(high="green", low="red", midpoint = 0)+
+  scale_y_continuous(breaks=seq(0,100,by=10))+
+  scale_x_continuous(breaks=seq(0,100,by=10))+
+  # ylab(expression('% of genes contributed to GO term by '~italic("P. falciparum")~'at DoD'))+
+  # xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at DoD'))+
+  ylab(expression('% of genes contributed to GO term by '~italic("P. falciparum")~'at T6'))+
+  xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at T6'))+
+  #ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
+  geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
+                xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
+  geom_point(aes(color=Cluster_Difference))+
+  geom_label_repel(data=dod_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=2.8,
+                   box.padding   = 0.35,
+                   point.padding = 0.5, nudge_x = 40, nudge_y = 40, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits,)+
+  geom_label_repel(data=dod_falci_rich_data, aes(label = stringr::str_wrap(GOTerm, 20)), size=2.8,
+                   box.padding   = 0.35,
+                   point.padding = 0.5, nudge_x = -10, segment.alpha = 0.2)+
+  theme(legend.position = "none",
+        plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
+
+dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
+  theme_minimal()+
+  #T6
+  #coord_cartesian(ylim = c(40,105), expand=F)+
+  #DoD
+  coord_cartesian(xlim = c(0,65), expand=F)+
+  xlab("# GO Terms")+
+  geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey")+
+  scale_fill_gradient2(high="red", low="green", midpoint = 50)+
+  theme(axis.title.y =  element_blank(),
+        axis.text.y =  element_blank(),
+        axis.title.x = element_text(),
+        axis.text.x = element_text(),
+        legend.position = "none",
+        plot.margin=unit(c(0.5,0.5,0.5,0),"cm"))
+
+
+vivax_falciparum_dod <- cowplot::plot_grid(dod_dot_plot, dod_hist_plot, ncol=2, rel_widths = c(7,2), align = "hv", axis="b")
+#ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
+
+
+ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO_var.png", vivax_falciparum_dod, height = 7, width=9)
+
+
+
+
+
+
+
+
+
+  # T6 sheet
+t6_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
+
+# positive means enriched in vivax, negative means enriched in falciparum
+t6_data$Cluster_Difference <- t6_data$`%Genes Cluster #2`-t6_data$`%Genes Cluster #1`
+
+threshold <- 30
+
   
-  dod_dot_plot <- ggplot(data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
+  #T6 for few labels on dot plot
+  t6_falci_rich_data <- subset(t6_data, t6_data$Cluster_Difference< -50)
+  t6_vivax_rich_data <- subset(t6_data, t6_data$Cluster_Difference> 50)
+  
+  
+  t6_vivax_x_limits <- c(80, NA)
+  t6_vivax_y_limits <- c(20, NA)
+  
+  t6_dot_plot <- ggplot(t6_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
     theme_minimal()+
-    #T6
-    #coord_cartesian(ylim = c(40,105), expand=F, xlim = c(0,60))+
-    #DoD
-    coord_cartesian(ylim = c(0,70), expand=F, xlim = c(30, 100))+
+    coord_cartesian(ylim = c(40,105), expand=F, xlim = c(0,60))+
     scale_color_gradient2(high="green", low="red", midpoint = 0)+
     scale_y_continuous(breaks=seq(0,100,by=10))+
     scale_x_continuous(breaks=seq(0,100,by=10))+
@@ -53,23 +118,20 @@ vivax_y_limits <- c(20, NA)
     xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at T6'))+
     #ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
     geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
-                  xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
+                 xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
     geom_point(aes(color=Cluster_Difference))+
-    geom_label_repel(data=vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=2.8,
+    geom_label_repel(data=t6_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=2.8,
                      box.padding   = 0.35,
                      point.padding = 0.5, nudge_x = 40, nudge_y = 40, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits,)+
-    geom_label_repel(data=falci_rich_data, aes(label = stringr::str_wrap(GOTerm, 20)), size=2.8,
+    geom_label_repel(data=t6_falci_rich_data, aes(label = stringr::str_wrap(GOTerm, 20)), size=2.8,
                      box.padding   = 0.35,
                      point.padding = 0.5, nudge_x = -10, segment.alpha = 0.2)+
     theme(legend.position = "none",
           plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
   
-  dod_hist_plot <- ggplot(data, aes(y=`%Genes Cluster #1`))+
+  t6_hist_plot <- ggplot(t6_data, aes(y=`%Genes Cluster #1`))+
     theme_minimal()+
-    #T6
-    #coord_cartesian(ylim = c(40,105), expand=F)+
-    #DoD
-    coord_cartesian(xlim = c(0,70), expand=F)+
+    coord_cartesian(ylim = c(40,105), expand=F)+
     xlab("# GO Terms")+
     geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey")+
     scale_fill_gradient2(high="red", low="green", midpoint = 50)+
@@ -81,12 +143,11 @@ vivax_y_limits <- c(20, NA)
           plot.margin=unit(c(0.5,0.5,0.5,0),"cm"))
   
   
-  vivax_falciparum_dod <- cowplot::plot_grid(dod_dot_plot, dod_hist_plot, ncol=2, rel_widths = c(7,2), align = "hv", axis="b")
-  #ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
-  
-  
-  ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO_var.png", vivax_falciparum_dod, height = 7, width=9)
-  
+  vivax_falciparum_t6 <- cowplot::plot_grid(t6_dot_plot, t6_hist_plot, ncol=2, rel_widths = c(7,2), align = "hv", axis="b")
+#ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
+
+
+ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_t6_GO_var.png", vivax_falciparum_t6, height = 7, width=9)
 
 
 
@@ -103,8 +164,7 @@ vivax_y_limits <- c(20, NA)
 
 
 
-
-        falci_rich <- subset(data, data$Cluster_Difference < -20)
+falci_rich <- subset(data, data$Cluster_Difference < -20)
 vivax_diff <- subset(data, data$Cluster_Difference > 20)
 shared <- subset(data, data$Cluster_Difference < 20 & data$Cluster_Difference > -20)
 
