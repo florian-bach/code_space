@@ -1,21 +1,104 @@
+log_plasma_data <- read.csv("~/PhD/multi_omics/all_log_plasma_data_with_alt.csv", header=T, stringsAsFactors = F, row.names = 1)
+
+wide_cytof <- read.csv("~/PhD/multi_omics/cytof_cluster_freqs.csv", header=T, stringsAsFactors = F, row.names = 1)
+
+biochem_data <- read.csv("~/PhD/multi_omics/mofa_log2_biochem_data.csv", header=T, stringsAsFactors = F, row.names = 1)
+
+`%notin%` <- Negate(`%in%`)
+
+corr_matrix_theme <-
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(angle = 60, hjust = 1),
+        plot.title = element_text(hjust=0.5),
+        axis.text = element_text(size=7),
+        legend.title.align = 0.2)
+
+
+
+wide_cytof_sans_v09 <- subset(wide_cytof, select=!grepl("V09", colnames(wide_cytof)))
+#wide_cytof_sans_v09 <- subset(wide_cytof_sans_v09, select=!grepl("C10", colnames(wide_cytof)))
+
+biochem_data_sans_v9 <- subset(biochem_data, select=!grepl("V09", colnames(biochem_data)))
+
+big_table <- rbind(wide_cytof_sans_v09, log_plasma_data, biochem_data_sans_v9[c(1,3,4),])
+
+# DoD plasma change; log2FC
+plasma_dod_fc <- 2^subset(log_plasma_data, select=grepl("DoD", colnames(log_plasma_data)))/2^subset(log_plasma_data, select=grepl("Baseline", colnames(log_plasma_data)))
+colnames(plasma_dod_fc) <- substr(colnames(plasma_dod_fc), 1,3)
+plasma_dod_fc <- subset(log2(plasma_dod_fc), rownames(plasma_dod_fc) %notin% c("alt", "IL18", "Ang2"))
+
+#t6 plasma change
+plasma_t6_fc <- 2^subset(log_plasma_data, select=grepl("T6", colnames(log_plasma_data)))/2^subset(log_plasma_data, select=grepl("Baseline", colnames(log_plasma_data)))
+colnames(plasma_t6_fc) <- substr(colnames(plasma_dod_fc), 1,3)
+plasma_t6_fc <- subset(log2(plasma_t6_fc), rownames(plasma_t6_fc) %in% c("alt", "IL18", "Ang2"))
+
+#T6 cytof change
+cytof_t6_fc <- subset(wide_cytof, select=grepl("T6", colnames(wide_cytof)))/subset(wide_cytof, select=grepl("Baseline", colnames(wide_cytof)))
+colnames(cytof_t6_fc) <- substr(colnames(cytof_t6_fc), 1,3)
+cytof_t6_fc <- subset(log2(cytof_t6_fc), select = colnames(cytof_t6_fc)!="V09")
+cytof_t6_fc <- rbind(cytof_t6_fc, plasma_t6_fc)
+
+
+big_fc_table <- rbind(plasma_dod_fc, cytof_t6_fc)
+
+
+baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
+dod_table <-  subset(big_table, select=grepl("DoD", colnames(big_table)))
+t6_table <-  subset(big_table, select=grepl("T6", colnames(big_table)))
+
+timepoint <- big_fc_table
+
+#euclidean + spearman/pearson: alt smack in the middle of the activated T cell clusters
+
+distance <- "euclidean" # manhattan/euclidean maybe
+
+spearman <- cor(t(timepoint), method = "pearson")
+
+baseline_dist <- dist(spearman, method = distance, diag = FALSE, upper = FALSE, p = 2)
+baseline_hclust <- hclust(baseline_dist)
+
+#check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
+baseline_spearman_df  <- data.frame(spearman, check.names = FALSE)
+baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+
+long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
+
+
+# ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = specific_order), y=factor(long_baseline_spearman$cluster_id_y, levels=specific_order)))+
+corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]), y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])))+
+  geom_tile(aes(fill=ro))+
+  #viridis::scale_fill_viridis(option="A")+
+  ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=seq(-1,1, by=0.5), limits=c(-1,1))+
+  labs(fill = expression(rho))+
+  corr_matrix_theme
+
+ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
+
+  # Cytof data generation ####
 cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_counts_and_freqs.csv", header = T, stringsAsFactors = F)
 cytof_data <- subset(cytof_data, cytof_data$timepoint!="C10")
 
 cytof_data$trans_freq=scale(asin(sqrt(cytof_data$frequency/100)), center = TRUE, scale = TRUE)
 
 wide_cytof <- data.frame(cytof_data %>%
-                           select(cluster_id, sample_id, trans_freq) %>%
-                           pivot_wider(names_from = sample_id, values_from = trans_freq))
+                           select(cluster_id, sample_id, frequency) %>%
+                           pivot_wider(names_from = sample_id, values_from = frequency))
+
+# wide_cytof <- data.frame(cytof_data %>%
+#                            select(cluster_id, sample_id, trans_freq) %>%
+#                            pivot_wider(names_from = sample_id, values_from = trans_freq))
 
 rownames(wide_cytof) <- gsub("ï", "i", wide_cytof$cluster_id)
 wide_cytof <- as.matrix(select(wide_cytof, -cluster_id))
 class(wide_cytof) <- "double"
 
-### PLASMA DATA ####
+write.csv(wide_cytof, "~/PhD/multi_omics/cytof_cluster_freqs.csv", row.names = T)
+
+### PLASMA DATA generation ####
 
 
-# data <- read.csv("C:/Users/Florian/PhD/oxford/vac69/plasma_analytes_vivax_no_inequalitites.csv")
-#dataplasma <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
+data <- read.csv("C:/Users/Florian/PhD/oxford/vac69/plasma_analytes_vivax_no_inequalitites.csv")
+dataplasma <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 dataplasma <- read.csv("~/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 dataplasma <- subset(dataplasma, dataplasma$Volunteer!="v009")
 t_dataplasma <- t(dataplasma)#
@@ -38,7 +121,7 @@ changing_analytes <- changing_analytes[1:18]
 rownames(plasma_data) <- gsub("pg.ml.", "", rownames(plasma_data), fixed = T)
 rownames(plasma_data) <- gsub(".", "",rownames (plasma_data), fixed=T)
 
-plasma_data <- subset(plasma_data, rownames(plasma_data)%in%changing_analytes)
+#plasma_data <- subset(plasma_data, rownames(plasma_data)%in%changing_analytes)
 
 class(plasma_data) <- "double" # <3
 
@@ -47,8 +130,13 @@ class(plasma_data) <- "double" # <3
 
 log_plasma_data <- log2(plasma_data)
 
-log_plasma_data <- rbind(log_plasma_data, "alt"=biochem_data["alt",!grepl("V05", colnames(biochem_data))])
+#this "alt_timecourse" variable was made ~50 lines below- don't ask...
+log_plasma_data <- rbind(log_plasma_data, alt=log2(alt_timecourse[!grepl("V09", names(alt_timecourse), fixed=T)]))
 
+write.csv(log_plasma_data, "~/PhD/multi_omics/all_log_plasma_data_with_alt.csv", row.names = T)
+# log_plasma_data <- read.csv("~/PhD/multi_omics/log_plasma_data_with_alt.csv", header=T, stringsAsFactors = F, row.names = 1)
+
+wide_cytof <- read.csv("~/PhD/multi_omics/cytof_cluster_freqs.csv", header=T, stringsAsFactors = F, row.names = 1)
 
 # log_plasma_data <- rbind(log_plasma_data, substr(colnames(log_plasma_data), 1,3), substr(colnames(log_plasma_data), 5,nchar(colnames(log_plasma_data))))
 # rownames(log_plasma_data)[(nrow(log_plasma_data)-1):nrow(log_plasma_data)] <- c("Volunteer", "Timepoint")
@@ -57,7 +145,7 @@ log_plasma_data <- rbind(log_plasma_data, "alt"=biochem_data["alt",!grepl("V05",
 ###### clinical & biochem data
 
 
-## biochem ####
+## biochem data generation ####
 
 #data <- read.csv("/Users/s1249052/PhD/clinical data/vac69a/biochem.csv")
 data <- read.csv("~/PhD/clinical_data/vac69a/biochem.csv")
@@ -90,6 +178,9 @@ biochem_data <- log2(mofa_biochem[1:7,])
 biochem_data[5,1] <- 3.7
 biochem_data <- biochem_data[c(3,5:7), ]
 
+write.csv(biochem_data, "~/PhD/multi_omics/mofa_log2_biochem_data.csv", row.names = T)
+
+wide_cytof <- read.csv("~/PhD/multi_omics/cytof_cluster_freqs.csv", header=T, stringsAsFactors = F, row.names = 1)
 
 alt_timecourse <- mofa_biochem[5,order(colnames(mofa_biochem))]
 alt_timecourse[7] <- 13
