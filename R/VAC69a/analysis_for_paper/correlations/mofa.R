@@ -27,7 +27,7 @@ use_python("/home/flobuntu/anaconda3/bin/python", required = TRUE)
 
 #consider doing a square root asinh transform, like the complex heatmap
 
-cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_counts_and_freqs.csv", header = T, stringsAsFactors = F)
+cytof_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header = T, stringsAsFactors = F)
 #cytof_data <- subset(cytof_data, cytof_data$timepoint!="C10")
 
 #cytof_data$trans_freq=scale(asin(sqrt(cytof_data$frequency/100)), center = TRUE, scale = TRUE)

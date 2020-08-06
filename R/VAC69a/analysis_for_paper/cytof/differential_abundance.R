@@ -18,10 +18,10 @@ merged_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_co
 ei <- metadata(merged_daf)$experiment_info
 #ei$timepoint <- factor(ei$timepoint, levels=c("C10", "Baseline", "DoD", "T6"))
 
-alt <- ifelse(ei$timepoint=="T6"&ei$volunteer!="V05", TRUE, FALSE)
-ei$alt <- alt
+# alt <- ifelse(ei$timepoint=="T6"&ei$volunteer!="V05", TRUE, FALSE)
+# ei$alt <- alt
 #ei$alt <- ei$alt>40
-design <- createDesignMatrix(ei, c("timepoint", "volunteer", "alt"))
+design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 # 
 
 #design <- model.matrix(~ei$time+ei$volunteer:ei$alt)
@@ -33,9 +33,9 @@ pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
 pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
 pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
 
-pairwise_contrast_dod_t6 <- createContrast(c(c(0, 0, -1, 1), rep(0,5)))
-pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5), 1))
-pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5), 1))
+# pairwise_contrast_dod_t6 <- createContrast(c(c(0, 0, -1, 1), rep(0,5)))
+# pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5), 1))
+# pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5), 1))
 
 #pairwise_contrast_t6 <- createContrast(c(0, 0, 1, 1))
 
