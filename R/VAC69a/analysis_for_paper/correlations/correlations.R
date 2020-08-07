@@ -40,15 +40,22 @@ colnames(cytof_t6_fc) <- substr(colnames(cytof_t6_fc), 1,3)
 cytof_t6_fc <- subset(log2(cytof_t6_fc), select = colnames(cytof_t6_fc)!="V09")
 cytof_t6_fc <- rbind(cytof_t6_fc, plasma_t6_fc)
 
+#skip to line ~220 to make pca_distance metric, line ~125 to make changing analytes
+sig_cytof_t6_fc <- subset(cytof_t6_fc, grepl("activated", rownames(cytof_t6_fc)))
 
-big_fc_table <- rbind(plasma_dod_fc, cytof_t6_fc)
+sig_plasma_dod_fc <- subset(plasma_dod_fc, rownames(plasma_dod_fc)%in%c(changing_analytes, "alt", "Ang2"))
 
+big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, "pca_distance"=pca_distance)
+  
+#big_fc_table <- rbind(plasma_dod_fc, cytof_t6_fc, "pca_distance"=pca_distance)
 
 baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
 dod_table <-  subset(big_table, select=grepl("DoD", colnames(big_table)))
 t6_table <-  subset(big_table, select=grepl("T6", colnames(big_table)))
 
 timepoint <- big_fc_table
+
+
 
 #euclidean + spearman/pearson: alt smack in the middle of the activated T cell clusters
 
@@ -74,7 +81,8 @@ corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, le
   labs(fill = expression(rho))+
   corr_matrix_theme
 
-ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
+#ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
+ggsave("~/PhD/multi_omics/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=6, width = 7)
 
   # Cytof data generation ####
 cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header = T, stringsAsFactors = F)
@@ -94,13 +102,13 @@ rownames(wide_cytof) <- gsub("ï", "i", wide_cytof$cluster_id)
 wide_cytof <- as.matrix(select(wide_cytof, -cluster_id))
 class(wide_cytof) <- "double"
 
-write.csv(wide_cytof, "~/PhD/multi_omics/cytof_cluster_freqs.csv", row.names = T)
+#write.csv(wide_cytof, "~/PhD/multi_omics/cytof_cluster_freqs.csv", row.names = T)
 
 ### PLASMA DATA generation ####
 
 
-data <- read.csv("C:/Users/Florian/PhD/oxford/vac69/plasma_analytes_vivax_no_inequalitites.csv")
-dataplasma <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
+# data <- read.csv("C:/Users/Florian/PhD/oxford/vac69/plasma_analytes_vivax_no_inequalitites.csv")
+# dataplasma <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 dataplasma <- read.csv("~/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 dataplasma <- subset(dataplasma, dataplasma$Volunteer!="v009")
 t_dataplasma <- t(dataplasma)#
@@ -123,7 +131,7 @@ changing_analytes <- changing_analytes[1:18]
 rownames(plasma_data) <- gsub("pg.ml.", "", rownames(plasma_data), fixed = T)
 rownames(plasma_data) <- gsub(".", "",rownames (plasma_data), fixed=T)
 
-#plasma_data <- subset(plasma_data, rownames(plasma_data)%in%changing_analytes)
+plasma_data <- subset(plasma_data, rownames(plasma_data)%in%changing_analytes)
 
 class(plasma_data) <- "double" # <3
 
@@ -135,7 +143,7 @@ log_plasma_data <- log2(plasma_data)
 #this "alt_timecourse" variable was made ~50 lines below- don't ask...
 log_plasma_data <- rbind(log_plasma_data, alt=log2(alt_timecourse[!grepl("V09", names(alt_timecourse), fixed=T)]))
 
-write.csv(log_plasma_data, "~/PhD/multi_omics/all_log_plasma_data_with_alt.csv", row.names = T)
+#write.csv(log_plasma_data, "~/PhD/multi_omics/all_log_plasma_data_with_alt.csv", row.names = T)
 # log_plasma_data <- read.csv("~/PhD/multi_omics/log_plasma_data_with_alt.csv", header=T, stringsAsFactors = F, row.names = 1)
 
 wide_cytof <- read.csv("~/PhD/multi_omics/cytof_cluster_freqs.csv", header=T, stringsAsFactors = F, row.names = 1)
@@ -216,6 +224,14 @@ subset(corr_res, corr_res$p_adj<=0.05)
 # correlations between PCA distance traveled and T cell activation ####
 
 #PCA distance traveled 
+plasma_mds <- limma::plotMDS(log_plasma_data, plot = FALSE)
+
+plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
+plasma_df$Sample_ID <- rownames(plasma_df)
+plasma_df$Timepoint <- substr(plasma_df$Sample_ID, 5, nchar(plasma_df$Sample_ID))
+plasma_df$Volunteer <- substr(plasma_df$Sample_ID, 1, 3)
+
+
 
 distance_traveled <- filter(plasma_df,Timepoint%in%c("Baseline", "DoD"))
 distance_traveled_dfs <- split(distance_traveled, distance_traveled$Volunteer)
@@ -231,7 +247,8 @@ df <- do.call(rbind, distance_traveled)
 
 df$distance <- sqrt(apply(df[,2:3], 1, sum))
 
-
+pca_distance <- df$distance
+names(pca_distance) <- c("V02", "V03", "V05", "V06", "V07")
 # T cell activation
 # cd3 activation data
 summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
@@ -241,8 +258,17 @@ t_cell_summary <- summary %>%
   summarise(sum_cd3=sum(frequency)) %>%
   filter(timepoint=="T6")
 
-combo <- data.frame("distance"=df$distance, t_cell_summary[1:5,])
+combo <- data.frame("distance"=df$distance, "alt"=2^t(log_plasma_data["alt",grepl("T6", colnames(log_plasma_data))]),  t_cell_summary[1:5,])
 
+
+alt_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=alt))+
+  geom_point(aes(colour=volunteer))+
+  xlab("Distance Traveled Plasma PCA")+
+  ylab("alt")+
+  scale_color_manual(name="Volunteer", values=my_paired_palette)+
+  theme_minimal()
+
+ggsave("~/PhD/multi_omics/cd3_plasma_corr_plot.png", alt_plasma_corr_plot, height=3, width=3)
 
 cd3_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=sum_cd3))+
   geom_point(aes(colour=volunteer))+
@@ -251,13 +277,39 @@ cd3_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=sum_cd3))+
   scale_color_manual(name="Volunteer", values=my_paired_palette)+
   theme_minimal()
 
-ggsave("~/PhD/multi_omics/cd3_plasma_corr_plot.png", cd3_plasma_corr_plot, height=3, width=3)
+ggsave("~/PhD/multi_omics/cd3_alt_corr_plot.png", cd3_plasma_corr_plot, height=3, width=3)
 
-cor.test(combo$distance, combo$sum_cd3, method = "pearson")
+cd3_alt_corr_plot <- ggplot(combo, aes(x=alt, y=sum_cd3))+
+  geom_point(aes(colour=volunteer))+
+  #xlab("Distance Traveled Plasma PCA")+
+  xlab("alt")+
+  #ylab("CD3+ T cell activation")+
+  ylab("Distance Traveled Plasma PCA")+
+  scale_color_manual(name="Volunteer", values=my_paired_palette)+
+  theme_minimal()
+
+
+ggsave("~/PhD/multi_omics/pca_distance_alt_corr_plot.png", cd3_alt_corr_plot, height=3, width=3)
+
+# cor.test(combo$distance, combo$sum_cd3, method = "pearson")
 # data:  combo$distance and combo$sum_cd3
 #t = -0.2647, df = 3, p-value = 0.8084
 #   cor
 #-0.1510704
+
+
+# > cor.test(combo$alt, combo$sum_cd3, method = "pearson")
+ # data:  combo$alt and combo$sum_cd3
+# t = 2.1074, df = 3, p-value = 0.1257
+#       cor 
+# 0.7725441 
+# 
+# > cor.test(combo$alt, combo$distance, method = "pearson")
+# data:  combo$alt and combo$distance
+# t = -1.4777, df = 3, p-value = 0.236
+#   cor 
+# -0.6490362 
+
 
 
 # lineage specific activation
@@ -325,6 +377,35 @@ lineage_freqs_sansv09_distance <- lineage_freqs_sansv09 %>%
   group_by(lineage) %>%
   mutate("distance"=df$distance)
 
+lineage_freqs_sansv09_distance$alt <- ifelse(lineage_freqs_sansv09$volunteer %in% combo$volunteer, combo[lineage_freqs_sansv09$volunteer,"alt"], NA)
+
+
+lineage_freqs_sansv09_distance %>%
+  group_by(lineage) %>%
+  mutate("distance"=df$distance)%>%
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="pearson")))
+
+# lineage estimate statistic p.value parameter conf.low conf.high method                               alternative
+# <chr>      <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
+# 1 CD4        0.937     4.63   0.0190         3   0.312      0.996 Pearson's product-moment correlation two.sided  
+# 2 CD8        0.566     1.19   0.320          3  -0.632      0.966 Pearson's product-moment correlation two.sided  
+# 3 DN         0.902     3.62   0.0363         3   0.0964     0.994 Pearson's product-moment correlation two.sided  
+# 4 gd         0.311     0.567  0.610          3  -0.787      0.936 Pearson's product-moment correlation two.sided  
+# 5 MAIT       0.326     0.597  0.592          3  -0.781      0.938 Pearson's product-moment correlation two.sided  
+# 6 Treg       0.944     4.97   0.0157         3   0.372      0.996 Pearson's product-moment correlation two.sided  
+
+
+lineage_activation_alt_corr_plot <- ggplot(lineage_freqs_sansv09_distance, aes(x=alt, y=fraction_of_lineage_activated))+
+  geom_point(aes(colour=volunteer))+
+  #xlab("Distance Traveled Plasma PCA")+
+  xlab("alt")+
+  ylab("T cell Lineage Activation")+
+  scale_color_manual(name="Volunteer", values=my_paired_palette)+
+  facet_wrap(~lineage, scales="free")+
+  theme_minimal()
+
+ggsave("~/PhD/multi_omics/lineage_activation_plasma_corr_plot.ong", lineage_activation_plasma_corr_plot, height=5, width=7)
+
 
 lineage_activation_plasma_corr_plot <- ggplot(lineage_freqs_sansv09_distance, aes(x=distance, y=fraction_of_lineage_activated))+
   geom_point(aes(colour=volunteer))+
@@ -334,5 +415,5 @@ lineage_activation_plasma_corr_plot <- ggplot(lineage_freqs_sansv09_distance, ae
   facet_wrap(~lineage, scales="free")+
   theme_minimal()
 
-ggsave("~/PhD/multi_omics/lineage_activation_plasma_corr_plot.png", lineage_activation_plasma_corr_plot, height=5, width=7)
+ggsave("~/PhD/multi_omics/lineage_activation_alt_plot.png", lineage_activation_alt_corr_plot, height=5, width=7)
 

@@ -1,6 +1,10 @@
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
+time_col=colorspace::sequential_hcl(5, palette = "Purple Yellow")
+
+time_palette <- c("Baseline"=time_col[4], "C10"=time_col[3], "DoD"=time_col[2], "T6"=time_col[1])
 
 # CyTOF MDS ####
 
@@ -38,10 +42,6 @@ cytof_mds$Timepoint <- substr(cytof_mds$Sample_ID, 5, nchar(cytof_mds$Sample_ID)
 cytof_mds$Volunteer <- substr(cytof_mds$Sample_ID, 1, 3)
 
 
-my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
-time_col=colorspace::sequential_hcl(5, palette = "Purple Yellow")
-
-time_palette <- c("Baseline"=time_col[4], "C10"=time_col[3], "DoD"=time_col[2], "T6"=time_col[1])
 
 aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
   geom_point(aes(shape=Timepoint, colour=Volunteer))+
@@ -61,7 +61,7 @@ es <- as.matrix(SummarizedExperiment::assay(merged_daf, "exprs"))
                numeric(nrow(merged_daf)))
   rownames(ms) <- rownames(merged_daf)
   # state markers, type markers or both
-  ms <- subset(ms, rownames(ms)%in%c(CATALYST::state_markers(merged_daf)))
+  ms <- subset(ms, rownames(ms)%in%c(c(CATALYST::state_markers(merged_daf)[-5], "Perforin")))
   
   mds <- limma::plotMDS(ms, plot = FALSE)
   df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
@@ -78,7 +78,7 @@ es <- as.matrix(SummarizedExperiment::assay(merged_daf, "exprs"))
     scale_color_manual(values = my_paired_palette)
   
   ggsave("~/PhD/multi_omics/state_markers_mds.png", state_markers_mds)
-  # 
+    # 
   # ggplot()+
   # geom_point(df, aes_(x=df$MDS1, y=df$MDS2, color=df$volunteer))+  
   # geom_segment(aes_(x=df2$MDS1[grepl("Baseline", df2$timepoint)],

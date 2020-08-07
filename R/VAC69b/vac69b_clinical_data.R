@@ -30,7 +30,7 @@ biochem_plot <- ggplot(long_data, aes(x=factor(flo_timepoint, levels=c("Baseline
   theme(axis.title = element_blank(),
         legend.title = element_blank())
 
-ggsave("biochem.png", biochem_plot, height = 6, width=10)
+ggsave("./figures/biochem.png", biochem_plot, height = 6, width=10)
 
 
 data <- read.csv("haem.csv", header=T)
@@ -38,9 +38,17 @@ data <- read.csv("haem.csv", header=T)
 
 data_no_ae <- select(data, -c(colnames(data)[grep("_ae",colnames(data) ,fixed=T)]))
 
+
+data_no_ae$timepoint <- data_no_ae$timepoint %>%
+  gsub("B_C1", "Baseline", .) %>%
+  gsub("B_", "", .) %>%
+  gsub("C814", "C14", .) %>%
+  gsub("C28DOD", "DoD", .) %>%
+  gsub("C67", "C7", .)
+
 long_data <- gather(data_no_ae, haem, value, colnames(data_no_ae)[7:13])
 
-long_data <- filter(long_data, long_data$flo_timepoint!="extra")
+long_data <- filter(long_data, long_data$flo_timepoint %in% c("Baseline", "C7", "C14", "DoD", "T6", "C96"))
 
 haem_plot <- ggplot(long_data, aes(x=factor(flo_timepoint, levels=c("Baseline", "C7", "C14", "DoD", "T6", "C96")), y=value, group=trial_number))+
   geom_point(aes(color=factor(trial_number)))+
@@ -50,12 +58,11 @@ haem_plot <- ggplot(long_data, aes(x=factor(flo_timepoint, levels=c("Baseline", 
   theme(axis.title = element_blank(),
         legend.title = element_blank())
 
-ggsave("haem.png", haem_plot, height = 6, width=10)
+ggsave("~/PhD/clinical_data/vac69b/figures/haem_plot.png", haem_plot, height = 6, width=10)
 
 
 
-
-data <- read.csv("/Users/s1249052/PhD/clinical_data/alt_vivax.csv")
+  data <- read.csv("/Users/s1249052/PhD/clinical_data/alt_vivax.csv")
 first_data <- subset(data, data$N_infection=="1")
 
 fit_Null <- lme4::lmer(alt ~ 0 + (1|Volunteer), data=data) #124.3561
@@ -107,7 +114,7 @@ symptom_heatmap <- ggplot(long_data, aes(x=factor(timepoint, levels=timepoint_le
         axis.title = element_blank(),
         legend.title = element_blank())
 
-ggsave("/home/flobuntu/PhD/clinical_data/vac69b/figures/symtom_heatmap.png", symptom_heatmap, height=8, width=14)
+ggsave("/home/flobuntu/PhD/clinical_data/vac69b/figures/symptom_heatmap.png", symptom_heatmap, height=8, width=14)
 
 
 detach("package:vac69a.cytof", unload = TRUE)
