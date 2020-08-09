@@ -37,7 +37,7 @@ dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1
   #T6
   #coord_cartesian(ylim = c(40,105), expand=F, xlim = c(0,60))+
   #DoD
-  coord_cartesian(ylim = c(0,65), expand=F, xlim = c(35, 100))+
+  coord_cartesian(ylim = c(0,105), expand=F, xlim = c(0, 105))+
   scale_color_gradient2(high="green", low="red", midpoint = 0)+
   scale_y_continuous(breaks=seq(0,100,by=10))+
   scale_x_continuous(breaks=seq(0,100,by=10))+
@@ -45,9 +45,9 @@ dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1
   # xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at DoD'))+
   ylab(expression('% of genes contributed to GO term by '~italic("P. falciparum")~'at T6'))+
   xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at T6'))+
-  #ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
-  geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
-                xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
+  ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
+  # geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
+  #               xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
   geom_point(aes(color=Cluster_Difference))+
   geom_label_repel(data=dod_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=2.8,
                    box.padding   = 0.35,
@@ -63,7 +63,7 @@ dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
   #T6
   #coord_cartesian(ylim = c(40,105), expand=F)+
   #DoD
-  coord_cartesian(xlim = c(0,65), expand=F)+
+  coord_cartesian(ylim = c(0,105), expand=F)+
   xlab("# GO Terms")+
   geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey")+
   scale_fill_gradient2(high="red", low="green", midpoint = 50)+
@@ -76,7 +76,7 @@ dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
 
 
 vivax_falciparum_dod <- cowplot::plot_grid(dod_dot_plot, dod_hist_plot, ncol=2, rel_widths = c(7,2), align = "hv", axis="b")
-#ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
+ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
 
 
 ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO_var.png", vivax_falciparum_dod, height = 7, width=9)
@@ -103,12 +103,12 @@ threshold <- 30
   t6_vivax_rich_data <- subset(t6_data, t6_data$Cluster_Difference> 50)
   
   
-  t6_vivax_x_limits <- c(80, NA)
-  t6_vivax_y_limits <- c(20, NA)
+  t6_vivax_x_limits <- c(NA, NA)
+  t6_vivax_y_limits <- c(NA, NA)
   
   t6_dot_plot <- ggplot(t6_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
     theme_minimal()+
-    coord_cartesian(ylim = c(40,105), expand=F, xlim = c(0,60))+
+    coord_cartesian(ylim = c(0,105), expand=F, xlim = c(0,105))+
     scale_color_gradient2(high="green", low="red", midpoint = 0)+
     scale_y_continuous(breaks=seq(0,100,by=10))+
     scale_x_continuous(breaks=seq(0,100,by=10))+
@@ -116,14 +116,14 @@ threshold <- 30
     # xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at DoD'))+
     ylab(expression('% of genes contributed to GO term by '~italic("P. falciparum")~'at T6'))+
     xlab(expression('% of genes contributed to GO term by '~italic("P. vivax")~'at T6'))+
-    #ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
-    geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
-                 xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
+    ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
+    # geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
+    #              xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
     geom_point(aes(color=Cluster_Difference))+
     geom_label_repel(data=t6_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=2.8,
                      box.padding   = 0.35,
-                     point.padding = 0.5, nudge_x = 40, nudge_y = 40, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits,)+
-    geom_label_repel(data=t6_falci_rich_data, aes(label = stringr::str_wrap(GOTerm, 20)), size=2.8,
+                     point.padding = 0.5, nudge_x = 40, nudge_y = 40, segment.alpha = 0.2)+
+    geom_label_repel(data=t6_falci_rich_data, aes(label = stringr::str_wrap(GOTerm, 20)), ylim  = t6_vivax_y_limits, xlim  = t6_vivax_x_limits, size=2.8,
                      box.padding   = 0.35,
                      point.padding = 0.5, nudge_x = -10, segment.alpha = 0.2)+
     theme(legend.position = "none",
@@ -131,7 +131,7 @@ threshold <- 30
   
   t6_hist_plot <- ggplot(t6_data, aes(y=`%Genes Cluster #1`))+
     theme_minimal()+
-    coord_cartesian(ylim = c(40,105), expand=F)+
+    coord_cartesian(ylim = c(0,105), expand=F)+
     xlab("# GO Terms")+
     geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey")+
     scale_fill_gradient2(high="red", low="green", midpoint = 50)+
@@ -144,18 +144,10 @@ threshold <- 30
   
   
   vivax_falciparum_t6 <- cowplot::plot_grid(t6_dot_plot, t6_hist_plot, ncol=2, rel_widths = c(7,2), align = "hv", axis="b")
-#ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
+# ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 7, width=9)
 
 
 ggsave("~/PhD/RNAseq/vac69a/all/xls/figures/vivax_falciparum_t6_GO_var.png", vivax_falciparum_t6, height = 7, width=9)
-
-
-
-
-
-
-
-
 
 
 
