@@ -31,9 +31,15 @@ rownames(wide_cytof) <- gsub("ï", "i", wide_cytof$cluster_id)
 wide_cytof <- as.matrix(select(wide_cytof, -cluster_id))
 class(wide_cytof) <- "double"
 
-
+activated_cytof <- subset(wide_cytof, grepl("activated", rownames(wide_cytof)))
 
 cytof_mds <- data.frame(cmdscale(robCompositions::aDist(t(wide_cytof))))
+
+# only activated clusters- individual variation is reduced overall, but still doesn't converge much thorugh time,
+# v05 & v09 cluster sperate from the other volutneers
+
+cytof_mds <- data.frame(cmdscale(robCompositions::aDist(t(activated_cytof))))
+
 
 colnames(cytof_mds) <- c("MDS1", "MDS2")
 
