@@ -1,52 +1,54 @@
 # open diffuerential_abundance.R and run until diffcyt constructs edgeR comparisons for each timepoint
 # then proceed
 
-# all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
-# 
-# 
-# 
-# stacked_bar_data <-  all_cluster_freqs$data
-# 
-# #write.csv(t6_map_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
-# 
-# t6_map_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
-#
-# activated_clusters <- subset(merging_table1$new_cluster, grepl("activated", merging_table1$new_cluster))
-# activated_clusters <- unique(activated_clusters)
-#
-# #write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
-#
-# activated_barchart_data <- subset(stacked_bar_data, stacked_bar_data$cluster_id %in% activated_clusters)
-#
-# # get lineage gates
-# lineage_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/lineage_merge.csv", header=T, stringsAsFactors = F)
-# merged_daf<- mergeClusters(merged_daf, k = "meta45", table = lineage_merge, id = "lineage")
-#
-# cluster_dic <- cbind(merging_table1, "lineage"=lineage_merge$new_cluster)
-#
-# #categorise significant clusters into their respective lineages
-# activated_barchart_data$lineage <- cluster_dic$lineage[match(activated_barchart_data$cluster_id, cluster_dic$new_cluster)]
-#
-#
-#
-# summary <- activated_barchart_data %>%
-#   group_by(timepoint, cluster_id) %>%
-#   mutate(mean=base::mean(frequency), sd=stats::sd(frequency))
-#
-# tail(summary)
-#
-# summary$lineage <- factor(summary$lineage, levels=c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting"))
-#
+all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
+
+
+
+stacked_bar_data <-  all_cluster_freqs$data
+
+#write.csv(t6_map_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
+
+t6_map_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/barchart_data.csv")
+
+merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_sept_2020.csv")
+
+activated_clusters <- subset(merging_table1$new_cluster, grepl("activated", merging_table1$new_cluster))
+activated_clusters <- unique(activated_clusters)
+
+#write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
+
+activated_barchart_data <- subset(stacked_bar_data, stacked_bar_data$cluster_id %in% activated_clusters)
+
+# get lineage gates
+lineage_merge <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/lineage_merge.csv", header=T, stringsAsFactors = F)
+merged_daf<- mergeClusters(merged_daf, k = "meta45", table = lineage_merge, id = "lineage")
+
+cluster_dic <- cbind(merging_table1, "lineage"=lineage_merge$new_cluster)
+
+#categorise significant clusters into their respective lineages
+activated_barchart_data$lineage <- cluster_dic$lineage[match(activated_barchart_data$cluster_id, cluster_dic$new_cluster)]
+
+
+
+summary <- activated_barchart_data %>%
+  group_by(timepoint, cluster_id) %>%
+  mutate(mean=base::mean(frequency), sd=stats::sd(frequency))
+
+tail(summary)
+
+summary$lineage <- factor(summary$lineage, levels=c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting"))
+
 
 #taken from khroma bright 6
 
-#data.table::fwrite(summary,  "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+data.table::fwrite(summary,  "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
 
 library(ggplot2)
 library(dplyr)
 library(cowplot)
 
-colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette2.csv", header=T, stringsAsFactors = F)
 
 col_pal <- colcsv$x
 names(col_pal) <- colcsv$X
@@ -189,6 +191,7 @@ library(grid)
 library(circlize)
 library(ComplexHeatmap)
 library(dplyr)
+
 
 inferno <- colorspace::sequential_hcl("inferno", n=8)
 col_inferno <-colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)

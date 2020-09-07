@@ -47,47 +47,47 @@
   
   
   
-  #functions, palettes etc. ####
-  # 
-  # `%!in%` = Negate(`%in%`)
-  # # 3000 is the magic number
-  # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
-  # 
-  # #   ONLY RUN THIS WHEN CLUSTERING RESULTS ARE NEEDED, THE UMAP PROJECTION TAKES FOREVER (20+ MIN)
-  # smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-  # # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
-  # # # 
-  # # plotClusterHeatmap(smol_daf, hm2 = NULL,
-  # #                    k = "meta45",
-  # #                    # m = "flo_merge",
-  # #                    cluster_anno = TRUE,
-  # #                    draw_freqs = TRUE,
-  # #                    scale=T
-  # # )
-  # # 
-  # 
-  # # 
-  # #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
-  # 
-  # refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
-  # # umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
-  # 
-  # # umap projections ####
-  # set.seed(1234);smol_daf <- scater::runUMAP(smol_daf,
-  #                              subset_row=refined_markers[,1],
-  #                              exprs_values = "exprs",
-  #                              scale=T)
-  # 
-  # #smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
-  # 
-  # big_table <- prep_sce_for_ggplot(smol_daf)
-  # 
-  # (test1 <- flo_umap(big_table, "CD38"))
-  # (test2 <- flo_umap(big_table, "ICOS"))
-  # 
-  # 
-  # 
-#data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+  functions, palettes etc. ####
+
+  `%!in%` = Negate(`%in%`)
+  # 3000 is the magic number
+  #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=T, event_number=3000)
+
+  #   ONLY RUN THIS WHEN CLUSTERING RESULTS ARE NEEDED, THE UMAP PROJECTION TAKES FOREVER (20+ MIN)
+  smol_daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+  # #smol_daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=F, event_number=3000)
+  # #
+  # plotClusterHeatmap(smol_daf, hm2 = NULL,
+  #                    k = "meta45",
+  #                    # m = "flo_merge",
+  #                    cluster_anno = TRUE,
+  #                    draw_freqs = TRUE,
+  #                    scale=T
+  # )
+  #
+
+  #
+  #smol_daf <- filterSCE(smol_daf, timepoint!="C10")
+
+  refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
+  # umap_markers <- subset(refined_markers[,1], refined_markers[,1] %!in% c("CLA",  "CX3CR1", "CD95", "FoxP3", "Tbet", "Ki67", "HLADR", "ICOS", "PD1", "GZB"))
+
+  # umap projections ####
+  set.seed(1234);merged_daf <- scater::runUMAP(merged_daf,
+                               subset_row=refined_markers[,1],
+                               exprs_values = "exprs",
+                               scale=T)
+
+  #smol_daf <- CATALYST::filterSCE(smol_daf, timepoint!="C10")
+
+  big_table <- prep_sce_for_ggplot(merged_daf)
+
+  (test1 <- flo_umap(big_table, "CD38"))
+  (test2 <- flo_umap(big_table, "ICOS"))
+
+
+
+data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
   
   #write.csv(big_table, "equal_small_vac69a_umap.csv")
   #write.csv(big_table, "proportional_small_vac69a_umap.csv")
@@ -157,28 +157,14 @@ for (i in refined_markers[,1]){
 
 # scatterplots colored by clusters ####
 
-# add flo_merge cluster codes to daf
-#coarse_merging_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/coarse_merge.csv", stringsAsFactors = F)
-meta_45_mod_table <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/modified_ccp_meta45_merge.csv", header = T, stringsAsFactors = F)
-merging_table1 <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/merging_tables/merging_table_april2020.csv", header=T, stringsAsFactors = F)
-
-#get rid of spaces at beginning of string
-
-merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
-merging_table1$new_cluster <- ifelse(substr(merging_table1$new_cluster, 1, 1)==" ", substr(merging_table1$new_cluster, 2, nchar(merging_table1$new_cluster)), merging_table1$new_cluster)
-
-merging_table1$new_cluster <- factor(merging_table1$new_cluster)
-
-smol_merged_daf<- mergeClusters(smol_daf, k = "som100", table = meta_45_mod_table, id = "mod_meta45")
-smol_merged_daf<- mergeClusters(smol_merged_daf, k = "mod_meta45", table = merging_table1, id = "flo_merge")
-
-
 # turn into ggplottable object and add coumns for flo_merge name and whether it should be black or coloured
 
-#big_table <- prep_sce_for_ggplot(sce = smol_merged_daf)
-#big_table$flo_label <- as.character(cluster_ids(smol_merged_daf, k = "flo_merge"))
+# big_table <- prep_sce_for_ggplot(sce = merged_daf)
+# big_table$flo_label <- as.character(cluster_ids(merged_daf, k = "flo_merge"))
+# 
+# data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
 
-#data.table::fwrite(big_table, "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+
 # making umap projections colored by cluster identity ####
 
 big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
@@ -191,8 +177,8 @@ sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocesse
 sig_clusters <- sig_clusters[-9,]
 
 
-big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters[,2], big_table$flo_label, "black")
-big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
+big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters, big_table$flo_label, "black")
+big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters, 1, 0.5)
 
 
 
@@ -203,12 +189,12 @@ big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters[,2], 1, 0.5)
 # cluster_palette[8] <- "#FFA500"
 # cluster_palette[9] <- "#FF0000"
 # cluster_palette[1] <- "#000000"
-# cluster_palette[10] <- "#4dabf5" 
+# cluster_palette[10] <- "#4dabf5"
 # names(cluster_palette)[1] <- "black"
 # names(cluster_palette)[2:length(cluster_palette)] <- unique(big_table$significant)[-match("black", unique(big_table$significant))]
 # cluster_palette[5:9] <- rev(cluster_palette[5:9])
-
-#write.csv(cluster_palette,"/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", )
+# 
+# write.csv(cluster_palette,"/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv")
 colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
 
 col_pal <- colcsv$x

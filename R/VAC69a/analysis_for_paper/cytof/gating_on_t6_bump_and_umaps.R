@@ -100,7 +100,7 @@ empty_gates <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
   UMAP_theme+
   xlab("UMAP1")+
   ylab("UMAP2")+
-  scale_fill_gradientn(colors=inferno_white)+
+  #scale_fill_gradientn(colors=inferno_white)+
   theme(axis.title = element_text(), 
         panel.grid = element_blank(),
         strip.text = element_blank(),

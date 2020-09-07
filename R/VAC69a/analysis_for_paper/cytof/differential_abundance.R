@@ -108,7 +108,7 @@ plotDiffHeatmap(merged_daf, da_t6, th = FDR_cutoff, normalize = TRUE, hm1 = F, t
 
 
 
-# glmms #
+# glmms #####
 
 #this one works, don't change
 da_formula1 <- createFormula(ei, cols_fixed = "timepoint",
@@ -192,7 +192,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.pn
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18)# works
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_log_counts.png",all_cluster_log_counts, height = 12, width=18)# works
 
-
+write.csv(all_cluster_freqs$data,"~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_freqs.csv")
 
 da_dod_freq_box <- diffcyt_boxplot(da_dod, merged_daf, FDR=0.05, logFC=1)
 da_t6_freq_box <- diffcyt_boxplot(da_t6, merged_daf, FDR=0.05, logFC=1)
@@ -224,7 +224,7 @@ t6_barchart_data <- subset(t6_map_data, t6_map_data$timepoint=="T6")
 
 sig_t6_clusters <- as.character(unique(t6_barchart_data$cluster_id))
 
-write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv")
+write.csv(sig_t6_clusters, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", row.names = F)
 
 ggplot(t6_barchart_data, aes(x=cluster_id, y=frequency))+
   geom_boxplot(aes(fill=cluster_id))+
@@ -246,19 +246,22 @@ flo_merge_cd3_stacked_barchart <- ggplot(t6_barchart_data, aes(x=timepoint, y=fr
   geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
   theme_minimal()+
   facet_wrap(~volunteer)+
-  ggtitle("Significant flo_merge Clusters at T6")+
+  ggtitle("Significant Clusters at T6")+
   scale_y_continuous(name = "Percentage of CD3+ T cells\n\n", labels=scales::percent_format(accuracy = 1))+
   #ylim(0,25)+
   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
   theme(#legend.position = "none",
     plot.title = element_text(hjust=0.5, size=15),
     axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
     strip.text = element_text(hjust=0.5, size=12, face = "bold"),
     panel.grid.minor.y = element_blank())
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/flo_merge_cd3_stacked_barchart.png", flo_merge_cd3_stacked_barchart, height=7, width=11)
 
-# heatmap of normalised significant cluster frequencies ####
+
+# garbage code you'll likely never need ####
+#heatmap of normalised significant cluster frequencies #
 
 # t6_map_data$scaled_trans_norm <- scales::rescale(t6_map_data$trans_norm_freq,
 #                                                  from=min(t6_map_data$trans_norm_freq, 0), to=c(-2,0)
@@ -288,7 +291,7 @@ t6_col_levels <- unique(t6_map_data[order(t6_map_data$timepoint, t6_map_data$vol
 t6_map_data$sample_id <- factor(t6_map_data$sample_id, levels=t6_col_levels) 
 
 
-#color bullshit (flo_berlin best) #### 
+#color bullshit (flo_berlin best) 
 
 
 berlin <- colorspace::diverging_hcl(palette = "Berlin",15)
@@ -322,7 +325,7 @@ yellow_half <- rev(c("#FFC30B", "#FFD400", "#FFFFB7"))
 
 #show_col(c(blue_half[3:5], yellow_half))
 
-# flo diff heatmap ####
+# flo diff heatmap #
 
 
   (da_edger_t6_heatmap <- ggplot(t6_map_data, aes(x=factor(sample_id, levels=t6_col_levels), y=cluster_id))+

@@ -40,47 +40,56 @@ ahgg <- function(x, by, fun = c("median", "mean", "sum")) {
 }
 
 
-# make maxtrix of median expression ####
-# 
-# library(CATALYST)
-# library(SummarizedExperiment)
-# library(vac69a.cytof)
-# library(purrr)
-# 
-# merged_daf <- read_full("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-# 
-# 
-# #get rid of resting Vd cluster
-# 
-# meta_up_t6 <- filterSCE(merged_daf, k = "flo_merge", cluster_id %in% sig_clusters)
-# 
-# clustering_markers <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
-# #merged_daf$cluster_id <- cluster_ids(merged_daf, k="flo_merge")
-# 
-# ms <- ahgg(merged_daf[clustering_markers$refined_markers,], by = c("cluster_id", "timepoint"), fun="median")
-# 
-# ms2 <- lapply(ms, function(x)data.frame(x))
-# ms2 <- Map(cbind, ms2, cluster_id = names(ms))
-# 
-# ms3 <- data.table::rbindlist(ms2)
-# ms3[,Marker := unlist(lapply(ms2, rownames))]
-# ms_mean <- mutate(ms3, "mean_expression"= apply(ms3[,1:4], MARGIN = 1, mean ))
-# 
-# write.csv(ms_mean, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_medians_all.csv")
-# 
-# ms3 <- select(ms3, T6, cluster_id, Marker)
-# 
-# ms4 <- as.matrix(tidyr::spread(ms3, cluster_id, T6))
-# 
-# rownames(ms4) <- ms4[,1]
-# ms5 <- ms4[,2:ncol(ms4)]
-# 
-# scaled_mat <- apply(apply(ms5, c(1,2), as.numeric), MARGIN = 1, function(x)scales::rescale(x, to=c(0, 1)))
-# write.csv()
-# 
-# sig_scaled_mat <- scaled_mat[rownames(scaled_mat)%in%sig_clusters,]
-# 
-# reordered_sig_scaled_mat <- sig_scaled_mat[,match(clustering_markers$refined_markers, colnames(sig_scaled_mat))]
+#make maxtrix of median expression ####
+
+library(CATALYST)
+library(SummarizedExperiment)
+library(vac69a.cytof)
+library(purrr)
+
+merged_daf <- read_full("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+
+
+#read in sig clusters, get rid of resting Vd cluster
+sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
+sig_clusters <- sig_clusters <- sig_clusters[-9,2]
+
+meta_up_t6 <- filterSCE(merged_daf, k = "flo_merge", cluster_id %in% sig_clusters)
+
+clustering_markers <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv", stringsAsFactors = F)
+#merged_daf$cluster_id <- cluster_ids(merged_daf, k="flo_merge")
+
+ms <- ahgg(merged_daf[clustering_markers$refined_markers,], by = c("cluster_id", "timepoint"), fun="median")
+
+ms2 <- lapply(ms, function(x)data.frame(x))
+ms2 <- Map(cbind, ms2, cluster_id = names(ms))
+
+ms3 <- data.table::rbindlist(ms2)
+ms3[,Marker := unlist(lapply(ms2, rownames))]
+ms_mean <- mutate(ms3, "mean_expression"= apply(ms3[,1:4], MARGIN = 1, mean ))
+
+write.csv(ms_mean, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_medians_all.csv")
+
+ms3 <- select(ms3, T6, cluster_id, Marker)
+
+ms4 <- as.matrix(tidyr::spread(ms3, cluster_id, T6))
+
+rownames(ms4) <- ms4[,1]
+ms5 <- ms4[,2:ncol(ms4)]
+
+scaled_mat <- apply(apply(ms5, c(1,2), as.numeric), MARGIN = 1, function(x)scales::rescale(x, to=c(0, 1)))
+write.csv(scaled_mat, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_medians_heatmap_t6.csv")
+
+sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
+sig_clusters <- sig_clusters[-9,]
+
+
+
+sig_scaled_mat <- scaled_mat[rownames(scaled_mat)%in%sig_clusters,]
+reordered_sig_scaled_mat <- sig_scaled_mat[,match(clustering_markers$refined_markers, colnames(sig_scaled_mat))]
+
+write.csv(reordered_sig_scaled_mat, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_cluster_medians_heatmap_t6.csv")
+
 
 
 
@@ -93,7 +102,7 @@ ahgg <- function(x, by, fun = c("median", "mean", "sum")) {
 reordered_sig_scaled_mat <- as.matrix(read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_medians_heatmap_t6.csv", header = T, row.names = 1))
 
 sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
-sig_clusters <- sig_clusters <- sig_clusters[-9,2]
+sig_clusters <- sig_clusters[-9,]
 
 
 # Right annotation ###
