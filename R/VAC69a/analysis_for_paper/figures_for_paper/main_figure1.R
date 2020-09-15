@@ -45,7 +45,7 @@ library(ggplot2)
 
 fcs_name <- "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/concat/all_t6.fcs"
 
-lin_gates <- cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/CytExp_295996_Gates_simplified.xml", FCS=fcs_name)
+lin_gates <- cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/CytExp_295996_Gates_simplified_no_cd8.xml", FCS=fcs_name)
 
 gate_name <- substr(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))], 2, 30)
 gate_name <- gsub(" ", "\n", gate_name)
@@ -56,12 +56,16 @@ y_coord <- c(5,    -2.4, 7.5,   7,    -8,  -5.8,   8.3, -4.5)
 
 gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
 
+gate_label_positions <- subset(gate_label_positions, !grepl("CD8", gate_label_positions$gate_name, fixed=T))
+gate_label_positions <- rbind(gate_label_positions, data.frame("gate_name"="CD8", x_coord=-6.4, y_coord=-5))
+
 umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
     #geom_hex(bins=228)+
     geom_point(color="black", alpha=0.5, shape=".")+
-    geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
-    geom_text(data=gate_label_positions[7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7, parse = T)+
-    geom_text(data=gate_label_positions[-7,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
+    #geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
+    geom_gate(gs_get_pop_paths(lin_gates)[c(2,4,7:9)])+
+    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7, parse = T)+
+    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
     UMAP_theme+
     ggtitle("Major T cell\nlineages")+
     theme(axis.title = element_blank(), 
@@ -72,10 +76,18 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
 
 gate_labeled_gg <- as.ggplot(umap_gate_labeled)
 
-gate_labeled_gg <- gate_labeled_gg+
-  coord_cartesian(xlim=c(-13, 10), ylim=c(-11.2, 11.3))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/umap_gate_labeled.png", umap_gate_labeled, height=4, width=4)
+ctl_polygon <- data.frame("x"=c( -7.5,   -7,  -2, -2,  -7, -10.5),
+                          "y"=c( -7,   -8.2, -9.1, -5,   6,  5.5)
+)
+
+gate_labeled_gg <- gate_labeled_gg+
+  coord_cartesian(xlim=c(-13, 10), ylim=c(-11.2, 11.3))+
+  geom_polygon(data=ctl_polygon, aes(x=x, y=y), color="red", fill=NA)
+
+
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.png", gate_labeled_gg, height=4, width=4)
 
 
 
