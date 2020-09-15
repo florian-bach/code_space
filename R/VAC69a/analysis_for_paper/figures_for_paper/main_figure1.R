@@ -10,6 +10,8 @@ sig_clusters <- sig_clusters[-9,2]
 
 down_big_table <- big_table[seq(1,nrow(big_table), by=3), ]
 
+inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
+
 
 # DOPE CONTOUR PLOT #### n=13 is your friend :*
 hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
@@ -30,13 +32,11 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
 #viridis::scale_fill_viridis(option="B"))
 
 
-system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_raster_umap13_005_no_axis_title.png", hex_through_time, height=4, width=16))
+system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_proportional_raster_umap13_005_no_axis_title.png", hex_through_time, height=4, width=16))
 
-
-ggsave(paste("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/proportional_contour_umap_14", "_bins",".png", sep=''), hex_through_time, height=6, width=9)
 
 panelA_B  <- plot_grid(hex_through_time, gate_labeled_gg, ncol=2, rel_widths=c(3,1.5), labels = c("A", "B"))
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panelA_B.png", panelA_B, height=6, width=11.25)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_b_panelA_B.png", panelA_B, height=6, width=11.25)
 
 # Panel B: Black UMAP projection with red, labeled gates####
 library(ggcyto)
