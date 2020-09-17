@@ -42,7 +42,6 @@ pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
 
 da_t6 <- diffcyt(merged_daf,
                  design = design,
-                 #contrast = contrast_t6,
                  contrast = pairwise_contrast_t6,
                  analysis_type = "DA",
                  method_DA = "diffcyt-DA-edgeR",
@@ -53,7 +52,6 @@ plotDiffHeatmap(merged_daf, da_t6, top_n = 20, th = FDR_cutoff)
 
 da_c10 <- diffcyt(merged_daf,
                   design = design,
-                  #contrast = contrast_c10,
                   contrast = pairwise_contrast_c10,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
@@ -63,12 +61,14 @@ da_c10 <- diffcyt(merged_daf,
 
 da_dod <- diffcyt(merged_daf,
                   design = design,
-                  #contrast = contrast_dod,
                   contrast = pairwise_contrast_dod,
                   analysis_type = "DA",
                   method_DA = "diffcyt-DA-edgeR",
                   clustering_to_use = "flo_merge",
                   verbose = T)
+
+# vd2s <- grep("gamma", levels(cluster_ids(merged_daf, k="flo_merge")), fixed=T, value = T)
+# merged_daf2 <- filterSCE(merged_daf,  cluster_id %in% vd2s, k="flo_merge")
 
 
 da_t6 <- diffcyt(merged_daf,

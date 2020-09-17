@@ -34,6 +34,8 @@ corr_matrix_theme <-
 
 # data <- read.csv("C:/Users/Florian/PhD/oxford/vac69/plasma_analytes_vivax_no_inequalitites.csv")
 # dataplasma <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
+wide_cytof <- read.csv("~/PhD/multi_omics/cytof_cluster_freqs.csv", header=T, stringsAsFactors = F, row.names = 1)
+
 dataplasma <- read.csv("~/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 dataplasma <- subset(dataplasma, dataplasma$Volunteer!="v009")
 t_dataplasma <- t(dataplasma)#
@@ -48,7 +50,7 @@ colnames(dataplasma) <- gsub("T", "DoD", colnames(dataplasma))
 colnames(dataplasma) <- gsub("DoD.6", "T6", colnames(dataplasma))
 
 #convert to numerical matri
-plasma_data <- as.matrix(dataplasma[,colnames(dataplasma)%in%colnames(wide_cytof)]) # <3
+plasma_data <- as.matrix(dataplasma[, colnames(dataplasma) %in% colnames(wide_cytof)]) # <3
 
 changing_analytes <- sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)
 changing_analytes <- changing_analytes[1:18]
@@ -56,7 +58,7 @@ changing_analytes <- changing_analytes[1:18]
 rownames(plasma_data) <- gsub("pg.ml.", "", rownames(plasma_data), fixed = T)
 rownames(plasma_data) <- gsub(".", "",rownames (plasma_data), fixed=T)
 
-plasma_data <- subset(plasma_data, rownames(plasma_data)%in%changing_analytes)
+plasma_data <- subset(plasma_data, rownames(plasma_data) %in% changing_analytes)
 
 class(plasma_data) <- "double" # <3
 
@@ -121,7 +123,7 @@ alt_timecourse <- mofa_biochem[5,order(colnames(mofa_biochem))]
 alt_timecourse[7] <- 13
 cor(t(wide_cytof), alt_timecourse)
 
-
+cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_counts_and_freqs.csv", header = T, stringsAsFactors = F)
 cytof_data$alt <- alt_timecourse[match(cytof_data$sample_id, names(alt_timecourse))]
 
 correlation_dfs <- split(cytof_data, cytof_data$cluster_id)
@@ -396,6 +398,22 @@ colnames(plasma_t6_fc) <- substr(colnames(plasma_dod_fc), 1,3)
 plasma_t6_fc <- subset(log2(plasma_t6_fc), rownames(plasma_t6_fc) %in% c("alt", "IL18", "Ang2"))
 
 #T6 cytof change
+
+wide_cytof <- data.frame(cytof_data %>%
+                           select(cluster_id, sample_id, frequency) %>%
+                           pivot_wider(names_from = sample_id, values_from = frequency))
+
+wide_cytof <- data.frame(cytof_data %>%
+                           select(cluster_id, sample_id, trans_freq) %>%
+                           pivot_wider(names_from = sample_id, values_from = trans_freq))
+
+
+rownames(wide_cytof) <- gsub("ï", "i", wide_cytof$cluster_id)
+wide_cytof <- as.matrix(select(wide_cytof, -cluster_id))
+class(wide_cytof) <- "double"
+
+
+
 cytof_t6_fc <- subset(wide_cytof, select=grepl("T6", colnames(wide_cytof)))/subset(wide_cytof, select=grepl("Baseline", colnames(wide_cytof)))
 colnames(cytof_t6_fc) <- substr(colnames(cytof_t6_fc), 1,3)
 cytof_t6_fc <- subset(log2(cytof_t6_fc), select = colnames(cytof_t6_fc)!="V09")
@@ -434,16 +452,17 @@ baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
 long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
 
 
-# ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = specific_order), y=factor(long_baseline_spearman$cluster_id_y, levels=specific_order)))+
-# corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]), y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])))+
-#   geom_tile(aes(fill=ro))+
-#   #viridis::scale_fill_viridis(option="A")+
-#   ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=seq(-1,1, by=0.5), limits=c(-1,1))+
-#   labs(fill = expression(rho))+
-#   corr_matrix_theme
-# 
-# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-# ggsave("~/PhD/multi_omics/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=6, width = 7)
+#ggplot(long_baseline_spearman, aes(x=factor(long_baseline_spearman$cluster_id_x, levels = specific_order), y=factor(long_baseline_spearman$cluster_id_y, levels=specific_order)))+
+
+  corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]), y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])))+
+  geom_tile(aes(fill=ro))+
+  #viridis::scale_fill_viridis(option="A")+
+  ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=seq(-1,1, by=0.5), limits=c(-1,1))+
+  labs(fill = expression(rho))+
+  corr_matrix_theme
+
+#ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
+ggsave("~/PhD/multi_omics/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=6, width = 7)
 
   # Cytof data generation ####
 cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header = T, stringsAsFactors = F)

@@ -75,27 +75,28 @@ ggsave("clinvac68.pdf", height=12, width=12)
 
 
 data <- read.csv("~/PhD/clinical_data/vac69a/symptoms_vac69a.csv", header = T, stringsAsFactors = F)
+data$flo_timepoint <- gsub("am ", "am", data$flo_timepoint)
+data$flo_timepoint <- gsub("pm ", "pm", data$flo_timepoint)
+data$flo_timepoint <- gsub("DoD ", "Diagnosis", data$flo_timepoint)
 
+long_data <- tidyr::gather(data, Symptom, Severity, colnames(data)[c(12, 14:ncol(data))])
 
-long_data <- tidyr::gather(data, Symptom, Severity, colnames(data)[c(11, 13:ncol(data))])
+long_data <- mutate(long_data, Volunteer=gsub("69010", "V", long_data$trial_number))
 
-long_data$timepoint <- substr(as.character(long_data$timepoint), stringr::str_locate(pattern="_", string=as.character(long_data$timepoint)[1])+1, nchar(as.character(long_data$timepoint)))
-long_data$timepoint <- ifelse(substr(long_data$timepoint, 1, 1)=="_", substr(long_data$timepoint, 2, nchar(long_data$timepoint)), long_data$timepoint)
+timepoint_levels <- list("Timepoints"=unique(long_data$flo_timepoint[gtools::mixedorder(long_data$flo_timepoint)]))
 
-long_data$timepoint <- gsub("chall__", "C", long_data$timepoint)
-long_data$timepoint <- gsub("___", "", long_data$timepoint)
-long_data$timepoint <- gsub("_or_c_28", "", long_data$timepoint)
-long_data$timepoint <- gsub("postchall_ep", "T", long_data$timepoint)
-long_data$timepoint <- gsub("_am", "", long_data$timepoint)
-long_data$timepoint <- gsub("_pm", "_5", long_data$timepoint)
-long_data$timepoint <- gsub("diagnosis_or_c_21", "_5", long_data$timepoint)
+timepoint_levels$Timepoints[[length(timepoint_levels$Timepoints)+1]] <- timepoint_levels$Timepoints[32]
 
-timepoint_levels <- unique(long_data$timepoint[gtools::mixedorder(long_data$timepoint)])
+timepoint_levels <- timepoint_levels$Timepoints[-32]
 
-symptom_heatmap <- ggplot(long_data, aes(x=factor(timepoint, levels=timepoint_levels), y=Symptom))+
-  geom_tile(aes(fill=factor(Severity), width=0.92, height=0.92), color=ifelse(grepl("diagnosis", long_data$timepoint), "black", "grey"))+
+myLoc <- (which(levels(long_data$flo_timepoint) == "DoD ") +
+            which(levels(long_data$flo_timepoint) == "C15 pm")) / 
+  2
+
+symptom_heatmap <- ggplot(long_data, aes(x=factor(flo_timepoint, levels=timepoint_levels), y=Symptom))+
+  geom_tile(aes(fill=factor(Severity), width=0.93, height=0.93), color=ifelse(grepl("DoD", long_data$flo_timepoint), "black", "lightgrey"))+
   scale_fill_manual(values =  list("lightgrey", "yellow", "orange", "red"))+
-  facet_wrap(~trial_number, scales="free")+
+  facet_wrap(~Volunteer, scales="free")+
   theme_minimal()+
   guides(fill=guide_legend(title="Severity"))+
   theme(axis.text.x = element_text(hjust=1, angle=60),
@@ -104,9 +105,68 @@ symptom_heatmap <- ggplot(long_data, aes(x=factor(timepoint, levels=timepoint_le
 
 ggsave("/home/flobuntu/PhD/clinical_data/vac69a/figures/symptom_heatmap.png", symptom_heatmap, height=8, width=14)
 
+# make a figure for number of AEs per timepoint
 
-  # 
-  # first
-  # 
-  # combo_figure <- cowplot::plot_grid(first, second, ncol=1)
+library(dplyr)
+library(tidyr)
+
+long_data$flo_timepoint <- factor(long_data$flo_timepoint)
+
+
+adverse_events <- long_data %>%
+  filter(Severity > 0) %>%
+  group_by(Volunteer, flo_timepoint, Severity) %>%
+  summarise(ae_count = n())
+
+
+colored_stack <- ggplot(adverse_events,  aes(x=factor(flo_timepoint, levels=timepoint_levels), y=ae_count/6, fill=factor(Severity, levels=paste(rev(1:3)))))+
+  geom_bar(stat="identity", position = "stack")+
+  scale_fill_manual(values =  list("1"="yellow", "2"="orange", "3"="red"))+
+  #facet_wrap(~Volunteer)+
+  ylab("Average Number of AEs per Volunteer")+
+  xlab("Timepoint")+
+  ggtitle("Adverse Events")+
+  geom_vline(aes(xintercept = 21.5))+
+  guides(fill=guide_legend(title="Severity"))+
+  scale_y_continuous(limits = c(0,8), breaks = seq(0, 8, by=2))+
+  theme_minimal()+
+  theme(axis.text.x = element_text(hjust=1, angle=60, size=8),
+        plot.title = element_text(hjust=0.5),
+        panel.grid.minor = element_blank())
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/adverse_events_stacked.png", colored_stack, height=4, width=6)
+
+
+
+fever <- subset(long_data, long_data$pyrexia_temp>37)
+
+volunteer_colours <- list("V02" = "#FB9A99",
+                          "V03" = "#E31A1C",
+                          "V05" = "#A6CEE3",
+                          "V06" = "#1F78B4",
+                          "V07" = "#B2DF8A",
+                          "V09" = "#33A02C")
+
+
+volunteer_palette <- unlist(unname(volunteer_colours))
+names(volunteer_palette) <- names(volunteer_colours)
+
+fever_curves <- ggplot(fever, aes(x=factor(flo_timepoint, levels=timepoint_levels), y=pyrexia_temp, color=Volunteer, group=Volunteer))+
+  scale_fill_manual(values=volunteer_palette)+
+  scale_color_manual(values=volunteer_palette)+
+  geom_line(aes(color=Volunteer), size=1.1)+
+  geom_point(fill="white", stroke=1, shape=21)+
+  ggtitle("Fever")+
+  xlab("Timepoint")+
+  ylab(expression(paste("Temperature ",degree,"C",sep="")))+
+  scale_y_continuous(limits=c(37.5, 40), breaks = seq(37.5, 40, by=0.5) )+
+  theme_minimal()+
+  theme(plot.title = element_text(hjust=0.5),
+        axis.text.x = element_text(hjust=1, angle=60, size=8))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_curves.png", fever_curves)
+
+clinical_graphs <- cowplot::plot_grid(colored_stack, fever_curves, ncol = 2, rel_widths = c(1.6,1))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/aes_and_fever_curves.png", clinical_graphs, height=4, width=8*4/3)
 
