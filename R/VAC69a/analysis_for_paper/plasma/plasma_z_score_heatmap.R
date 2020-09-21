@@ -26,7 +26,7 @@ data3 <- arrange(data3, timepoint, Volunteer)
 data3$Sample_ID <- paste(data3$Volunteer, "_", data3$timepoint, sep='')
 
 #censor volutneer 03
-data3 <- subset(data3, data3$Volunteer != "v03")
+#data3 <- subset(data3, data3$Volunteer != "v03")
 
 
 
@@ -78,10 +78,16 @@ combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = 
 
 
 # left anno ####
-number_of_hits <- 7
+number_of_hits <- 9
+number_of_maybes <- 3
 
-significant <-  c(rep("yes",number_of_hits), rep("no", nrow(plasma_matrix)-number_of_hits))
-sig <- c("yes"="darkgreen", "no"="lightgrey")
+plasma_matrix <- head(plasma_matrix, n=18)
+
+
+significant <-  c(rep("<0.05",number_of_hits), rep("<0.1", number_of_maybes), rep(">0.1", nrow(plasma_matrix)-number_of_hits-number_of_maybes))
+sig <- c("<0.05"="darkgreen",
+         "<0.1" = "lightgreen",
+         ">0.1"= "lightgrey")
 
 
 left_anno <-  rowAnnotation(gap = unit(5, "mm"),
@@ -89,8 +95,8 @@ left_anno <-  rowAnnotation(gap = unit(5, "mm"),
                                      show_annotation_name = FALSE,
                                      "significant"=significant,
                                      simple_anno_size = unit(2.5, "mm"), # width of the significance bar
-                                     col=list("significant" = c("yes"="darkgreen", "no"="lightgrey")),
-                                     annotation_legend_param = list(significant = list(title ="Significant",
+                                     col=list("significant" = c("<0.05"="darkgreen", "<0.1"="lightgreen", ">0.1" ="lightgrey")),
+                                     annotation_legend_param = list(significant = list(title ="FDR",
                                                                                        at = rev(names(sig)),
                                                                                        #title_gp=gpar(angle=45),
                                                                                        legend_gp = gpar(fill = unname(sig)),
@@ -132,7 +138,7 @@ combo_map <- Heatmap(matrix = plasma_matrix,
 
 
 
-png("./figures/plasma_zscore_heatmap_without_v03_fdr_10-e1.png", width=12, height=9, units = "in", res=400)
+png("./figures/plasma_zscore_heatmap_without_v03_fdr_10-e1.png", width=7, height=4.5, units = "in", res=400)
 draw(combo_map,
      merge_legends = TRUE,
      #padding = unit(c(2, 20, 2, 2), "mm")

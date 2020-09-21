@@ -10,6 +10,8 @@ sig_clusters <- sig_clusters[-9,2]
 
 down_big_table <- big_table[seq(1,nrow(big_table), by=3), ]
 
+down_big_table$timepoint <- gsub("DoD", "Diagnosis", down_big_table$timepoint, fixed=T)
+
 inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
 
 
@@ -17,14 +19,16 @@ inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
 hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
   stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
+  #stat_density_2d(contour = TRUE, bins=13, color="red", size=0.05)+
   scale_x_continuous(limits=c(-13.5, 10))+
   scale_y_continuous(limits=c(-11.2, 11.3))+
   theme_minimal()+
-  facet_wrap(~timepoint, ncol = 4)+
+  facet_wrap(~timepoint, ncol = 4, scales="free")+
   UMAP_theme+
   theme(panel.grid = element_blank(),
-        strip.text = element_text(size=11),
-        axis.title = element_blank(),
+        panel.spacing.x = unit(0,"lines"),
+        strip.text = element_text(size=8, face = "bold"),
+        axis.title = element_text(size=7),
         axis.text = element_blank())+
   scale_fill_gradientn(colors=inferno_white)+
   coord_cartesian(xlim=c(-13.5, 10),
@@ -32,11 +36,11 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
 #viridis::scale_fill_viridis(option="B"))
 
 
-system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_proportional_raster_umap13_005_no_axis_title.png", hex_through_time, height=4, width=16))
-
-
-panelA_B  <- plot_grid(hex_through_time, gate_labeled_gg, ncol=2, rel_widths=c(3,1.5), labels = c("A", "B"))
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_b_panelA_B.png", panelA_B, height=6, width=11.25)
+# system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_proportional_raster_umap13_005_no_axis_title.png", hex_through_time, height=4, width=16))
+# 
+# 
+# panelA_B  <- plot_grid(hex_through_time, gate_labeled_gg, ncol=2, rel_widths=c(3,1.5), labels = c("A", "B"))
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_b_panelA_B.png", panelA_B, height=6, width=11.25)
 
 # Panel B: Black UMAP projection with red, labeled gates####
 library(ggcyto)
@@ -45,14 +49,14 @@ library(ggplot2)
 
 fcs_name <- "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/post_umap/concat/all_t6.fcs"
 
-lin_gates <- cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/CytExp_295996_Gates_simplified_no_cd8.xml", FCS=fcs_name)
+lin_gates <- cytobank_to_gatingset("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/CytExp_295996_Gates_simplified.xml", FCS=fcs_name)
 
 gate_name <- substr(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))], 2, 30)
 gate_name <- gsub(" ", "\n", gate_name)
 gate_name[7] <- "paste(gamma, delta)"
 
 x_coord <- c(-1.1, -2.5,   5, -10,   -9,    7,    -4.8, -10.6)
-y_coord <- c(5,    -2.4, 7.5,   7,    -8,  -5.8,   8.3, -4.5)
+y_coord <- c(5.3,    -2.4, 7.5,   7,    -8,  -5.8,   8.3, -4.5)
 
 gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
 
@@ -64,14 +68,15 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
     geom_point(color="black", alpha=0.5, shape=".")+
     #geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
     geom_gate(gs_get_pop_paths(lin_gates)[c(2,4,7:9)])+
-    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7, parse = T)+
-    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name, size=20), lineheight = 0.7)+
+    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, parse = T)+
+    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2)+
     UMAP_theme+
-    ggtitle("Major T cell\nlineages")+
+    ggtitle("Major T cell lineages")+
     theme(axis.title = element_blank(), 
           strip.text = element_blank(),
           axis.text = element_blank(),
-          plot.title = element_text(hjust=0.5))
+          plot.margin = unit(c(0,0,0,0), "cm"),
+          plot.title = element_text(hjust=0.5, size=8))
 
 
 gate_labeled_gg <- as.ggplot(umap_gate_labeled)
@@ -96,8 +101,11 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_lab
 #barchart
 
 library(vac69a.cytof)
-
+library(dplyr)
 summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+summary$volunteer <- gsub("V", "v", summary$volunteer, fixed=T)
+
+summary$timepoint <- gsub("DoD", "Diagnosis", summary$timepoint, fixed=T)
 
 
 lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
@@ -109,19 +117,22 @@ activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100,
   geom_bar(stat="identity", position="stack")+
   #geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
   theme_minimal()+
-  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
-  ggtitle("Overall T cell activation")+
+  facet_wrap(~timepoint, ncol=4)+
+  #ggtitle("Overall T cell activation")+
   scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
-  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n activated", labels=scales::percent_format(accuracy = 1))+
   #ylim(0,25)+
   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
   theme(#legend.position = "none",
-    plot.title = element_text(hjust=0.5, size=11),
-    strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+    plot.title = element_text(hjust=0.5, size=8),
+    strip.text = element_blank(),
+    strip.background = element_blank(),
     axis.title.x = element_blank(),
+    axis.text.x = element_text(hjust=0.5, angle=45),
+    panel.spacing.x = unit(0.8,"lines"),
+    axis.title.y = element_text(size=7),
     panel.grid.minor.y = element_blank(),
-    legend.position = "none",
-    strip.placement = "outside")
+    legend.position = "none",)
 
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=8)
@@ -174,23 +185,37 @@ lineage_activation_pies <- ggplot(barchart_plot_data)+
   facet_wrap(~lineage, labeller = label_parsed, ncol=2, strip.position = "left")+
   scale_fill_manual(values=pie_lineage_palette)+
   guides()+
-  ggtitle("Average Proportion of Activated Cells\nin Major T cell Lineages at T6")+
+  ggtitle("Average Activation in Major\nT cell Lineages at T6")+
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         panel.grid = element_blank(),
-        plot.title = element_text(hjust = 0.5, size=11),
-        strip.text.y.left = element_text(hjust=0.5, size=14, face = "bold", angle = 0),
+        panel.spacing = unit(0, "lines"),
+        plot.margin = unit(c(0,0,0,0), "cm"),
+        plot.title = element_text(hjust = 0.5, size=8),
+        strip.text.y.left = element_text(hjust=0.5, size=7, face = "bold", angle = 0),
         legend.position = "none")
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
 
 
 # put the bar and pie charts together with cowlplot
-panel_f <- cowplot::plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(4,1), rel_heights = c(1,1), axis = "bt", align = "hv")
+# panel_f <- cowplot::plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(4,1), rel_heights = c(1,1), axis = "bt", align = "hv")
+# 
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=4, width=17)
+# 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=4, width=17)
 
 
+panel_AC <- cowplot::plot_grid(hex_through_time,
+                                activation_stacked_barchart, nrow=2, axis = "tl", rel_heights = c(1.2,1), align = "hv")
+
+panel_BD <- cowplot::plot_grid(gate_labeled_gg, lineage_activation_pies, nrow=2, axis = "tl", rel_heights = c(1.2,1), align = "hv")
+
+
+panel_AB <- cowplot::plot_grid(hex_through_time,
+                               gate_labeled_gg, ncol=2, axis = "tl", rel_widths = c(4, 1), align = "hv")
+
+panel_CD <- cowplot::plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol=2, axis = "tl", rel_widths = c(4, 1), align = "hv")
 
 
 # Panel D: UMAP projections coloured by CD38, Bcl2, all clusters, sig clusters ####
@@ -243,7 +268,7 @@ t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   geom_point(aes(color=flo_label), shape=".", alpha=0.4)+
   scale_color_manual(values = expanded_cluster_palette)+
   theme_minimal()+
-  ggtitle("All Cells at T6 coloured\nby Cluster ID")+
+  ggtitle("All Cells at T6 coloured by Cluster ID")+
   UMAP_theme+
   guides(colour = guide_legend(override.aes = list(size = 2, shape=16, alpha=1), ncol = 3),
          alpha= "none")+
@@ -251,7 +276,7 @@ t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
         legend.text = element_text(size=6),
         axis.title = element_blank(),
         axis.text = element_blank(),
-        plot.title = element_text(hjust=0.5))+
+        plot.title = element_text(hjust=0.5, size=8))+
   coord_cartesian(xlim=c(-13, 10),
                   ylim=c(-11.2, 11.3))
 
@@ -265,7 +290,7 @@ t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   geom_point(aes(color=significant, alpha=alpha), shape=".")+
   scale_color_manual(values = col_pal)+
   theme_minimal()+
-  ggtitle("Differentially Abundant\nClusters at T6")+
+  ggtitle("Differentially Abundant Clusters at T6")+
   UMAP_theme+
   guides(colour = guide_legend(override.aes = list(size = 4)),
          alpha= "none")+
@@ -273,7 +298,7 @@ t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
         legend.title = element_blank(),
         axis.text = element_blank(),
         axis.title = element_blank(),
-        plot.title = element_text(hjust=0.5))+
+        plot.title = element_text(hjust=0.5, size=8))+
   coord_cartesian(xlim=c(-13, 10),
                   ylim=c(-11.2, 11.3))
 
@@ -286,9 +311,10 @@ bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_bla
 
 
 horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=4, width=16)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8)
 
-
+panel_ABCDEF <- cowplot::plot_grid(panel_AB, panel_CD, horizontal_d_f_panel, nrow=3, rel_heights = c(1.3,1,1.3))
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCDEF.png", panel_ABCDEF, height=6, width=11, units = "in")
 # Panel E: Differential Abundance Heatmap ####
 library(colorspace)
 library(scales)
@@ -301,11 +327,27 @@ time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
 
 #cluster id and frequencies
 all_t6_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv")
+# all_t6_data$timepoint <- gsub("Diangosis", "Diagnosis", all_t6_data$timepoint )
+# all_t6_data$sample_id <- gsub("Diangosis", "Diagnosis", all_t6_data$sample_id, fixed=T )
+# all_t6_data$volunteer <- tolower(all_t6_data$volunteer)
+# all_t6_data$sample_id <- paste(all_t6_data$volunteer, all_t6_data$timepoint, sep="_")
+# 
+# 
+# write.csv(all_t6_data, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv")
+
 #meta data
 cd <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/experiment_info.csv")
+# cd$timepoint <- gsub("Diangosis", "Diagnosis", cd$timepoint )
+# cd$sample_id <- gsub("Diangosis", "Diagnosis", cd$sample_id, fixed=T )
+# 
+# cd$volunteer <- tolower(cd$volunteer)
+# cd$sample_id <- paste(cd$volunteer, cd$timepoint, sep="_")
+# 
+# write.csv(cd, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/experiment_info.csv")
+
 #fold change and p_adj
 fold_change <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/edger_t6_FC_padj.csv")
-
+fold_change$cluster_id <- gsub("activated CTLA-4+ CD4 EM"," activated CTLA4+ CD4 EM",fold_change$cluster_id)
 #order decreasing so top10 and bottom 10 are extreme in terms of fold change
 fold_change <- fold_change[order(fold_change$logFC, decreasing = T),]
 
@@ -338,12 +380,14 @@ hm_matrix <- as.matrix(select(hm_matrix, -cluster_id))
 
 
 #truncate matrix values so that extreme values don't pale everything elese
-hm_matrix <- ifelse(hm_matrix>2.5, 2.5, hm_matrix)
+hm_matrix <- ifelse(hm_matrix> 2.5, 2.5, hm_matrix)
 hm_matrix <- ifelse(hm_matrix < -2.5, -2.5, hm_matrix)
 extreme <- max(abs(range(hm_matrix)))
 
+class(hm_matrix) <- "numeric"
+
 #bunch of differen color gradients
-col_fun4 <- circlize::colorRamp2(c(-range(hm_matrix)[2], 0, range(hm_matrix)[2]), c("#0859C6", "black", "#FFA500"))
+col_fun4 <- circlize::colorRamp2(c(min(hm_matrix), 0, max(hm_matrix)), c("#0859C6", "black", "#FFA500"))
 
 #get 12 most up/down clusters
 top_mat <- head(hm_matrix, n=12)
@@ -354,35 +398,29 @@ combo_matrix <- rbind(top_mat, bot_mat)
 # right annotation
 p_adj <- c(head(fold_change$p_adj, n=nrow(top_mat)), tail(fold_change$p_adj, n=nrow(bot_mat)))
 log2_fc <- c(head(fold_change$logFC, n=nrow(top_mat)), tail(fold_change$logFC, n=nrow(bot_mat)))
-significant <- ifelse((p_adj<0.05 & abs(log2_fc)>1), "yes", "no")
-sig <- c("yes"="darkgreen", "no"="lightgrey")
+significant <- ifelse((p_adj<0.05 & abs(log2_fc)>1), "<0.05", ">0.05")
+sig <- c("<0.05"="darkgreen", ">0.05"="lightgrey")
 
 #top annotation
-Volunteer <- c("V02" = "#FB9A99","V03" = "#E31A1C","V05" = "#A6CEE3", "V06" = "#1F78B4", "V07" = "#B2DF8A", "V09" = "#33A02C")
-Timepoint <- c("Baseline"=time_col[4], "C10"=time_col[3], "DoD"=time_col[2], "T6"=time_col[1])
+Volunteer <- c("v02" = "#FB9A99","v03" = "#E31A1C","v05" = "#A6CEE3", "v06" = "#1F78B4", "v07" = "#F0E442", "v09" = "#E69F00")
+Timepoint <- c("Baseline"=time_col[4], "C10"=time_col[3], "Diagnosis"=time_col[2], "T6"=time_col[1])
 Batch <- c("batch_1"="lightgrey", "batch_2"="darkgrey")
 
 
 
 combo_right_anno <-  rowAnnotation(gap = unit(2, "mm"),
-                                   #space = rep("a", 24),
-                                   #"log2FC" = anno_lines(log2_fc, which="row", axis = TRUE, ylim = c(-6, 6), axis_param = list(at=seq(-6, 6, by=2)), smooth = FALSE, add_points = TRUE),
-                                   #"significant"=significant,
                                    "log2FC" = anno_barplot(log2_fc, which="row", axis = TRUE, ylim = c(-2, 6), axis_param = list(at=seq(-2, 6, by=2)),gp = gpar(fill = col_fun4(log2_fc))),
-                                   
-                                   #"p_adj"= anno_text(scales::scientific(p_adj, digits = 2), which="row"),
                                    width = unit(3, "cm") # width of the line graph
-                                   #simple_anno_size = unit(2, "mm"), # width of the significance bar
 )
 
 
 combo_left_anno_var <-  rowAnnotation(gap = unit(5, "mm"),
                                       #annotation_name_gp = gpar(angle=45),
                                       show_annotation_name = FALSE,
-                                      "significant"=significant,
+                                      "FDR"=significant,
                                       simple_anno_size = unit(2.5, "mm"), # width of the significance bar
-                                      col=list("significant" = c("yes"="darkgreen", "no"="lightgrey")),
-                                      annotation_legend_param = list(significant = list(title ="Significant",
+                                      col=list("FDR" = c("<0.05"="darkgreen", ">0.05"="lightgrey")),
+                                      annotation_legend_param = list(FDR = list(title ="FDR",
                                                                                         at = rev(names(sig)),
                                                                                         #title_gp=gpar(angle=45),
                                                                                         legend_gp = gpar(fill = unname(sig)),
@@ -391,16 +429,15 @@ combo_left_anno_var <-  rowAnnotation(gap = unit(5, "mm"),
                                       
 )
 
+# annotation_name_gp = gpar(fontsize=10)
 
-
-combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = "left",
+combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = "left", annotation_name_gp = gpar(fontsize=10),
                                     Volunteer = rep(levels(cd$volunteer), 4),
                                     Timepoint = rep(levels(cd$timepoint), each=6),
                                     Batch = rep(rep(levels(cd$batch), each=3), 4),
                                     col=list(Batch = c("batch_1"="lightgrey", "batch_2"="darkgrey"),
-                                             Timepoint = c("Baseline"=time_col[4], "C10"=time_col[3], "DoD"=time_col[2], "T6"=time_col[1]),
-                                             Volunteer = c("V02" = "#FB9A99","V03" = "#E31A1C","V05" = "#A6CEE3", "V06" = "#1F78B4", "V07" = "#B2DF8A", "V09" = "#33A02C")
-                                             
+                                             Timepoint = c("Baseline"=time_col[4], "C10"=time_col[3], "Diagnosis"=time_col[2], "T6"=time_col[1]),
+                                             Volunteer = c("v02" = "#FB9A99","v03" = "#E31A1C","v05" = "#A6CEE3", "v06" = "#1F78B4", "v07" = "#F0E442", "v09" = "#E69F00")
                                     ),
                                     simple_anno_size = unit(2.5, "mm"),
                                     annotation_legend_param = list(
@@ -415,9 +452,11 @@ combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = 
 
 combo_map <- Heatmap(matrix = combo_matrix,
                      cluster_rows = FALSE,
-                     name = "Normalised Frequency",
+                     name = "Normalised\nFrequency",
                      cluster_columns = FALSE,
                      row_names_side = "left",
+                     column_names_gp = gpar(fontsize=10),
+                     row_names_gp = gpar(fontsize=10),
                      col = col_fun4,
                      row_split = factor(rep(c("up", "down"), each = 12), levels = c("up", "down")),
                      rect_gp = gpar(col = "white"),
@@ -427,18 +466,14 @@ combo_map <- Heatmap(matrix = combo_matrix,
                      left_annotation = combo_left_anno_var,
                      show_heatmap_legend = TRUE,
                      column_names_rot = 45,
-                     heatmap_legend_param = list(col = col_fun4, title = "Normalised Frequency", title_position = "topleft"),
+                     heatmap_legend_param = list(col = col_fun4, title = "Z-Score", title_position = "topleft"),
                      width = unit(16, "cm"),
                      height = unit(16, "cm")
 )
 
-draw(combo_map,
-     merge_legends = TRUE,
-     #padding = unit(c(2, 20, 2, 2), "mm")
-)
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/improved_freq_hm_no_right.png", width=14, height=10, units = "in", res=400)
+png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_freq_hm", width=1.4*8, height=8, units = "in", res=400)
 draw(combo_map,
      merge_legends = TRUE,
      #padding = unit(c(2, 20, 2, 2), "mm")

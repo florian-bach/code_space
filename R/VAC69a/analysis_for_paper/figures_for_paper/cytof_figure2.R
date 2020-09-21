@@ -76,18 +76,20 @@ median_cluster_heat <- Heatmap(matrix = rereordered_sig_scaled_mat,
                                cluster_columns = FALSE,
                                row_names_side = "left",
                                col = col_inferno,
+                               column_names_gp = gpar(fontsize=8),
+                               row_names_gp = gpar(fontsize=10),
                                rect_gp = gpar(col = "white"),
                                #top_annotation = combo_top_anno,
                                right_annotation = cd3_right_anno_var,
                                show_heatmap_legend = FALSE,
-                               column_names_rot = 60,
+                               column_names_rot = 45
                                #heatmap_legend_param = list(col = col_fun4, title = "Normalised Frequency", title_position = "topleft"),
-                               width = unit(16, "cm"),
-                               height = unit(16*9/28, "cm")
+                               # width = unit(16, "cm"),
+                               # height = unit(16*9/28, "cm")
 )
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/edgeR/sig_cluster_t6_phenotype_heat_var.png", width=13, height=4, units = "in", res=400)
+png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper///sig_cluster_t6_phenotype_heat_var.png", width=8, height=2.3, units = "in", res=400)
 draw(median_cluster_heat,
      #annotation_legend_list = list(box_lgd),
      merge_legends = FALSE,
@@ -196,14 +198,15 @@ lvls <- lvl_data$cluster_id[c(seq(1,7), 9, 8 )]
 lgd_cluster= Legend(at =lvls, type = "grid", 
                     legend_gp = gpar(fill = unname(ordered_col_pal)[c(seq(1,7), 9, 8 )]),
                     title_position = "topleft",
-                    labels_gp = gpar(fontsize = 10),
+                    labels_gp = gpar(fontsize = 12),
+                    title_gp = gpar(fontsize = 14),
                     title = "Cluster ID")
 
 
 
 #write out pie chart with legend
 
-png("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_activation_pie.png", width=7, height=4, units = "in", res=400)
+png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_activation_pie.png", width=7, height=4, units = "in", res=400)
 
 plot.new()
 circle_size = unit(1, "snpc") # snpc unit gives you a square region
@@ -226,6 +229,9 @@ dev.off()
 # all non-Treg CD4 clusters, then remove the naive one. For each volunteer, the remaining clusters are then summed and each cluster
 # is then divided by this sum
 
+library(ggplot2)
+library(dplyr)
+library(tidyr)
 
 all_t6_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = FALSE, header = T)
 all_t6_data <- subset(all_t6_data, all_t6_data$timepoint == "T6")
@@ -240,7 +246,7 @@ cd4_memory_t6_summary <- cd4_memory_t6_data %>%
 
 cd4_memory_t6_summary <- cd4_memory_t6_summary[!duplicated(cd4_memory_t6_summary), ]
 
-cd4_bar_data <- cd4_summary %>%
+cd4_bar_data <- cd4_t6_data %>%
   group_by(volunteer) %>%
   mutate("cd4_freq" = frequency/cd4_memory_t6_summary$CD4_memory_percentage[match(volunteer, cd4_memory_t6_summary$volunteer)])
 
@@ -250,28 +256,29 @@ cd4_bar_data <- filter(cd4_bar_data, cluster_id %in% sig_clusters)
 stacked_bar_levels <- c("activated CD27- cytotoxic CD4 EM",
                         "activated CD4 EM",
                         "activated CTLA4+ CD4 EM",
-                        "activated CD4 CM")
+                        "activated CD4 CM",
+                        "activated HLA-DR- CD4 EM")
 
 cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=cd4_freq, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+
-  ggtitle("Activation of CD4 Memory Cells at T6\n")+
+  ggtitle("Activation of\nCD4 Memory Cell sat T6")+
   scale_fill_manual(values=col_pal)+
-  scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells", labels=scales::percent_format(accuracy = 1))+
+  scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells at T6", labels=scales::percent_format(accuracy = 1))+
   theme_minimal()+
   xlab("Volunteer")+
   guides(fill=guide_legend(ncol=2))+
-  theme(plot.title = element_text(hjust=0.5, size=11),
+  theme(plot.title = element_text(hjust=0.5, size=10),
+        axis.text = element_text(size=8),
+        axis.title = element_text(size=8),
         legend.title = element_blank(),
-        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-        legend.position = "bottom",
+        strip.text = element_text(hjust=0.5, face = "bold"),
+        legend.position = "none",
         legend.justification = "center",
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=6, height = 6)
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cd4_memory_activation_stacked_barchart_no_leg.png", cd4_memory_activation_stacked_barchart, width=5, height = 5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=2.5, height = 2.5)
 
 
 
@@ -346,7 +353,7 @@ fig2_sig_clusters_umap <- ggplot(shorter_big_table_t6, aes(x=UMAP1, y=UMAP2))+
         legend.title = element_blank(),
         axis.text = element_blank(),
         axis.title = element_blank(),
-        plot.title = element_text(hjust=0.5))+
+        plot.title = element_text(hjust=0.5, size=8))+
   coord_cartesian(xlim = c(0,4),
                   ylim = c(2,4))
 
@@ -381,9 +388,4 @@ fig_2_umaps <- plot_grid(fig2_sig_clusters_umap, Ki67_plot,  Tbet_plot, CTLA4_pl
 fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,5))
 #fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,4x))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/fig_2_umaps_var3.png", fig_2_umaps_var, height=4, width=8, units = "in")
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/fig_2_umaps.png", fig_2_umaps, height=4, width=8, units = "in")
-
-
-
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.png", fig_2_umaps_var, height=4, width=8, units = "in")
