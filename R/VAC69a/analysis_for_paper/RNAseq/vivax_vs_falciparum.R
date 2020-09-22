@@ -20,8 +20,12 @@ library(ggrepel)
 # DoD sheet
 dod_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
 
+
+
 # positive means enriched in vivax, negative means enriched in falciparum
 dod_data$Cluster_Difference <- dod_data$`%Genes Cluster #2`-dod_data$`%Genes Cluster #1`
+
+
 
 threshold <- 30
 
