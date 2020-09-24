@@ -9,7 +9,7 @@ setwd("~/PhD/plasma/vac69a/")
 long_data <- read.csv("long_plasma_data.csv", header = TRUE, stringsAsFactors = FALSE)
 sig_analytes <- read.delim("analytes_sorted_by_padj.txt", header = T)
 
-#filter for top 20 analytes
+#filter for top 12 analytes
 long_data <- subset(long_data, long_data$Analyte %in% sig_analytes$Analyte[1:12])
 
 data2 <- spread(long_data, Analyte, Concentration)

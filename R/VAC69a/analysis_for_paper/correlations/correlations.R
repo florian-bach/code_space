@@ -7,7 +7,7 @@ library(ggplot2)
 my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
 time_col=colorspace::sequential_hcl(5, palette = "Purple Yellow")
 
-time_palette <- c("Baseline"=time_col[4], "C10"=time_col[3], "DoD"=time_col[2], "T6"=time_col[1])
+time_palette <- c("Baseline"=time_col[4], "C10"=time_col[3], "Diagnosis"=time_col[2], "T6"=time_col[1])
 
 
 `%notin%` <- Negate(`%in%`)
@@ -178,7 +178,7 @@ pca_distance <- df$distance
 names(pca_distance) <- c("V02", "V03", "V05", "V06", "V07")
 # T cell activation
 # cd3 activation data
-summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv")
 
 t_cell_summary <- summary %>%
   group_by(volunteer, timepoint) %>%

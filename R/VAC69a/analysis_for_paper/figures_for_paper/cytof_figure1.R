@@ -5,6 +5,15 @@ library(ggplot2)
 big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
 sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
 
+
+UMAP_theme <- theme_minimal()+theme(
+  panel.grid.minor = element_blank(),
+  legend.position = "none",
+  axis.text = element_blank()
+)
+
+
+
 #get rid of resting Vd cluster
 sig_clusters <- sig_clusters[-9,2]
 
@@ -310,7 +319,7 @@ cd38_plot <- flo_umap(short_big_table_t6, "CD38")+theme(axis.title = element_bla
 bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_blank())
 
 
-horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
+horizontal_d_f_panel <- cowplot::plot_grid(lymphocytes, cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=5)
 ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8)
 
 panel_ABCDEF <- cowplot::plot_grid(panel_AB, panel_CD, horizontal_d_f_panel, nrow=3, rel_heights = c(1.3,1,1.3))
@@ -479,3 +488,54 @@ draw(combo_map,
      #padding = unit(c(2, 20, 2, 2), "mm")
 )
 dev.off()
+
+
+
+
+
+# Lymphopenia ####
+
+
+haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
+
+haem_data$trial_number <- gsub("69010", "v", haem_data$trial_number)
+
+long_haem_data <- haem_data %>%
+  select(trial_number, timepoint, platelets, lymphocytes) %>%
+  filter(timepoint %in% c("_C_1", "_C1C7", "_EP", "_T6")) %>%
+  gather(Cell, Frequency, c(platelets))
+
+.simpleCap <- function(x) {
+  s <- strsplit(x, " ")[[1]]
+  paste(toupper(substring(s, 1, 1)), substring(s, 2),
+        sep = "", collapse = " ")
+}
+
+long_haem_data$Cell <- .simpleCap(long_haem_data$Cell)
+
+long_haem_data$timepoint <- gsub("_C_1", "Baseline", long_haem_data$timepoint)
+long_haem_data$timepoint <- gsub("_C1C7", "C7", long_haem_data$timepoint)
+long_haem_data$timepoint <- gsub("_EP", "T1", long_haem_data$timepoint)
+long_haem_data$timepoint <- gsub("_T6", "T6", long_haem_data$timepoint)
+
+
+lymphocytes <- ggplot(long_haem_data, aes(x=timepoint, y=Frequency, color=trial_number, group=trial_number))+
+  scale_fill_manual(values=volunteer_palette)+
+  scale_color_manual(values=volunteer_palette)+
+  geom_line(aes(color=trial_number), size=1.1)+
+  geom_point(fill="white", stroke=1, shape=21)+
+  theme_minimal()+
+  xlab("Timepoint")+
+  ylab(expression(Cells~"/"~mu*L~blood))+
+  guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+  ggtitle("Lymphocytes")+
+  theme(axis.title.x = element_blank(),
+        legend.position = "none",
+        legend.title = element_text(size = 9), 
+        legend.text = element_text(size = 9),
+        axis.title.y=element_text(size=10),
+        plot.title = element_text(hjust=0.5),
+        axis.text.x = element_text(hjust=1, angle=45, size=8))+
+  scale_y_continuous(label=scales::comma)
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lymphopenia.png", lymphocytes, width=3, height=2.2)
