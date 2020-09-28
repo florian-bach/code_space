@@ -306,6 +306,7 @@ shorter_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
 shorter_big_table_t6 <- subset(shorter_big_table_t6, shorter_big_table_t6$flo_label %in% sig_clusters)
 
 
+# activation markers across whole umap ###
 CD27_plot <- flo_umap(shorter_big_table_t6, "CD27")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
 
@@ -326,11 +327,45 @@ Perforin_plot <- flo_umap(shorter_big_table_t6, "Perforin")+theme(axis.title = e
 GZB_plot <- flo_umap(shorter_big_table_t6, "GZB")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
                                                                                                       ylim = c(2,4))
 
-
 HLADR_plot <- flo_umap(shorter_big_table_t6, "HLA-DR")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
                                                                                                           ylim = c(2,4))
 ICOS_plot <- flo_umap(shorter_big_table_t6, "ICOS")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
+# lineage markers across whole UMAP ####
+CD4_plot<- flo_umap(big_table, "CD4", only_show = "T6")+theme(axis.title = element_blank())
+CD8_plot<- flo_umap(big_table, "CD8", only_show = "T6")+theme(axis.title = element_blank())
+Vd2_plot <- flo_umap(big_table, "Vd2", only_show = "T6")+theme(axis.title = element_blank())
+Va72_plot <- flo_umap(big_table, "Va72", only_show = "T6")+theme(axis.title = element_blank())
+FoxP3_plot <- flo_umap(big_table, "FoxP3", only_show = "T6")+theme(axis.title = element_blank())
+CD25_plot <- flo_umap(big_table, "CD25", only_show = "T6")+theme(axis.title = element_blank())
+CD161_plot <- flo_umap(big_table, "CD161", only_show = "T6")+theme(axis.title = element_blank())
+CD127_plot <- flo_umap(big_table, "CD127", only_show = "T6")+theme(axis.title = element_blank())
+
+lineage_plot <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot, FoxP3_plot, CD25_plot, CD127_plot, CD161_plot, ncol=4, align="hv", axis="l")
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_lineage_plot.png", lineage_plot, height=3, width=4)
+
+# mempry markers across whole UMAP ####
+CCR7_plot <- flo_umap(big_table, "CCR7", facet_by = "timepoint")+theme(axis.title = element_blank(),
+                                                                       plot.title = element_blank(),
+                                                                       strip.text = element_blank())
+CD45RO_plot <- flo_umap(big_table, "CD45RO", facet_by = "timepoint")+theme(axis.title = element_blank(),
+                                                                           plot.title = element_blank(),
+                                                                           strip.text = element_blank())
+CD45RA_plot <- flo_umap(big_table, "CD45RA", facet_by = "timepoint")+theme(axis.title = element_blank(),
+                                                                           plot.title = element_blank(),
+                                                                           strip.text = element_blank())
+CD57_plot <- flo_umap(big_table, "CD57", facet_by = "timepoint")+theme(axis.title = element_blank(),
+                                                                       plot.title = element_blank(),
+                                                                       strip.text = element_blank())
+CD127_plot <- flo_umap(big_table, "CD127", facet_by = "timepoint")+theme(axis.title = element_blank(),
+                                                                         plot.title = element_blank(),
+                                                                         strip.text = element_blank())
+CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+theme(axis.title = element_blank(),
+                                                                           plot.title = element_blank(),
+                                                                           strip.text = element_blank())
+
+memory_plots <- cowplot::plot_grid(CCR7_plot, CD45RO_plot, CD45RA_plot, CD57_plot, CD127_plot, CX3CR1_plot, ncol=1, align="hv", axis="l")
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_memory_plots.png", memory_plots, height=10, width=8)
 
 
 UMAP_theme <- theme_minimal()+theme(

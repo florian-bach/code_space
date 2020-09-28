@@ -36,8 +36,8 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   UMAP_theme+
   theme(panel.grid = element_blank(),
         panel.spacing.x = unit(0,"lines"),
-        strip.text = element_text(size=8, face = "bold"),
-        axis.title = element_text(size=7),
+        strip.text = element_text(size=7),
+        axis.title = element_text(size=6),
         axis.text = element_blank())+
   scale_fill_gradientn(colors=inferno_white)+
   coord_cartesian(xlim=c(-13.5, 10),
@@ -80,12 +80,13 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
     geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, parse = T)+
     geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2)+
     UMAP_theme+
-    ggtitle("Major T cell lineages")+
-    theme(axis.title = element_blank(), 
+    ggtitle("\nMajor T cell lineages")+
+    theme(axis.title.y = element_blank(),
+          axis.title.x = element_text(color="white"),
           strip.text = element_blank(),
           axis.text = element_blank(),
           plot.margin = unit(c(0,0,0,0), "cm"),
-          plot.title = element_text(hjust=0.5, size=8))
+          plot.title = element_text(size=7, hjust = 0.5, vjust=-1))
 
 
 gate_labeled_gg <- as.ggplot(umap_gate_labeled)
@@ -129,7 +130,7 @@ activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100,
   facet_wrap(~timepoint, ncol=4)+
   #ggtitle("Overall T cell activation")+
   scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
-  scale_y_continuous(name = "Percentage of CD3+ T cells\n activated", labels=scales::percent_format(accuracy = 1))+
+  scale_y_continuous(name = "Fraction of CD3+ T cells activated", labels=scales::percent_format(accuracy = 1))+
   #ylim(0,25)+
   #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
   theme(#legend.position = "none",
@@ -199,8 +200,8 @@ lineage_activation_pies <- ggplot(barchart_plot_data)+
         axis.text = element_blank(),
         panel.grid = element_blank(),
         panel.spacing = unit(0, "lines"),
-        plot.margin = unit(c(0,0,0,0), "cm"),
-        plot.title = element_text(hjust = 0.5, size=8),
+        plot.margin = unit(c(0,0,0,0), "mm"),
+        plot.title = element_text(hjust = 0.5, size=7),
         strip.text.y.left = element_text(hjust=0.5, size=7, face = "bold", angle = 0),
         legend.position = "none")
 
@@ -215,17 +216,13 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pie
 
 
 
-panel_AC <- cowplot::plot_grid(hex_through_time,
-                                activation_stacked_barchart, nrow=2, axis = "tl", rel_heights = c(1.2,1), align = "hv")
-
-panel_BD <- cowplot::plot_grid(gate_labeled_gg, lineage_activation_pies, nrow=2, axis = "tl", rel_heights = c(1.2,1), align = "hv")
-
 
 panel_AB <- cowplot::plot_grid(hex_through_time,
-                               gate_labeled_gg, ncol=2, axis = "tl", rel_widths = c(4, 1), align = "hv")
+                               gate_labeled_gg, ncol=2, axis = "tb", rel_widths = c(4, 1), align = "hv")
 
-panel_CD <- cowplot::plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol=2, axis = "tl", rel_widths = c(4, 1), align = "hv")
 
+panel_ABCD <- cowplot::plot_grid(panel_AB, panel_CD, nrow=2, rel_heights = c(1.2,1),  align = "hv")
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCD.png", height=4, width=8, units = "in")
 
 # Panel D: UMAP projections coloured by CD38, Bcl2, all clusters, sig clusters ####
 
@@ -319,11 +316,15 @@ cd38_plot <- flo_umap(short_big_table_t6, "CD38")+theme(axis.title = element_bla
 bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_blank())
 
 
-horizontal_d_f_panel <- cowplot::plot_grid(lymphocytes, cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=5)
+horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
 ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8)
 
-panel_ABCDEF <- cowplot::plot_grid(panel_AB, panel_CD, horizontal_d_f_panel, nrow=3, rel_heights = c(1.3,1,1.3))
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCDEF.png", panel_ABCDEF, height=6, width=11, units = "in")
+
+
+panel_AB <- cowplot::plot_grid(hex_through_time,
+                               gate_labeled_gg, ncol=2, axis = "tb", rel_widths = c(4, 1), align = "hv")
+
+
 # Panel E: Differential Abundance Heatmap ####
 library(colorspace)
 library(scales)
@@ -495,47 +496,3 @@ dev.off()
 
 # Lymphopenia ####
 
-
-haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
-
-haem_data$trial_number <- gsub("69010", "v", haem_data$trial_number)
-
-long_haem_data <- haem_data %>%
-  select(trial_number, timepoint, platelets, lymphocytes) %>%
-  filter(timepoint %in% c("_C_1", "_C1C7", "_EP", "_T6")) %>%
-  gather(Cell, Frequency, c(platelets))
-
-.simpleCap <- function(x) {
-  s <- strsplit(x, " ")[[1]]
-  paste(toupper(substring(s, 1, 1)), substring(s, 2),
-        sep = "", collapse = " ")
-}
-
-long_haem_data$Cell <- .simpleCap(long_haem_data$Cell)
-
-long_haem_data$timepoint <- gsub("_C_1", "Baseline", long_haem_data$timepoint)
-long_haem_data$timepoint <- gsub("_C1C7", "C7", long_haem_data$timepoint)
-long_haem_data$timepoint <- gsub("_EP", "T1", long_haem_data$timepoint)
-long_haem_data$timepoint <- gsub("_T6", "T6", long_haem_data$timepoint)
-
-
-lymphocytes <- ggplot(long_haem_data, aes(x=timepoint, y=Frequency, color=trial_number, group=trial_number))+
-  scale_fill_manual(values=volunteer_palette)+
-  scale_color_manual(values=volunteer_palette)+
-  geom_line(aes(color=trial_number), size=1.1)+
-  geom_point(fill="white", stroke=1, shape=21)+
-  theme_minimal()+
-  xlab("Timepoint")+
-  ylab(expression(Cells~"/"~mu*L~blood))+
-  guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
-  ggtitle("Lymphocytes")+
-  theme(axis.title.x = element_blank(),
-        legend.position = "none",
-        legend.title = element_text(size = 9), 
-        legend.text = element_text(size = 9),
-        axis.title.y=element_text(size=10),
-        plot.title = element_text(hjust=0.5),
-        axis.text.x = element_text(hjust=1, angle=45, size=8))+
-  scale_y_continuous(label=scales::comma)
-
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lymphopenia.png", lymphocytes, width=3, height=2.2)

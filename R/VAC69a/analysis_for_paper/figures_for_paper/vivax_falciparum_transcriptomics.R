@@ -5,7 +5,7 @@ library(ggrepel)
 
 # DoD sheet
 dod_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
-dod_data <- subset(dod_data, grepl("5", dod_data$GOLevels))
+#dod_data <- subset(dod_data, grepl("5", dod_data$GOLevels))
 
 
 
@@ -31,7 +31,7 @@ dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1
   scale_x_continuous(breaks=seq(0,100,by=10), labels = scales::label_number(suffix="%"), limits = c(-5, 105), expand=c(0,0))+
   ylab(expression('GO term enrichement'~italic("P. falciparum")~'at Diagnosis'))+
   xlab(expression('GO term enrichement'~italic("P. vivax")~'at Diagnosis'))+
-  ggitle("Diagnosis")+
+  #ggitle("Diagnosis")+
   ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
   # geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
   #               xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
@@ -48,7 +48,7 @@ dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
   theme_minimal()+
   xlab("# GO Terms")+
   scale_y_continuous(breaks = seq(0,100, by=20), limits=c(-5, 105))+
-  scale_x_continuous(breaks = seq(10,60, by=20))+
+  scale_x_continuous(breaks = seq(10,80, by=20))+
   geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey", size=0.15)+
   scale_fill_gradient2(low="#fec200", high="#db0085", midpoint = 50)+
   theme(axis.title.y =  element_blank(),

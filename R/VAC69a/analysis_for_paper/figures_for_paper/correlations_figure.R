@@ -105,12 +105,23 @@ plasma_df$Sample_ID <- rownames(plasma_df)
 plasma_df$Timepoint <- substr(plasma_df$Sample_ID, 5, nchar(plasma_df$Sample_ID))
 plasma_df$Volunteer <- substr(plasma_df$Sample_ID, 1, 3)
 
+volunteer_colours <- list("v02" = "#FB9A99",
+                          "v03" = "#E31A1C",
+                          "v05" = "#A6CEE3",
+                          "v06" = "#1F78B4",
+                          "v07" = "#F0E442",
+                          "v09" = "#E69F00")
+
+
+volunteer_palette <- unlist(unname(volunteer_colours))
+names(volunteer_palette) <- names(volunteer_colours)
+
 
 plasma_mds_plot <- ggplot(plasma_df, aes(x=MDS1, y=MDS2, color=Volunteer))+
   geom_point(aes(shape=Timepoint))+
   #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
   theme_minimal()+
-  scale_color_manual(values = my_paired_palette)+
+  scale_color_manual(values = volunteer_palette)+
   theme()
 
 
@@ -162,11 +173,11 @@ distance_traveled_mds2 <- lapply(distance_traveled_dfs, function(x) x$sum_sq_MDS
 distance_traveled <- lapply(names(distance_traveled_mds2), function(x)
   data.frame(Volunteer=x, "MDS1"=as.numeric(distance_traveled_mds1[[x]]), "MDS2"=as.numeric(distance_traveled_mds2[[x]])))
 
-df <- do.call(rbind, distance_traveled)
+distance_frame <- do.call(rbind, distance_traveled)
 
-df$distance <- sqrt(apply(df[,2:3], 1, sum))
+distance_frame$distance <- sqrt(apply(distance_frame[,2:3], 1, sum))
 
-pca_distance <- df$distance
+pca_distance <- distance_frame$distance
 names(pca_distance) <- c("v02", "v03", "v05", "v06", "v07")
 
 
@@ -259,18 +270,18 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_co
 # cd3 activation data
 summary <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = F)
 
-summary$volunteer <- gsub("V", "v", t_cell_summary$volunteer, fixed=T)
+summary$volunteer <- gsub("V", "v", summary$volunteer, fixed=T)
 
 
 t_cell_summary <- summary %>%
-  group_by(volunteer, timepoint) %>%
   filter(timepoint=="T6") %>%
   filter(., grepl("activated", cluster_id)) %>%
+  group_by(volunteer) %>%
   summarise(sum_cd3=sum(frequency))
   
 
 
-combo <- data.frame("distance"=df$distance,
+combo <- data.frame("distance"=distance_frame$distance,
                     "alt"=t(2^t(log_plasma_data["alt",grepl("T6", colnames(log_plasma_data))])), 
                     t_cell_summary[1:5,])
 
@@ -316,34 +327,20 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_plasma_corr_plot.png", cd
 # combo2 <- t_cell_summary
 # combo2$alt <- complete_alt_timecourse[match(combo2$volunteer, names(complete_alt_timecourse))]
 
-lm_eqn = function(m) {
-  
-  l <- list(a = format(coef(m)[1], digits = 2),
-            b = format(abs(coef(m)[2]), digits = 2),
-            r2 = format(summary(m)$r.squared, digits = 3));
-  
-  if (coef(m)[2] >= 0)  {
-    eq <- substitute(italic(y) == a + b %.% italic(x)*","~~italic(r)^2~"="~r2,l)
-  } else {
-    eq <- substitute(italic(y) == a - b %.% italic(x)*","~~italic(r)^2~"="~r2,l)    
-  }
-  
-  as.character(as.expression(eq));                 
-}
 
 cd3_alt_corr_plot <- ggplot(combo, aes(y=alt, x=sum_cd3))+
   geom_point(aes(colour=volunteer))+
   ylab("ALT at T6")+
   xlab("CD3+ T cell activation")+
-  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  scale_color_manual(values = volunteer_palette)+
   theme_minimal()+
   geom_smooth(method="lm", se=T, fill="lightgrey")+
-  
-  #geom_text(aes(x = 12, y = 125, label = lm_eqn(lm(alt ~ sum_cd3, combo))), parse = TRUE, size=1)+
-  #geom_smooth(method="lm")+
-  theme(legend.position = "none",
+  theme(legend.title=element_blank(),
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
+
+vol_lgd <- get_legend(cd3_alt_corr_plot)
+cd3_alt_corr_plot <- cd3_alt_corr_plot+theme(legend.position = "none")
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_alt_corr_plot.png", cd3_alt_corr_plot, height=2, width=2)
 
@@ -385,7 +382,7 @@ lineage_freqs <- lineage_freqs %>%
 # 
 # lineage_freqs$fraction_of_lineage_activated <- (lineage_freqs$lin_act_freq/lineage_freqs$lin_tot_freq)*100
 
-lineage_spcific_activation <- ggplot(lineage_freqs, aes(x=volunteer, y=fraction_of_lineage_activated, fill=volunteer))+
+  lineage_spcific_activation <- ggplot(lineage_freqs, aes(x=volunteer, y=fraction_of_lineage_activated, fill=volunteer))+
   geom_bar(stat="identity")+
   facet_wrap(~lineage, scales="free")+
   theme_minimal()+
@@ -434,15 +431,19 @@ lineage_activation_alt_corr_plot <- ggplot(lineage_freqs, aes(x=alt, y=fraction_
   geom_smooth(method="lm", se=T, fill="lightgrey")+
   ylab("T cell Lineage Activation")+
   scale_color_manual(name="Volunteer", values=volunteer_palette)+
-  facet_wrap(~lineage, scales="free")+
+  facet_wrap(~lineage, scales="free", ncol=6)+
   theme_minimal()+
-  theme(plot.margin = unit(c(1, 0.5, 0.5, 0.5), "cm"),
+  theme(legend.title=element_blank(),
+        plot.margin = unit(c(1, 0.5, 0.5, 0.5), "cm"),
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_alt_corr_plot.png", lineage_activation_alt_corr_plot, height=3, width=6)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_alt_corr_plot.png", lineage_activation_alt_corr_plot, height=2, width=8)
 
-top_row <- cowplot::plot_grid(cd3_plasma_corr_plot,  alt_plasma_corr_plot, cd3_alt_corr_plot, ncol=3)
-both_rows <- cowplot::plot_grid(top_row, lineage_activation_alt_corr_plot, nrow=2, rel_heights = c(1,2), align = "v", axis="b")
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_correlations.png", both_rows, height=6, width=8)
+
+top_row <- cowplot::plot_grid(arrow_pca_plot, cd3_plasma_corr_plot,  alt_plasma_corr_plot, cd3_alt_corr_plot, ncol=4,
+                              rel_widths = c(1,1,1,1,0.3), align = "v", axis="b")
+
+#ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_correlations.png", both_rows, height=5, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plasma_cd3_alt_correlations.png", top_row, height=2, width=8)

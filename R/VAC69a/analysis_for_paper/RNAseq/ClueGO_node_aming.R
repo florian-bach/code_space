@@ -19,23 +19,39 @@ vivax_falciparum_dod <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM
 
 vivax_falciparum_t6 <-read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM_T6/VIVAX_FALCIPARUM_T6_Results_Table")
 
-data <- vivax_falciparum_t6
+data <- vivax_falciparum_dod
 # data <- t6_data
 
+
 #filter GOTerms to be level 5 only
-dod_level_siz <- subset(data, grepl("5", data$GOLevels))
+data <- subset(data, grepl("5", data$GOLevels))
 
 
-
-
-names_dod <- dod_level_siz %>%
+names_dod <- data %>%
   filter(`% Associated Genes`>10) %>%
+  arrange(`Term PValue`) %>%
   group_by(GOGroups) %>%
-  top_n(-3, `Term PValue`) %>%
-  ungroup() %>%
-  #top_n(-60, `Group PValue`) %>%
-  arrange(`Group PValue`, `Term PValue`) %>%
+  top_n(30, GOGroups) %>%
+  #group_by(GOGroups) %>%
+  #top_n(-1, GOTerm) %>%
   select(GOTerm, `Term PValue`, GOGroups, `Group PValue`) 
+
+names_dod <- names_dod[!duplicated(names_dod$GOGroups),]
+names_dod <- names_dod[!duplicated(names_dod$GOTerm),]
+
+View(subset(names_dod, names_dod$GOGroups %in% dod_level_siz$GOGroups[grep("*leukocyte chemotaxis*", dod_level_siz$GOTerm)]))
+
+
+
+
+# names_dod <- dod_level_siz %>%
+#   filter(`% Associated Genes`>10) %>%
+#   group_by(GOGroups) %>%
+#   top_n(-3, `Term PValue`) %>%
+#   ungroup() %>%
+#   #top_n(-60, `Group PValue`) %>%
+#   arrange(`Group PValue`, `Term PValue`) %>%
+#   select(GOTerm, `Term PValue`, GOGroups, `Group PValue`) 
 
 names_dod <- names_dod[!duplicated(names_dod$GOTerm),]
 
@@ -44,8 +60,6 @@ names_dod <- names_dod %>%
   top_n(-1, `Term PValue`) 
 
 
-
-subset(names_dod, names_dod$GOGroups==dod_level_siz$GOGroups[grep("*kinetochore*", dod_level_siz$GOTerm)])
 
 
 # write.csv(names_dod, "~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM_DOD/vivax_falciparum_dod_flo_group_names.csv")
