@@ -76,7 +76,7 @@ colnames(dataplasma) <- gsub("DoD", "Diagnosis", colnames(dataplasma))
 plasma_data <- as.matrix(dataplasma[, colnames(dataplasma) %in% colnames(wide_cytof)]) # <3
 
 changing_analytes <- sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)
-changing_analytes <- changing_analytes[1:18]
+changing_analytes <- changing_analytes[1:12]
 
 rownames(plasma_data) <- gsub("pg.ml.", "", rownames(plasma_data), fixed = T)
 rownames(plasma_data) <- gsub(".", "",rownames (plasma_data), fixed=T)
@@ -156,7 +156,7 @@ arrow_pca_plot <- ggplot(arrow_pca, aes(x=MDS1, y=MDS2))+
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plot.png", arrow_pca_plot, height=3, width =3)
 
 
-  plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
+plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
 plasma_df$Sample_ID <- rownames(plasma_df)
 plasma_df$Timepoint <- substr(plasma_df$Sample_ID, 5, nchar(plasma_df$Sample_ID))
 plasma_df$Volunteer <- substr(plasma_df$Sample_ID, 1, 3)
@@ -221,7 +221,14 @@ sig_cytof_t6_fc <- subset(cytof_t6_fc, grepl("activated", rownames(cytof_t6_fc))
 
 sig_plasma_dod_fc <- subset(plasma_dod_fc, rownames(plasma_dod_fc)%in%c(changing_analytes, "alt", "Ang2"))
 
-big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, "pca_distance"=pca_distance)
+
+
+all_max_parasitaemias <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
+                   max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
+                   DoD=c(15.5, 12.5, 15.5, 15.5, 16, 16.5))
+
+
+big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, t(all_max_parasitaemias[1:5,2:3]))
 
 #big_fc_table <- rbind(plasma_dod_fc, cytof_t6_fc, "pca_distance"=pca_distance)
 
@@ -326,9 +333,10 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_plasma_corr_plot.png", cd
 
 # combo2 <- t_cell_summary
 # combo2$alt <- complete_alt_timecourse[match(combo2$volunteer, names(complete_alt_timecourse))]
+combo2 <- data.frame("alt"=unname(alt_timecourse[grepl("T6", names(alt_timecourse), fixed = T)]), 
+                    t_cell_summary)
 
-
-cd3_alt_corr_plot <- ggplot(combo, aes(y=alt, x=sum_cd3))+
+cd3_alt_corr_plot <- ggplot(combo2, aes(y=alt, x=sum_cd3))+
   geom_point(aes(colour=volunteer))+
   ylab("ALT at T6")+
   xlab("CD3+ T cell activation")+
@@ -338,6 +346,8 @@ cd3_alt_corr_plot <- ggplot(combo, aes(y=alt, x=sum_cd3))+
   theme(legend.title=element_blank(),
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
+
+library(cowplot)
 
 vol_lgd <- get_legend(cd3_alt_corr_plot)
 cd3_alt_corr_plot <- cd3_alt_corr_plot+theme(legend.position = "none")
@@ -397,7 +407,7 @@ lineage_freqs_sansv09 <- subset(lineage_freqs, lineage_freqs$volunteer!="v09")
 
 lineage_freqs_sansv09 %>%
   group_by(lineage) %>%
-  mutate("distance"=df$distance)%>%
+  mutate("distance"=distance_frame$distance)%>%
   do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$distance, method="pearson")))
 # lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
 # <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
@@ -422,9 +432,11 @@ lineage_freqs$alt <- complete_alt_timecourse[match(lineage_freqs$volunteer, name
 lineage_freqs %>%
   group_by(lineage) %>%
   do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="pearson")))
- 
 
-lineage_activation_alt_corr_plot <- ggplot(lineage_freqs, aes(x=alt, y=fraction_of_lineage_activated))+
+lineage_freqs <- filter(lineage_freqs, lineage %in% c("CD4", "gamma delta", "MAIT", "Treg")) 
+lineage_freqs$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
+
+lineage_activation_alt_corr_plot <- ggplot(lineage_freqs, aes(x=alt, y=fraction_of_lineage_activated/100))+
   geom_point(aes(colour=volunteer))+
   #xlab("Distance Traveled Plasma PCA")+
   xlab("ALT at T6")+
@@ -433,17 +445,83 @@ lineage_activation_alt_corr_plot <- ggplot(lineage_freqs, aes(x=alt, y=fraction_
   scale_color_manual(name="Volunteer", values=volunteer_palette)+
   facet_wrap(~lineage, scales="free", ncol=6)+
   theme_minimal()+
+  scale_y_continuous(limits = c(0,NA), labels = scales::label_percent(accuracy = 1))+
   theme(legend.title=element_blank(),
         plot.margin = unit(c(1, 0.5, 0.5, 0.5), "cm"),
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_alt_corr_plot.png", lineage_activation_alt_corr_plot, height=2, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_alt_corr_plot.png", lineage_activation_alt_corr_plot, height=2, width=6)
 
 
 
-top_row <- cowplot::plot_grid(arrow_pca_plot, cd3_plasma_corr_plot,  alt_plasma_corr_plot, cd3_alt_corr_plot, ncol=4,
-                              rel_widths = c(1,1,1,1,0.3), align = "v", axis="b")
+top_row <- cowplot::plot_grid(arrow_pca_plot, cd3_plasma_corr_plot,  alt_plasma_corr_plot, ncol=3,
+                              rel_widths = c(1,1,1,1), align = "v", axis="b")
 
 #ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_correlations.png", both_rows, height=5, width=8)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plasma_cd3_alt_correlations.png", top_row, height=2, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plasma_cd3_alt_correlations.png", top_row, height=2, width=6)
+
+
+
+#more correlations, parasitaemia, day of diagnosis
+
+combo <- cbind(combo, all_max_parasitaemias[1:5, 2:3])
+combo <- combo[,!duplicated(rownames(combo))]
+
+ggplot(combo, aes(x=distance, y=DoD))+
+  geom_point(aes(colour=volunteer))+
+  xlab("Distance Traveled Plasma PCA")+
+  ylab("Day of Diagnosis")+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/distance_vs_dod.png")
+
+ggplot(combo, aes(x=distance, y=max_parasiatemia))+
+  geom_point(aes(colour=volunteer))+
+  xlab("Distance Traveled Plasma PCA")+
+  ylab("Max. Parasitaemia")+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/distance_vs_max_parasites.png")
+
+
+combo2 <- cbind(combo2, all_max_parasitaemias[, 2:3])
+combo2 <- combo2[,!duplicated(rownames(combo2))]
+
+ggplot(combo2, aes(x=sum_cd3, y=DoD))+
+  geom_point(aes(colour=volunteer))+
+  xlab("CD3+ T cell activation")+
+  ylab("Day of Diagnosis")+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_dod.png")
+
+
+ggplot(combo2, aes(x=sum_cd3, y=max_parasiatemia))+
+  geom_point(aes(colour=volunteer))+
+  xlab("CD3+ T cell activation")+
+  ylab("Max. Parasitaemia")+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_max_parasiatemia.png")
+

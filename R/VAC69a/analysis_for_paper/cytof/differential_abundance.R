@@ -40,15 +40,6 @@ pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
 #pairwise_contrast_t6 <- createContrast(c(0, 0, 1, 1))
 
 
-da_t6 <- diffcyt(merged_daf,
-                 design = design,
-                 contrast = pairwise_contrast_t6,
-                 analysis_type = "DA",
-                 method_DA = "diffcyt-DA-edgeR",
-                 clustering_to_use = "flo_merge",
-                 verbose = T)
-
-plotDiffHeatmap(merged_daf, da_t6, top_n = 20, th = FDR_cutoff)
 
 da_c10 <- diffcyt(merged_daf,
                   design = design,
@@ -185,11 +176,11 @@ all(edger_t6_sig %in% glm_t6_sig) # TRUE
 # BOXPLOTS OF CLUSTER COUNTS AND FREQUENCIES ####
 
 all_cluster_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
-all_cluster_log_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)+scale_y_log10()
-all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)
+all_cluster_log_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)+scale_y_log10(name = "Number of Cells in Sample")
+all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)+theme(axis.title = element_text(size=12))
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png",all_cluster_counts , height = 12, width=18)# works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18) #works
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_log_counts.png",all_cluster_log_counts, height = 12, width=18)# works
 
 write.csv(all_cluster_freqs$data,"~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_freqs.csv")

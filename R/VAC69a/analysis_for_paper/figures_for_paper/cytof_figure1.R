@@ -26,7 +26,7 @@ inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
 
 # DOPE CONTOUR PLOT #### n=13 is your friend :*
 hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
+  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 15)+
   stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
   #stat_density_2d(contour = TRUE, bins=13, color="red", size=0.05)+
   scale_x_continuous(limits=c(-13.5, 10))+
@@ -35,6 +35,7 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   facet_wrap(~timepoint, ncol = 4, scales="free")+
   UMAP_theme+
   theme(panel.grid = element_blank(),
+        legend.position = "right",
         panel.spacing.x = unit(0,"lines"),
         strip.text = element_text(size=7),
         axis.title = element_text(size=6),
@@ -269,6 +270,15 @@ names(col_pal) <- colcsv$X
 expanded_cluster_palette <- c(col_pal, color_103_scheme[22:46])
 names(expanded_cluster_palette)[11:length(expanded_cluster_palette)] <- unique(big_table$flo_label)[-match(unique(big_table$significant), unique(big_table$flo_label), nomatch = 0)]
 
+
+
+UMAP_theme <- theme_minimal()+theme(
+  panel.grid.minor = element_blank(),
+  legend.position = "none",
+  axis.text = element_blank()
+)
+
+
 # all cluster colours
 t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   geom_point(aes(color=flo_label), shape=".", alpha=0.4)+
@@ -286,7 +296,7 @@ t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   coord_cartesian(xlim=c(-13, 10),
                   ylim=c(-11.2, 11.3))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
 
 
 
@@ -308,7 +318,7 @@ t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   coord_cartesian(xlim=c(-13, 10),
                   ylim=c(-11.2, 11.3))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=5, width=5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=4, width=4)
 
 
 # UMAP coloured by CD38, Bcl2

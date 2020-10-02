@@ -1,6 +1,6 @@
 #Panel A: Heatmap of Marker expression of significant clusters only ####
 
-
+library(ComplexHeatmap)
 
 reordered_sig_scaled_mat <- as.matrix(read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_cluster_medians_heatmap_t6.csv", header = T, row.names = 1))
 
@@ -81,18 +81,26 @@ median_cluster_heat <- Heatmap(matrix = rereordered_sig_scaled_mat,
                                rect_gp = gpar(col = "white"),
                                #top_annotation = combo_top_anno,
                                right_annotation = cd3_right_anno_var,
-                               show_heatmap_legend = FALSE,
-                               column_names_rot = 45
-                               #heatmap_legend_param = list(col = col_fun4, title = "Normalised Frequency", title_position = "topleft"),
+                               show_heatmap_legend = TRUE,
+                               column_names_rot = 45,
+                               heatmap_legend_param = list(col = col_inferno,
+                                                           legend_position = "bottom",
+                                                           at=c(0,0.5,1),
+                                                           title = "Normalised Marker Expression",
+                                                           legend_direction = "horizontal",
+                                                           title_position = "topcenter",
+                                                           legend_width = unit(5.2, "cm"),
+                                                           border = FALSE)
                                # width = unit(16, "cm"),
                                # height = unit(16*9/28, "cm")
 )
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper///sig_cluster_t6_phenotype_heat_var.png", width=8, height=2.3, units = "in", res=400)
+png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper///sig_cluster_t6_phenotype_heat_var.png", width=8, height=2.5, units = "in", res=400)
 draw(median_cluster_heat,
      #annotation_legend_list = list(box_lgd),
      merge_legends = FALSE,
+     heatmap_legend_side = "top"
      #padding = unit(c(200, 200, 200, 200), "mm")
 )
 dev.off() 
@@ -261,7 +269,6 @@ stacked_bar_levels <- c("activated CD27- cytotoxic CD4 EM",
 
 cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=cd4_freq, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+
-  ggtitle("Activation of\nCD4 Memory Cell sat T6")+
   scale_fill_manual(values=col_pal)+
   scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells at T6", labels=scales::percent_format(accuracy = 1))+
   theme_minimal()+
@@ -332,37 +339,44 @@ HLADR_plot <- flo_umap(shorter_big_table_t6, "HLA-DR")+theme(axis.title = elemen
 ICOS_plot <- flo_umap(shorter_big_table_t6, "ICOS")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
 # lineage markers across whole UMAP ####
-CD4_plot<- flo_umap(big_table, "CD4", only_show = "T6")+theme(axis.title = element_blank())
-CD8_plot<- flo_umap(big_table, "CD8", only_show = "T6")+theme(axis.title = element_blank())
-Vd2_plot <- flo_umap(big_table, "Vd2", only_show = "T6")+theme(axis.title = element_blank())
-Va72_plot <- flo_umap(big_table, "Va72", only_show = "T6")+theme(axis.title = element_blank())
-FoxP3_plot <- flo_umap(big_table, "FoxP3", only_show = "T6")+theme(axis.title = element_blank())
-CD25_plot <- flo_umap(big_table, "CD25", only_show = "T6")+theme(axis.title = element_blank())
-CD161_plot <- flo_umap(big_table, "CD161", only_show = "T6")+theme(axis.title = element_blank())
-CD127_plot <- flo_umap(big_table, "CD127", only_show = "T6")+theme(axis.title = element_blank())
+
+supp_theme <- theme(axis.title = element_text(size = 6),
+                    legend.title = element_text(size = 6),
+                    legend.text = element_text(size=6))
+# axis.title = element_blank()
+#                     #plot.title = element_blank(),
+#                     #strip.text = element_blank(),
+#                     #legend.position = "right"
+#                     )
+
+
+CD4_plot<- flo_umap(big_table, "CD4", only_show = "T6")+supp_theme
+CD8_plot<- flo_umap(big_table, "CD8", only_show = "T6")+supp_theme
+Vd2_plot <- flo_umap(big_table, "Vd2", only_show = "T6")+supp_theme
+Va72_plot <- flo_umap(big_table, "Va72", only_show = "T6")+supp_theme
+FoxP3_plot <- flo_umap(big_table, "FoxP3", only_show = "T6")+supp_theme
+CD25_plot <- flo_umap(big_table, "CD25", only_show = "T6")+supp_theme
+CD161_plot <- flo_umap(big_table, "CD161", only_show = "T6")+supp_theme
+CD127_plot <- flo_umap(big_table, "CD127", only_show = "T6")+supp_theme
 
 lineage_plot <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot, FoxP3_plot, CD25_plot, CD127_plot, CD161_plot, ncol=4, align="hv", axis="l")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_lineage_plot.png", lineage_plot, height=3, width=4)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_lineage_plot.png", lineage_plot, height=3, width=8)
 
 # mempry markers across whole UMAP ####
-CCR7_plot <- flo_umap(big_table, "CCR7", facet_by = "timepoint")+theme(axis.title = element_blank(),
-                                                                       plot.title = element_blank(),
-                                                                       strip.text = element_blank())
-CD45RO_plot <- flo_umap(big_table, "CD45RO", facet_by = "timepoint")+theme(axis.title = element_blank(),
-                                                                           plot.title = element_blank(),
-                                                                           strip.text = element_blank())
-CD45RA_plot <- flo_umap(big_table, "CD45RA", facet_by = "timepoint")+theme(axis.title = element_blank(),
-                                                                           plot.title = element_blank(),
-                                                                           strip.text = element_blank())
-CD57_plot <- flo_umap(big_table, "CD57", facet_by = "timepoint")+theme(axis.title = element_blank(),
-                                                                       plot.title = element_blank(),
-                                                                       strip.text = element_blank())
-CD127_plot <- flo_umap(big_table, "CD127", facet_by = "timepoint")+theme(axis.title = element_blank(),
-                                                                         plot.title = element_blank(),
-                                                                         strip.text = element_blank())
-CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+theme(axis.title = element_blank(),
-                                                                           plot.title = element_blank(),
-                                                                           strip.text = element_blank())
+
+supp_theme2 <- theme(axis.title = element_text(size = 6),
+                     legend.title = element_text(size = 6),
+                     legend.text = element_text(size=6),
+                     strip.text = element_blank(),
+                     plot.title = element_blank())
+
+CCR7_plot <- flo_umap(big_table, "CCR7", facet_by = "timepoint")+supp_theme2
+CD45RO_plot <- flo_umap(big_table, "CD45RO", facet_by = "timepoint")+supp_theme2
+CD45RA_plot <- flo_umap(big_table, "CD45RA", facet_by = "timepoint")+supp_theme2
+CD57_plot <- flo_umap(big_table, "CD57", facet_by = "timepoint")+supp_theme2
+CD127_plot <- flo_umap(big_table, "CD127", facet_by = "timepoint")+supp_theme2
+CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+supp_theme2
+
 
 memory_plots <- cowplot::plot_grid(CCR7_plot, CD45RO_plot, CD45RA_plot, CD57_plot, CD127_plot, CX3CR1_plot, ncol=1, align="hv", axis="l")
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_memory_plots.png", memory_plots, height=10, width=8)
