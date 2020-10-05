@@ -221,20 +221,82 @@ sig_cytof_t6_fc <- subset(cytof_t6_fc, grepl("activated", rownames(cytof_t6_fc))
 
 sig_plasma_dod_fc <- subset(plasma_dod_fc, rownames(plasma_dod_fc)%in%c(changing_analytes, "alt", "Ang2"))
 
+# cell counts 
+
+
+haem_count_data <- read.csv("~/PhD/clinical_data/vac69a/haem.csv", header=T, stringsAsFactors = F)
+haem_count_data <- haem_count_data[1:(nrow(haem_count_data)-5),]
+
+colnames(haem_count_data)[1] <- "volunteer"
+
+haem_count_data$volunteer <- paste("v", substr(haem_count_data$volunteer, 6, 7), sep='')
+
+lousy_haem_timepoints <- unique(haem_count_data$timepoint)
+good_haem_timepoints <- c("C90", "T6", "C7 am", "Baseline", "C28", "EV", "C14 am", "Diagnosis", "Screening", "T1")
+
+haem_time_dic <- setNames(good_haem_timepoints, lousy_haem_timepoints)
+
+haem_count_data$timepoint <- stringr::str_replace_all(haem_count_data$timepoint, haem_time_dic)
+
+haem_count_data <- haem_count_data %>%
+  select(volunteer, timepoint, !grep("_ae", colnames(.)[13:ncol(.)], fixed = TRUE, value = TRUE))
+
+haem_count_data <- haem_count_data[,c(1:2, 13:ncol(haem_count_data))]
+
+long_haem_count_data <- haem_count_data %>%
+  gather(cell, count, colnames(haem_count_data)[4:ncol(haem_count_data)]) %>%
+  group_by(volunteer, cell) %>%
+  #summarise(T1_FC = count[timepoint == "T1"] / count[timepoint == "Baseline"]) %>%
+  summarise(DoD_FC = count[timepoint == "Diagnosis"] / count[timepoint == "Baseline"]) %>%
+  #spread(volunteer,T1_FC)
+  spread(volunteer,DoD_FC)#<3
+
+haem_count_fc <- as.matrix(long_haem_count_data[,2:6])
+rownames(haem_count_fc) <- long_haem_count_data$cell
+
+
+haem_count_plot_data <- haem_count_data %>%
+  gather(cell, count, colnames(haem_count_data)[4:ncol(haem_count_data)])
+
+
+
+
+haem_count_plot <- ggplot(filter(haem_count_plot_data, timepoint %in% c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=count, color=volunteer, group=volunteer))+
+  geom_line(aes(color=volunteer), size=1.1)+
+  geom_point(fill="white", stroke=1, shape=21)+
+  facet_wrap(~ cell, scales = "free", ncol=3)+
+  #scale_y_continuous(trans = "log2", labels=scales::comma)+
+  ylab("cell counts")+
+  theme_minimal()+
+  guides(color=guide_legend(override.aes = list("size"=0.1)))+
+  scale_color_manual(values=volunteer_palette)+
+  fig1_theme+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(hjust=1, angle=45, size=6),
+        strip.background = element_rect(fill = "white", color = "white"))
+
+
+ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_plot.png", haem_count_plot, width = 8, height=5)
+
+
+
+
+
+
 
 
 all_max_parasitaemias <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
                    max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
-                   DoD=c(15.5, 12.5, 15.5, 15.5, 16, 16.5))
+                   DoD=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
+                   max_ae=c(3,7,4,6,2,2))
 
 
-big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, t(all_max_parasitaemias[1:5,2:3]))
+big_fc_table <- rbind(sig_plasma_dod_fc, haem_count_fc, sig_cytof_t6_fc, plasma_t6_fc, t(all_max_parasitaemias[1:5,2:4]))
 
-#big_fc_table <- rbind(plasma_dod_fc, cytof_t6_fc, "pca_distance"=pca_distance)
 
-baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
-dod_table <-  subset(big_table, select=grepl("Diagnosis", colnames(big_table)))
-t6_table <-  subset(big_table, select=grepl("T6", colnames(big_table)))
+# baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
+# dod_table <-  subset(big_table, select=grepl("Diagnosis", colnames(big_table)))
+# t6_table <-  subset(big_table, select=grepl("T6", colnames(big_table)))
 
 timepoint <- big_fc_table
 
@@ -269,9 +331,71 @@ corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, le
         legend.key.height = unit(5, "mm"))
 
 #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc2.png", corr_matrix_plot, height=4.2, width = 5)
 
-#individual correlation plots
+
+# log2(absolute) corr matrix ####
+# 
+# sig_cytof <- subset(wide_cytof_sans_v09, grepl("activated", rownames(wide_cytof_sans_v09)))
+# sig_cytof <- subset(sig_cytof, select=grepl("T6", colnames(sig_cytof)))
+# sig_cytof <- log2(sig_cytof)
+# 
+# sig_plasma_dod <- subset(log_plasma_data, rownames(log_plasma_data)%in%c(changing_analytes, "alt", "Ang2"))
+# sig_plasma_dod <- subset(sig_plasma_dod, select=grepl("T6", colnames(sig_plasma_dod)))
+# sig_plasma_dod <- subset(sig_plasma_dod, rownames(sig_plasma_dod) %notin% c("alt", "IL18"))
+# 
+# 
+# sig_plasma_t6 <- subset(log_plasma_data, select=grepl("T6", colnames(log_plasma_data)))
+# sig_plasma_t6 <- subset(sig_plasma_t6, rownames(sig_plasma_t6) %in% c("alt", "IL18", "Ang2"))
+# 
+
+# 
+# all_max_parasitaemias <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
+#                                     max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
+#                                     DoD=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
+#                                     max_ae=c(3,7,4,6,2,2))
+# clin_data <- t(all_max_parasitaemias[1:5,2:4])
+# colnames(clin_data) <- paste(c('v02', 'v03', 'v05', 'v06', 'v07'), "_T6", sep='')
+# 
+# big_table <- rbind(sig_plasma_dod, sig_cytof, sig_plasma_t6, clin_data)
+# 
+# timepoint <- big_table
+# 
+# distance <- "euclidean" # manhattan/euclidean maybe
+# 
+# spearman <- cor(t(timepoint), method = "pearson")
+# 
+# baseline_dist <- dist(spearman, method = distance, diag = FALSE, upper = FALSE, p = 2)
+# baseline_hclust <- hclust(baseline_dist)
+# 
+# #check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
+# baseline_spearman_df  <- data.frame(spearman, check.names = FALSE)
+# baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+# 
+# long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
+# 
+# 
+# 
+# absolute_corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]), y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])))+
+#   geom_tile(aes(fill=ro))+
+#   ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
+#   labs(fill = expression(rho))+
+#   theme(axis.title = element_blank(),
+#         axis.text.x = element_text(angle = 45, hjust = 1),
+#         plot.title = element_text(hjust=0.5),
+#         axis.text = element_text(size=4),
+#         legend.title = element_text(size=10),
+#         legend.text = element_text(size=8),
+#         legend.title.align = 0.1,
+#         legend.key.size=unit(2, "mm"),
+#         legend.key.height = unit(5, "mm"))
+# 
+# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
+# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_absolute.png", absolute_corr_matrix_plot, height=4.2, width = 5)
+
+
+
+#individual correlation plots ####
 
 # T cell activation
 # cd3 activation data
@@ -334,7 +458,7 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_plasma_corr_plot.png", cd
 # combo2 <- t_cell_summary
 # combo2$alt <- complete_alt_timecourse[match(combo2$volunteer, names(complete_alt_timecourse))]
 combo2 <- data.frame("alt"=unname(alt_timecourse[grepl("T6", names(alt_timecourse), fixed = T)]), 
-                    t_cell_summary)
+                    t_cell_summary, "max_ae"=all_max_parasitaemias$max_ae)
 
 cd3_alt_corr_plot <- ggplot(combo2, aes(y=alt, x=sum_cd3))+
   geom_point(aes(colour=volunteer))+
@@ -353,6 +477,29 @@ vol_lgd <- get_legend(cd3_alt_corr_plot)
 cd3_alt_corr_plot <- cd3_alt_corr_plot+theme(legend.position = "none")
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_alt_corr_plot.png", cd3_alt_corr_plot, height=2, width=2)
+
+
+
+cd3_ae_corr_plot <- ggplot(combo2, aes(y=max_ae, x=sum_cd3))+
+  geom_point(aes(colour=volunteer))+
+  ylab("# of AEs around Diagnosis")+
+  xlab("CD3+ T cell activation")+
+  scale_color_manual(values = volunteer_palette)+
+  theme_minimal()+
+  scale_y_continuous(breaks = seq(0,10, by=2), limits = c(0,10))+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  theme(legend.title=element_blank(),
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6),
+        legend.position = "none")
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_ae_corr_plot.png", cd3_ae_corr_plot, height=2, width=2)
+
+# > cor.test(combo2$sum_cd3, combo2$max_ae)
+# t = 1.9593, df = 4, p-value = 0.1217
+#      cor 
+# 0.699801
+
 
 # lineage specific activation ####
 summary <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = F)
@@ -380,7 +527,7 @@ try2 <- summary %>%
 
 
 
- lineage_freqs <- cbind(try, "lin_rest_freq"=try2$lin_rest_freq)
+lineage_freqs <- cbind(try, "lin_rest_freq"=try2$lin_rest_freq)
 
 lineage_freqs <- lineage_freqs %>%
   group_by(volunteer) %>%
@@ -396,7 +543,6 @@ lineage_freqs <- lineage_freqs %>%
   geom_bar(stat="identity")+
   facet_wrap(~lineage, scales="free")+
   theme_minimal()+
-  
   ylab("Percentage of Lineage activated")+
   scale_fill_manual(values=volunteer_palette)+
   theme(legend.title = element_blank(),
@@ -429,14 +575,60 @@ names(complete_alt_timecourse) <- biochem2[biochem2$Timepoint=="T6" , "Volunteer
 
 lineage_freqs$alt <- complete_alt_timecourse[match(lineage_freqs$volunteer, names(complete_alt_timecourse))]
 
+lineage_freqs$max_ae <- all_max_parasitaemias$max_ae[match(lineage_freqs$volunteer, all_max_parasitaemias$vol)]
+
 lineage_freqs %>%
   group_by(lineage) %>%
   do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="pearson")))
 
-lineage_freqs <- filter(lineage_freqs, lineage %in% c("CD4", "gamma delta", "MAIT", "Treg")) 
-lineage_freqs$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
+# lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
+# <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
+#   1 CD4            0.791     2.59   0.0610         4  -0.0576     0.976 Pearson's product-moment correlation two.sided  
+# 2 CD8            0.455     1.02   0.365          4  -0.566      0.925 Pearson's product-moment correlation two.sided  
+# 3 DN             0.668     1.80   0.147          4  -0.313      0.959 Pearson's product-moment correlation two.sided  
+# 4 gamma delta    0.107     0.214  0.841          4  -0.772      0.845 Pearson's product-moment correlation two.sided  
+# 5 MAIT           0.147     0.297  0.781          4  -0.755      0.856 Pearson's product-moment correlation two.sided  
+# 6 Treg           0.816     2.82   0.0478         4   0.0122     0.979 Pearson's product-moment correlation two.sided  
 
-lineage_activation_alt_corr_plot <- ggplot(lineage_freqs, aes(x=alt, y=fraction_of_lineage_activated/100))+
+lineage_freqs %>%
+  group_by(lineage) %>%
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$max_ae, method="pearson")))
+
+# lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
+# <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
+#   1 CD4            0.700      1.96  0.122          4 -0.259       0.964 Pearson's product-moment correlation two.sided  
+# 2 CD8            0.809      2.75  0.0514         4 -0.00858     0.978 Pearson's product-moment correlation two.sided  
+# 3 gamma delta    0.886      3.83  0.0187         4  0.266       0.988 Pearson's product-moment correlation two.sided  
+# 4 MAIT           0.836      3.04  0.0382         4  0.0754      0.982 Pearson's product-moment correlation two.sided  
+# 5 Treg           0.562      1.36  0.245          4 -0.458       0.943 Pearson's product-moment correlation two.sided  
+
+activation_ae_corr_plot_data <- filter(lineage_freqs, lineage %notin% c("DN")) 
+#lineage_freqs$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
+
+lineage_activation_ae_corr_plot <- ggplot(lineage_freqs, aes(x=lineage_freqs$max_ae, y=fraction_of_lineage_activated/100))+
+  geom_point(aes(colour=volunteer))+
+  #xlab("Distance Traveled Plasma PCA")+
+  xlab("# of AEs around Diagnosis")+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  ylab("T cell Lineage Activation")+
+  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  facet_wrap(~lineage, scales="free", ncol=6)+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0,NA), labels = scales::label_percent(accuracy = 1))+
+  theme(legend.title=element_blank(),
+        plot.margin = unit(c(1, 0.5, 0.5, 0.5), "cm"),
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_ae_corr_plot.png", lineage_activation_ae_corr_plot, height=2, width=7)
+
+
+
+
+activation_alt_corr_plot_data <- filter(lineage_freqs, lineage %in% c("CD4", "gamma delta", "MAIT", "Treg")) 
+activation_alt_corr_plot_data$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
+
+lineage_activation_alt_corr_plot <- ggplot(activation_alt_corr_plot_data, aes(x=alt, y=fraction_of_lineage_activated/100))+
   geom_point(aes(colour=volunteer))+
   #xlab("Distance Traveled Plasma PCA")+
   xlab("ALT at T6")+
