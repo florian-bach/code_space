@@ -69,6 +69,15 @@ ifnas <- list(`Interferon Alpha Genes`=paste0("IFNA", c(1,2,4,5,6,7,8,10,13,14,1
 ifnbs <- list(`Interferon Beta Genes`=paste0("IFNB", seq(1,100), sep=""))
 
 
+
+
+cell_cycle_genes <- list(`Cell Cycle Genes` = c("HJURB", "CENPA", "NUSAP1", "MKI67", "MELK", "KIFC1", "SHCBP1", "TOP2A", "UBE2C", "CENPF", "AURKB", "CDCA3", "NCAPH", "CCNA2", "KIF23"))
+
+cell_cycle_genes <- list(`Cell Cycle Genes` = c("DTL", "CDC25A", "CDC6", "CCNE2", "GINS2", "MCM2", "E2F1", "CCNE1", "MCM6", "PCNA", "BARD1", "NASP", "EIF2S1", "SLBP", "SIVA1"))
+
+
+
+
 quick_gene_heatmaps(cleaned_search_results, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(Inflammation_markers, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(More_Inflammation_Markers, sort_by = "DoD_Baseline")
@@ -76,6 +85,8 @@ quick_gene_heatmaps(Even_More_Inflammation_Markers, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(ifnas, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(ifnbs, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(falci_t6_faves, sort_by = "T6_Baseline")
+
+quick_gene_heatmaps(cell_cycle_genes, sort = "T6_Baseline")
   
 # MOST SIGNIFICANT GENES HEATMAPS ####
   
@@ -84,14 +95,20 @@ big_table <- fread("all_unique_genes_cleaned.csv", header = TRUE, stringsAsFacto
 
 most_sig <-  big_table %>%
   group_by(file_name) %>%
-  top_n(n = -50, wt = padj) %>%
+  top_n(n = -30, wt = padj) %>%
   select(Symbol, file_name)
 
 
 list_of_top50 <- split(most_sig, most_sig$file_name)
 list_of_top50_genes <- lapply(list_of_top50, function(x) as.character(x$Symbol))
+#list_of_top50_genes <- lapply(names(list_of_top50_genes), function(x) list(x=c(list_of_top50_genes[[x]])))
 
-quick_gene_heatmaps(list_of_top50_genes)  
+top30_t6 <- list("Top 30 DEGs T6 relative to Baseline"=c(list_of_top50_genes$T6_Baseline))
+top30_dod <- list("Top 30 DEGs Diagnosis relative to Baseline"=c(list_of_top50_genes$DoD_Baseline))
+
+quick_gene_heatmaps(top30_t6, sort_by = "T6_Baseline")  
+quick_gene_heatmaps(top30_dod, sort_by = "DoD_Baseline")  
+
 
 
 

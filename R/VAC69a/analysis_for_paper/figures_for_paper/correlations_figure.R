@@ -125,7 +125,7 @@ plasma_mds_plot <- ggplot(plasma_df, aes(x=MDS1, y=MDS2, color=Volunteer))+
   theme()
 
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/plasma_mds.png", plasma_mds, height=4, width=4)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/plasma_mds.png", plasma_mds_plot, height=4, width=4)
 
 arrow_pca <- subset(plasma_df, plasma_df$Timepoint %in% c("Baseline", "Diagnosis"))
 
@@ -246,27 +246,38 @@ haem_count_data <- haem_count_data[,c(1:2, 13:ncol(haem_count_data))]
 long_haem_count_data <- haem_count_data %>%
   gather(cell, count, colnames(haem_count_data)[4:ncol(haem_count_data)]) %>%
   group_by(volunteer, cell) %>%
-  #summarise(T1_FC = count[timepoint == "T1"] / count[timepoint == "Baseline"]) %>%
-  summarise(DoD_FC = count[timepoint == "Diagnosis"] / count[timepoint == "Baseline"]) %>%
-  #spread(volunteer,T1_FC)
-  spread(volunteer,DoD_FC)#<3
+  summarise(T1_FC = count[timepoint == "T1"] / count[timepoint == "Baseline"]) %>%
+  #summarise(DoD_FC = count[timepoint == "Diagnosis"] / count[timepoint == "Baseline"]) %>%
+  spread(volunteer,T1_FC)
+  #spread(volunteer,DoD_FC)#<3
 
 haem_count_fc <- as.matrix(long_haem_count_data[,2:6])
 rownames(haem_count_fc) <- long_haem_count_data$cell
 
 
 haem_count_plot_data <- haem_count_data %>%
-  gather(cell, count, colnames(haem_count_data)[4:ncol(haem_count_data)])
+  gather(cell, count, colnames(haem_count_data)[4:ncol(haem_count_data)]) %>%
+  filter(cell %in% c("eosinophils", "monocytes", "neutrophils", "wbc"))
 
+haem_count_plot_data$cell <- paste(
+  toupper(substr(haem_count_plot_data$cell, 1,1)),
+  substr(haem_count_plot_data$cell, 2,nchar(haem_count_plot_data$cell)),
+  sep="")
 
+haem_count_plot_data$cell <- gsub("Wbc", "Total White Cells", haem_count_plot_data$cell)
+
+fig1_theme <- theme(axis.title.x = element_blank(),
+                    legend.title = element_text(size = 9), 
+                    legend.text = element_text(size = 9),
+                    axis.title=element_text(size=10))
 
 
 haem_count_plot <- ggplot(filter(haem_count_plot_data, timepoint %in% c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=count, color=volunteer, group=volunteer))+
   geom_line(aes(color=volunteer), size=1.1)+
   geom_point(fill="white", stroke=1, shape=21)+
-  facet_wrap(~ cell, scales = "free", ncol=3)+
+  facet_wrap(~ cell, scales = "free", ncol=4)+
   #scale_y_continuous(trans = "log2", labels=scales::comma)+
-  ylab("cell counts")+
+  ylab(expression(paste("Cell Counts (", 10^6, "/mL)")))+
   theme_minimal()+
   guides(color=guide_legend(override.aes = list("size"=0.1)))+
   scale_color_manual(values=volunteer_palette)+
@@ -276,7 +287,7 @@ haem_count_plot <- ggplot(filter(haem_count_plot_data, timepoint %in% c("Baselin
         strip.background = element_rect(fill = "white", color = "white"))
 
 
-ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_plot.png", haem_count_plot, width = 8, height=5)
+ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_plot.png", haem_count_plot, width = 8, height=2.5)
 
 
 
@@ -288,10 +299,12 @@ ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_pl
 all_max_parasitaemias <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
                    max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
                    DoD=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
-                   max_ae=c(3,7,4,6,2,2))
+                   max_ae=c(3,7,4,6,2,2),
+                   max_temp=c(37.7, 39.7, 37.1, 37.9, 37.4, 37.7),
+                   dose=c(1,1,0.2,0.2,0.05,0.05))
 
 
-big_fc_table <- rbind(sig_plasma_dod_fc, haem_count_fc, sig_cytof_t6_fc, plasma_t6_fc, t(all_max_parasitaemias[1:5,2:4]))
+big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, t(all_max_parasitaemias[1:5,2:ncol(all_max_parasitaemias)]))
 
 
 # baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
@@ -318,7 +331,8 @@ long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colname
 corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]), y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])))+
   geom_tile(aes(fill=ro))+
   #viridis::scale_fill_viridis(option="A")+
-  ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
+  # ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
+  ggplot2::scale_fill_gradient2(high = "#0859C6", mid="black", low="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
   labs(fill = expression(rho))+
   theme(axis.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1),
@@ -331,7 +345,7 @@ corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, le
         legend.key.height = unit(5, "mm"))
 
 #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc2.png", corr_matrix_plot, height=4.2, width = 5)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/rev_sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5)
 
 
 # log2(absolute) corr matrix ####
