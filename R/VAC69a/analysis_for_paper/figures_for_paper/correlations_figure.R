@@ -1,6 +1,8 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+
+
 `%notin%` <- Negate(`%in%`)
 #making the cytof data for correlations ####
 cytof_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", header = T, stringsAsFactors = F)
@@ -296,16 +298,22 @@ ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_pl
 
 
 
-all_max_parasitaemias <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
-                   max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
-                   DoD=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
-                   max_ae=c(3,7,4,6,2,2),
-                   max_temp=c(37.7, 39.7, 37.1, 37.9, 37.4, 37.7),
-                   dose=c(1,1,0.2,0.2,0.05,0.05))
+all_max_parasitaemias <- data.frame(#max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
+                   #`Day of Diagnosis`=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
+                   #max_ae=c(3,7,4,6,2,2),
+                   #"Lymphopenia" = c(0.3891892, 0.3989637, 0.3055556, 0.1685393, 0.3450479, 0.3073394),
+                   "Highest Body Temperature" = c(38.5, 39.7, 37.1, 37.9, 38.7, 37.7)
+                   #dose=c(1,1,0.2,0.2,0.05,0.05)
+                   )
 
+matrix_names <- colnames(all_max_parasitaemias)
+all_max_parasitaemias <- t(all_max_parasitaemias)
+rownames(all_max_parasitaemias) <- matrix_names
 
-big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, t(all_max_parasitaemias[1:5,2:ncol(all_max_parasitaemias)]))
+colnames(all_max_parasitaemias) <- c('v02', 'v03', 'v05', 'v06', 'v07', 'v09')
 
+big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, all_max_parasitaemias[,1:5])
+rownames(big_fc_table)[nrow(big_fc_table)] <- "Highest Body Temperature"
 
 # baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
 # dod_table <-  subset(big_table, select=grepl("Diagnosis", colnames(big_table)))
@@ -321,19 +329,27 @@ baseline_dist <- dist(spearman, method = distance, diag = FALSE, upper = FALSE, 
 baseline_hclust <- hclust(baseline_dist)
 
 #check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
+colnames(spearman) <- gsub(".", " ", colnames(spearman), fixed=T)
+rownames(spearman) <- gsub(".", " ", rownames(spearman), fixed=T)
+
 baseline_spearman_df  <- data.frame(spearman, check.names = FALSE)
+colnames(baseline_spearman_df) <- gsub(".", " ", colnames(baseline_spearman_df), fixed=T)
+
 baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+
 
 long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
 
 
-
-corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]), y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])))+
+corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]),
+                                                       y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])
+                                                       )
+                           )+
   geom_tile(aes(fill=ro))+
-  #viridis::scale_fill_viridis(option="A")+
-  # ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
-  ggplot2::scale_fill_gradient2(high = "#0859C6", mid="black", low="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
+  #geom_text(aes(label=round(ro, digits=2)), size=1)+
+  ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
   labs(fill = expression(rho))+
+  guides(fill=guide_colorbar(ticks = FALSE))+
   theme(axis.title = element_blank(),
         axis.text.x = element_text(angle = 45, hjust = 1),
         plot.title = element_text(hjust=0.5),
@@ -345,10 +361,10 @@ corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, le
         legend.key.height = unit(5, "mm"))
 
 #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/rev_sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5)
 
 
-# log2(absolute) corr matrix ####
+#log2(absolute) corr matrix ####
 # 
 # sig_cytof <- subset(wide_cytof_sans_v09, grepl("activated", rownames(wide_cytof_sans_v09)))
 # sig_cytof <- subset(sig_cytof, select=grepl("T6", colnames(sig_cytof)))
@@ -428,7 +444,9 @@ t_cell_summary <- summary %>%
 
 combo <- data.frame("distance"=distance_frame$distance,
                     "alt"=t(2^t(log_plasma_data["alt",grepl("T6", colnames(log_plasma_data))])), 
-                    t_cell_summary[1:5,])
+                    t_cell_summary[1:5,],
+                    max_temp = all_max_parasitaemias$Highest.Body.Temperature[1:5],
+                    lymphopenia=all_max_parasitaemias$Lymphopenia[1:5])
 
 
 volunteer_colours <- list("v02" = "#FB9A99",
@@ -468,6 +486,34 @@ cd3_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=sum_cd3))+
 
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_plasma_corr_plot.png", cd3_plasma_corr_plot, height=2, width=2)
+
+
+
+
+fever_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=max_temp))+
+  geom_point(aes(colour=volunteer))+
+  xlab("Distance Traveled Plasma PCA")+
+  ylab("Maximum Temperature")+
+  geom_smooth(method="lm", se=T, fill="lightgrey")+
+  
+  scale_color_manual(name="Volunteer", values=volunteer_palette)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
+
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_plasma_corr_plot.png", fever_plasma_corr_plot, height=2, width=2)
+
+# cor.test(combo$distance, combo$max_temp)
+# t = -1.4309, df = 3, p-value = 0.2479
+# cor 
+# -0.6368913 
+
+
+
+
+
 
 # combo2 <- t_cell_summary
 # combo2$alt <- complete_alt_timecourse[match(combo2$volunteer, names(complete_alt_timecourse))]
@@ -568,7 +614,8 @@ lineage_freqs_sansv09 <- subset(lineage_freqs, lineage_freqs$volunteer!="v09")
 lineage_freqs_sansv09 %>%
   group_by(lineage) %>%
   mutate("distance"=distance_frame$distance)%>%
-  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$distance, method="pearson")))
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$distance, method="pearson"))) #%>%
+
 # lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
 # <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
 #   1 CD4          -0.423    -0.809    0.477         3   -0.951     0.732 Pearson's product-moment correlation two.sided  
@@ -588,12 +635,14 @@ complete_alt_timecourse <- 2^biochem2[biochem2$Timepoint=="T6" , "alt"]
 names(complete_alt_timecourse) <- biochem2[biochem2$Timepoint=="T6" , "Volunteer"]
 
 lineage_freqs$alt <- complete_alt_timecourse[match(lineage_freqs$volunteer, names(complete_alt_timecourse))]
+lineage_freqs$lymphopenia <- all_max_parasitaemias$Lymphopenia[match(lineage_freqs$volunteer, all_max_parasitaemias$vol)]
 
 lineage_freqs$max_ae <- all_max_parasitaemias$max_ae[match(lineage_freqs$volunteer, all_max_parasitaemias$vol)]
 
 lineage_freqs %>%
   group_by(lineage) %>%
-  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="pearson")))
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="pearson"))) %>%
+
 
 # lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
 # <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
@@ -615,6 +664,21 @@ lineage_freqs %>%
 # 3 gamma delta    0.886      3.83  0.0187         4  0.266       0.988 Pearson's product-moment correlation two.sided  
 # 4 MAIT           0.836      3.04  0.0382         4  0.0754      0.982 Pearson's product-moment correlation two.sided  
 # 5 Treg           0.562      1.36  0.245          4 -0.458       0.943 Pearson's product-moment correlation two.sided  
+
+
+lineage_freqs %>%
+  group_by(lineage) %>%
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$lymphopenia, method="pearson")))
+  
+# lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
+# <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
+# 1 CD4           0.130      0.262   0.807         4   -0.762     0.852 Pearson's product-moment correlation two.sided  
+# 2 CD8          -0.464     -1.05    0.354         4   -0.927     0.557 Pearson's product-moment correlation two.sided  
+# 3 DN            0.0779     0.156   0.883         4   -0.783     0.837 Pearson's product-moment correlation two.sided  
+# 4 gamma delta  -0.175     -0.355   0.741         4   -0.864     0.742 Pearson's product-moment correlation two.sided  
+# 5 MAIT          0.197      0.401   0.709         4   -0.732     0.869 Pearson's product-moment correlation two.sided  
+# 6 Treg          0.121      0.244   0.819         4   -0.766     0.849 Pearson's product-moment correlation two.sided  
+
 
 activation_ae_corr_plot_data <- filter(lineage_freqs, lineage %notin% c("DN")) 
 #lineage_freqs$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))

@@ -1,6 +1,28 @@
 # Panel A clinical presentation of volunteers undergoing vivax CHMI: plateltets, fever lymphocytes, adverse events, parasitaemia ####
 
-# adverse events
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+
+`%notin%` <- Negate(`%in%`)
+
+fig1_theme <- theme(axis.title.x = element_blank(),
+                    legend.title = element_text(size = 9), 
+                    legend.text = element_text(size = 9),
+                    axis.title=element_text(size=10))
+
+
+volunteer_colours <- list("v02" = "#FB9A99",
+                          "v03" = "#E31A1C",
+                          "v05" = "#A6CEE3",
+                          "v06" = "#1F78B4",
+                          "v07" = "#F0E442",
+                          "v09" = "#E69F00")
+
+
+volunteer_palette <- unlist(unname(volunteer_colours))
+names(volunteer_palette) <- names(volunteer_colours)
+
 
 
 # biochem ####
@@ -40,20 +62,24 @@ symptom_data$flo_timepoint <- gsub("pm ", "pm", symptom_data$flo_timepoint)
 symptom_data$flo_timepoint <- gsub("DoD ", "Diagnosis", symptom_data$flo_timepoint)
 symptom_data$timepoint <- symptom_data$flo_timepoint
 
-long_symptom_data <- tidyr::gather(symptom_data, symptom, severity, colnames(symptom_data)[c(12, 14:ncol(symptom_data))])
+symptom_data$volunteer <- gsub("69010", "v", symptom_data$trial_number)
+  
+
+
+long_symptom_data <- tidyr::gather(symptom_data, symptom, severity, colnames(symptom_data)[c(12, 15:ncol(symptom_data)-1)])
 
 long_symptom_data$timepoint <- as.character(symptom_data$flo_timepoint)
 
 
 long_symptom_data <- symptom_data %>%
-  mutate(volunteer=gsub("69010", "v", trial_number)) %>%
-  gather(symptom, severity, colnames(symptom_data)[c(12, 14:ncol(symptom_data))]) %>%
+  gather(symptom, severity, colnames(symptom_data)[c(12, 14:ncol(symptom_data)-1)]) %>%
   select(volunteer, timepoint, symptom, severity)
 
 long_symptom_data$symptom <- paste(
   toupper(substr(long_symptom_data$symptom, 1,1)),
   substr(long_symptom_data$symptom, 2,nchar(long_symptom_data$symptom)),
   sep="")
+
 
 
 # haematology ####
@@ -102,16 +128,14 @@ long_ae_data$timepoint <- gsub("T1 ", "T1", long_ae_data$timepoint)
 long_ae_data$timepoint <- gsub("T2 ", "T2", long_ae_data$timepoint)
 long_ae_data$timepoint <- gsub("C28 ", "C28", long_ae_data$timepoint)
 
+long_ae_data$severity <- as.numeric(as.character(long_ae_data$severity))
+
 adverse_events <- long_ae_data %>%
-  filter(severity > 0) %>%
+  filter(severity >= 1) %>%
+  filter(symptom != "Pyrexia_temp") %>%
   group_by(volunteer, timepoint, severity) %>%
   summarise(ae_count = n())
 
-
-fig1_theme <- theme(axis.title.x = element_blank(),
-                    legend.title = element_text(size = 9), 
-                    legend.text = element_text(size = 9),
-                    axis.title=element_text(size=10))
 
 timepoints <- unique(long_ae_data$timepoint[gtools::mixedorder(long_ae_data$timepoint)])
 
@@ -120,13 +144,13 @@ timepoint_levels <- timepoints[c(1:31, 34, 37:length(timepoints))]
 
 adverse_events <- filter(adverse_events, timepoint %in% timepoint_levels)
 
-(all_ae_stack <- ggplot(adverse_events,  aes(x=factor(timepoint, levels=timepoint_levels), y=ae_count/6, fill=as.character(severity)))+
+(all_ae_stack <- ggplot(adverse_events,  aes(x=factor(timepoint, levels=timepoint_levels), y=ae_count/6, fill=factor(severity, levels=rev(1:3))))+
     geom_bar(stat="identity", position = "stack")+
     scale_fill_manual(values =  list("1"="#FACA0F", "2"="chocolate1", "3"="red"))+
     ylab("Mean # of AEs\nper Volunteer")+
     xlab("Timepoint")+
     ggtitle("All Adverse Events")+
-    geom_vline(aes(xintercept = 22.5))+
+    geom_vline(xintercept = 23.5)+
     scale_y_continuous(limits = c(0,8), breaks = seq(0, 8, by=2))+
     theme_minimal()+
     fig1_theme+
@@ -135,7 +159,7 @@ adverse_events <- filter(adverse_events, timepoint %in% timepoint_levels)
           panel.grid.minor = element_blank())+
     guides(fill=guide_legend(title="Severity",
                              override.aes = list(size = 0.1),
-                             keywidth = 0.5,
+                             keywidth = 0.5,reverse = T,
                              keyheight = 0.5)))
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_adverse_events_stacked.png", all_ae_stack, height=4, width=6)
@@ -254,8 +278,9 @@ fig1_theme <- theme(axis.title.x = element_blank(),
 temp_data <- read.csv("~/PhD/clinical_data/vac69a/vac69a_body_temp.csv")
 
 fever <- temp_data %>%
+  mutate("volunteer" = gsub("69010", "v", trial_number)) %>%
   filter(study_event_oid != "SE_VA69_C28") %>%
-  select(trial_number, timepoint, temp) %>%
+  select(volunteer, timepoint, temp) %>%
   #filter(temp>37.5)
   filter(timepoint %in% c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
                           "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6"))
@@ -269,36 +294,47 @@ good_fever_timepoints <- c("Baseline", "C7", "C12","C14", "Diagnosis", "T1", "T2
 fever_timepoint_replacement <- setNames(good_fever_timepoints, lousy_fever_timepoints)
 fever$timepoint <- stringr::str_replace_all(fever$timepoint, fever_timepoint_replacement)
 
-fever$volunteer <- gsub("69010", "v", fever$trial_number)
+ 
+pyrexia <- symptom_data %>%
+  mutate("temp"=pyrexia_temp) %>%
+  select(volunteer, timepoint, temp) 
+  
+pyrexia <- na.omit(pyrexia)
+
+pyrexia$timepoint <- c("T1", "C12", "T1", "C12", "Diagnosis", "T2", "C11", "Diagnosis", "T1", "Diagnosis")
+
+fever <- rbind(fever, pyrexia)
+
+
+real_fever <- fever %>%
+  group_by(volunteer, timepoint) %>%
+  summarise("max_temp"=max(temp)) %>%
+  ungroup() %>%
+  group_by(volunteer) %>%
+  summarise("max_temp"=max(max_temp))
+
+
+
+fever <- fever %>%
+  group_by(volunteer, timepoint) %>%
+  summarise("max_temp"=max(temp)) %>%
+  filter(timepoint %in% good_fever_timepoints)
 
 # 
-# fever %>%
-#   group_by(volunteer) %>%
-#   summarise("max_temp"=max(temp))
 
-# <chr>        <dbl>
-#   1 v02           37.7
+
+# 1 v02           38.5
 # 2 v03           39.7
 # 3 v05           37.1
 # 4 v06           37.9
-# 5 v07           37.4
-# 6 v09           37.7
+# 5 v07           38.7
+# 6 v09           36.9
 
 
 
 
-volunteer_colours <- list("v02" = "#FB9A99",
-                          "v03" = "#E31A1C",
-                          "v05" = "#A6CEE3",
-                          "v06" = "#1F78B4",
-                          "v07" = "#F0E442",
-                          "v09" = "#E69F00")
 
-
-volunteer_palette <- unlist(unname(volunteer_colours))
-names(volunteer_palette) <- names(volunteer_colours)
-
-fever_curves <- ggplot(fever, aes(x=factor(timepoint, levels=good_fever_timepoints), y=temp, color=volunteer, group=volunteer))+
+fever_curves <- ggplot(fever, aes(x=factor(timepoint, levels=good_fever_timepoints), y=max_temp, color=volunteer, group=volunteer))+
   scale_fill_manual(values=volunteer_palette)+
   scale_color_manual(values=volunteer_palette)+
   geom_line(aes(color=volunteer), size=0.9)+
@@ -323,12 +359,12 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_curves.png", fever_curv
 
 haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
 
-haem_data$trial_number <- gsub("69010", "v", haem_data$trial_number)
+haem_data$volunteer <- gsub("69010", "v", haem_data$trial_number)
 
 long_haem_data <- haem_data %>%
-  select(trial_number, timepoint, platelets, lymphocytes) %>%
+  select(volunteer, timepoint, platelets, lymphocytes) %>%
   #select(trial_number, timepoint, lymphocytes) %>%
-  filter(timepoint %in% c("_C_1", "_C1_7", "_C8_14", "_EP", "_T6")) %>%
+  filter(timepoint %in% c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6")) %>%
   gather(Cell, Frequency, c(platelets,lymphocytes))
 
 
@@ -340,8 +376,8 @@ long_haem_data$Cell <- paste(
   sep="")
 
 
-bad_timepoints <- c("_C_1", "_C1_7", "_C8_14", "_EP", "_T6")
-great_timepoints <- c("Baseline", "C7", "C14", "T1", "T6")
+bad_timepoints <- c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6")
+great_timepoints <- c("Baseline", "C7", "C14", "Diagnosis", "T1", "T6")
 
 time_dic <- setNames(great_timepoints, bad_timepoints)
 
@@ -350,10 +386,10 @@ time_dic <- setNames(great_timepoints, bad_timepoints)
 long_haem_data$timepoint <- stringr::str_replace_all(long_haem_data$timepoint, time_dic)
 
 
-thrombos_lymphs <- ggplot(long_haem_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(long_haem_data$timepoint))), y=Frequency*1000, color=trial_number, group=trial_number))+
+thrombos_lymphs <- ggplot(long_haem_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(long_haem_data$timepoint))), y=Frequency*1000, color=volunteer, group=volunteer))+
   scale_fill_manual(values=volunteer_palette)+
   scale_color_manual(values=volunteer_palette)+
-  geom_line(aes(color=trial_number), size=0.9)+
+  geom_line(aes(color=volunteer), size=0.9)+
   geom_point(fill="white", stroke=1, shape=21, size=0.9)+
   theme_minimal()+
   facet_wrap(~Cell, scales="free")+
@@ -372,6 +408,26 @@ thrombos_lymphs <- ggplot(long_haem_data, aes(x=factor(timepoint, levels=unique(
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/thrombos_lymphs.png", thrombos_lymphs, width=6, height=2.2)
 
 
+#create max lymphopenia metric
+
+# wide_haem_data <- spread(long_haem_data, timepoint, Frequency)
+# wide_haem_data[,3:8] <- wide_haem_data[,3:8]/wide_haem_data[,3]
+# 
+# haem_fc <- wide_haem_data %>%
+#   gather(Timepoint, FC, colnames(wide_haem_data)[3:8]) %>%
+#   filter(Timepoint != "T6") %>%
+#   group_by(volunteer) %>%
+#   drop_na()%>%
+#   summarise("max_lymphopenia"=min(FC))
+
+# volunteer max_lymphopenia
+# <chr>               <dbl>
+#   1 v02                 0.389
+# 2 v03                 0.399
+# 3 v05                 0.306
+# 4 v06                 0.169
+# 5 v07                 0.345
+# 6 v09                 0.307
 
 # lgd1 <- get_legend(thrombos)
 # 
@@ -470,8 +526,8 @@ for(i in unique(adverse_pies$source)){
 
     # parasitaemias ####
 
-data <- read.csv("~/PhD/clinical_data/vac69a/parasitaemia/better_vac69a_parasitaemia.csv", header=T)
-parasitaemias <- gather(data, Timepoint, Genomes, colnames(data)[2:ncol(data)])
+data <- read.csv("~/PhD/clinical_data/vac69a/parasitaemia/better_vac69a_parasitaemia2.csv", header=T)
+parasitaemias <- gather(data, Timepoint, Genomes, colnames(data)[3:ncol(data)])
 parasitaemias$Genomes <- as.numeric(parasitaemias$Genomes)
 parasitaemias$Volunteer <- gsub("MVT-069010", "v",parasitaemias$Volunteer )
 # get rid of garbage timepoints that mess up graph
@@ -480,40 +536,74 @@ parasitaemias$Timepoint <- ifelse(grepl(".5", parasitaemias$Timepoint, fixed = T
 parasitaemias$Timepoint <- gsub(".5", "", parasitaemias$Timepoint, fixed=T)
 parasitaemias$Timepoint <- gsub("D", "C", parasitaemias$Timepoint, fixed=T)
 
-dods <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
-                   paras=c(4907, 8054, 16733, 7464, 21870, 15051),
-                   dod=c('D15.5', 'D12.5', 'D15.5', 'D15.5', 'D16', 'D17'))
-dods$inter <- match(dods$dod, unique(parasitaemias$Timepoint))
+#parasitaemias$Treatment <- factor(parasitaemias$Treatment, levels=c("before", "after"))
+# dods <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
+#                    paras=c(4907, 8054, 16733, 7464, 21870, 15051),
+#                    dod=c('D15.5', 'D12.5', 'D15.5', 'D15.5', 'D16', 'D17'))
+# dods$inter <- match(dods$dod, unique(parasitaemias$Timepoint))
 
+parasitaemia_levels <- unique(gtools::mixedsort(parasitaemias$Timepoint))
 
+parasitaemias$Treatment <- factor(parasitaemias$Treatment, levels = c("before Treatment", "after Treatment"))
 
+before_treatment <- filter(parasitaemias, Treatment=="before Treatment")
+after_treatment <- filter(parasitaemias, Treatment=="after Treatment")
 
+para_linetype <- c("before Treatment"="solid", "after Treatment"="dotted")
 
-parasitaemia_curves <- ggplot(data=parasitaemias[!is.na(parasitaemias$Genomes),], aes(x=factor(Timepoint, levels=unique(gtools::mixedsort(parasitaemias$Timepoint))), y=Genomes+1, group=factor(Volunteer)))+
-  geom_line(aes(color=factor(Volunteer)), size=0.9)+
-  geom_point(fill="white", stroke=1, size=0.9, shape=21, aes(color=factor(Volunteer)))+
+parasitaemia_curves <- ggplot()+
+  scale_linetype_manual(values = para_linetype, guide = NULL)+
+  geom_point(data=parasitaemias[!is.na(parasitaemias$Genomes),],
+             aes(color=factor(Volunteer),
+                 x=factor(Timepoint, levels=parasitaemia_levels),
+                 y=Genomes+1),
+             fill="white", stroke=1, size=0.9, shape=21)+
+  geom_line(data=before_treatment[!is.na(before_treatment$Genomes),],
+            aes(color=factor(Volunteer),
+                x=factor(Timepoint, levels=parasitaemia_levels),
+                y=Genomes+1,
+                group=factor(Volunteer),
+                linetype=Treatment
+                ),
+            size=0.9)+
+  geom_line(data=after_treatment[!is.na(after_treatment$Genomes),],
+            aes(color=factor(Volunteer),
+                x=factor(Timepoint, levels=parasitaemia_levels),
+                y=Genomes+1,
+                linetype=Treatment,
+                group=factor(Volunteer)
+                ),
+            size=0.5)+
   scale_color_manual(values=volunteer_palette)+
   theme_minimal()+
   ggtitle("Parasitaemia")+
   xlab("Day of Infection")+
+  geom_hline(yintercept = 20, linetype="dashed")+
   ylab("Genome Copies / mL")+
   scale_y_continuous(trans="log10", limits=c(1, 27000), breaks=c(10, 100, 1000, 10000))+
-  guides(color=guide_legend(override.aes = list(size = 0.1),
+  guides(color = guide_legend(override.aes = list(size = 0.1),
+                           title="",
                            keywidth = 0.5,
                            keyheight = 0.5))+
-
   fig1_theme+
   theme(legend.title = element_blank(),
+        legend.text = element_text(size=9),
         plot.title = element_text(size=10, hjust=0.5, vjust=0),
         axis.text.x = element_text(hjust=1, angle=45, size=5))
+
+
 
 #ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.png", height = 8, width=10)
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vac69a_parasitaemia.png", parasitaemia_curves, width=6, height=5)
 
 fig1 <- cowplot::plot_grid(fever_curves, parasitaemia_curves, 
-                           thrombos_lymphs, all_ae_stack, align = "h", axis = "tblr", rel_widths=c(1.6, 2), rel_heights = c(2,1.6))
+                           thrombos_lymphs, all_ae_stack, align = "h", axis = "tblr", rel_widths=c(1.8, 2), rel_heights = c(2,1.6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fig1_no_heatmap.png", fig1, height = 4, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fig1_no_heatmap.png", fig1, height = 5, width=8)
+
+
+
+
 
 # Panel C  plasma heatmap ####
 
