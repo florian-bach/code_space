@@ -526,14 +526,15 @@ for(i in unique(adverse_pies$source)){
 
     # parasitaemias ####
 
-data <- read.csv("~/PhD/clinical_data/vac69a/parasitaemia/better_vac69a_parasitaemia2.csv", header=T)
-parasitaemias <- gather(data, Timepoint, Genomes, colnames(data)[3:ncol(data)])
+data <- read.csv("~/PhD/clinical_data/vac69a/parasitaemia/better_vac69a_parasitaemia_ultimate_qc.csv", header=T)
+parasitaemias <- gather(data, Timepoint, Genomes, colnames(data)[5:ncol(data)])
 parasitaemias$Genomes <- as.numeric(parasitaemias$Genomes)
-parasitaemias$Volunteer <- gsub("MVT-069010", "v",parasitaemias$Volunteer )
 # get rid of garbage timepoints that mess up graph
 
 parasitaemias$Timepoint <- ifelse(grepl(".5", parasitaemias$Timepoint, fixed = T), paste(parasitaemias$Timepoint, "pm"),  paste(parasitaemias$Timepoint, "am"))
 parasitaemias$Timepoint <- gsub(".5", "", parasitaemias$Timepoint, fixed=T)
+parasitaemias$Timepoint <- gsub("D0", "Baseline", parasitaemias$Timepoint, fixed=T)
+
 parasitaemias$Timepoint <- gsub("D", "C", parasitaemias$Timepoint, fixed=T)
 
 #parasitaemias$Treatment <- factor(parasitaemias$Treatment, levels=c("before", "after"))

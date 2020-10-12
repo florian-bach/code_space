@@ -74,9 +74,9 @@ aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
   geom_point(aes(shape=Timepoint, color=Volunteer, fill=Volunteer))+
   #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
   theme_minimal()+
-  scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
+  #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
   scale_color_manual(values = volunteer_palette)+
-  scale_fill_manual(values = volunteer_palette)
+  scale_fill_manual(values = volunteer_palette)+
   guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
          shape=guide_legend(title="Timepoint", override.aes = list(size = 1)))+
   theme(legend.title = element_text(size=8))

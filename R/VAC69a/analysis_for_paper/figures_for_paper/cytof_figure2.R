@@ -8,6 +8,10 @@ sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocesse
 sig_clusters <- sig_clusters[-9,]
 
 
+colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+col_pal <- colcsv$x
+names(col_pal) <- colcsv$X
+
 # Right annotation ###
 
 all_t6_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = FALSE, header = T)
@@ -34,9 +38,6 @@ cd3_right_anno <- rowAnnotation(gap = unit(2, "mm"),
 
 
 
-colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
-col_pal <- colcsv$x
-names(col_pal) <- colcsv$X
 
 colz <- unname(col_pal[match(rownames(rereordered_sig_scaled_mat), names(col_pal))])
 breakz <- names(col_pal[match(rownames(rereordered_sig_scaled_mat), names(col_pal))])
@@ -284,8 +285,29 @@ cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, 
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
-
 ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=2.5, height = 2.5)
+
+sig_cd4_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id, levels = stacked_bar_levels)))+
+  geom_bar(stat="identity", position="stack")+
+  scale_fill_manual(values=col_pal)+
+  scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells at T6",
+                     labels=scales::percent_format(accuracy = 1))+
+  theme_minimal()+
+  xlab("Volunteer")+
+  guides(fill=guide_legend(ncol=2))+
+  theme(plot.title = element_text(hjust=0.5, size=10),
+        axis.text = element_text(size=8),
+        axis.title = element_text(size=8),
+        legend.title = element_blank(),
+        strip.text = element_text(hjust=0.5, face = "bold"),
+        legend.position = "none",
+        legend.justification = "center",
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cd4_stacked_barchart.png", sig_cd4_stacked_barchart, width=2.5, height = 2.5)
 
 
 
