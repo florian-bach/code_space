@@ -315,6 +315,9 @@ colnames(all_max_parasitaemias) <- c('v02', 'v03', 'v05', 'v06', 'v07', 'v09')
 big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, all_max_parasitaemias[,1:5])
 rownames(big_fc_table)[nrow(big_fc_table)] <- "Highest Body Temperature"
 
+big_fc_table <- rbind(big_fc_table, cd4_memory_t6_summary$CD4_memory_percentage[1:5])
+rownames(big_fc_table)[nrow(big_fc_table)] <- "CD4 Memory % Baseline"
+
 # baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
 # dod_table <-  subset(big_table, select=grepl("Diagnosis", colnames(big_table)))
 # t6_table <-  subset(big_table, select=grepl("T6", colnames(big_table)))
@@ -346,7 +349,7 @@ corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, le
                                                        )
                            )+
   geom_tile(aes(fill=ro))+
-  #geom_text(aes(label=round(ro, digits=2)), size=1)+
+  geom_text(aes(label=round(ro, digits=2)), size=1)+
   ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
   labs(fill = expression(rho))+
   guides(fill=guide_colorbar(ticks = FALSE))+

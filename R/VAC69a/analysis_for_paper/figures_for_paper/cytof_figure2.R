@@ -271,7 +271,7 @@ stacked_bar_levels <- c("activated CD27- cytotoxic CD4 EM",
 cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=cd4_freq, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+
   scale_fill_manual(values=col_pal)+
-  scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells at T6", labels=scales::percent_format(accuracy = 1))+
+  scale_y_continuous(name = "Percentage of CD4 memory T cells at T6", labels=scales::percent_format(accuracy = 1))+
   theme_minimal()+
   xlab("Volunteer")+
   guides(fill=guide_legend(ncol=2))+
@@ -290,7 +290,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activ
 sig_cd4_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+
   scale_fill_manual(values=col_pal)+
-  scale_y_continuous(name = "Percentage of Activated\nCD4 memory T cells at T6",
+  scale_y_continuous(name = "Percentage of CD3 T cells at T6",
                      labels=scales::percent_format(accuracy = 1))+
   theme_minimal()+
   xlab("Volunteer")+
