@@ -597,8 +597,8 @@ parasitaemia_curves <- ggplot()+
 #ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.png", height = 8, width=10)
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vac69a_parasitaemia.png", parasitaemia_curves, width=6, height=5)
 
-fig1 <- cowplot::plot_grid(fever_curves, parasitaemia_curves, 
-                           thrombos_lymphs, all_ae_stack, align = "h", axis = "tblr", rel_widths=c(1.8, 2), rel_heights = c(2,1.6))
+fig1 <- cowplot::plot_grid(parasitaemia_curves, fever_curves,
+                           thrombos_lymphs, all_ae_stack, align = "h", axis = "tblr", rel_widths=c(2, 1.66), rel_heights = c(2,1.6))
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fig1_no_heatmap.png", fig1, height = 5, width=8)
 

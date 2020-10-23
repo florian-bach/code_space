@@ -26,7 +26,7 @@ inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
 
 # DOPE CONTOUR PLOT #### n=13 is your friend :*
 hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
-  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 15)+
+  stat_density_2d(aes(fill = ..density..), geom = 'raster', contour = FALSE, n = 1500)+
   stat_density_2d(contour = TRUE, bins=13, color="white", size=0.05)+
   #stat_density_2d(contour = TRUE, bins=13, color="red", size=0.05)+
   scale_x_continuous(limits=c(-13.5, 10))+
@@ -35,7 +35,7 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   facet_wrap(~timepoint, ncol = 4, scales="free")+
   UMAP_theme+
   theme(panel.grid = element_blank(),
-        legend.position = "right",
+        legend.position = "none",
         panel.spacing.x = unit(0,"lines"),
         strip.text = element_text(size=7),
         axis.title = element_text(size=6),
@@ -209,21 +209,15 @@ lineage_activation_pies <- ggplot(barchart_plot_data)+
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
 
 
-# put the bar and pie charts together with cowlplot
-# panel_f <- cowplot::plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = c(4,1), rel_heights = c(1,1), axis = "bt", align = "hv")
-# 
-# ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/panel_f.png", panel_f, height=4, width=17)
-# 
+#put the bar and pie charts together with cowlplot
+
+panel_f <- cowplot::plot_grid(lineage_activation_pies, activation_stacked_barchart, ncol = 2, rel_widths = c(1,4), rel_heights = c(1,1), axis = "bt", align = "hv")
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.png", panel_f, height=4, width=17)
 
 
 
 
-panel_AB <- cowplot::plot_grid(hex_through_time,
-                               gate_labeled_gg, ncol=2, axis = "tb", rel_widths = c(4, 1), align = "hv")
-
-
-panel_ABCD <- cowplot::plot_grid(panel_AB, panel_CD, nrow=2, rel_heights = c(1.2,1),  align = "hv")
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCD.png", height=4, width=8, units = "in")
 
 # Panel D: UMAP projections coloured by CD38, Bcl2, all clusters, sig clusters ####
 
@@ -331,9 +325,15 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_p
 
 
 
-panel_AB <- cowplot::plot_grid(hex_through_time,
-                               gate_labeled_gg, ncol=2, axis = "tb", rel_widths = c(4, 1), align = "hv")
+panel_AB <- cowplot::plot_grid(gate_labeled_gg, hex_through_time,
+                               ncol=2, axis = "tb", rel_widths = c(1, 4), align = "hv")
 
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_AB.png", panel_AB, height=2, width=8, units = "in")
+
+
+# panel_ABCD <- cowplot::plot_grid(panel_AB, panel_CD, nrow=2, rel_heights = c(1.2,1),  align = "hv")
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCD.png", height=4, width=8, units = "in")
+# 
 
 # Panel E: Differential Abundance Heatmap ####
 library(colorspace)

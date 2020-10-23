@@ -311,6 +311,14 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cd4_stacked_
 
 
 
+# > median(sum(cd4_freq))
+# [1] 0.2390349
+# > mean(sum(cd4_freq))
+# [1] 0.2455163
+# > range(sum(cd4_freq))
+# [1] 0.1539355 0.3620642
+
+
 #Panel D: Show marker expression on T6 CD4 bump ####
 
 library(vac69a.cytof)
