@@ -298,25 +298,28 @@ ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_pl
 
 
 
-all_max_parasitaemias <- data.frame(#max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
-                   #`Day of Diagnosis`=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
-                   #max_ae=c(3,7,4,6,2,2),
-                   #"Lymphopenia" = c(0.3891892, 0.3989637, 0.3055556, 0.1685393, 0.3450479, 0.3073394),
-                   "Highest Body Temperature" = c(38.5, 39.7, 37.1, 37.9, 38.7, 37.7)
-                   #dose=c(1,1,0.2,0.2,0.05,0.05)
-                   )
+# all_max_parasitaemias <- data.frame(#max_parasiatemia=c(4907, 8054, 16733, 7464, 21870, 15051),
+#                    #`Day of Diagnosis`=c(15.5, 12.5, 15.5, 15.5, 16, 16.5),
+#                    #max_ae=c(3,7,4,6,2,2),
+#                    #"Lymphopenia" = c(0.3891892, 0.3989637, 0.3055556, 0.1685393, 0.3450479, 0.3073394),
+#                    #"Highest Body Temperature" = c(38.5, 39.7, 37.1, 37.9, 38.7, 37.7)
+#                    #dose=c(1,1,0.2,0.2,0.05,0.05)
+#                    )
+# 
+# matrix_names <- colnames(all_max_parasitaemias)
+# all_max_parasitaemias <- t(all_max_parasitaemias)
+# rownames(all_max_parasitaemias) <- matrix_names
+# 
+# colnames(all_max_parasitaemias) <- c('v02', 'v03', 'v05', 'v06', 'v07', 'v09')
 
-matrix_names <- colnames(all_max_parasitaemias)
-all_max_parasitaemias <- t(all_max_parasitaemias)
-rownames(all_max_parasitaemias) <- matrix_names
+#big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, all_max_parasitaemias[,1:5])
 
-colnames(all_max_parasitaemias) <- c('v02', 'v03', 'v05', 'v06', 'v07', 'v09')
+big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc)
 
-big_fc_table <- rbind(sig_plasma_dod_fc, sig_cytof_t6_fc, plasma_t6_fc, all_max_parasitaemias[,1:5])
-rownames(big_fc_table)[nrow(big_fc_table)] <- "Highest Body Temperature"
-
-big_fc_table <- rbind(big_fc_table, cd4_memory_t6_summary$CD4_memory_percentage[1:5])
-rownames(big_fc_table)[nrow(big_fc_table)] <- "CD4 Memory % Baseline"
+# rownames(big_fc_table)[nrow(big_fc_table)] <- "Highest Body Temperature"
+# 
+# big_fc_table <- rbind(big_fc_table, cd4_memory_t6_summary$CD4_memory_percentage[1:5])
+# rownames(big_fc_table)[nrow(big_fc_table)] <- "CD4 Memory % Baseline"
 
 # baseline_table <- subset(big_table, select=grepl("Baseline", colnames(big_table)))
 # dod_table <-  subset(big_table, select=grepl("Diagnosis", colnames(big_table)))
@@ -349,7 +352,7 @@ corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, le
                                                        )
                            )+
   geom_tile(aes(fill=ro))+
-  geom_text(aes(label=round(ro, digits=2)), size=1)+
+  #geom_text(aes(label=round(ro, digits=2)), size=1)+
   ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
   labs(fill = expression(rho))+
   guides(fill=guide_colorbar(ticks = FALSE))+

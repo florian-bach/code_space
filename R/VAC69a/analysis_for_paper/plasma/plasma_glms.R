@@ -18,31 +18,36 @@ data3 <- data3 %>%
   mutate(timepoint = gsub("C-1", "Baseline", timepoint)) %>%
   mutate(timepoint = gsub("+", "", timepoint, fixed = T))
 
-data3$timepoint <- factor(data3$timepoint, levels=c("Baseline", "DoD", "T6", "C45"))
+#data3$timepoint <- factor(data3$timepoint, levels=c("Baseline", "DoD", "T6", "C45"))
 
 
 #censor volutneer 03
 #data3 <- subset(data3, data3$Volunteer != "v03")
 
 
-list_of_dfs_for_glm <- lapply(colnames(data3)[3:ncol(data3)], function(x) data.frame(select(data3, Volunteer, timepoint, x)))
+#list_of_dfs_for_glm <- lapply(colnames(data3)[3:ncol(data3)], function(x) data.frame(select(data3, Volunteer, timepoint, x)))
+long_data3 <- tidyr::gather(data3, analyte, concentration, colnames(data3)[3:ncol(data3)])
+long_data3[,1:3] <- lapply(long_data3[,1:3], as.character)
+
+list_of_dfs_for_glm <- split(long_data3, long_data3$analyte)
+
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,3]~x[,2]+x[,1], data=x))
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
 
 
-list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,3]~x[,2]+x[,1], data=x))
-
-
-list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[3]))
+#list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[3]))
+list_of_summaries <- lapply(list_of_models, function(x)cbind(summary(x)$tTable, "analyte"=unique(x$data$analyte)))
 
 
 df_of_model_results <- data.frame(do.call(rbind, list_of_summaries))
-colnames(df_of_model_results) <- c("Estimate", "SE", "t_value", "raw_p", "Analyte")
+#colnames(df_of_model_results) <- c("Estimate", "SE", "t_value", "raw_p", "Analyte")
 df_of_model_results$Coefficient <- rownames(df_of_model_results)
 
 
-df_of_model_results <- df_of_model_results[!grepl("Intercept", df_of_model_results$Coefficient),]
-df_of_model_results <- df_of_model_results[!grepl("v0", df_of_model_results$Coefficient),]
+df_of_model_results <- df_of_model_results[!grepl("Intercept", df_of_model_results$Coefficient, fixed=TRUE),]
+#df_of_model_results <- df_of_model_results[!grepl("v0", df_of_model_results$Coefficient),]
 
-df_of_model_results$p_adj <- p.adjust(as.numeric(as.character(df_of_model_results$raw_p)), method = "fdr")
+df_of_model_results$p_adj <- p.adjust(as.numeric(as.character(df_of_model_results$p.value)), method = "fdr")
 
 sig_hits <- subset(df_of_model_results, df_of_model_results$p_adj<0.1)
 

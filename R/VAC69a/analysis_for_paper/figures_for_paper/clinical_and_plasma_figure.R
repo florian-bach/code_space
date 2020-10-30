@@ -775,35 +775,38 @@ data3 <- data3 %>%
 
 data3$timepoint <- factor(data3$timepoint, levels=c("Baseline", "Diagnosis", "T6", "C45"))
 
+long_data3 <- tidyr::gather(data3, analyte, concentration, colnames(data3)[3:ncol(data3)])
+long_data3[,1:3] <- lapply(long_data3[,1:3], as.character)
 
-list_of_dfs_for_glm <- lapply(colnames(data3)[3:ncol(data3)], function(x) data.frame(select(data3, Volunteer, timepoint, x)))
+list_of_dfs_for_glm <- split(long_data3, long_data3$analyte)
+
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,3]~x[,2]+x[,1], data=x))
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
 
 
-list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,3]~x[,2]+x[,1], data=x))
-
-
-list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[3]))
+#list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[3]))
+list_of_summaries <- lapply(list_of_models, function(x)cbind(summary(x)$tTable, "analyte"=unique(x$data$analyte)))
 
 
 df_of_model_results <- data.frame(do.call(rbind, list_of_summaries))
-colnames(df_of_model_results) <- c("Estimate", "SE", "t_value", "raw_p", "Analyte")
+#colnames(df_of_model_results) <- c("Estimate", "SE", "t_value", "raw_p", "Analyte")
 df_of_model_results$Coefficient <- rownames(df_of_model_results)
 
 
-df_of_model_results <- df_of_model_results[!grepl("Intercept", df_of_model_results$Coefficient),]
-df_of_model_results <- df_of_model_results[!grepl("v0", df_of_model_results$Coefficient),]
+df_of_model_results <- df_of_model_results[!grepl("Intercept", df_of_model_results$Coefficient, fixed=TRUE),]
+#df_of_model_results <- df_of_model_results[!grepl("v0", df_of_model_results$Coefficient),]
 
-df_of_model_results$p_adj <- p.adjust(as.numeric(as.character(df_of_model_results$raw_p)), method = "fdr")
+df_of_model_results$p_adj <- p.adjust(as.numeric(as.character(df_of_model_results$p.value)), method = "fdr")
 
 sig_hits <- subset(df_of_model_results, df_of_model_results$p_adj<0.1)
 
 
-sig_levels<- as.character(sig_hits[order(sig_hits$p_adj),]$Analyte)
+sig_levels<- as.character(sig_hits[order(sig_hits$p_adj),]$analyte)
 
 
 
 siggy_hits <- sig_hits %>%
-  group_by(Analyte) %>%
+  group_by(analyte) %>%
   top_n(n = -1, wt = p_adj)
 
 # sig_levels <- as.character(siggy_hits[order(siggy_hits$p_adj),]$Analyte)
