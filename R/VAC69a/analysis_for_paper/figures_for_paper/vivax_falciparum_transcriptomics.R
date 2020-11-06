@@ -21,7 +21,7 @@ library(ggrepel)
 dod_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
 t6_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
 
-dod_data <- t6_data
+#dod_data <- t6_data
 #dod_data <- subset(dod_data, grepl("5", dod_data$GOLevels))
 
 #length(unique(t6_data$GOTerm))
@@ -88,9 +88,9 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_enrichment_l
 dod_hist_plot <- dod_hist_plot+theme(legend.position = "none")
 
 vivax_falciparum_dod <- cowplot::plot_grid(dod_dot_plot, dod_hist_plot, ncol=2, rel_widths = c(3,1), align="h", axis="b")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_t6_GO.png", vivax_falciparum_dod, height = 3, width=3.9)
+#ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_t6_GO.png", vivax_falciparum_dod, height = 3, width=3.9, dpi=1200)
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 3, width=3.9)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 3, width=3.9, dpi=1200)
 
 
 

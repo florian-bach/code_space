@@ -78,8 +78,9 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
     geom_point(color="black", alpha=0.5, shape=".")+
     #geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
     geom_gate(gs_get_pop_paths(lin_gates)[c(2,4,7:9)])+
-    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, parse = T)+
-    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2)+
+  #size for paper=2, for small fig 2.5
+    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2.3, parse = T)+
+    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2.3)+
     UMAP_theme+
     ggtitle("\nMajor T cell lineages")+
     theme(axis.title.y = element_blank(),
@@ -87,7 +88,8 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
           strip.text = element_blank(),
           axis.text = element_blank(),
           plot.margin = unit(c(0,0,0,0), "cm"),
-          plot.title = element_text(size=7, hjust = 0.5, vjust=-1))
+          #plot.title = element_text(size=7, hjust = 0.5, vjust=-1))
+          plot.title = element_text(size=9, hjust = 0.5, vjust=-1))
 
 
 gate_labeled_gg <- as.ggplot(umap_gate_labeled)
@@ -103,225 +105,231 @@ gate_labeled_gg <- gate_labeled_gg+
 
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.png", gate_labeled_gg, height=4, width=4)
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.png", gate_labeled_gg, height=4, width=4)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.png", gate_labeled_gg, height=2.3, width=2, dpi = 1200)
 
-
-
-# Panel C: stacked barchart of T cell activation, colored by lineage, split by volunteer; with lineage pies ####
-
-#barchart
-
-library(vac69a.cytof)
-library(dplyr)
-summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
-summary$volunteer <- gsub("V", "v", summary$volunteer, fixed=T)
-
-summary$timepoint <- gsub("DoD", "Diagnosis", summary$timepoint, fixed=T)
-
-
-lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
-names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
-
-
-
-activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100, fill=lineage))+
-  geom_bar(stat="identity", position="stack")+
-  #geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
-  theme_minimal()+
-  facet_wrap(~timepoint, ncol=4)+
-  #ggtitle("Overall T cell activation")+
-  scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
-  scale_y_continuous(name = "Fraction of CD3+ T cells activated", labels=scales::percent_format(accuracy = 1))+
-  #ylim(0,25)+
-  #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
-  theme(#legend.position = "none",
-    plot.title = element_text(hjust=0.5, size=8),
-    strip.text = element_blank(),
-    strip.background = element_blank(),
-    axis.title.x = element_blank(),
-    axis.text.x = element_text(hjust=0.5, angle=45),
-    panel.spacing.x = unit(0.8,"lines"),
-    axis.title.y = element_text(size=7),
-    panel.grid.minor.y = element_blank(),
-    legend.position = "none",)
-
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=8)
-
-# lineage pies #
-
-#get cluster freqs and cluster lineage freqs
-barchart_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header=T, stringsAsFactors = FALSE)
-
-#keep only activated clusters at T6
-activated_clusters <- grep("activated", unique(barchart_data$cluster_id), value = T)
-barchart_data <- subset(barchart_data, barchart_data$cluster_id %in% activated_clusters)
-barchart_data <- subset(barchart_data, barchart_data$timepoint=="T6")
-
-# get average lineage activation
-barchart_data <- barchart_data %>%
-  group_by(timepoint, lineage) %>%
-  mutate("lin_activation" = sum(lin_freq)/6) %>%
-  ungroup()
-
-
-# construct ggplotable dataframe; now this table contains each average for all volunteers, so get rid of duplicates, then append
-# the df with 1 -the same values so that the activated and nonactivated percentages are in the same column
-
-barchart_plot_data <- data.frame("lineage" = barchart_data$lineage, "lin_activation" = barchart_data$lin_activation)
-barchart_plot_data <- barchart_plot_data[!duplicated(barchart_plot_data), ]
-barchart_plot_data <- rbind(barchart_plot_data, data.frame("lineage"=barchart_plot_data$lineage, "lin_activation"=1-barchart_plot_data$lin_activation))
-
-# add activated/resting column, make it so that the greek letters render in ggplot
-barchart_plot_data$state <- c(as.character(barchart_plot_data$lineage[1:6]), rep("Resting", 6))
-barchart_plot_data$state <- gsub("gd", expression(paste(gamma, delta)), barchart_plot_data$state)
-barchart_plot_data$lineage <- gsub("gd", expression(paste(gamma, delta)), barchart_plot_data$lineage)
-
-
-# we have to rename the colour palette because otherwise the strip.text won't parse properly
-lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
-names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
-
-pie_lineage_palette <- lineage_palette
-names(pie_lineage_palette)<- c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting")
-
-#order lineage and state columns for plotting
-barchart_plot_data$lineage <- factor(barchart_plot_data$lineage, levels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))
-barchart_plot_data$state <- factor(barchart_plot_data$state, levels=rev(c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting")))
-
-lineage_activation_pies <- ggplot(barchart_plot_data)+
-  geom_bar(stat="identity", position = "stack", width=1, aes(x="", y=lin_activation, fill=state))+
-  theme_minimal()+
-  coord_polar(theta = "y", start = 0)+
-  facet_wrap(~lineage, labeller = label_parsed, ncol=2, strip.position = "left")+
-  scale_fill_manual(values=pie_lineage_palette)+
-  guides()+
-  ggtitle("Average Activation in Major\nT cell Lineages at T6")+
-  theme(axis.title = element_blank(),
-        axis.text = element_blank(),
-        panel.grid = element_blank(),
-        panel.spacing = unit(0, "lines"),
-        plot.margin = unit(c(0,0,0,0), "mm"),
-        plot.title = element_text(hjust = 0.5, size=7),
-        strip.text.y.left = element_text(hjust=0.5, size=7, face = "bold", angle = 0),
-        legend.position = "none")
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
-
-
-#put the bar and pie charts together with cowlplot
-
-panel_f <- cowplot::plot_grid(lineage_activation_pies, activation_stacked_barchart, ncol = 2, rel_widths = c(1,4), rel_heights = c(1,1), axis = "bt", align = "hv")
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.png", panel_f, height=4, width=17)
-
-
-
-
-
-# Panel D: UMAP projections coloured by CD38, Bcl2, all clusters, sig clusters ####
-
-#read data
-big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
-
-# ATTENTION: for some reason in the writing of this there were some spaces at the end of some names so if the cluster coloring
-# doesn't work check that the "significant" column contains all the significant clusters!
-sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
-
-#get rid of resting Vd cluster
-sig_clusters <- sig_clusters[-9,]
-
-# create column that colours cell either black or cluster-specifically, adjust alpha so that colored cells are completely opaque
-# while black cells are partly transparent
-big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters, big_table$flo_label, "black")
-big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters, 1, 0.5)
-
-# restrict data to T6 and downsample by 33% to make it look nice
-short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
-short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), ]
-
-##define color schemes
-colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
-col_pal <- colcsv$x
-names(col_pal) <- colcsv$X
-
-
-#color_103_scheme
-{color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
-                      "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
-                      "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
-                      "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
-                      "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
-                      "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
-                      "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
-                      "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
-                      "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
-                      "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
-                      "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
-                      "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
-                      "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")}
-
-expanded_cluster_palette <- c(col_pal, color_103_scheme[22:46])
-names(expanded_cluster_palette)[11:length(expanded_cluster_palette)] <- unique(big_table$flo_label)[-match(unique(big_table$significant), unique(big_table$flo_label), nomatch = 0)]
-
-
-
-UMAP_theme <- theme_minimal()+theme(
-  panel.grid.minor = element_blank(),
-  legend.position = "none",
-  axis.text = element_blank()
-)
-
-
-# all cluster colours
-t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
-  geom_point(aes(color=flo_label), shape=".", alpha=0.4)+
-  scale_color_manual(values = expanded_cluster_palette)+
-  theme_minimal()+
-  ggtitle("All Cells at T6 coloured by Cluster ID")+
-  UMAP_theme+
-  guides(colour = guide_legend(override.aes = list(size = 2, shape=16, alpha=1), ncol = 3),
-         alpha= "none")+
-  theme(legend.position = "none",
-        legend.text = element_text(size=6),
-        axis.title = element_blank(),
-        axis.text = element_blank(),
-        plot.title = element_text(hjust=0.5, size=8))+
-  coord_cartesian(xlim=c(-13, 10),
-                  ylim=c(-11.2, 11.3))
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
-
-
-
-#sig cluster colours only
-
-t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
-  geom_point(aes(color=significant, alpha=alpha), shape=".")+
-  scale_color_manual(values = col_pal)+
-  theme_minimal()+
-  ggtitle("Differentially Abundant Clusters at T6")+
-  UMAP_theme+
-  guides(colour = guide_legend(override.aes = list(size = 4)),
-         alpha= "none")+
-  theme(legend.position = "none",
-        legend.title = element_blank(),
-        axis.text = element_blank(),
-        axis.title = element_blank(),
-        plot.title = element_text(hjust=0.5, size=8))+
-  coord_cartesian(xlim=c(-13, 10),
-                  ylim=c(-11.2, 11.3))
-
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=4, width=4)
-
-
-# UMAP coloured by CD38, Bcl2
-cd38_plot <- flo_umap(short_big_table_t6, "CD38")+theme(axis.title = element_blank())
-bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_blank())
-
-
-horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8)
+  
+  
+  # Panel C: stacked barchart of T cell activation, colored by lineage, split by volunteer; with lineage pies ####
+  
+  #barchart
+  
+  library(vac69a.cytof)
+  library(dplyr)
+  summary <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+  summary$volunteer <- gsub("V", "v", summary$volunteer, fixed=T)
+  
+  summary$timepoint <- gsub("DoD", "Diagnosis", summary$timepoint, fixed=T)
+  
+  
+  lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
+  names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
+  
+  
+  
+  activation_stacked_barchart <- ggplot(summary, aes(x=volunteer, y=frequency/100, fill=lineage))+
+    geom_bar(stat="identity", position="stack")+
+    #geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
+    theme_minimal()+
+    facet_wrap(~timepoint, ncol=4)+
+    #ggtitle("Overall T cell activation")+
+    scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
+    scale_y_continuous(name = "Fraction of CD3+ T cells activated", labels=scales::percent_format(accuracy = 1))+
+    #ylim(0,25)+
+    #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
+    theme(#legend.position = "none",
+      plot.title = element_text(hjust=0.5, size=8),
+      strip.text = element_blank(),
+      strip.background = element_blank(),
+      axis.title.x = element_blank(),
+      axis.text.x = element_text(hjust=0.5, angle=45),
+      panel.spacing.x = unit(0.8,"lines"),
+      axis.title.y = element_text(size=7),
+      panel.grid.minor.y = element_blank(),
+      legend.position = "none",)
+  
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=8)
+  
+  # lineage pies #
+  
+  #get cluster freqs and cluster lineage freqs
+  barchart_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_and_lineage_stats_for_barcharts.csv", header=T, stringsAsFactors = FALSE)
+  
+  #keep only activated clusters at T6
+  activated_clusters <- grep("activated", unique(barchart_data$cluster_id), value = T)
+  barchart_data <- subset(barchart_data, barchart_data$cluster_id %in% activated_clusters)
+  barchart_data <- subset(barchart_data, barchart_data$timepoint=="T6")
+  
+  # get average lineage activation
+  barchart_data <- barchart_data %>%
+    group_by(timepoint, lineage) %>%
+    mutate("lin_activation" = sum(lin_freq)/6) %>%
+    ungroup()
+  
+  
+  # construct ggplotable dataframe; now this table contains each average for all volunteers, so get rid of duplicates, then append
+  # the df with 1 -the same values so that the activated and nonactivated percentages are in the same column
+  
+  barchart_plot_data <- data.frame("lineage" = barchart_data$lineage, "lin_activation" = barchart_data$lin_activation)
+  barchart_plot_data <- barchart_plot_data[!duplicated(barchart_plot_data), ]
+  barchart_plot_data <- rbind(barchart_plot_data, data.frame("lineage"=barchart_plot_data$lineage, "lin_activation"=1-barchart_plot_data$lin_activation))
+  
+  # add activated/resting column, make it so that the greek letters render in ggplot
+  barchart_plot_data$state <- c(as.character(barchart_plot_data$lineage[1:6]), rep("Resting", 6))
+  barchart_plot_data$state <- gsub("gd", expression(paste(gamma, delta)), barchart_plot_data$state)
+  barchart_plot_data$lineage <- gsub("gd", expression(paste(gamma, delta)), barchart_plot_data$lineage)
+  
+  
+  # we have to rename the colour palette because otherwise the strip.text won't parse properly
+  lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
+  names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
+  
+  pie_lineage_palette <- lineage_palette
+  names(pie_lineage_palette)<- c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting")
+  
+  #order lineage and state columns for plotting
+  barchart_plot_data$lineage <- factor(barchart_plot_data$lineage, levels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))
+  barchart_plot_data$state <- factor(barchart_plot_data$state, levels=rev(c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting")))
+  
+  lineage_activation_pies <- ggplot(barchart_plot_data)+
+    geom_bar(stat="identity", position = "stack", width=1, aes(x="", y=lin_activation, fill=state))+
+    theme_minimal()+
+    coord_polar(theta = "y", start = 0)+
+    facet_wrap(~lineage, labeller = label_parsed, ncol=2, strip.position = "left")+
+    scale_fill_manual(values=pie_lineage_palette)+
+    guides()+
+    ggtitle("Average Activation in Major\nT cell Lineages at T6")+
+    theme(axis.title = element_blank(),
+          axis.text = element_blank(),
+          panel.grid = element_blank(),
+          panel.spacing = unit(0, "lines"),
+          plot.margin = unit(c(0,0,0,0), "mm"),
+          plot.title = element_text(hjust = 0.5, size=7),
+          strip.text.y.left = element_text(hjust=0.5, size=7, face = "bold", angle = 0),
+          legend.position = "none")
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
+  
+  
+  #put the bar and pie charts together with cowlplot
+  
+  panel_f <- cowplot::plot_grid(lineage_activation_pies, activation_stacked_barchart, ncol = 2, rel_widths = c(1,4), rel_heights = c(1,1), axis = "bt", align = "hv")
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.png", panel_f, height=4, width=17)
+  
+  
+  
+  
+  
+  # Panel D: UMAP projections coloured by CD38, Bcl2, all clusters, sig clusters ####
+  
+  #read data
+  big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+  
+  # ATTENTION: for some reason in the writing of this there were some spaces at the end of some names so if the cluster coloring
+  # doesn't work check that the "significant" column contains all the significant clusters!
+  sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
+  
+  #get rid of resting Vd cluster
+  sig_clusters <- sig_clusters[-9,]
+  
+  # create column that colours cell either black or cluster-specifically, adjust alpha so that colored cells are completely opaque
+  # while black cells are partly transparent
+  big_table$significant <- ifelse(big_table$flo_label %in% sig_clusters, big_table$flo_label, "black")
+  big_table$alpha <- ifelse(big_table$flo_label %in% sig_clusters, 1, 0.5)
+  
+  # restrict data to T6 and downsample by 33% to make it look nice
+  short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+  short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), ]
+  
+  ##define color schemes
+  colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_palette.csv", header=T, stringsAsFactors = F)
+  col_pal <- colcsv$x
+  names(col_pal) <- colcsv$X
+  
+  
+  #color_103_scheme
+  {color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
+                        "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
+                        "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
+                        "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
+                        "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
+                        "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
+                        "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
+                        "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
+                        "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
+                        "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
+                        "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
+                        "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
+                        "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")}
+  
+  expanded_cluster_palette <- c(col_pal, color_103_scheme[22:46])
+  names(expanded_cluster_palette)[11:length(expanded_cluster_palette)] <- unique(big_table$flo_label)[-match(unique(big_table$significant), unique(big_table$flo_label), nomatch = 0)]
+  
+  
+  
+  UMAP_theme <- theme_minimal()+theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.text = element_blank()
+  )
+  
+  
+  # all cluster colours
+  t6_all_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+    geom_point(aes(color=flo_label), shape=".", alpha=0.4)+
+    scale_color_manual(values = expanded_cluster_palette)+
+    theme_minimal()+
+    ggtitle("All Cells at T6 coloured by Cluster ID")+
+    UMAP_theme+
+    guides(colour = guide_legend(override.aes = list(size = 2, shape=16, alpha=1), ncol = 3),
+           alpha= "none")+
+    theme(legend.position = "none",
+          legend.text = element_text(size=6),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          plot.title = element_text(hjust=0.5, size=8))+
+    coord_cartesian(xlim=c(-13, 10),
+                    ylim=c(-11.2, 11.3))
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
+  
+  
+  
+  #sig cluster colours only
+  
+  t6_sig_clusters_umap <- ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+    geom_point(aes(color=significant, alpha=alpha), shape=".")+
+    scale_color_manual(values = col_pal)+
+    theme_minimal()+
+    ggtitle("Differentially Abundant Clusters at T6")+
+    UMAP_theme+
+    guides(colour = guide_legend(override.aes = list(size = 4)),
+           alpha= "none")+
+    theme(legend.position = "none",
+          legend.title = element_blank(),
+          axis.text = element_blank(),
+          axis.title = element_blank(),
+          plot.title = element_text(hjust=0.5, size=8))+
+    coord_cartesian(xlim=c(-13, 10),
+                    ylim=c(-11.2, 11.3))
+  
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=4, width=4)
+  
+  
+  # UMAP coloured by CD38, Bcl2
+  cd38_plot <- flo_umap(short_big_table_t6, "CD38")+theme(axis.title = element_blank(),
+                                                          legend.position = "none")
+  bcl2_plot <- flo_umap(short_big_table_t6, "BCL2")+theme(axis.title = element_blank(),
+                                                          legend.position = "none")
+  
+  
+  horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8)
+  
+  multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
 
 
 
@@ -469,6 +477,11 @@ combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = 
 
 
 #ht_opt("simple_anno_size" = unit(2, "mm"))
+
+
+
+colnames(combo_matrix) <- gsub("_", " ", colnames(combo_matrix))
+rownames(combo_matrix) <- gsub("gamma delta","γδ", rownames(combo_matrix), fixed = T)  
 
 combo_map <- Heatmap(matrix = combo_matrix,
                      cluster_rows = FALSE,
