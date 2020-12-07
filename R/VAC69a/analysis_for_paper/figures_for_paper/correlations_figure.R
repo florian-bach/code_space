@@ -338,37 +338,74 @@ rownames(spearman) <- gsub(".", " ", rownames(spearman), fixed=T)
 baseline_spearman_df  <- data.frame(spearman, check.names = FALSE)
 colnames(baseline_spearman_df) <- gsub(".", " ", colnames(baseline_spearman_df), fixed=T)
 
-baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+
+pearson_matrix <- as.matrix(baseline_spearman_df[rownames(baseline_spearman_df)[rev(baseline_hclust$order)],colnames(baseline_spearman_df)[rev(baseline_hclust$order)]])
 
 
-long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
+
+col_fun_pearson <- circlize::colorRamp2(c(min(pearson_matrix), 0, max(pearson_matrix)), c("#0859C6", "black", "#FFA500"))
+
+#doesnt work for pdf..
+# colnames(pearson_matrix) <- gsub("IFNy", "IFNγ", colnames(pearson_matrix))
+# rownames(pearson_matrix) <-  gsub("IFNy", "IFNγ",rownames(pearson_matrix))
+
+pearson_heatmap <- Heatmap(matrix = pearson_matrix,
+                           cluster_rows = TRUE,
+                           cluster_columns=TRUE,
+                           show_row_dend = FALSE,
+                           show_column_dend = TRUE,
+                           show_heatmap_legend = TRUE,
+                           name = "log2FC",
+                           #cluster_columns = FALSE,
+                           column_names_gp = gpar(fontsize = 6),
+                           row_names_gp = gpar(fontsize = 6),
+                           row_names_side = "left",
+                           col = col_fun_pearson,
+                           
+                           column_names_rot = 45)
+
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/pearson_heatmap.pdf", height=4.5, width = 5)
+draw(pearson_heatmap, padding=unit(c(2,2,2,2), "mm"))
+dev.off()
 
 
-corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]),
-                                                       y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])
-                                                       )
-                           )+
-  geom_tile(aes(fill=ro))+
-  #geom_text(aes(label=round(ro, digits=2)), size=1)+
-  ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
-  labs(fill = "r")+
-  theme_minimal()+
-  guides(fill=guide_colorbar(ticks = FALSE))+
-  theme(axis.title = element_blank(),
-        plot.background = element_blank(),
-        panel.grid = element_blank(),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        plot.title = element_text(hjust=0.5),
-        axis.text = element_text(size=6),
-        legend.title = element_text(size=10),
-        legend.text = element_text(size=8),
-        legend.title.align = 0.1,
-        legend.key.size=unit(2, "mm"),
-        legend.key.height = unit(5, "mm"))
 
-#ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
-#ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_spearman_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
+
+
+# here's the plot using ggplot2:
+
+
+# baseline_spearman_df$cluster_id_x <- rownames(baseline_spearman_df)
+# 
+# 
+# long_baseline_spearman <- gather(baseline_spearman_df, cluster_id_y, ro, colnames(baseline_spearman_df)[1:ncol(baseline_spearman_df)-1])
+# 
+# 
+# corr_matrix_plot <- ggplot(long_baseline_spearman, aes(x=factor(cluster_id_x, levels = colnames(spearman)[baseline_hclust$order]),
+#                                                        y=factor(cluster_id_y, levels=colnames(spearman)[baseline_hclust$order])
+#                                                        )
+#                            )+
+#   geom_tile(aes(fill=ro))+
+#   #geom_text(aes(label=round(ro, digits=2)), size=1)+
+#   ggplot2::scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500", midpoint = 0, breaks=c(-1,0,1), limits=c(-1, 1))+
+#   labs(fill = "r")+
+#   theme_minimal()+
+#   guides(fill=guide_colorbar(ticks = FALSE))+
+#   theme(axis.title = element_blank(),
+#         plot.background = element_blank(),
+#         panel.grid = element_blank(),
+#         axis.text.x = element_text(angle = 45, hjust = 1),
+#         plot.title = element_text(hjust=0.5),
+#         axis.text = element_text(size=6),
+#         legend.title = element_text(size=10),
+#         legend.text = element_text(size=8),
+#         legend.title.align = 0.1,
+#         legend.key.size=unit(2, "mm"),
+#         legend.key.height = unit(5, "mm"))
+# 
+# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
+# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
+# #ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_spearman_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
 
 
 #log2(absolute) corr matrix ####

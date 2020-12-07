@@ -501,7 +501,6 @@ combo_map <- Heatmap(matrix = combo_matrix,
                      column_names_rot = 45,
                      heatmap_legend_param = list(col = col_fun4, title = "Z-Score", title_position = "topleft"),
                      width = unit(16, "cm"),
-                     height = unit(16, "cm")
 )
 
 

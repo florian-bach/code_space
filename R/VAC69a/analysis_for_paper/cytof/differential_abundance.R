@@ -67,6 +67,7 @@ da_t6 <- diffcyt(merged_daf,
                  #contrast = contrast_t6,
                  contrast = pairwise_contrast_t6,
                  analysis_type = "DA",
+                 #normalize = TRUE,
                  method_DA = "diffcyt-DA-edgeR",
                  clustering_to_use = "flo_merge",
                  verbose = T)

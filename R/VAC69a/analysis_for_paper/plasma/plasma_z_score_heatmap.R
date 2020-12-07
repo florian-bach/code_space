@@ -34,7 +34,7 @@ data4 <- data3
 data4[, 1:2] <- NULL
 
 
-trans_data <- data.frame("Sample_ID"=data4$Sample_ID, apply(data4[,1:ncol(data4)-1], 2, function(x) scale(x, center = TRUE, scale = TRUE)))
+  trans_data <- data.frame("Sample_ID"=data4$Sample_ID, apply(data4[,1:ncol(data4)-1], 2, function(x) scale(x, center = TRUE, scale = TRUE)))
 
 
 plasma_levels <- read.delim("analytes_sorted_by_padj.txt")
