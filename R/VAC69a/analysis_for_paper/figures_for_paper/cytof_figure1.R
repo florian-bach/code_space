@@ -46,11 +46,11 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
 #viridis::scale_fill_viridis(option="B"))
 
 
-# system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_proportional_raster_umap13_005_no_axis_title.png", hex_through_time, height=4, width=16))
+# system.time(ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_proportional_raster_umap13_005_no_axis_title.pdf", hex_through_time, height=4, width=16))
 # 
 # 
 # panelA_B  <- plot_grid(hex_through_time, gate_labeled_gg, ncol=2, rel_widths=c(3,1.5), labels = c("A", "B"))
-# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_b_panelA_B.png", panelA_B, height=6, width=11.25)
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1a_b_panelA_B.pdf", panelA_B, height=6, width=11.25)
 
 # Panel B: Black UMAP projection with red, labeled gates####
 library(ggcyto)
@@ -105,8 +105,8 @@ gate_labeled_gg <- gate_labeled_gg+
 
 
 
-#ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.png", gate_labeled_gg, height=4, width=4)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.png", gate_labeled_gg, height=2.3, width=2, dpi = 1200)
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.pdf", gate_labeled_gg, height=4, width=4)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.pdf", gate_labeled_gg, height=2.3, width=2, dpi = 1200)
 
   
   
@@ -149,7 +149,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
       legend.position = "none",)
   
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.png", activation_stacked_barchart, height=4, width=8)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.pdf", activation_stacked_barchart, height=4, width=8)
   
   # lineage pies #
   
@@ -209,14 +209,14 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
           strip.text.y.left = element_text(hjust=0.5, size=7, face = "bold", angle = 0),
           legend.position = "none")
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.png", lineage_activation_pies, height=3, width=4.5)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.pdf", lineage_activation_pies, height=3, width=4.5)
   
   
   #put the bar and pie charts together with cowlplot
   
   panel_f <- cowplot::plot_grid(lineage_activation_pies, activation_stacked_barchart, ncol = 2, rel_widths = c(1,4), rel_heights = c(1,1), axis = "bt", align = "hv")
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.png", panel_f, height=4, width=17)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.pdf", panel_f, height=4, width=17)
   
   
   
@@ -293,7 +293,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.pdf",  t6_all_clusters_umap, height=4, width=4)
   
   
   
@@ -315,7 +315,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=4, width=4)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.pdf",  t6_sig_clusters_umap, height=4, width=4)
   
   
   # UMAP coloured by CD38, Bcl2
@@ -326,21 +326,21 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
   
   
   horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  horizontal_d_f_panel, height=2, width=8)
   
   multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
 
 
 
 panel_AB <- cowplot::plot_grid(gate_labeled_gg, hex_through_time,
                                ncol=2, axis = "tb", rel_widths = c(1, 4), align = "hv")
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_AB.png", panel_AB, height=2, width=8, units = "in")
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_AB.pdf", panel_AB, height=2.3, width=10, units = "in")
 
 
 # panel_ABCD <- cowplot::plot_grid(panel_AB, panel_CD, nrow=2, rel_heights = c(1.2,1),  align = "hv")
-# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCD.png", height=4, width=8, units = "in")
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCD.pdf", height=4, width=8, units = "in")
 # 
 
 # Panel E: Differential Abundance Heatmap ####
@@ -481,7 +481,7 @@ combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = 
 
 
 colnames(combo_matrix) <- gsub("_", " ", colnames(combo_matrix))
-rownames(combo_matrix) <- gsub("gamma delta","γδ", rownames(combo_matrix), fixed = T)  
+rownames(combo_matrix) <- gsub("gamma delta","gd", rownames(combo_matrix), fixed = T)  
 
 combo_map <- Heatmap(matrix = combo_matrix,
                      cluster_rows = FALSE,
@@ -505,7 +505,7 @@ combo_map <- Heatmap(matrix = combo_matrix,
 
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_freq_hm", width=1.4*8, height=8, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_freq_hm", width=1.4*8, height=8)
 draw(combo_map,
      merge_legends = TRUE,
      #padding = unit(c(2, 20, 2, 2), "mm")

@@ -57,8 +57,7 @@ all_cluster_heatmap <- Heatmap(matrix = reordered_scaled_mat,
 
 
 
-
-png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_marker_expression_heatmap_all_clusters.png", width=8, height=7, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_marker_expression_heatmap_all_clusters.pdf", width=8, height=7, units = "in", res=400)
 draw(all_cluster_heatmap,
      heatmap_legend_side = "right"
 )
@@ -110,5 +109,5 @@ supp_fig_2_umaps <- plot_grid(Ki67_plot,  Tbet_plot, CTLA4_plot, PD1_plot,
                          GZB_plot, Perforin_plot, HLADR_plot, CD27_plot, ICOS_plot,  ncol=3, align = "h", axis="trbl")
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_activation_markers_whole_umap.png", supp_fig_2_umaps, height=3.5, width=5.25)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_activation_markers_whole_umap.pdf", supp_fig_2_umaps, height=3.5, width=5.25)
 

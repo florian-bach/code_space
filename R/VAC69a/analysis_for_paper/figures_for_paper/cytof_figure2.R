@@ -97,7 +97,7 @@ median_cluster_heat <- Heatmap(matrix = rereordered_sig_scaled_mat,
 )
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper///sig_cluster_t6_phenotype_heat_var.png", width=8, height=2.5, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_t6_phenotype_heat_var.pdf", width=8, height=2.5, units = "in", res=400)
 draw(median_cluster_heat,
      #annotation_legend_list = list(box_lgd),
      merge_legends = FALSE,
@@ -215,7 +215,7 @@ lgd_cluster= Legend(at =lvls, type = "grid",
 
 #write out pie chart with legend
 
-png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_activation_pie.png", width=7, height=4, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_activation_pie.pdf", width=7, height=4, units = "in", res=400)
 
 plot.new()
 circle_size = unit(1, "snpc") # snpc unit gives you a square region
@@ -285,7 +285,7 @@ cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, 
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activation_stacked_barchart.png", cd4_memory_activation_stacked_barchart, width=2.5, height = 2.5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activation_stacked_barchart.pdf", cd4_memory_activation_stacked_barchart, width=2.5, height = 2.5)
 
 sig_cd4_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+
@@ -307,7 +307,7 @@ sig_cd4_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=frequency/10
 
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cd4_stacked_barchart.png", sig_cd4_stacked_barchart, width=2.5, height = 2.5)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cd4_stacked_barchart.pdf", sig_cd4_stacked_barchart, width=2.5, height = 2.5)
 
 
 
@@ -390,7 +390,7 @@ CD161_plot <- flo_umap(big_table, "CD161", only_show = "T6")+supp_theme
 CD127_plot <- flo_umap(big_table, "CD127", only_show = "T6")+supp_theme
 
 lineage_plot <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot, FoxP3_plot, CD25_plot, CD127_plot, CD161_plot, ncol=4, align="hv", axis="l")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_lineage_plot.png", lineage_plot, height=3, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_lineage_plot.pdf", lineage_plot, height=3, width=8)
 
 # mempry markers across whole UMAP ####
 
@@ -409,7 +409,7 @@ CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+supp_theme2
 
 
 memory_plots <- cowplot::plot_grid(CCR7_plot, CD45RO_plot, CD45RA_plot, CD57_plot, CD127_plot, CX3CR1_plot, ncol=1, align="hv", axis="l")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_memory_plots.png", memory_plots, height=10, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_memory_plots.pdf", memory_plots, height=10, width=8)
 
 
 UMAP_theme <- theme_minimal()+theme(
@@ -467,4 +467,4 @@ fig_2_umaps <- plot_grid(fig2_sig_clusters_umap, Ki67_plot,  Tbet_plot, CTLA4_pl
 fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,5))
 #fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,4x))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.png", fig_2_umaps_var, height=4, width=8, units = "in")
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.pdf", fig_2_umaps_var, height=4, width=8, units = "in")

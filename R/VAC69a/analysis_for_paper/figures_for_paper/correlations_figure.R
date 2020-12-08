@@ -124,7 +124,7 @@ plasma_mds_plot <- ggplot(plasma_df, aes(x=MDS1, y=MDS2, color=Volunteer))+
   theme()
 
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/plasma_mds.png", plasma_mds_plot, height=4, width=4)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/plasma_mds.pdf", plasma_mds_plot, height=4, width=4)
 
 arrow_pca <- subset(plasma_df, plasma_df$Timepoint %in% c("Baseline", "Diagnosis"))
 
@@ -152,7 +152,7 @@ arrow_pca_plot <- ggplot(arrow_pca, aes(x=MDS1, y=MDS2))+
     plot.title = element_text(size=14, hjust=0.5)
   )
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plot.png", arrow_pca_plot, height=3, width =3)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plot.pdf", arrow_pca_plot, height=3, width =3)
 
 
 plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
@@ -286,7 +286,7 @@ haem_count_plot <- ggplot(filter(haem_count_plot_data, timepoint %in% c("Baselin
         strip.background = element_rect(fill = "white", color = "white"))
 
 
-ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_plot.png", haem_count_plot, width = 8, height=2.5)
+ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_count_plot.pdf", haem_count_plot, width = 8, height=2.5)
 
 
 
@@ -403,9 +403,9 @@ dev.off()
 #         legend.key.size=unit(2, "mm"),
 #         legend.key.height = unit(5, "mm"))
 # 
-# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
-# #ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_spearman_euclidean_corr_matrix_fc.png", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
+# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.pdf", corr_matrix_plot, width=10, height=8)
+# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_fc.pdf", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
+# #ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_spearman_euclidean_corr_matrix_fc.pdf", corr_matrix_plot, height=4.2, width = 5, dpi=1200)
 
 
 #log2(absolute) corr matrix ####
@@ -464,8 +464,8 @@ dev.off()
 #         legend.key.size=unit(2, "mm"),
 #         legend.key.height = unit(5, "mm"))
 # 
-# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.png", corr_matrix_plot, width=10, height=8)
-# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_absolute.png", absolute_corr_matrix_plot, height=4.2, width = 5)
+# #ggsave("~/PhD/multi_omics/pearson_euclidean_corr_matrix_fc.pdf", corr_matrix_plot, width=10, height=8)
+# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/sig_only_pearson_euclidean_corr_matrix_absolute.pdf", absolute_corr_matrix_plot, height=4.2, width = 5)
 
 
 
@@ -514,7 +514,7 @@ alt_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=alt))+
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/alt_plasma_corr_plot.png", alt_plasma_corr_plot, height=2, width=2)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/alt_plasma_corr_plot.pdf", alt_plasma_corr_plot, height=2, width=2)
 
 cd3_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=sum_cd3))+
   geom_point(aes(colour=volunteer))+
@@ -529,7 +529,7 @@ cd3_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=sum_cd3))+
         axis.text = element_text(size=6))
 
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_plasma_corr_plot.png", cd3_plasma_corr_plot, height=2, width=2)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_plasma_corr_plot.pdf", cd3_plasma_corr_plot, height=2, width=2)
 
 
 
@@ -547,7 +547,7 @@ fever_plasma_corr_plot <- ggplot(combo, aes(x=distance, y=max_temp))+
         axis.text = element_text(size=6))
 
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_plasma_corr_plot.png", fever_plasma_corr_plot, height=2, width=2)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_plasma_corr_plot.pdf", fever_plasma_corr_plot, height=2, width=2)
 
 # cor.test(combo$distance, combo$max_temp)
 # t = -1.4309, df = 3, p-value = 0.2479
@@ -580,7 +580,7 @@ library(cowplot)
 vol_lgd <- get_legend(cd3_alt_corr_plot)
 cd3_alt_corr_plot <- cd3_alt_corr_plot+theme(legend.position = "none")
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_alt_corr_plot.png", cd3_alt_corr_plot, height=2, width=2)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_alt_corr_plot.pdf", cd3_alt_corr_plot, height=2, width=2)
 
 
 
@@ -597,7 +597,7 @@ cd3_ae_corr_plot <- ggplot(combo2, aes(y=max_ae, x=sum_cd3))+
         axis.text = element_text(size=6),
         legend.position = "none")
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_ae_corr_plot.png", cd3_ae_corr_plot, height=2, width=2)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/cd3_ae_corr_plot.pdf", cd3_ae_corr_plot, height=2, width=2)
 
 # > cor.test(combo2$sum_cd3, combo2$max_ae)
 # t = 1.9593, df = 4, p-value = 0.1217
@@ -742,7 +742,7 @@ lineage_activation_ae_corr_plot <- ggplot(lineage_freqs, aes(x=lineage_freqs$max
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_ae_corr_plot.png", lineage_activation_ae_corr_plot, height=2, width=7)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_ae_corr_plot.pdf", lineage_activation_ae_corr_plot, height=2, width=7)
 
 
 
@@ -765,15 +765,15 @@ lineage_activation_alt_corr_plot <- ggplot(activation_alt_corr_plot_data, aes(x=
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_alt_corr_plot.png", lineage_activation_alt_corr_plot, height=2, width=6)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_alt_corr_plot.pdf", lineage_activation_alt_corr_plot, height=2, width=6)
 
 
 
 top_row <- cowplot::plot_grid(arrow_pca_plot, cd3_plasma_corr_plot,  alt_plasma_corr_plot, ncol=3,
                               rel_widths = c(1,1,1,1), align = "v", axis="b")
 
-#ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_correlations.png", both_rows, height=5, width=8)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plasma_cd3_alt_correlations.png", top_row, height=2, width=6)
+#ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_correlations.pdf", both_rows, height=5, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plasma_cd3_alt_correlations.pdf", top_row, height=2, width=6)
 
 
 
@@ -793,7 +793,7 @@ ggplot(combo, aes(x=distance, y=DoD))+
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/distance_vs_dod.png")
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/distance_vs_dod.pdf")
 
 ggplot(combo, aes(x=distance, y=max_parasiatemia))+
   geom_point(aes(colour=volunteer))+
@@ -806,7 +806,7 @@ ggplot(combo, aes(x=distance, y=max_parasiatemia))+
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/distance_vs_max_parasites.png")
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/distance_vs_max_parasites.pdf")
 
 
 combo2 <- cbind(combo2, all_max_parasitaemias[, 2:3])
@@ -823,7 +823,7 @@ ggplot(combo2, aes(x=sum_cd3, y=DoD))+
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_dod.png")
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_dod.pdf")
 
 
 ggplot(combo2, aes(x=sum_cd3, y=max_parasiatemia))+
@@ -837,5 +837,5 @@ ggplot(combo2, aes(x=sum_cd3, y=max_parasiatemia))+
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_max_parasiatemia.png")
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_max_parasiatemia.pdf")
 

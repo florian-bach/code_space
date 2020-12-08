@@ -162,7 +162,7 @@
                                keywidth = 0.5,reverse = T,
                                keyheight = 0.5)))
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_adverse_events_stacked.png", all_ae_stack, height=4, width=6)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_adverse_events_stacked.pdf", all_ae_stack, height=4, width=6)
   
   
   symptom_plot_data <- long_symptom_data %>%
@@ -192,7 +192,7 @@
                                keywidth = 0.5,
                                keyheight = 0.5)))
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/symptom_adverse_events_stacked.png", symptom_stack, height=4, width=6)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/symptom_adverse_events_stacked.pdf", symptom_stack, height=4, width=6)
   
   
   
@@ -352,7 +352,7 @@
           legend.position = "right", 
           axis.title.x = element_blank())
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_curves.png", fever_curves, width=2, height=2)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_curves.pdf", fever_curves, width=2, height=2)
   
   
   # PLatelets/Lymphocytes
@@ -421,7 +421,7 @@
           strip.text = element_text(size=10))
   
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/thrombos_lymphs.png", thrombos_lymphs, width=6, height=2.2)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/thrombos_lymphs.pdf", thrombos_lymphs, width=6, height=2.2)
   
   
   
@@ -444,7 +444,7 @@
           strip.text = element_text(size=10))
   
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_counts.png", supp_haem_data_plots, height=2.2, width=8)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_counts.pdf", supp_haem_data_plots, height=2.2, width=8)
   
   
   haemoglobin_data_plots <- ggplot(haemoglobin_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(timepoint))), y=Frequency, color=volunteer, group=volunteer))+
@@ -465,7 +465,7 @@
           strip.text = element_text(size=10))
   
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/haemoglobin_data_plots.png", haemoglobin_data_plots, height = 2.2, width=3)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/haemoglobin_data_plots.pdf", haemoglobin_data_plots, height = 2.2, width=3)
   
   #create max lymphopenia metric
   
@@ -542,7 +542,7 @@
                                keywidth = 0.5,
                                keyheight = 0.5))
     
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lymphocyte_ae_pie.png", lymphocyte_ae_pie, height=2, width=3)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lymphocyte_ae_pie.pdf", lymphocyte_ae_pie, height=2, width=3)
     
     
     adverse_pies <- long_ae_data %>%
@@ -579,7 +579,7 @@
       #                          keywidth = 0.5,
       #                          keyheight = 0.5))
     
-    ggsave(paste("~/PhD/cytof/vac69a/final_figures_for_paper/", i, "_ae_pies.png", sep=''), ae_pies, height=3.5, width=0.75*length(unique(plottable_data$symptom)))
+    ggsave(paste("~/PhD/cytof/vac69a/final_figures_for_paper/", i, "_ae_pies.pdf", sep=''), ae_pies, height=3.5, width=0.75*length(unique(plottable_data$symptom)))
   }
   
   
@@ -658,13 +658,13 @@
   
   
   
-  #ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.png", height = 8, width=10)
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vac69a_parasitaemia.png", parasitaemia_curves, width=6, height=5)
+  #ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.pdf", height = 8, width=10)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vac69a_parasitaemia.pdf", parasitaemia_curves, width=6, height=5)
   
   fig1 <- cowplot::plot_grid(parasitaemia_curves, all_ae_stack,
                              thrombos_lymphs, fever_curves, align = "h", axis = "tblr", rel_widths=c(2, 1.66), rel_heights = c(2,1.6))
   
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fig1_no_heatmap.png", fig1, height = 5, width=8)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fig1_no_heatmap.pdf", fig1, height = 5, width=8)
   
 
 
@@ -813,7 +813,7 @@ combo_map <- Heatmap(matrix = plasma_matrix,
 
 
 
-png("~/PhD/cytof/vac69a/final_figures_for_paper/plasma_zscore_heatmap.png", width=7, height=4.5, units = "in", res=400)
+pdf("~/PhD/cytof/vac69a/final_figures_for_paper/plasma_zscore_heatmap.pdf", width=7, height=4.5)
 draw(combo_map,
      merge_legends = TRUE,
      #padding = unit(c(2, 20, 2, 2), "mm")
@@ -905,5 +905,5 @@ sig_glm_plot <- ggplot(sig_glm_data, aes(x=factor(timepoint, levels=c("Baseline"
         strip.background = element_rect(fill = "white", color = "white"))
 
 
-ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_glm_sig_analytes_fdr_10-e-1.png", sig_glm_plot, width = 12, height=3.5)
+ggsave(filename = "~/PhD/cytof/vac69a/final_figures_for_paper/supp_glm_sig_analytes_fdr_10-e-1.pdf", sig_glm_plot, width = 12, height=3.5)
 

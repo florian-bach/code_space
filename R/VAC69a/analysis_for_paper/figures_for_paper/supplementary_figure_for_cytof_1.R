@@ -18,7 +18,7 @@ da_t6 <- diffcyt(merged_daf,
 
 all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_all_clusters_freqs.png", all_cluster_freqs, height = 12, width=18)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_all_clusters_freqs.pdf", all_cluster_freqs, height = 12, width=18)# works
 
 # Panel B: ds_limma results of differential marker expression on coarse clusters ####
 library(CATALYST)
@@ -85,4 +85,4 @@ trimmed_spider_sigs_t6 <- subset(spider_sigs_t6, 2^spider_sigs_t6$sigs_t6.logFC>
 )
 
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_ds_limma.png", ds_limma_t6_heatmap, width = 7, height = 7)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_ds_limma.pdf", ds_limma_t6_heatmap, width = 7, height = 7)
