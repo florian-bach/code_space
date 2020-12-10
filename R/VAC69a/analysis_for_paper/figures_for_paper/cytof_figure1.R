@@ -216,7 +216,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
   
   panel_f <- cowplot::plot_grid(lineage_activation_pies, activation_stacked_barchart, ncol = 2, rel_widths = c(1,4), rel_heights = c(1,1), axis = "bt", align = "hv")
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.pdf", panel_f, height=4, width=17)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.pdf", panel_f, height=2, width=8)
   
   
   
@@ -328,8 +328,8 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
   horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  horizontal_d_f_panel, height=2, width=8)
   
-  multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
+  # multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
+  # ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
 
 
 
@@ -505,7 +505,7 @@ combo_map <- Heatmap(matrix = combo_matrix,
 
 
 
-pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_freq_hm", width=1.4*8, height=8)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_freq_hm.pdf", width=1.4*8, height=8)
 draw(combo_map,
      merge_legends = TRUE,
      #padding = unit(c(2, 20, 2, 2), "mm")

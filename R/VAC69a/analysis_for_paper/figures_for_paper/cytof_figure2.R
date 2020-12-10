@@ -97,7 +97,7 @@ median_cluster_heat <- Heatmap(matrix = rereordered_sig_scaled_mat,
 )
 
 
-pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_t6_phenotype_heat_var.pdf", width=8, height=2.5, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_t6_phenotype_heat_var.pdf", width=8, height=2.5)
 draw(median_cluster_heat,
      #annotation_legend_list = list(box_lgd),
      merge_legends = FALSE,
@@ -215,7 +215,7 @@ lgd_cluster= Legend(at =lvls, type = "grid",
 
 #write out pie chart with legend
 
-pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_activation_pie.pdf", width=7, height=4, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_activation_pie.pdf", width=7, height=4)
 
 plot.new()
 circle_size = unit(1, "snpc") # snpc unit gives you a square region
@@ -344,29 +344,31 @@ shorter_big_table_t6 <- subset(shorter_big_table_t6, shorter_big_table_t6$flo_la
 
 
 # activation markers across whole umap ###
-CD27_plot <- flo_umap(shorter_big_table_t6, "CD27")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+
+
+CD27_plot <- flo_umap(shorter_big_table_t6, "CD27")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
 
-Ki67_plot <- flo_umap(shorter_big_table_t6, "Ki67")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+Ki67_plot <- flo_umap(shorter_big_table_t6, "Ki67")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
-CD28_plot <- flo_umap(shorter_big_table_t6, "CD28")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+CD28_plot <- flo_umap(shorter_big_table_t6, "CD28")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
-PD1_plot <- flo_umap(shorter_big_table_t6, "PD1")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+PD1_plot <- flo_umap(shorter_big_table_t6, "PD1")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                       ylim = c(2,4))
-CTLA4_plot <- flo_umap(shorter_big_table_t6, "CTLA4")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+CTLA4_plot <- flo_umap(shorter_big_table_t6, "CTLA4")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                           ylim = c(2,4))
 
-Tbet_plot <- flo_umap(shorter_big_table_t6, "Tbet")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+Tbet_plot <- flo_umap(shorter_big_table_t6, "Tbet")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
-Perforin_plot <- flo_umap(shorter_big_table_t6, "Perforin")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+Perforin_plot <- flo_umap(shorter_big_table_t6, "Perforin")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                                 ylim = c(2,4))
 
-GZB_plot <- flo_umap(shorter_big_table_t6, "GZB")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+GZB_plot <- flo_umap(shorter_big_table_t6, "GZB")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                       ylim = c(2,4))
 
-HLADR_plot <- flo_umap(shorter_big_table_t6, "HLA-DR")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+HLADR_plot <- flo_umap(shorter_big_table_t6, "HLA-DR")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                           ylim = c(2,4))
-ICOS_plot <- flo_umap(shorter_big_table_t6, "ICOS")+theme(axis.title = element_blank())+coord_cartesian(xlim = c(0,4),
+ICOS_plot <- flo_umap(shorter_big_table_t6, "ICOS")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
                                                                                                         ylim = c(2,4))
 # lineage markers across whole UMAP ####
 

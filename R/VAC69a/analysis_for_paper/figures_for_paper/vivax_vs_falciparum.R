@@ -315,10 +315,10 @@ definitive_falci_faves <- list("definitive_falci_faves"=plot_data$Symbol)
 
 # combo plot
 
+vivax_t6_data <- read.csv("~/PhD/RNAseq/vac69a/all/xls/all_unique_genes_cleaned.csv")
 
-
-
-falci_faves_in_vivax <- falci_faves_in_vivax %>%
+falci_faves_in_vivax <- vivax_t6_data %>%
+  filter(file_name=="T6_Baseline") %>%
   select(colnames(plot_data)[-7]) %>%
   filter(Symbol %in% plot_data$Symbol)
 
@@ -354,6 +354,8 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", plot
 
 
 
+
+
 gene_matrix <- select(combo_data, Symbol, log2FoldChange, Infection)
 gene_matrix <- data.frame(tidyr::pivot_wider(gene_matrix, names_from = Infection, values_from = log2FoldChange))
 
@@ -361,26 +363,19 @@ rownames(gene_matrix) <- gene_matrix$Symbol
 
 gene_matrix$Symbol <- NULL
 
-gene_matrix <- as.matrix(gene_matrix[,c(2,1)])
-colnames(gene_matrix) <-c("P. vivax", "P. falciparum")
+gene_matrix <- t(as.matrix(gene_matrix[,c(1,2)]))
+rownames(gene_matrix) <-rev(c("P. vivax", "P. falciparum"))
 
 
 col_fun_rna <- circlize::colorRamp2(c(min(gene_matrix), 0, max(gene_matrix)), c("#0859C6", "black", "#FFA500"))
 
 
 
-
-
-
-
-
-
-
-
 gene_heatmap <- Heatmap(matrix = gene_matrix,
         cluster_rows = FALSE,
         show_heatmap_legend = TRUE,
-        name = "log2FC",
+        column_title ="Selected Genes at T6",
+        heatmap_legend_param = list(title = "log2FC"),
         cluster_columns = FALSE,
         column_names_gp = gpar(fontsize = 8),
         row_names_gp = gpar(fontsize = 8),
@@ -388,7 +383,7 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
         col = col_fun_rna,
         column_names_rot = 45)
 
-pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", height = 4.5, width=1.6)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", height = 1.6, width=4.5)
 draw(gene_heatmap
 )
 dev.off()
