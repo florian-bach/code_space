@@ -1,0 +1,123 @@
+* using log directory ‘/home/flobuntu/PhD/code/my_packages/vac69a.cytof.Rcheck’
+* using R version 3.6.3 (2020-02-29)
+* using platform: x86_64-pc-linux-gnu (64-bit)
+* using session charset: UTF-8
+* using options ‘--no-manual --as-cran’
+* checking for file ‘vac69a.cytof/DESCRIPTION’ ... OK
+* this is package ‘vac69a.cytof’ version ‘0.0.0.9000’
+* package encoding: UTF-8
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for executable files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking serialization versions ... OK
+* checking whether package ‘vac69a.cytof’ can be installed ... OK
+* checking installed package size ... OK
+* checking package directory ... OK
+* checking for future file timestamps ... OK
+* checking DESCRIPTION meta-information ... WARNING
+Non-standard license specification:
+  What license it uses
+Standardizable: FALSE
+* checking top-level files ... NOTE
+Non-standard file/directory found at top level:
+  ‘vac69a.cytof.Rproj’
+* checking for left-over files ... OK
+* checking index information ... OK
+* checking package subdirectories ... OK
+* checking R files for non-ASCII characters ... OK
+* checking R files for syntax errors ... OK
+* checking whether the package can be loaded ... OK
+* checking whether the package can be loaded with stated dependencies ... OK
+* checking whether the package can be unloaded cleanly ... OK
+* checking whether the namespace can be loaded with stated dependencies ... OK
+* checking whether the namespace can be unloaded cleanly ... OK
+* checking loading without being on the library search path ... OK
+* checking dependencies in R code ... WARNING
+'::' or ':::' imports not declared from:
+  ‘CATALYST’ ‘SingleCellExperiment’ ‘SummarizedExperiment’ ‘diffcyt’
+  ‘dplyr’ ‘flowCore’ ‘ggplot2’ ‘stringr’ ‘tidyr’ ‘viridis’
+* checking S3 generic/method consistency ... OK
+* checking replacement functions ... OK
+* checking foreign function calls ... OK
+* checking R code for possible problems ... NOTE
+diffcyt_boxplot: no visible binding for global variable ‘sample_id’
+diffcyt_boxplot: no visible binding for global variable ‘count’
+diffcyt_boxplot: no visible binding for global variable ‘timepoint’
+diffcyt_boxplot: no visible binding for global variable ‘ydim’
+diffcyt_boxplot: no visible binding for global variable ‘volunteer’
+flo_umap: no visible binding for global variable ‘UMAP1’
+flo_umap: no visible binding for global variable ‘UMAP2’
+flo_umap: no visible binding for global variable ‘marker’
+read_full: no visible global function definition for ‘read.csv’
+read_small: no visible global function definition for ‘read.csv’
+Undefined global functions or variables:
+  UMAP1 UMAP2 count marker read.csv sample_id timepoint volunteer ydim
+Consider adding
+  importFrom("utils", "read.csv")
+to your NAMESPACE file.
+* checking Rd files ... OK
+* checking Rd metadata ... OK
+* checking Rd line widths ... NOTE
+Rd file 'read_small.Rd':
+  \examples lines wider than 100 characters:
+     daf <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", proportional=TRUE, event_number=3000)
+
+These lines will be truncated in the PDF manual.
+* checking Rd cross-references ... OK
+* checking for missing documentation entries ... OK
+* checking for code/documentation mismatches ... OK
+* checking Rd \usage sections ... WARNING
+Undocumented arguments in documentation object 'diffcyt_boxplot'
+  ‘diffcyt_result’ ‘sce’ ‘counts’ ‘FDR’
+Documented arguments not in \usage in documentation object 'diffcyt_boxplot':
+  ‘diffcyt_result;’ ‘sce;’ ‘counts;’ ‘FDR;’
+
+Undocumented arguments in documentation object 'flo_umap'
+  ‘df’ ‘color_by’ ‘facet_by’
+Documented arguments not in \usage in documentation object 'flo_umap':
+  ‘df;’ ‘color_by;’ ‘facet_by;’
+
+Undocumented arguments in documentation object 'prep_sce_for_ggplot'
+  ‘sce’
+Documented arguments not in \usage in documentation object 'prep_sce_for_ggplot':
+  ‘sce;’
+
+Undocumented arguments in documentation object 'read_small'
+  ‘path_to_directory’
+Documented arguments not in \usage in documentation object 'read_small':
+  ‘path_to_direcory’
+
+Functions with \usage entries need to have the appropriate \alias
+entries, and all their arguments documented.
+The \usage entries must correspond to syntactically valid R code.
+See chapter ‘Writing R documentation files’ in the ‘Writing R
+Extensions’ manual.
+* checking Rd contents ... OK
+* checking for unstated dependencies in examples ... OK
+* checking examples ... ERROR
+Running examples in ‘vac69a.cytof-Ex.R’ failed
+The error most likely occurred in:
+
+> base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> ### Name: flo_umap
+> ### Title: This function makes pretty UMAP plots. It takes a dataframe as
+> ###   input and uses the UMAP1 and UMAP2 columns as X and Y coordinates and
+> ###   any other named column as the coloring variable. It can facet by one
+> ###   variable.
+> ### Aliases: flo_umap
+> 
+> ### ** Examples
+> 
+> sce <- read_small("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/", 500)
+Error in downsample(vac69a, event_number) : 
+  could not find function "downsample"
+Calls: read_small
+Execution halted
+* checking for detritus in the temp directory ... OK
+* DONE
+Status: 1 ERROR, 3 WARNINGs, 3 NOTEs

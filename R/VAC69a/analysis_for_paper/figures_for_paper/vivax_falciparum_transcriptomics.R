@@ -173,58 +173,58 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_t6.pdf", viv
 
 
 
-#### How to name Nodes ####
-
-library(magrittr)
-library(ggplot2)
-library(ggrepel)
-library(dplyr)
-library(readxl)
-
-
-dod_data <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_DOD_ALL/VIVAX_DOD_ALL_RESULTS_TABLE.xls")
-t6_data <-  read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_T6_ALL/VIVAX_T6_ALL_RESULTS_TABLE")
-
-base_dod_t6_data <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_BASE_DOD_T6/VIVAX_BASE_DOD_T6_Results_table.xls")
-
-vivax_falciparum_dod <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM_DOD/vivax_falciparum_dod_results_table.xls")
-# colnames(vivax_falciparum_dod) <- gsub(".", " ", colnames(vivax_falciparum_dod), fixed=T)
-# colnames(vivax_falciparum_dod) <- gsub("  ", " ", colnames(vivax_falciparum_dod), fixed=T)
-# colnames(vivax_falciparum_dod) <- gsub("X", "", colnames(vivax_falciparum_dod), fixed=T)
-# colnames(vivax_falciparum_dod) <- gsub(" Associated Genes","% Associated Genes",colnames(vivax_falciparum_dod), fixed=T)
-
-
-vivax_falciparum_t6 <-read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM_T6/VIVAX_FALCIPARUM_T6_Results_Table")
-
-data <- vivax_falciparum_t6
-# data <- t6_data
-
-#filter GOTerms to be level 5 only
-dod_level_siz <- subset(data, grepl("5", data$GOLevels))
-
-
-
-
-names_dod <- dod_level_siz %>%
-  filter(`% Associated Genes`>10) %>%
-  group_by(GOGroups) %>%
-  top_n(-3, `Term PValue`) %>%
-  ungroup() %>%
-  #top_n(-60, `Group PValue`) %>%
-  arrange(`Group PValue`, `Term PValue`) %>%
-  select(GOTerm, `Term PValue`, GOGroups, `Group PValue`) 
-
-names_dod <- names_dod[!duplicated(names_dod$GOTerm),]
-
-names_dod <- names_dod %>%
-  group_by(GOGroups) %>%
-  top_n(-1, `Term PValue`) 
-
-
-
-subset(names_dod, names_dod$GOGroups==dod_level_siz$GOGroups[grep("*kinetochore*", dod_level_siz$GOTerm)])
-
-
+  #### How to name Nodes ####
+  
+  library(magrittr)
+  library(ggplot2)
+  library(ggrepel)
+  library(dplyr)
+  library(readxl)
+  
+  
+  dod_data <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_DOD_ALL/VIVAX_DOD_ALL_RESULTS_TABLE.xls")
+  t6_data <-  read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_T6_ALL/VIVAX_T6_ALL_RESULTS_TABLE")
+  
+  base_dod_t6_data <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_BASE_DOD_T6/VIVAX_BASE_DOD_T6_Results_table.xls")
+  
+  vivax_falciparum_dod <- read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM_DOD/vivax_falciparum_dod_results_table.xls")
+  # colnames(vivax_falciparum_dod) <- gsub(".", " ", colnames(vivax_falciparum_dod), fixed=T)
+  # colnames(vivax_falciparum_dod) <- gsub("  ", " ", colnames(vivax_falciparum_dod), fixed=T)
+  # colnames(vivax_falciparum_dod) <- gsub("X", "", colnames(vivax_falciparum_dod), fixed=T)
+  # colnames(vivax_falciparum_dod) <- gsub(" Associated Genes","% Associated Genes",colnames(vivax_falciparum_dod), fixed=T)
+  
+  
+  vivax_falciparum_t6 <-read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_FALCIPARUM_T6/VIVAX_FALCIPARUM_T6_Results_Table")
+  
+  data <- vivax_falciparum_t6
+  # data <- t6_data
+  
+  #filter GOTerms to be level 5 only
+  dod_level_siz <- subset(data, grepl("5", data$GOLevels))
+  
+  
+  
+  
+  names_dod <- dod_level_siz %>%
+    filter(`% Associated Genes`>10) %>%
+    group_by(GOGroups) %>%
+    top_n(-3, `Term PValue`) %>%
+    ungroup() %>%
+    #top_n(-60, `Group PValue`) %>%
+    arrange(`Group PValue`, `Term PValue`) %>%
+    select(GOTerm, `Term PValue`, GOGroups, `Group PValue`) 
+  
+  names_dod <- names_dod[!duplicated(names_dod$GOTerm),]
+  
+  names_dod <- names_dod %>%
+    group_by(GOGroups) %>%
+    top_n(-1, `Term PValue`) 
+  
+  
+  
+  subset(names_dod, names_dod$GOGroups==dod_level_siz$GOGroups[grep("*kinetochore*", dod_level_siz$GOTerm)])
+  
+  
 #### counting go terms ####
 vivax_only_dod <- readxl::read_excel("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_DOD_ALL/VIVAX_DOD_ALL_RESULTS_TABLE.xls")
 

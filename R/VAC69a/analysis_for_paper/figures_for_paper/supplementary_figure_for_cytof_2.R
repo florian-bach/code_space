@@ -57,7 +57,7 @@ all_cluster_heatmap <- Heatmap(matrix = reordered_scaled_mat,
 
 
 
-pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_marker_expression_heatmap_all_clusters.pdf", width=8, height=7, units = "in", res=400)
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_marker_expression_heatmap_all_clusters.pdf", width=8, height=7)
 draw(all_cluster_heatmap,
      heatmap_legend_side = "right"
 )

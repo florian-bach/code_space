@@ -178,11 +178,16 @@ all(edger_t6_sig %in% glm_t6_sig) # TRUE
 
 all_cluster_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
 all_cluster_log_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)+scale_y_log10(name = "Number of Cells in Sample")
-all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)+theme(axis.title = element_text(size=12))
+all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)+theme(axis.title = element_text(size=12),
+                                                                                          axis.text = element_text(size=8))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.png",all_cluster_counts , height = 12, width=18)# works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.png",all_cluster_freqs, height = 12, width=18) #works
-ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_log_counts.png",all_cluster_log_counts, height = 12, width=18)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_counts.pdf",all_cluster_counts , height = 8, width=12)# works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_freqs.pdf",all_cluster_freqs, height = 8, width=12) #works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/all_clusters_log_counts.pdf",all_cluster_log_counts, height = 8, width=12)# works
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S3_all_clusters_freqs.pdf",all_cluster_freqs, height = 8, width=12) #works
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S3_all_clusters_freqs.svg",all_cluster_freqs, height = 8, width=12) #works
+
 
 write.csv(all_cluster_freqs$data,"~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_freqs.csv")
 

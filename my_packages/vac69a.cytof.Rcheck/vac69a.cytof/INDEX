@@ -1,0 +1,22 @@
+diffcyt_boxplot         This function makes boxplots of the frequency
+                        or cell count of each cluster that's been
+                        determined to be differentially abundant using
+                        diffcyt.
+flo_umap                This function makes pretty UMAP plots. It takes
+                        a dataframe as input and uses the UMAP1 and
+                        UMAP2 columns as X and Y coordinates and any
+                        other named column as the coloring variable. It
+                        can facet by one variable.
+prep_sce_for_ggplot     This function makes data.frames when passed
+                        SingleCellExperiments. This allows making
+                        ggplot objects from scratch using sce data.
+read_full               This function simplifies and streamlines
+                        reading the full vac69a cytof dataset into R It
+                        relies on the packages flowCore, CATALYST and
+                        deplyr and their dependcies (e.g.
+                        SingleCellExperiment)
+read_small              This function simplifies and streamlines
+                        reading a subsampled version of the vac69a
+                        cytof dataset into R It relies on the packages
+                        flowCore, CATALYST and deplyr and their
+                        dependcies (e.g. SingleCellExperiment)

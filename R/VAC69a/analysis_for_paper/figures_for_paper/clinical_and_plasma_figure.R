@@ -551,7 +551,7 @@
       mutate(symptom = gsub("Haemaglobin", "Haemoglobin", symptom, fixed = T)) %>%
       filter(timepoint %in% c("Diagnosis", "T1","T2", "T6")) %>%
       filter(symptom %notin% c("vomiting", "nausea","pyrexia", "diarrhoea", "back_pain", "arthralgia",
-                               "Ggt", "Ast", "Albumin", "Alkphos", "Bilirubin", "Creatinin")) 
+                               "Ggt", "Ast", "Albumin", "Alkphos", "Pyrexia_temp", "Bilirubin", "Creatinin")) 
     
     
   for(i in unique(adverse_pies$source)){  

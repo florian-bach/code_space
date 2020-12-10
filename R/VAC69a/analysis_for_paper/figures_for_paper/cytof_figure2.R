@@ -400,14 +400,14 @@ supp_theme2 <- theme(axis.title = element_text(size = 6),
                      legend.title = element_text(size = 6),
                      legend.text = element_text(size=6),
                      strip.text = element_blank(),
-                     plot.title = element_blank())
+                     plot.title = element_text(vjust = -1, hjust=0))
 
-CCR7_plot <- flo_umap(big_table, "CCR7", facet_by = "timepoint")+supp_theme2
-CD45RO_plot <- flo_umap(big_table, "CD45RO", facet_by = "timepoint")+supp_theme2
-CD45RA_plot <- flo_umap(big_table, "CD45RA", facet_by = "timepoint")+supp_theme2
-CD57_plot <- flo_umap(big_table, "CD57", facet_by = "timepoint")+supp_theme2
-CD127_plot <- flo_umap(big_table, "CD127", facet_by = "timepoint")+supp_theme2
-CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+supp_theme2
+CCR7_plot <- flo_umap(big_table, "CCR7", facet_by = "timepoint")+supp_theme2+ggtitle("CCR7")
+CD45RO_plot <- flo_umap(big_table, "CD45RO", facet_by = "timepoint")+supp_theme2+ggtitle("CD45RO")
+CD45RA_plot <- flo_umap(big_table, "CD45RA", facet_by = "timepoint")+supp_theme2+ggtitle("CD45RA")
+CD57_plot <- flo_umap(big_table, "CD57", facet_by = "timepoint")+supp_theme2+ggtitle("CD57")
+CD127_plot <- flo_umap(big_table, "CD127", facet_by = "timepoint")+supp_theme2+ggtitle("CD127")
+CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+supp_theme2+ggtitle("CX3CR1")
 
 
 memory_plots <- cowplot::plot_grid(CCR7_plot, CD45RO_plot, CD45RA_plot, CD57_plot, CD127_plot, CX3CR1_plot, ncol=1, align="hv", axis="l")
