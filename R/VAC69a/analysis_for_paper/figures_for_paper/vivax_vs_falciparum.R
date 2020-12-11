@@ -260,18 +260,30 @@ library(tidyr)
 library(dplyr)
 
 
-falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
-falci_t6_data <- read.csv("~/PhD/RNAseq/vac63c/T6vBas_First_DEGs_log2fc_cutoff.csv", header = T, stringsAsFactors = F, row.names = 1)
+#falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
+#falci_t6_data <- read.csv("~/PhD/RNAseq/vac63c/T6vBas_First_DEGs_log2fc_cutoff.csv", header = T, stringsAsFactors = F, row.names = 1)
 
-falci_dod_data$file_name <- "DoD_Baseline"
+falci_t6_data <- data.table::fread("~/PhD/RNAseq/vac63c/Set5_Tplus6_First_relativeto_Cminus1_First_ALLdata_genelist.xls", header = T, stringsAsFactors = F)
+
+falci_t6_data <- falci_t6_data %>%
+  group_by(Symbol) %>%
+  top_n(n = -1, wt = pvalue) %>%
+  #select(-PathwayID) %>%
+  #distinct(Symbol, .keep_all = TRUE) %>%
+  ungroup()
+
+falci_t6_data$Infection <- "P. falciparum"
 falci_t6_data$file_name <- "T6_Baseline"
+
+
+#falci_dod_data$file_name <- "DoD_Baseline"
 
 falci_data <- falci_t6_data
 
 falci_t6_faves <- list("T Cell Genes of Interest"=c("CCR5", "CD19", "CD20", "CD28", "IgD", "CD27", "CD38", "CD79A", "CXCR5", "CD79B", "CTLA4", "CX3CR1", "CXCR3",
                                                     "CXCR4", "CXCR6", "ICOS", "IFNG", "IL12RB1", "IL12RB2", "IL21", "IL32","MKI67", "LAG3", "TBX21"))
 
-phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS", "CD28", "TBX21", "PDCD1", "HAVCR2"))
+phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS", "CD28", "TBX21", "PDCD1", "HAVCR2"))
 
 #slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
 
@@ -321,12 +333,16 @@ definitive_falci_faves <- list("definitive_falci_faves"=plot_data$Symbol)
 
 vivax_t6_data <- read.csv("~/PhD/RNAseq/vac69a/all/xls/all_unique_genes_cleaned.csv")
 
+vivax_t6_data$Infection <- "P. vivax"
+
+
 falci_faves_in_vivax <- vivax_t6_data %>%
   filter(file_name=="T6_Baseline") %>%
   select(colnames(plot_data)[-7]) %>%
   filter(Symbol %in% plot_data$Symbol)
 
-combo_data <- rbind(cbind(plot_data[,-7],"Infection"="P. falciparum"), cbind(falci_faves_in_vivax, "Infection"="P. vivax"))
+
+combo_data <- rbind(plot_data[,-7], falci_faves_in_vivax)
 
 combo_data$log2FoldChange <- ifelse(combo_data$padj>0.05, 0, combo_data$log2FoldChange)
 
@@ -375,8 +391,8 @@ gene_matrix <- t(as.matrix(gene_matrix[,c(1,2)]))
 rownames(gene_matrix) <-rev(c("P. vivax", "P. falciparum"))
 
 
-inferno <- c("#0859C6", "darkblue", colorspace::sequential_hcl("inferno", n=8))
-col_fun_rna <- circlize::colorRamp2(seq(-2,7), inferno)
+inferno <- c(colorspace::sequential_hcl("inferno", n=8))
+col_fun_rna <- circlize::colorRamp2(seq(0,max(gene_matrix)+0.5, by=max(gene_matrix)/(length(inferno)-1)), inferno)
 
 
 #col_fun_rna <- circlize::colorRamp2(c(min(gene_matrix), 0, max(gene_matrix)), c("#0859C6", "black", "#FFA500"))
@@ -387,7 +403,8 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
         cluster_rows = FALSE,
         show_heatmap_legend = TRUE,
         column_title ="Selected Genes at T6",
-        heatmap_legend_param = list(title = "log2FC"),
+        heatmap_legend_param = list(title = "log2FC",
+                                    at=seq(0,5)),
         cluster_columns = FALSE,
         column_names_gp = gpar(fontsize = 8),
         row_names_gp = gpar(fontsize = 8),
