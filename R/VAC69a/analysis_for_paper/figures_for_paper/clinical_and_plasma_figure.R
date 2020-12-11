@@ -35,8 +35,54 @@
   
   biochem_data$volunteer <- paste("v", substr(biochem_data$volunteer, 6, 7), sep='')
   
+  
+  
+  lousy_timepoints <- unique(as.character(biochem_data$timepoint))
+  
+  good_timepoints <- c("C7 am", "C14 am", "Screening","Baseline", "Diagnosis", "C28", "T1", "T6", "C90", "EV")
+  
+  biochem_timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
+  biochem_data$timepoint <- stringr::str_replace_all(biochem_data$timepoint, biochem_timepoint_replacement)
+  
+  
+  
   #biochem_data <- filter(biochem_data, timepoint %in% c("_C_1", "_T6", "_EP"))
+
+  line_plot_data <- select(biochem_data,  volunteer, timepoint, bilirubin, alt, alkphos, albumin)
+  
+  long_line_plot_data <- line_plot_data %>%
+    filter(timepoint %in% c("Baseline, C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")) %>%
+    gather(Analyte, Concentration, c(bilirubin, alt, alkphos, albumin))
+  
+  
+  
+  
+  
+  biochem_line_plot <- ggplot(long_line_plot_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(timepoint))), y=Concentration, color=volunteer, group=volunteer))+
+    scale_fill_manual(values=volunteer_palette)+
+    scale_color_manual(values=volunteer_palette)+
+    geom_line(aes(color=volunteer), size=0.9)+
+    geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+    theme_minimal()+
+    facet_wrap(~Analyte, scales="free", ncol = 4)+
+    xlab("Timepoint")+
+    #ylab(expression(Cells~"/"~mu*L~blood))+
+    guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+    fig1_theme+
+    #scale_y_continuous(label=scales::comma)+
+    theme(plot.title = element_text(hjust=0.5),
+          axis.text.x = element_text(hjust=1, angle=45, size=8), 
+          axis.title = element_blank(),
+          legend.position = "none",
+          strip.text = element_text(size=10))
+  
+  
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/biochem_line_plot.pdf", biochem_line_plot, width=6, height=1.7)
+  
+  
+  
   biochem_data <- select(biochem_data,  volunteer, timepoint, grep("_ae", colnames(biochem_data), fixed = TRUE, value = TRUE))
+  
   
   lousy_timepoints <- unique(as.character(biochem_data$timepoint))
   
@@ -47,6 +93,9 @@
   
   long_biochem_data <- gather(biochem_data, symptom, severity, grep("_ae", colnames(biochem_data), fixed = TRUE, value = TRUE))
   long_biochem_data$symptom <- gsub("_ae", "", long_biochem_data$symptom)
+  
+  
+  
   
   
   long_biochem_data$symptom <- paste(

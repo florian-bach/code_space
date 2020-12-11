@@ -382,17 +382,50 @@ supp_theme <- theme(axis.title = element_text(size = 6),
 #                     )
 
 
+
+
+big_table <- big_table[seq(1,nrow(big_table), by=5), ]
+
+
+
+
 CD4_plot<- flo_umap(big_table, "CD4", only_show = "T6")+supp_theme
 CD8_plot<- flo_umap(big_table, "CD8", only_show = "T6")+supp_theme
 Vd2_plot <- flo_umap(big_table, "Vd2", only_show = "T6")+supp_theme
 Va72_plot <- flo_umap(big_table, "Va72", only_show = "T6")+supp_theme
 FoxP3_plot <- flo_umap(big_table, "FoxP3", only_show = "T6")+supp_theme
 CD25_plot <- flo_umap(big_table, "CD25", only_show = "T6")+supp_theme
-CD161_plot <- flo_umap(big_table, "CD161", only_show = "T6")+supp_theme
+#CD161_plot <- flo_umap(big_table, "CD161", only_show = "T6")+supp_theme
 CD127_plot <- flo_umap(big_table, "CD127", only_show = "T6")+supp_theme
 
-lineage_plot <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot, FoxP3_plot, CD25_plot, CD127_plot, CD161_plot, ncol=4, align="hv", axis="l")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_lineage_plot.pdf", lineage_plot, height=3, width=8)
+
+
+CD27_plot <- flo_umap(big_table, "CD27", only_show = "T6")+supp_theme
+
+Ki67_plot <- flo_umap(big_table, "Ki67", only_show = "T6")+supp_theme
+CD28_plot <- flo_umap(big_table, "CD28", only_show = "T6")+supp_theme
+PD1_plot <- flo_umap(big_table, "PD1", only_show = "T6")+supp_theme
+CTLA4_plot <- flo_umap(big_table, "CTLA4", only_show = "T6")+supp_theme
+Tbet_plot <- flo_umap(big_table, "Tbet", only_show = "T6")+supp_theme
+Perforin_plot <- flo_umap(big_table, "Perforin", only_show = "T6")+supp_theme
+GZB_plot <- flo_umap(big_table, "GZB", only_show = "T6")+supp_theme
+HLADR_plot <- flo_umap(big_table, "HLA-DR", only_show = "T6")+supp_theme
+ICOS_plot <- flo_umap(big_table, "ICOS", only_show = "T6")+supp_theme
+                                                                                                                                 
+
+
+
+
+
+
+
+supp_umaps <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot,
+                                 FoxP3_plot, CD25_plot, CD127_plot, CTLA4_plot,
+                                 Ki67_plot, Tbet_plot, GZB_plot, Perforin_plot, 
+                                 PD1_plot, CD28_plot, HLADR_plot, ICOS_plot,  
+                                 ncol=4, align="hv", axis="l")
+
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activation_UMAPs.pdf", supp_umaps, height=6, width=8)
 
 # mempry markers across whole UMAP ####
 
@@ -411,7 +444,7 @@ CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+supp_theme2
 
 
 memory_plots <- cowplot::plot_grid(CCR7_plot, CD45RO_plot, CD45RA_plot, CD57_plot, CD127_plot, CX3CR1_plot, ncol=1, align="hv", axis="l")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_memory_plots.pdf", memory_plots, height=10, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.pdf", memory_plots, height=10, width=8)
 
 
 UMAP_theme <- theme_minimal()+theme(

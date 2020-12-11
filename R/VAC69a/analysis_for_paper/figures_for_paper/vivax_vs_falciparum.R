@@ -271,7 +271,11 @@ falci_data <- falci_t6_data
 falci_t6_faves <- list("T Cell Genes of Interest"=c("CCR5", "CD19", "CD20", "CD28", "IgD", "CD27", "CD38", "CD79A", "CXCR5", "CD79B", "CTLA4", "CX3CR1", "CXCR3",
                                                     "CXCR4", "CXCR6", "ICOS", "IFNG", "IL12RB1", "IL12RB2", "IL21", "IL32","MKI67", "LAG3", "TBX21"))
 
-slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
+phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS", "CD28", "TBX21", "PDCD1", "HAVCR2"))
+
+#slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
+
+slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% phil_tcell_genes$`phils faves`)
 
 slimmed_falci_data <- slimmed_falci_data[order(slimmed_falci_data$log2FoldChange,decreasing = TRUE),]
 
@@ -324,34 +328,38 @@ falci_faves_in_vivax <- vivax_t6_data %>%
 
 combo_data <- rbind(cbind(plot_data[,-7],"Infection"="P. falciparum"), cbind(falci_faves_in_vivax, "Infection"="P. vivax"))
 
-plot_plot2 <- ggplot(combo_data, aes(x=factor(Infection, levels=c("P. vivax", "P. falciparum")),
-                                    #y=factor(Symbol, levels = c(vivax_plot_levels$Symbol))))+
-                                    y=factor(Symbol, levels=rev(plot_data$Symbol))))+
-  geom_tile(aes(fill=log2FoldChange, width=0.92, height=0.92), size=0.4,
-            #color=ifelse(combo_data$padj<0.05, "red", "black")
-  )+
-  scale_fill_gradientn(name="log2FC",
-                       values = scales::rescale(c(min(combo_data$log2FoldChange, na.rm = TRUE), 0, max(combo_data$log2FoldChange, na.rm = TRUE)), to=c(0,1)),
-                       colors = c("#0859C6","black","#FFA500"))+
-  theme_void()+
-  ggtitle("T cell genes at T6\nrelative to Baseline\n")+
-  guides(fill=guide_colorbar(nbin=30,
-                             breaks=seq(min(combo_data$log2FoldChange),max(combo_data$log2FoldChange), by=1)))+
-  coord_fixed(ratio = 1)+
-  #facet_grid(~Infection)+
-  theme(
-    axis.text.x = element_text(angle=45, hjust = 1, vjust = 1, size = 7, face = "italic"),
-    axis.text.y = element_text(size=9),
-    plot.title = element_text(hjust=0.5),
-    legend.title = element_text(hjust=0, size=8),
-    legend.margin=margin(0,0,0,0),
-    legend.position = "right",
-    legend.box.margin=margin(0,0,0,0))
+combo_data$log2FoldChange <- ifelse(combo_data$padj>0.05, 0, combo_data$log2FoldChange)
 
-
-
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", plot_plot2, height = 4.5, width=1.7)
-
+# ggplot2.. whatev
+# 
+# plot_plot2 <- ggplot(combo_data, aes(x=factor(Infection, levels=c("P. vivax", "P. falciparum")),
+#                                     #y=factor(Symbol, levels = c(vivax_plot_levels$Symbol))))+
+#                                     y=factor(Symbol, levels=rev(plot_data$Symbol))))+
+#   geom_tile(aes(fill=log2FoldChange, width=0.92, height=0.92), size=0.4,
+#             #color=ifelse(combo_data$padj<0.05, "red", "black")
+#   )+
+#   scale_fill_gradientn(name="log2FC",
+#                        values = scales::rescale(c(min(combo_data$log2FoldChange, na.rm = TRUE), 0, max(combo_data$log2FoldChange, na.rm = TRUE)), to=c(0,1)),
+#                        colors = c("#0859C6","black","#FFA500"))+
+#   theme_void()+
+#   ggtitle("T cell genes at T6\nrelative to Baseline\n")+
+#   guides(fill=guide_colorbar(nbin=30,
+#                              breaks=seq(min(combo_data$log2FoldChange),max(combo_data$log2FoldChange), by=1)))+
+#   coord_fixed(ratio = 1)+
+#   #facet_grid(~Infection)+
+#   theme(
+#     axis.text.x = element_text(angle=45, hjust = 1, vjust = 1, size = 7, face = "italic"),
+#     axis.text.y = element_text(size=9),
+#     plot.title = element_text(hjust=0.5),
+#     legend.title = element_text(hjust=0, size=8),
+#     legend.margin=margin(0,0,0,0),
+#     legend.position = "right",
+#     legend.box.margin=margin(0,0,0,0))
+# 
+# 
+# 
+# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", plot_plot2, height = 4.5, width=1.7)
+# 
 
 
 
@@ -367,7 +375,11 @@ gene_matrix <- t(as.matrix(gene_matrix[,c(1,2)]))
 rownames(gene_matrix) <-rev(c("P. vivax", "P. falciparum"))
 
 
-col_fun_rna <- circlize::colorRamp2(c(min(gene_matrix), 0, max(gene_matrix)), c("#0859C6", "black", "#FFA500"))
+inferno <- c("#0859C6", "darkblue", colorspace::sequential_hcl("inferno", n=8))
+col_fun_rna <- circlize::colorRamp2(seq(-2,7), inferno)
+
+
+#col_fun_rna <- circlize::colorRamp2(c(min(gene_matrix), 0, max(gene_matrix)), c("#0859C6", "black", "#FFA500"))
 
 
 
