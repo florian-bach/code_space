@@ -1,521 +1,528 @@
   # Panel A clinical presentation of volunteers undergoing vivax CHMI: plateltets, fever lymphocytes, adverse events, parasitaemia ####
-  
-  library(ggplot2)
-  library(tidyr)
-  library(dplyr)
-  
-  `%notin%` <- Negate(`%in%`)
-  
-  fig1_theme <- theme(axis.title.x = element_blank(),
-                      legend.title = element_text(size = 9), 
-                      legend.text = element_text(size = 9),
-                      axis.title=element_text(size=10))
-  
-  
-  volunteer_colours <- list("v02" = "#FB9A99",
-                            "v03" = "#E31A1C",
-                            "v05" = "#A6CEE3",
-                            "v06" = "#1F78B4",
-                            "v07" = "#F0E442",
-                            "v09" = "#E69F00")
-  
-  
-  volunteer_palette <- unlist(unname(volunteer_colours))
-  names(volunteer_palette) <- names(volunteer_colours)
-  
-  
-  
-  # biochem ####
-  
-  
-  
-  biochem_data <- read.csv("~/PhD/clinical_data/vac69a/biochem.csv")
-  
-  colnames(biochem_data)[1] <- "volunteer"
-  
-  biochem_data$volunteer <- paste("v", substr(biochem_data$volunteer, 6, 7), sep='')
-  
-  
-  
-  lousy_timepoints <- unique(as.character(biochem_data$timepoint))
-  
-  good_timepoints <- c("C7 am", "C14 am", "Screening","Baseline", "Diagnosis", "C28", "T1", "T6", "C90", "EV")
-  
-  biochem_timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
-  biochem_data$timepoint <- stringr::str_replace_all(biochem_data$timepoint, biochem_timepoint_replacement)
-  
-  
-  
-  #biochem_data <- filter(biochem_data, timepoint %in% c("_C_1", "_T6", "_EP"))
-
-  line_plot_data <- select(biochem_data,  volunteer, timepoint, bilirubin, alt, alkphos, albumin)
-  
-  long_line_plot_data <- line_plot_data %>%
-    filter(timepoint %in% c("Baseline, C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")) %>%
-    gather(Analyte, Concentration, c(bilirubin, alt, alkphos, albumin))
-  
-  
-  
-  
-  
-  biochem_line_plot <- ggplot(long_line_plot_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(timepoint))), y=Concentration, color=volunteer, group=volunteer))+
-    scale_fill_manual(values=volunteer_palette)+
-    scale_color_manual(values=volunteer_palette)+
-    geom_line(aes(color=volunteer), size=0.9)+
-    geom_point(fill="white", stroke=1, shape=21, size=0.9)+
-    theme_minimal()+
-    facet_wrap(~Analyte, scales="free", ncol = 4)+
-    xlab("Timepoint")+
-    #ylab(expression(Cells~"/"~mu*L~blood))+
-    guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
-    fig1_theme+
-    #scale_y_continuous(label=scales::comma)+
-    theme(plot.title = element_text(hjust=0.5),
-          axis.text.x = element_text(hjust=1, angle=45, size=8), 
-          axis.title = element_blank(),
-          legend.position = "none",
-          strip.text = element_text(size=10))
-  
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/biochem_line_plot.pdf", biochem_line_plot, width=6, height=1.7)
-  
-  
-  
-  biochem_data <- select(biochem_data,  volunteer, timepoint, grep("_ae", colnames(biochem_data), fixed = TRUE, value = TRUE))
-  
-  
-  lousy_timepoints <- unique(as.character(biochem_data$timepoint))
-  
-  good_timepoints <- c("C7 am", "C14 am", "Screening","Baseline", "Diagnosis", "C28", "T1", "T6", "C90", "EV")
-  
-  biochem_timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
-  biochem_data$timepoint <- stringr::str_replace_all(biochem_data$timepoint, biochem_timepoint_replacement)
-  
-  long_biochem_data <- gather(biochem_data, symptom, severity, grep("_ae", colnames(biochem_data), fixed = TRUE, value = TRUE))
-  long_biochem_data$symptom <- gsub("_ae", "", long_biochem_data$symptom)
-  
-  
-  
-  
-  
-  long_biochem_data$symptom <- paste(
-    toupper(substr(long_biochem_data$symptom, 1,1)),
-    substr(long_biochem_data$symptom, 2,nchar(long_biochem_data$symptom)),
-    sep="")
-  
-  
-  # symptoms ####
-  symptom_data <- read.csv("~/PhD/clinical_data/vac69a/symptoms_vac69a.csv", header = T, stringsAsFactors = F)
-  symptom_data$flo_timepoint <- gsub("am ", "am", symptom_data$flo_timepoint)
-  symptom_data$flo_timepoint <- gsub("pm ", "pm", symptom_data$flo_timepoint)
-  symptom_data$flo_timepoint <- gsub("DoD ", "Diagnosis", symptom_data$flo_timepoint)
-  symptom_data$timepoint <- symptom_data$flo_timepoint
-  
-  symptom_data$volunteer <- gsub("69010", "v", symptom_data$trial_number)
     
+    library(ggplot2)
+    library(tidyr)
+    library(dplyr)
+    
+    `%notin%` <- Negate(`%in%`)
+    
+    fig1_theme <- theme(axis.title.x = element_blank(),
+                        legend.title = element_text(size = 9), 
+                        legend.text = element_text(size = 9),
+                        axis.title=element_text(size=10))
+    
+    
+    volunteer_colours <- list("v02" = "#FB9A99",
+                              "v03" = "#E31A1C",
+                              "v05" = "#A6CEE3",
+                              "v06" = "#1F78B4",
+                              "v07" = "#F0E442",
+                              "v09" = "#E69F00")
+    
+    
+    volunteer_palette <- unlist(unname(volunteer_colours))
+    names(volunteer_palette) <- names(volunteer_colours)
+    
+    
+    
+    # biochem ####
+    
+    
+    
+    biochem_data <- read.csv("~/PhD/clinical_data/vac69a/biochem.csv")
+    
+    colnames(biochem_data)[1] <- "volunteer"
+    
+    biochem_data$volunteer <- paste("v", substr(biochem_data$volunteer, 6, 7), sep='')
+    
+    
+    
+    lousy_timepoints <- unique(as.character(biochem_data$timepoint))
+    
+    good_timepoints <- c("C7 am", "C14 am", "Screening","Baseline", "Diagnosis", "C28", "T1", "T6", "C90", "EV")
+    
+    biochem_timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
+    biochem_data$timepoint <- stringr::str_replace_all(biochem_data$timepoint, biochem_timepoint_replacement)
+    
+    
+    
+    #biochem_data <- filter(biochem_data, timepoint %in% c("_C_1", "_T6", "_EP"))
   
-  
-  long_symptom_data <- tidyr::gather(symptom_data, symptom, severity, colnames(symptom_data)[c(12, 15:ncol(symptom_data)-1)])
-  
-  long_symptom_data$timepoint <- as.character(symptom_data$flo_timepoint)
-  
-  
-  long_symptom_data <- symptom_data %>%
-    gather(symptom, severity, colnames(symptom_data)[c(12, 14:ncol(symptom_data)-1)]) %>%
-    select(volunteer, timepoint, symptom, severity)
-  
-  long_symptom_data$symptom <- paste(
-    toupper(substr(long_symptom_data$symptom, 1,1)),
-    substr(long_symptom_data$symptom, 2,nchar(long_symptom_data$symptom)),
-    sep="")
-  
-  
-  
-  # haematology ####
-  
-  haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
-  
-  haem_data$volunteer <- gsub("69010", "v", haem_data$trial_number)
-  
-  long_haem_data <- haem_data %>%
-    select(volunteer, timepoint, grep("_ae", colnames(haem_data), fixed = TRUE, value = TRUE))%>%
-    gather(symptom, severity, grep("_ae", colnames(haem_data), fixed = TRUE, value = TRUE))
-  
-  long_haem_data <- na.omit(long_haem_data)
-  
-  lousy_haem_timepoints <- unique(long_haem_data$timepoint)
-  good_haem_timepoints <- c("C90", "T6", "C7 am", "Baseline", "C28", "EV", "C14 am", "Diagnosis", "Screening", "T1")
-  
-  haem_time_dic <- setNames(good_haem_timepoints, lousy_haem_timepoints)
-  
-  long_haem_data$timepoint <- stringr::str_replace_all(long_haem_data$timepoint, haem_time_dic)
-  
-  long_haem_data$severity <- as.character(long_haem_data$severity)
-  long_haem_data$symptom <- substr(long_haem_data$symptom, 1,nchar(long_haem_data$symptom)-3)
-  
-  long_haem_data$symptom <- paste(
-    toupper(substr(long_haem_data$symptom, 1,1)),
-    substr(long_haem_data$symptom, 2,nchar(long_haem_data$symptom)),
-    sep="")
-  
-  long_haem_data$symptom <- gsub("Wbc", "WBC", long_haem_data$symptom)
-  
-  
-  # putting it all together ####
-  
-  long_haem_data$source <- "Haematology"
-  long_biochem_data$source <- "Biochemistry"
-  long_symptom_data$source <- "Symptom"
-  
-  long_ae_data <- rbind(long_haem_data, long_biochem_data, long_symptom_data)
-  
-  long_ae_data$timepoint <- gsub("Baseline ", "Baseline", long_ae_data$timepoint)
-  long_ae_data$timepoint <- gsub("DoD", "Diagnosis", long_ae_data$timepoint)
-  
-  long_ae_data$timepoint <- gsub("T6 ", "T6", long_ae_data$timepoint)
-  long_ae_data$timepoint <- gsub("T1 ", "T1", long_ae_data$timepoint)
-  long_ae_data$timepoint <- gsub("T2 ", "T2", long_ae_data$timepoint)
-  long_ae_data$timepoint <- gsub("C28 ", "C28", long_ae_data$timepoint)
-  
-  long_ae_data$severity <- as.numeric(as.character(long_ae_data$severity))
-  
-  adverse_events <- long_ae_data %>%
-    filter(severity >= 1) %>%
-    filter(symptom != "Pyrexia_temp") %>%
-    group_by(volunteer, timepoint, severity) %>%
-    summarise(ae_count = n())
-  
-  
-  timepoints <- unique(long_ae_data$timepoint[gtools::mixedorder(long_ae_data$timepoint)])
-  
-  timepoint_levels <- timepoints[c(1:31, 34, 37:length(timepoints))]
-  
-  
-  adverse_events <- filter(adverse_events, timepoint %in% timepoint_levels)
-  
-  (all_ae_stack <- ggplot(adverse_events,  aes(x=factor(timepoint, levels=timepoint_levels), y=ae_count/6, fill=factor(severity, levels=rev(1:3))))+
-      geom_bar(stat="identity", position = "stack")+
-      scale_fill_manual(values =  list("1"="#FACA0F", "2"="chocolate1", "3"="red"))+
-      ylab("Mean # of AEs per Volunteer")+
+    line_plot_data <- select(biochem_data,  volunteer, timepoint, bilirubin, alt, alkphos, albumin)
+    
+    long_line_plot_data <- line_plot_data %>%
+      filter(timepoint %in% c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")) %>%
+      gather(Analyte, Concentration, c(bilirubin, alt, alkphos, albumin))
+    
+    
+    long_line_plot_data$Analyte <- paste(
+      toupper(substr(long_line_plot_data$Analyte, 1,1)),
+      substr(long_line_plot_data$Analyte, 2,nchar(long_line_plot_data$Analyte)),
+      sep="")
+    
+    
+    
+      biochem_line_plot <- ggplot(long_line_plot_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Concentration, color=volunteer, group=volunteer))+
+      scale_fill_manual(values=volunteer_palette)+
+      scale_color_manual(values=volunteer_palette)+
+      geom_line(aes(color=volunteer), size=0.9)+
+      geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+      theme_minimal()+
+      facet_wrap(~Analyte, scales="free", ncol = 4)+
       xlab("Timepoint")+
-      ggtitle("All Adverse Events")+
-      geom_vline(xintercept = 23.5)+
-      scale_y_continuous(limits = c(0,8), breaks = seq(0, 8, by=2))+
+      #ylab(expression(Cells~"/"~mu*L~blood))+
+      guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+      fig1_theme+
+      #scale_y_continuous(label=scales::comma)+
+      theme(plot.title = element_text(hjust=0.5),
+            axis.text.x = element_text(hjust=1, angle=45, size=8), 
+            axis.title = element_blank(),
+            legend.position = "none",
+            strip.text = element_text(size=10))
+    
+    
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/biochem_line_plot.pdf", biochem_line_plot, width=6.4, height=2)
+    
+    
+    
+    biochem_data <- select(biochem_data,  volunteer, timepoint, grep("_ae", colnames(biochem_data), fixed = TRUE, value = TRUE))
+    
+    
+    lousy_timepoints <- unique(as.character(biochem_data$timepoint))
+    
+    good_timepoints <- c("C7 am", "C14 am", "Screening","Baseline", "Diagnosis", "C28", "T1", "T6", "C90", "EV")
+    
+    biochem_timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
+    biochem_data$timepoint <- stringr::str_replace_all(biochem_data$timepoint, biochem_timepoint_replacement)
+    
+    long_biochem_data <- gather(biochem_data, symptom, severity, grep("_ae", colnames(biochem_data), fixed = TRUE, value = TRUE))
+    long_biochem_data$symptom <- gsub("_ae", "", long_biochem_data$symptom)
+    
+    
+    
+    
+    
+    long_biochem_data$symptom <- paste(
+      toupper(substr(long_biochem_data$symptom, 1,1)),
+      substr(long_biochem_data$symptom, 2,nchar(long_biochem_data$symptom)),
+      sep="")
+    
+    
+    # symptoms ####
+    symptom_data <- read.csv("~/PhD/clinical_data/vac69a/symptoms_vac69a.csv", header = T, stringsAsFactors = F)
+    symptom_data$flo_timepoint <- gsub("am ", "am", symptom_data$flo_timepoint)
+    symptom_data$flo_timepoint <- gsub("pm ", "pm", symptom_data$flo_timepoint)
+    symptom_data$flo_timepoint <- gsub("DoD ", "Diagnosis", symptom_data$flo_timepoint)
+    symptom_data$timepoint <- symptom_data$flo_timepoint
+    
+    symptom_data$volunteer <- gsub("69010", "v", symptom_data$trial_number)
+      
+    
+    
+    long_symptom_data <- tidyr::gather(symptom_data, symptom, severity, colnames(symptom_data)[c(12, 15:ncol(symptom_data)-1)])
+    
+    long_symptom_data$timepoint <- as.character(symptom_data$flo_timepoint)
+    
+    
+    long_symptom_data <- symptom_data %>%
+      gather(symptom, severity, colnames(symptom_data)[c(12, 14:ncol(symptom_data)-1)]) %>%
+      select(volunteer, timepoint, symptom, severity)
+    
+    long_symptom_data$symptom <- paste(
+      toupper(substr(long_symptom_data$symptom, 1,1)),
+      substr(long_symptom_data$symptom, 2,nchar(long_symptom_data$symptom)),
+      sep="")
+    
+    
+    
+    # haematology ####
+    
+    haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
+    
+    haem_data$volunteer <- gsub("69010", "v", haem_data$trial_number)
+    
+    long_haem_data <- haem_data %>%
+      select(volunteer, timepoint, grep("_ae", colnames(haem_data), fixed = TRUE, value = TRUE))%>%
+      gather(symptom, severity, grep("_ae", colnames(haem_data), fixed = TRUE, value = TRUE))
+    
+    long_haem_data <- na.omit(long_haem_data)
+    
+    lousy_haem_timepoints <- unique(long_haem_data$timepoint)
+    good_haem_timepoints <- c("C90", "T6", "C7 am", "Baseline", "C28", "EV", "C14 am", "Diagnosis", "Screening", "T1")
+    
+    haem_time_dic <- setNames(good_haem_timepoints, lousy_haem_timepoints)
+    
+    long_haem_data$timepoint <- stringr::str_replace_all(long_haem_data$timepoint, haem_time_dic)
+    
+    long_haem_data$severity <- as.character(long_haem_data$severity)
+    long_haem_data$symptom <- substr(long_haem_data$symptom, 1,nchar(long_haem_data$symptom)-3)
+    
+    long_haem_data$symptom <- paste(
+      toupper(substr(long_haem_data$symptom, 1,1)),
+      substr(long_haem_data$symptom, 2,nchar(long_haem_data$symptom)),
+      sep="")
+    
+    long_haem_data$symptom <- gsub("Wbc", "WBC", long_haem_data$symptom)
+    
+    
+    # putting it all together ####
+    
+    long_haem_data$source <- "Haematology"
+    long_biochem_data$source <- "Biochemistry"
+    long_symptom_data$source <- "Symptom"
+    
+    long_ae_data <- rbind(long_haem_data, long_biochem_data, long_symptom_data)
+    
+    long_ae_data$timepoint <- gsub("Baseline ", "Baseline", long_ae_data$timepoint)
+    long_ae_data$timepoint <- gsub("DoD", "Diagnosis", long_ae_data$timepoint)
+    
+    long_ae_data$timepoint <- gsub("T6 ", "T6", long_ae_data$timepoint)
+    long_ae_data$timepoint <- gsub("T1 ", "T1", long_ae_data$timepoint)
+    long_ae_data$timepoint <- gsub("T2 ", "T2", long_ae_data$timepoint)
+    long_ae_data$timepoint <- gsub("C28 ", "C28", long_ae_data$timepoint)
+    
+    long_ae_data$severity <- as.numeric(as.character(long_ae_data$severity))
+    
+    adverse_events <- long_ae_data %>%
+      filter(severity >= 1) %>%
+      filter(symptom != "Pyrexia_temp") %>%
+      group_by(volunteer, timepoint, severity) %>%
+      summarise(ae_count = n())
+    
+    
+    timepoints <- unique(long_ae_data$timepoint[gtools::mixedorder(long_ae_data$timepoint)])
+    
+    timepoint_levels <- timepoints[c(1:31, 34, 37:length(timepoints))]
+    
+    
+    adverse_events <- filter(adverse_events, timepoint %in% timepoint_levels)
+    
+    (all_ae_stack <- ggplot(adverse_events,  aes(x=factor(timepoint, levels=timepoint_levels), y=ae_count/6, fill=factor(severity, levels=rev(1:3))))+
+        geom_bar(stat="identity", position = "stack")+
+        scale_fill_manual(values =  list("1"="#FACA0F", "2"="chocolate1", "3"="red"))+
+        ylab("Mean # of AEs per Volunteer")+
+        xlab("Timepoint")+
+        ggtitle("All Adverse Events")+
+        geom_vline(xintercept = 23.5)+
+        scale_y_continuous(limits = c(0,8), breaks = seq(0, 8, by=2))+
+        theme_minimal()+
+        fig1_theme+
+        theme(axis.text.x = element_text(hjust=1, angle=45, size=5),
+              plot.title = element_text(hjust=0.5, vjust=0, size=10),
+              panel.grid.minor = element_blank())+
+        guides(fill=guide_legend(title="Severity",
+                                 override.aes = list(size = 0.1),
+                                 keywidth = 0.5,reverse = T,
+                                 keyheight = 0.5)))
+    
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_adverse_events_stacked.pdf", all_ae_stack, height=4, width=6)
+    
+    
+    symptom_plot_data <- long_symptom_data %>%
+      filter(severity > 0) %>%
+      group_by(volunteer, timepoint, severity) %>%
+      summarise(ae_count = n())
+    
+    
+    symptom_timepoints <- unique(symptom_plot_data$timepoint[gtools::mixedorder(symptom_plot_data$timepoint)])
+    
+    
+    (symptom_stack <- ggplot(symptom_plot_data,  aes(x=factor(timepoint, levels=symptom_timepoints), y=ae_count/6, fill=as.character(severity)))+
+        geom_bar(stat="identity", position = "stack")+
+        scale_fill_manual(values =  list("1"="#FACA0F", "2"="chocolate1", "3"="red"))+
+        ylab("Mean # of AEs\nper Volunteer")+
+        xlab("Timepoint")+
+        ggtitle("All Adverse Events")+
+        geom_vline(aes(xintercept = 22.5))+
+        scale_y_continuous(limits = c(0,8), breaks = seq(0, 8, by=2))+
+        theme_minimal()+
+        fig1_theme+
+        theme(axis.text.x = element_text(hjust=1, angle=45, size=5),
+              plot.title = element_text(hjust=0.5, vjust=0, size=10),
+              panel.grid.minor = element_blank())+
+        guides(fill=guide_legend(title="Severity",
+                                 override.aes = list(size = 0.1),
+                                 keywidth = 0.5,
+                                 keyheight = 0.5)))
+    
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/symptom_adverse_events_stacked.pdf", symptom_stack, height=4, width=6)
+    
+    
+    
+    # max ae score ####
+    
+    dods <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
+                       paras=c(4907, 8054, 16733, 7464, 21870, 15051),
+                       dod=c('D15.5', 'D12.5', 'D15.5', 'D15.5', 'D16', 'D17'))
+    
+    
+    v02_adverse_events <- long_ae_data %>%
+      filter(severity>0, volunteer=="v02", timepoint %in% timepoint_levels[c(26:29, 32:34)]) %>%
+      group_by(timepoint) %>%
+      summarise(ae_count = n())
+    
+    max_ae_v02 <- nrow(v02_adverse_events)
+    
+    
+    v03_adverse_events <- long_ae_data %>%
+      filter(severity>0, volunteer=="v03", timepoint %in% timepoint_levels[c(20:23, 32:34)]) %>%
+      group_by(timepoint) %>%
+      summarise(ae_count = n())
+    
+    max_ae_v03 <- nrow(v03_adverse_events)
+    
+    
+    v05_adverse_events <- long_ae_data %>%
+      filter(severity>0, volunteer=="v05", timepoint %in% timepoint_levels[c(26:29, 32:34)]) %>%
+      group_by(timepoint) %>%
+      summarise(ae_count = n())
+    
+    max_ae_v05 <- nrow(v05_adverse_events)
+    
+    
+    v06_adverse_events <- long_ae_data %>%
+      filter(severity>0, volunteer=="v06", timepoint %in% timepoint_levels[c(26:29, 32:34)]) %>%
+      group_by(timepoint) %>%
+      summarise(ae_count = n())
+    
+    max_ae_v06 <- nrow(v06_adverse_events)
+    
+    
+    v07_adverse_events <- long_ae_data %>%
+      filter(severity>0, volunteer=="v07", timepoint %in% timepoint_levels[c(27:30, 32:34)]) %>%
+      group_by(timepoint) %>%
+      summarise(ae_count = n())
+    
+    max_ae_v07 <- nrow(v07_adverse_events)
+    
+    
+    v09_adverse_events <- long_ae_data %>%
+      filter(severity>0, volunteer=="v09", timepoint %in% timepoint_levels[c(28:31, 32:34)]) %>%
+      group_by(timepoint) %>%
+      summarise(ae_count = n())
+    
+    max_ae_v09 <- nrow(v09_adverse_events)
+    
+    
+    
+    
+    # ae plots ####
+    
+    
+    adverse_events <- long_data %>%
+      filter(Severity > 0) %>%
+      group_by(Volunteer, flo_timepoint, Severity) %>%
+      summarise(ae_count = n())
+    
+    adverse_pies <- long_data %>%
+      mutate(flo_timepoint=gsub(" pm", "", flo_timepoint)) %>%
+      mutate(flo_timepoint=gsub(" am", "", flo_timepoint)) %>%
+      group_by(Symptom, flo_timepoint)
+    
+    
+    
+    fig1_theme <- theme(axis.title.x = element_blank(),
+                        legend.title = element_text(size = 9), 
+                        legend.text = element_text(size = 9),
+                        axis.title=element_text(size=10))
+    
+    
+    # fever
+    temp_data <- read.csv("~/PhD/clinical_data/vac69a/vac69a_body_temp.csv")
+    
+    fever <- temp_data %>%
+      mutate("volunteer" = gsub("69010", "v", trial_number)) %>%
+      filter(study_event_oid != "SE_VA69_C28") %>%
+      select(volunteer, timepoint, temp) %>%
+      #filter(temp>37.5)
+      filter(timepoint %in% c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
+                              "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6"))
+    
+    
+    lousy_fever_timepoints <- c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
+                           "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6")
+    
+    good_fever_timepoints <- c("Baseline", "C7", "C12","C14", "Diagnosis", "T1", "T2", "T6")
+    
+    fever_timepoint_replacement <- setNames(good_fever_timepoints, lousy_fever_timepoints)
+    fever$timepoint <- stringr::str_replace_all(fever$timepoint, fever_timepoint_replacement)
+    
+     
+    pyrexia <- symptom_data %>%
+      mutate("temp"=pyrexia_temp) %>%
+      select(volunteer, timepoint, temp) 
+      
+    pyrexia <- na.omit(pyrexia)
+    
+    pyrexia$timepoint <- c("T1", "C12", "T1", "C12", "Diagnosis", "T2", "C11", "Diagnosis", "T1", "Diagnosis")
+    
+    fever <- rbind(fever, pyrexia)
+    
+    
+    real_fever <- fever %>%
+      group_by(volunteer, timepoint) %>%
+      summarise("max_temp"=max(temp)) %>%
+      ungroup() %>%
+      group_by(volunteer) %>%
+      summarise("max_temp"=max(max_temp))
+    
+    
+    
+    fever <- fever %>%
+      group_by(volunteer, timepoint) %>%
+      summarise("max_temp"=max(temp)) %>%
+      filter(timepoint %in% good_fever_timepoints)
+    
+    # 
+    
+    
+    # 1 v02           38.5
+    # 2 v03           39.7
+    # 3 v05           37.1
+    # 4 v06           37.9
+    # 5 v07           38.7
+    # 6 v09           36.9
+    
+    
+    
+    
+    
+    fever_curves <- ggplot(fever, aes(x=factor(timepoint, levels=good_fever_timepoints), y=max_temp, color=volunteer, group=volunteer))+
+      scale_fill_manual(values=volunteer_palette)+
+      scale_color_manual(values=volunteer_palette)+
+      geom_line(aes(color=volunteer), size=0.9)+
+      geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+      ggtitle("Fever Curves")+
+      geom_hline(yintercept = 37.5, linetype="dashed", color="black")+
+      xlab("Timepoint")+
+      ylab(expression(paste("Temperature (",degree,"C)",sep="")))+
+      scale_y_continuous(breaks = seq(36.5, 40, by=0.5) )+
       theme_minimal()+
       fig1_theme+
-      theme(axis.text.x = element_text(hjust=1, angle=45, size=5),
-            plot.title = element_text(hjust=0.5, vjust=0, size=10),
-            panel.grid.minor = element_blank())+
-      guides(fill=guide_legend(title="Severity",
-                               override.aes = list(size = 0.1),
-                               keywidth = 0.5,reverse = T,
-                               keyheight = 0.5)))
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/all_adverse_events_stacked.pdf", all_ae_stack, height=4, width=6)
-  
-  
-  symptom_plot_data <- long_symptom_data %>%
-    filter(severity > 0) %>%
-    group_by(volunteer, timepoint, severity) %>%
-    summarise(ae_count = n())
-  
-  
-  symptom_timepoints <- unique(symptom_plot_data$timepoint[gtools::mixedorder(symptom_plot_data$timepoint)])
-  
-  
-  (symptom_stack <- ggplot(symptom_plot_data,  aes(x=factor(timepoint, levels=symptom_timepoints), y=ae_count/6, fill=as.character(severity)))+
-      geom_bar(stat="identity", position = "stack")+
-      scale_fill_manual(values =  list("1"="#FACA0F", "2"="chocolate1", "3"="red"))+
-      ylab("Mean # of AEs\nper Volunteer")+
-      xlab("Timepoint")+
-      ggtitle("All Adverse Events")+
-      geom_vline(aes(xintercept = 22.5))+
-      scale_y_continuous(limits = c(0,8), breaks = seq(0, 8, by=2))+
-      theme_minimal()+
-      fig1_theme+
-      theme(axis.text.x = element_text(hjust=1, angle=45, size=5),
-            plot.title = element_text(hjust=0.5, vjust=0, size=10),
-            panel.grid.minor = element_blank())+
-      guides(fill=guide_legend(title="Severity",
-                               override.aes = list(size = 0.1),
-                               keywidth = 0.5,
-                               keyheight = 0.5)))
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/symptom_adverse_events_stacked.pdf", symptom_stack, height=4, width=6)
-  
-  
-  
-  # max ae score ####
-  
-  dods <- data.frame(vol=c('v02', 'v03', 'v05', 'v06', 'v07', 'v09'),
-                     paras=c(4907, 8054, 16733, 7464, 21870, 15051),
-                     dod=c('D15.5', 'D12.5', 'D15.5', 'D15.5', 'D16', 'D17'))
-  
-  
-  v02_adverse_events <- long_ae_data %>%
-    filter(severity>0, volunteer=="v02", timepoint %in% timepoint_levels[c(26:29, 32:34)]) %>%
-    group_by(timepoint) %>%
-    summarise(ae_count = n())
-  
-  max_ae_v02 <- nrow(v02_adverse_events)
-  
-  
-  v03_adverse_events <- long_ae_data %>%
-    filter(severity>0, volunteer=="v03", timepoint %in% timepoint_levels[c(20:23, 32:34)]) %>%
-    group_by(timepoint) %>%
-    summarise(ae_count = n())
-  
-  max_ae_v03 <- nrow(v03_adverse_events)
-  
-  
-  v05_adverse_events <- long_ae_data %>%
-    filter(severity>0, volunteer=="v05", timepoint %in% timepoint_levels[c(26:29, 32:34)]) %>%
-    group_by(timepoint) %>%
-    summarise(ae_count = n())
-  
-  max_ae_v05 <- nrow(v05_adverse_events)
-  
-  
-  v06_adverse_events <- long_ae_data %>%
-    filter(severity>0, volunteer=="v06", timepoint %in% timepoint_levels[c(26:29, 32:34)]) %>%
-    group_by(timepoint) %>%
-    summarise(ae_count = n())
-  
-  max_ae_v06 <- nrow(v06_adverse_events)
-  
-  
-  v07_adverse_events <- long_ae_data %>%
-    filter(severity>0, volunteer=="v07", timepoint %in% timepoint_levels[c(27:30, 32:34)]) %>%
-    group_by(timepoint) %>%
-    summarise(ae_count = n())
-  
-  max_ae_v07 <- nrow(v07_adverse_events)
-  
-  
-  v09_adverse_events <- long_ae_data %>%
-    filter(severity>0, volunteer=="v09", timepoint %in% timepoint_levels[c(28:31, 32:34)]) %>%
-    group_by(timepoint) %>%
-    summarise(ae_count = n())
-  
-  max_ae_v09 <- nrow(v09_adverse_events)
-  
-  
-  
-  
-  # ae plots ####
-  
-  
-  adverse_events <- long_data %>%
-    filter(Severity > 0) %>%
-    group_by(Volunteer, flo_timepoint, Severity) %>%
-    summarise(ae_count = n())
-  
-  adverse_pies <- long_data %>%
-    mutate(flo_timepoint=gsub(" pm", "", flo_timepoint)) %>%
-    mutate(flo_timepoint=gsub(" am", "", flo_timepoint)) %>%
-    group_by(Symptom, flo_timepoint)
-  
-  
-  
-  fig1_theme <- theme(axis.title.x = element_blank(),
-                      legend.title = element_text(size = 9), 
-                      legend.text = element_text(size = 9),
-                      axis.title=element_text(size=10))
-  
-  
-  # fever
-  temp_data <- read.csv("~/PhD/clinical_data/vac69a/vac69a_body_temp.csv")
-  
-  fever <- temp_data %>%
-    mutate("volunteer" = gsub("69010", "v", trial_number)) %>%
-    filter(study_event_oid != "SE_VA69_C28") %>%
-    select(volunteer, timepoint, temp) %>%
-    #filter(temp>37.5)
-    filter(timepoint %in% c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
-                            "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6"))
-  
-  
-  lousy_fever_timepoints <- c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
-                         "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6")
-  
-  good_fever_timepoints <- c("Baseline", "C7", "C12","C14", "Diagnosis", "T1", "T2", "T6")
-  
-  fever_timepoint_replacement <- setNames(good_fever_timepoints, lousy_fever_timepoints)
-  fever$timepoint <- stringr::str_replace_all(fever$timepoint, fever_timepoint_replacement)
-  
-   
-  pyrexia <- symptom_data %>%
-    mutate("temp"=pyrexia_temp) %>%
-    select(volunteer, timepoint, temp) 
+      guides(color=guide_legend(title = "Volunteer"))+
+      theme(plot.title = element_text(hjust=0.5, vjust = 0, size=10),
+            axis.text.x = element_text(hjust=1, angle=45, size=8),
+            legend.position = "right", 
+            axis.title.x = element_blank())
     
-  pyrexia <- na.omit(pyrexia)
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_curves.pdf", fever_curves, width=2, height=2)
+    
+    
+    # PLatelets/Lymphocytes
+    
+    
+    haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
+    
+    haem_data$volunteer <- gsub("69010", "v", haem_data$trial_number)
+    
+    long_haem_data <- haem_data %>%
+      select(volunteer, timepoint, platelets, lymphocytes) %>%
+      #select(trial_number, timepoint, lymphocytes) %>%
+      filter(timepoint %in% c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6", "_C90")) %>%
+      gather(Cell, Frequency, c(platelets,lymphocytes))
+    
+    
+    
+    
+    
+    supp_haem_data <- haem_data %>%
+      select(volunteer, timepoint, wbc, neutrophils,  monocytes, eosinophils, haemaglobin) %>%
+      #select(trial_number, timepoint, lymphocytes) %>%
+      filter(timepoint %in% c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6", "_C90")) %>%
+      gather(Cell, Frequency, c(wbc, neutrophils,  monocytes, eosinophils, haemaglobin))
+    
   
-  pyrexia$timepoint <- c("T1", "C12", "T1", "C12", "Diagnosis", "T2", "C11", "Diagnosis", "T1", "Diagnosis")
+    supp_haem_data$Cell <- paste(
+      toupper(substr(supp_haem_data$Cell, 1,1)),
+      substr(supp_haem_data$Cell, 2,nchar(supp_haem_data$Cell)),
+      sep="")
+    
+    supp_haem_data$Cell <- factor(supp_haem_data$Cell, levels=c("Wbc", "Neutrophils",  "Monocytes", "Eosinophils", "Haemaglobin"))
+    
   
-  fever <- rbind(fever, pyrexia)
-  
-  
-  real_fever <- fever %>%
-    group_by(volunteer, timepoint) %>%
-    summarise("max_temp"=max(temp)) %>%
-    ungroup() %>%
-    group_by(volunteer) %>%
-    summarise("max_temp"=max(max_temp))
-  
-  
-  
-  fever <- fever %>%
-    group_by(volunteer, timepoint) %>%
-    summarise("max_temp"=max(temp)) %>%
-    filter(timepoint %in% good_fever_timepoints)
-  
-  # 
-  
-  
-  # 1 v02           38.5
-  # 2 v03           39.7
-  # 3 v05           37.1
-  # 4 v06           37.9
-  # 5 v07           38.7
-  # 6 v09           36.9
-  
-  
-  
-  
-  
-  fever_curves <- ggplot(fever, aes(x=factor(timepoint, levels=good_fever_timepoints), y=max_temp, color=volunteer, group=volunteer))+
-    scale_fill_manual(values=volunteer_palette)+
-    scale_color_manual(values=volunteer_palette)+
-    geom_line(aes(color=volunteer), size=0.9)+
-    geom_point(fill="white", stroke=1, shape=21, size=0.9)+
-    ggtitle("Fever Curves")+
-    geom_hline(yintercept = 37.5, linetype="dashed", color="black")+
-    xlab("Timepoint")+
-    ylab(expression(paste("Temperature (",degree,"C)",sep="")))+
-    scale_y_continuous(breaks = seq(36.5, 40, by=0.5) )+
-    theme_minimal()+
-    fig1_theme+
-    guides(color=guide_legend(title = "Volunteer"))+
-    theme(plot.title = element_text(hjust=0.5, vjust = 0, size=10),
-          axis.text.x = element_text(hjust=1, angle=45, size=8),
-          legend.position = "right", 
-          axis.title.x = element_blank())
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/fever_curves.pdf", fever_curves, width=2, height=2)
-  
-  
-  # PLatelets/Lymphocytes
-  
-  
-  haem_data <- data.table::fread("~/PhD/clinical_data/vac69a/haem.csv")
-  
-  haem_data$volunteer <- gsub("69010", "v", haem_data$trial_number)
-  
-  long_haem_data <- haem_data %>%
-    select(volunteer, timepoint, platelets, lymphocytes) %>%
-    #select(trial_number, timepoint, lymphocytes) %>%
-    filter(timepoint %in% c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6")) %>%
-    gather(Cell, Frequency, c(platelets,lymphocytes))
-  
-  
-  
-  
-  
-  supp_haem_data <- haem_data %>%
-    select(volunteer, timepoint, wbc, neutrophils,  monocytes, eosinophils, haemaglobin) %>%
-    #select(trial_number, timepoint, lymphocytes) %>%
-    filter(timepoint %in% c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6")) %>%
-    gather(Cell, Frequency, c(wbc, neutrophils,  monocytes, eosinophils, haemaglobin))
-  
-
-  supp_haem_data$Cell <- paste(
-    toupper(substr(supp_haem_data$Cell, 1,1)),
-    substr(supp_haem_data$Cell, 2,nchar(supp_haem_data$Cell)),
-    sep="")
-  
-  supp_haem_data$Cell <- factor(supp_haem_data$Cell, levels=c("Wbc", "Neutrophils",  "Monocytes", "Eosinophils", "Haemaglobin"))
-  
-
-  bad_timepoints <- c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6")
-  great_timepoints <- c("Baseline", "C7", "C14", "Diagnosis", "T1", "T6")
-  
-  time_dic <- setNames(great_timepoints, bad_timepoints)
-  
-  long_haem_data$timepoint <- stringr::str_replace_all(long_haem_data$timepoint, time_dic)
-  supp_haem_data$timepoint <- stringr::str_replace_all(supp_haem_data$timepoint, time_dic)
-  
-  
-  
-  haemoglobin_data <-  filter(supp_haem_data, Cell == "Haemaglobin")
-  supp_haem_data <- filter(supp_haem_data, Cell != "Haemaglobin")
-  
-  
-  
-  thrombos_lymphs <- ggplot(long_haem_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(timepoint))), y=Frequency*1000, color=volunteer, group=volunteer))+
-    scale_fill_manual(values=volunteer_palette)+
-    scale_color_manual(values=volunteer_palette)+
-    geom_line(aes(color=volunteer), size=0.9)+
-    geom_point(fill="white", stroke=1, shape=21, size=0.9)+
-    theme_minimal()+
-    facet_wrap(~Cell, scales="free")+
-    xlab("Timepoint")+
-    ylab(expression(Cells~"/"~mu*L~blood))+
-    guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
-    fig1_theme+
-    scale_y_continuous(label=scales::comma)+
-    theme(plot.title = element_text(hjust=0.5),
-          axis.text.x = element_text(hjust=1, angle=45, size=8), 
-          axis.title.x = element_blank(),
-          legend.position = "none",
-          strip.text = element_text(size=10))
-  
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/thrombos_lymphs.pdf", thrombos_lymphs, width=6, height=2.2)
-  
-  
-  
-  supp_haem_data_plots <- ggplot(supp_haem_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(timepoint))), y=Frequency*1000, color=volunteer, group=volunteer))+
-    scale_fill_manual(values=volunteer_palette)+
-    scale_color_manual(values=volunteer_palette)+
-    geom_line(aes(color=volunteer), size=0.9)+
-    geom_point(fill="white", stroke=1, shape=21, size=0.9)+
-    theme_minimal()+
-    facet_wrap(~Cell, scales="free", nrow = 1)+
-    xlab("Timepoint")+
-    ylab(expression(Cells~"/"~mu*L~blood))+
-    guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
-    fig1_theme+
-    scale_y_continuous(label=scales::comma)+
-    theme(plot.title = element_text(hjust=0.5),
-          axis.text.x = element_text(hjust=1, angle=45, size=8), 
-          axis.title.x = element_blank(),
-          legend.position = "right",
-          strip.text = element_text(size=10))
-  
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_counts.pdf", supp_haem_data_plots, height=2.2, width=8)
-  
-  
-  haemoglobin_data_plots <- ggplot(haemoglobin_data, aes(x=factor(timepoint, levels=unique(gtools::mixedsort(timepoint))), y=Frequency, color=volunteer, group=volunteer))+
-    scale_fill_manual(values=volunteer_palette)+
-    scale_color_manual(values=volunteer_palette)+
-    geom_line(aes(color=volunteer), size=0.9)+
-    geom_point(fill="white", stroke=1, shape=21, size=0.9)+
-    theme_minimal()+
-    xlab("Timepoint")+
-    ylab("Haemoglobin (mg / mL)")+
-    guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
-    fig1_theme+
-    scale_y_continuous(label=scales::comma)+
-    theme(plot.title = element_text(hjust=0.5),
-          axis.text.x = element_text(hjust=1, angle=45, size=8), 
-          axis.title.x = element_blank(),
-          legend.position = "none",
-          strip.text = element_text(size=10))
-  
-  
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/haemoglobin_data_plots.pdf", haemoglobin_data_plots, height = 2.2, width=3)
-  
+    bad_timepoints <- c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6", "_C90")
+    great_timepoints <- c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")
+    
+    time_dic <- setNames(great_timepoints, bad_timepoints)
+    
+    long_haem_data$timepoint <- stringr::str_replace_all(long_haem_data$timepoint, time_dic)
+    supp_haem_data$timepoint <- stringr::str_replace_all(supp_haem_data$timepoint, time_dic)
+    
+    
+    supp_haem_data$Cell <- gsub("Haemaglobin", "Haemoglobin", supp_haem_data$Cell)
+    
+    haemoglobin_data <-  filter(supp_haem_data, Cell == "Haemoglobin")
+    supp_haem_data <- filter(supp_haem_data, Cell != "Haemoglobin")
+    
+    
+    
+    
+    thrombos_lymphs <- ggplot(long_haem_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+
+      scale_fill_manual(values=volunteer_palette)+
+      scale_color_manual(values=volunteer_palette)+
+      geom_line(aes(color=volunteer), size=0.9)+
+      geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+      theme_minimal()+
+      facet_wrap(~Cell, scales="free")+
+      xlab("Timepoint")+
+      ylab(expression(Cells~"/"~mu*L~blood))+
+      guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+      fig1_theme+
+      scale_y_continuous(label=scales::comma)+
+      theme(plot.title = element_text(hjust=0.5),
+            axis.text.x = element_text(hjust=1, angle=45, size=8), 
+            axis.title.x = element_blank(),
+            legend.position = "none",
+            strip.text = element_text(size=10))
+    
+    
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/thrombos_lymphs.pdf", thrombos_lymphs, width=6, height=2.2)
+    
+    
+    
+    supp_haem_data_plots <- ggplot(supp_haem_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+
+      scale_fill_manual(values=volunteer_palette)+
+      scale_color_manual(values=volunteer_palette)+
+      geom_line(aes(color=volunteer), size=0.9)+
+      geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+      theme_minimal()+
+      facet_wrap(~Cell, scales="free", nrow = 1)+
+      xlab("Timepoint")+
+      ylab(expression(Cells~"/"~mu*L~blood))+
+      guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+      fig1_theme+
+      scale_y_continuous(label=scales::comma)+
+      theme(plot.title = element_text(hjust=0.5),
+            axis.text.x = element_text(hjust=1, angle=45, size=8), 
+            axis.title.x = element_blank(),
+            legend.position = "right",
+            strip.text = element_text(size=10))
+    
+    
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/supp_haem_counts.pdf", supp_haem_data_plots, height=2, width=8)
+    
+    
+    haemoglobin_data_plots <- ggplot(haemoglobin_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency, color=volunteer, group=volunteer))+
+      scale_fill_manual(values=volunteer_palette)+
+      scale_color_manual(values=volunteer_palette)+
+      geom_line(aes(color=volunteer), size=0.9)+
+      geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+      facet_grid(~Cell)+
+      theme_minimal()+
+      xlab("Timepoint")+
+      ylab("mg / mL")+
+      guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+      fig1_theme+
+      scale_y_continuous(label=scales::comma)+
+      theme(plot.title = element_text(hjust=0.5),
+            axis.text.x = element_text(hjust=1, angle=45, size=8), 
+            axis.title.x = element_blank(),
+            legend.position = "none",
+            strip.text = element_text(size=10))
+    
+    
+    ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/haemoglobin_data_plots.pdf", haemoglobin_data_plots, height = 2, width=)
+    
   #create max lymphopenia metric
   
   # wide_haem_data <- spread(long_haem_data, timepoint, Frequency)

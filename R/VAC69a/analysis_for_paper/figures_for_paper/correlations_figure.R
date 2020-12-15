@@ -748,7 +748,7 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_ae_corr_pl
 
 
 activation_alt_corr_plot_data <- filter(lineage_freqs, lineage %in% c("CD4", "gamma delta", "MAIT", "Treg")) 
-activation_alt_corr_plot_data$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
+activation_alt_corr_plot_data$lineage <- factor(activation_alt_corr_plot_data$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
 
 lineage_activation_alt_corr_plot <- ggplot(activation_alt_corr_plot_data, aes(x=alt, y=fraction_of_lineage_activated/100))+
   geom_point(aes(colour=volunteer))+
@@ -757,7 +757,7 @@ lineage_activation_alt_corr_plot <- ggplot(activation_alt_corr_plot_data, aes(x=
   geom_smooth(method="lm", se=T, fill="lightgrey")+
   ylab("T cell Lineage Activation")+
   scale_color_manual(name="Volunteer", values=volunteer_palette)+
-  facet_wrap(~lineage, scales="free", ncol=6)+
+  facet_wrap(~lineage, scales="free", ncol=4)+
   theme_minimal()+
   scale_y_continuous(limits = c(0,NA), labels = scales::label_percent(accuracy = 1))+
   theme(legend.title=element_blank(),

@@ -265,6 +265,8 @@ library(dplyr)
 
 falci_t6_data <- data.table::fread("~/PhD/RNAseq/vac63c/Set5_Tplus6_First_relativeto_Cminus1_First_ALLdata_genelist.xls", header = T, stringsAsFactors = F)
 
+
+#careful, filtering by pvalue herem we usually use fold change
 falci_t6_data <- falci_t6_data %>%
   group_by(Symbol) %>%
   top_n(n = -1, wt = pvalue) %>%
