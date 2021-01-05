@@ -404,7 +404,7 @@ col_fun_rna <- circlize::colorRamp2(seq(0,max(gene_matrix)+0.5, by=max(gene_matr
 gene_heatmap <- Heatmap(matrix = gene_matrix,
         cluster_rows = FALSE,
         show_heatmap_legend = TRUE,
-        column_title ="Selected Genes at T6",
+        column_title ="Signature T Cell Genes at T6",
         heatmap_legend_param = list(title = "log2FC",
                                     at=seq(0,5)),
         cluster_columns = FALSE,

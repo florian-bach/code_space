@@ -419,10 +419,9 @@ ICOS_plot <- flo_umap(big_table, "ICOS", only_show = "T6")+supp_theme
 
 
 
-supp_umaps <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot,
-                                 FoxP3_plot, CD25_plot, CD127_plot, CTLA4_plot,
-                                 Ki67_plot, Tbet_plot, GZB_plot, Perforin_plot, 
-                                 PD1_plot, CD28_plot, HLADR_plot, ICOS_plot,  
+supp_umaps <- cowplot::plot_grid(Ki67_plot, Tbet_plot, CTLA4_plot, PD1_plot,
+                                 GZB_plot, Perforin_plot, HLADR_plot, CD27_plot,
+                                 ICOS_plot, CD28_plot, 
                                  ncol=4, align="hv", axis="l")
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activation_UMAPs.pdf", supp_umaps, height=6, width=8)
@@ -432,19 +431,27 @@ ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activat
 supp_theme2 <- theme(axis.title = element_text(size = 6),
                      legend.title = element_text(size = 6),
                      legend.text = element_text(size=6),
-                     strip.text = element_blank(),
                      plot.title = element_text(vjust = -1, hjust=0))
 
-CCR7_plot <- flo_umap(big_table, "CCR7", facet_by = "timepoint")+supp_theme2+ggtitle("CCR7")
-CD45RO_plot <- flo_umap(big_table, "CD45RO", facet_by = "timepoint")+supp_theme2+ggtitle("CD45RO")
-CD45RA_plot <- flo_umap(big_table, "CD45RA", facet_by = "timepoint")+supp_theme2+ggtitle("CD45RA")
-CD57_plot <- flo_umap(big_table, "CD57", facet_by = "timepoint")+supp_theme2+ggtitle("CD57")
-CD127_plot <- flo_umap(big_table, "CD127", facet_by = "timepoint")+supp_theme2+ggtitle("CD127")
-CX3CR1_plot <- flo_umap(big_table, "CX3CR1", facet_by = "timepoint")+supp_theme2+ggtitle("CX3CR1")
-
-
-memory_plots <- cowplot::plot_grid(CCR7_plot, CD45RO_plot, CD45RA_plot, CD57_plot, CD127_plot, CX3CR1_plot, ncol=1, align="hv", axis="l")
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.pdf", memory_plots, height=10, width=8)
+  CD4_plot<- flo_umap(big_table, "CD4", only_show = "T6")+supp_theme+ggtitle("CD4")
+  CD8_plot<- flo_umap(big_table, "CD8", only_show = "T6")+supp_theme+ggtitle("CD8")
+  Vd2_plot <- flo_umap(big_table, "Vd2", only_show = "T6")+supp_theme+ggtitle(expression(gamma~delta))
+  Va72_plot <- flo_umap(big_table, "Va72", only_show = "T6")+supp_theme+ggtitle(expression(paste("V",alpha,"7.2")))
+  FoxP3_plot <- flo_umap(big_table, "FoxP3", only_show = "T6")+supp_theme+ggtitle("FoxP3")
+  CD25_plot <- flo_umap(big_table, "CD25", only_show = "T6")+supp_theme+ggtitle("CD25")
+  CD127_plot <- flo_umap(big_table, "CD127")+supp_theme2+ggtitle("CD127")
+  CCR7_plot <- flo_umap(big_table, "CCR7")+supp_theme+ggtitle("CCR7")
+  CD45RO_plot <- flo_umap(big_table, "CD45RO")+supp_theme+ggtitle("CD45RO")
+  CD45RA_plot <- flo_umap(big_table, "CD45RA")+supp_theme+ggtitle("CD45RA")
+  CD57_plot <- flo_umap(big_table, "CD57")+supp_theme+ggtitle("CD57")
+  CX3CR1_plot <- flo_umap(big_table, "CX3CR1")+supp_theme+ggtitle("CX3CR1")
+  
+  
+  memory_plots <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot,
+                                     FoxP3_plot, CD25_plot, CD127_plot, CCR7_plot,
+                                     CD45RO_plot, CD45RA_plot, CD57_plot,CX3CR1_plot,
+                                     ncol=4, align="hv", axis="l")
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.pdf", memory_plots, height=5, width=8)
 
 
 UMAP_theme <- theme_minimal()+theme(

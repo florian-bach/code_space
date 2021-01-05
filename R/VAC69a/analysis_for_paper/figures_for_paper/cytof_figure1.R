@@ -139,7 +139,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
     #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
     theme(#legend.position = "none",
       plot.title = element_text(hjust=0.5, size=8),
-      strip.text = element_blank(),
+      strip.text = element_text(),
       strip.background = element_blank(),
       axis.title.x = element_blank(),
       axis.text.x = element_text(hjust=0.5, angle=45),
@@ -149,7 +149,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
       legend.position = "none",)
   
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/activation_stacked_barchart.pdf", activation_stacked_barchart, height=4, width=8)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/activation_stacked_barchart.pdf", activation_stacked_barchart, height=2, width=6)
   
   # lineage pies #
   
@@ -209,7 +209,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
           strip.text.y.left = element_text(hjust=0.5, size=7, face = "bold", angle = 0),
           legend.position = "none")
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/lineage_activation_pies.pdf", lineage_activation_pies, height=3, width=4.5)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_pies.pdf", lineage_activation_pies, height=1.6, width=2)
   
   
   #put the bar and pie charts together with cowlplot
@@ -218,6 +218,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
   
   ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.pdf", panel_f, height=2, width=8)
   
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/activation_stacked_barchart.pdf", activation_stacked_barchart, height=2, width=6.4)
   
   
   
