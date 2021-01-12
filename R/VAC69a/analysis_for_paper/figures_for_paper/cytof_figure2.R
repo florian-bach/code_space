@@ -424,7 +424,7 @@ supp_umaps <- cowplot::plot_grid(Ki67_plot, Tbet_plot, CTLA4_plot, PD1_plot,
                                  ICOS_plot, CD28_plot, 
                                  ncol=4, align="hv", axis="l")
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activation_UMAPs.pdf", supp_umaps, height=6, width=8)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activation_UMAPs.png", supp_umaps, height=6, width=8, dpi=900)
 
 # mempry markers across whole UMAP ####
 
@@ -451,7 +451,7 @@ supp_theme2 <- theme(axis.title = element_text(size = 6),
                                      FoxP3_plot, CD25_plot, CD127_plot, CCR7_plot,
                                      CD45RO_plot, CD45RA_plot, CD57_plot,CX3CR1_plot,
                                      ncol=4, align="hv", axis="l")
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.pdf", memory_plots, height=5, width=8)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.png", memory_plots, height=5, width=8, dpi=900)
 
 
 UMAP_theme <- theme_minimal()+theme(
@@ -483,7 +483,7 @@ short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
 short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), ]
 
 
-zoom_plot <-ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
+  zoom_plot <-ggplot(short_big_table_t6, aes(x=UMAP1, y=UMAP2))+
   geom_point(aes(color=significant,  alpha=alpha), shape=".")+
   theme_minimal()+
   scale_color_manual(values=col_pal)+
@@ -509,4 +509,18 @@ fig_2_umaps <- plot_grid(fig2_sig_clusters_umap, Ki67_plot,  Tbet_plot, CTLA4_pl
 fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,5))
 #fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,4x))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.pdf", fig_2_umaps_var, height=4, width=8, units = "in")
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.png", fig_2_umaps_var, height=4, width=8, units = "in", dpi = 900)
+
+
+CD38_plot <- flo_umap(shorter_big_table_t6, "CD38")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
+                                                                              ylim = c(2,4))
+
+BCL2_plot <- flo_umap(shorter_big_table_t6, "BCL2")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),
+                                                                                                                                 ylim = c(2,4))
+conf_umaps <- plot_grid(CD38_plot, BCL2_plot, HLADR_plot, Ki67_plot,  Tbet_plot,
+                        PD1_plot, CTLA4_plot, CD27_plot, ICOS_plot,  ncol=5)
+
+conf_umaps_var <- plot_grid(zoom_plot, conf_umaps, rel_widths = c(1,5))
+#fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,4x))
+
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/conf_umaps.png", conf_umaps_var, height=4, width=8, units = "in", dpi = 900)

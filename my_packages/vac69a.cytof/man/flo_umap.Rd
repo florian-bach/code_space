@@ -5,7 +5,7 @@
 \title{This function makes pretty UMAP plots. It takes a dataframe as input and uses the UMAP1 and UMAP2 columns as X and Y coordinates and any
 other named column as the coloring variable. It can facet by one variable.}
 \usage{
-flo_umap(df, color_by, facet_by = NULL)
+flo_umap(df, color_by, facet_by = NULL, only_show = NULL)
 }
 \arguments{
 \item{df;}{\code{data.frame} containing cells as rows and features as columns}

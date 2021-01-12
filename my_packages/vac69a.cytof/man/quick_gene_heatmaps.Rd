@@ -6,10 +6,13 @@
 in the character vector; the objects DoD_Baseline_sig AND T6_Baseline_sig need to be defined in the environment for this
 to work}
 \usage{
-quick_gene_heatmaps(search_results)
+quick_gene_heatmaps(search_results, sort_by)
 }
 \arguments{
-\item{search_results}{character string; a list of lists containign gene names for making heatmaps}
+\item{search_results}{character string; a list of lists containing gene names for making heatmaps}
+
+\item{sort_by}{character string; the name of the comparison used to order genes in the heatmap must be in unique(all_unique_genes$file_name)
+("C14_Baseline" "DoD_Baseline" "C56_Baseline" "T6_Baseline"  "T6_DoD")}
 }
 \value{
 a named list of lists containing the data frames used for plotting. The heatmaps will be save in ./figures relative to the

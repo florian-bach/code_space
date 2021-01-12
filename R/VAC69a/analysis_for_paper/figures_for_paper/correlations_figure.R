@@ -349,6 +349,8 @@ col_fun_pearson <- circlize::colorRamp2(c(min(pearson_matrix), 0, max(pearson_ma
 # colnames(pearson_matrix) <- gsub("IFNy", "IFNγ", colnames(pearson_matrix))
 # rownames(pearson_matrix) <-  gsub("IFNy", "IFNγ",rownames(pearson_matrix))
 
+library(ComplexHeatmap)
+
 pearson_heatmap <- Heatmap(matrix = pearson_matrix,
                            cluster_rows = TRUE,
                            cluster_columns=TRUE,
@@ -361,14 +363,15 @@ pearson_heatmap <- Heatmap(matrix = pearson_matrix,
                            row_names_gp = gpar(fontsize = 6),
                            row_names_side = "left",
                            col = col_fun_pearson,
-                           
                            column_names_rot = 45)
 
 pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/pearson_heatmap.pdf", height=4.5, width = 5)
 draw(pearson_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
-
+# png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/pearson_heatmap.png", height=4.5, width = 5, res = 900, units = "in")
+# draw(pearson_heatmap, padding=unit(c(2,2,2,2), "mm"))
+# dev.off()
 
 
 

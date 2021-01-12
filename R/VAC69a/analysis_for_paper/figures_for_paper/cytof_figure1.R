@@ -37,7 +37,7 @@ hex_through_time <- ggplot(down_big_table, aes(x=UMAP1, y=UMAP2))+
   theme(panel.grid = element_blank(),
         legend.position = "none",
         panel.spacing.x = unit(0,"lines"),
-        strip.text = element_text(size=7),
+        strip.text = element_text(size=8),
         axis.title = element_text(size=6),
         axis.text = element_blank())+
   scale_fill_gradientn(colors=inferno_white)+
@@ -65,7 +65,7 @@ gate_name <- substr(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_ga
 gate_name <- gsub(" ", "\n", gate_name)
 gate_name[7] <- "paste(gamma, delta)"
 
-x_coord <- c(-1.1, -2.5,   5, -10,   -9,    7,    -4.8, -10.6)
+x_coord <- c(-0.85, -2.5,   5, -10,   -9,    7,    -4.8, -10.6)
 y_coord <- c(5.3,    -2.4, 7.5,   7,    -8,  -5.8,   8.3, -4.5)
 
 gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
@@ -79,8 +79,8 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
     #geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
     geom_gate(gs_get_pop_paths(lin_gates)[c(2,4,7:9)])+
   #size for paper=2, for small fig 2.5
-    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2.3, parse = T)+
-    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2.3)+
+    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, parse = T, lineheight=0.8)+
+    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, lineheight=0.8)+
     UMAP_theme+
     ggtitle("\nMajor T cell lineages")+
     theme(axis.title.y = element_blank(),
@@ -89,7 +89,7 @@ umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
           axis.text = element_blank(),
           plot.margin = unit(c(0,0,0,0), "cm"),
           #plot.title = element_text(size=7, hjust = 0.5, vjust=-1))
-          plot.title = element_text(size=9, hjust = 0.5, vjust=-1))
+          plot.title = element_text(size=8, hjust = 0.5, vjust=-1))
 
 
 gate_labeled_gg <- as.ggplot(umap_gate_labeled)
@@ -106,7 +106,7 @@ gate_labeled_gg <- gate_labeled_gg+
 
 
 #ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.pdf", gate_labeled_gg, height=4, width=4)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.pdf", gate_labeled_gg, height=2.3, width=2, dpi = 1200)
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.png", gate_labeled_gg, height=2.3, width=2, dpi = 900)
 
   
   
@@ -294,7 +294,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.pdf",  t6_all_clusters_umap, height=4, width=4)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_all_clusters_umap_without_legend.png",  t6_all_clusters_umap, height=4, width=4)
   
   
   
@@ -316,7 +316,7 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.pdf",  t6_sig_clusters_umap, height=4, width=4)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/t6_sig_clusters_umap_var.png",  t6_sig_clusters_umap, height=4, width=4)
   
   
   # UMAP coloured by CD38, Bcl2
@@ -327,18 +327,17 @@ ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_ga
   
   
   horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  horizontal_d_f_panel, height=2, width=8)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8, dpi = 900)
   
   # multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
   # ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
 
 
 
-panel_AB <- cowplot::plot_grid(gate_labeled_gg, hex_through_time,
-                               ncol=2, axis = "tb", rel_widths = c(1, 4), align = "hv")
+panel_AB <- cowplot::plot_grid(hex_through_time, gate_labeled_gg,
+                               ncol=2, axis = "tb", rel_widths = c(4, 1), align = "hv")
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_AB.pdf", panel_AB, height=2.3, width=10, units = "in")
-
+ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_AB.png", panel_AB, height=2, width=8, units = "in", dpi = 900)
 
 # panel_ABCD <- cowplot::plot_grid(panel_AB, panel_CD, nrow=2, rel_heights = c(1.2,1),  align = "hv")
 # ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_ABCD.pdf", height=4, width=8, units = "in")
