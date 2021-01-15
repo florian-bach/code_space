@@ -414,9 +414,15 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
         col = col_fun_rna,
         column_names_rot = 45)
 
-pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", height = 1.6, width=4.5)
+# pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.pdf", height = 1.6, width=4.5)
+# draw(gene_heatmap
+# )
+# dev.off()
+# 
+
+
+png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.png", height = 1.6, width=4.5, res = 900, units = "in")
 draw(gene_heatmap
 )
 dev.off()
-
 

@@ -5,12 +5,14 @@ library(diffcyt)
 #library(ggplot2)
 
 
-setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only")
+#setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only")
+setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/debarcoded/")
+
 fcs <- list.files(pattern = "fcs")
 #fcs <- subset(fcs, !grepl(pattern = "C45", fcs))
 #fcs <- subset(fcs, grepl(pattern = "Baseline", fcs))
 #fcs <- subset(fcs, !grepl(pattern = "DoD", fcs))
-fcs <- subset(fcs, !grepl(pattern = "ctrl", fcs))
+fcs <- subset(fcs, grepl(pattern = "ctrl", fcs))
 
 vac63_flowset <- flowCore::read.flowSet(fcs)
 
@@ -28,15 +30,31 @@ vac63_flowset <- flowCore::read.flowSet(fcs)
 # 
 # write.csv(md, "vac63c_metadata.csv", row.names = FALSE)
 
-md <- read.csv("vac63c_metadata.csv", header = T)
 
-md <- subset(md, md$file_name %in% fcs)
-md <- md[order(md$timepoint),]
 
-panel <- read.csv("vac63c_panel.csv", header=T)
+
+#only run this when exclusively looking at ctrl samples, they're not in the metadata file so you need something else
+
+ # md <- cbind("file_name"=fcs, "batch"=c("batch_1", "batch_2", "batch_3"), "sample_id"=c("batch_1", "batch_2", "batch_3"))
+ # 
+ # panel <- read.csv("vac63c_panel.csv", header=T)
+ # 
+ # sce <- prepData(vac63_flowset, panel, md, md_cols =
+ #                   list(file = "file_name", id = "sample_id", factors = "batch"))
+ # 
+ # 
+ # 
+
+
+# md <- read.csv("vac63c_metadata.csv", header = T)
+# 
+# md <- subset(md, md$file_name %in% fcs)
+# md <- md[order(md$timepoint),]
+
+panel <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_panel.csv", header=T)
 
 sce <- prepData(vac63_flowset, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer", "n_infection")))
+                  list(file = "file_name", id = "sample_id", factors = c("batch")))
 
 # p <- plotExprs(sce, color_by = "batch")
 # p$facet$params$ncol <- 7                   
@@ -47,6 +65,7 @@ refined_markers <- c("CD4",
                    "CD8",
                    "Vd2",
                    "Va72",
+                   "CXCR5",
                    "CD38",
                    "CD69",
                    "HLADR",
@@ -59,6 +78,7 @@ refined_markers <- c("CD4",
                    "CD27",
                    "Perforin",
                    "GZB",
+                   "TCRgd",
                    "Tbet",
                    "Eomes",
                    #"RORgt",
@@ -73,16 +93,19 @@ refined_markers <- c("CD4",
                    "CD25",
                    "FoxP3",
                    "CD39",
-                   "CXCR5",
                    "CX3CR1",
                    "CD57",
                    "CD45RA",
                    "CD45RO",
                    "CCR7")
 
+
 set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
 
-plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, k = "meta45", bars = TRUE)
+plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, k = "meta45", bars = TRUE, features = all_markers)
+
+
+
 plotAbundances(x = sce, by = "cluster_id", k = "meta45", group_by = "batch")
 
 primaries <- filterSCE(sce, volunteer %in% c("v313", "v315", "v320"))

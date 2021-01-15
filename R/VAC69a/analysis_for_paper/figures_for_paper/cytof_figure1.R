@@ -73,42 +73,49 @@ gate_label_positions <- data.frame(gate_name, x_coord, y_coord)
 gate_label_positions <- subset(gate_label_positions, !grepl("CD8", gate_label_positions$gate_name, fixed=T))
 gate_label_positions <- rbind(gate_label_positions, data.frame("gate_name"="CD8", x_coord=-6.4, y_coord=-5))
 
-umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
-    #geom_hex(bins=228)+
-    geom_point(color="black", alpha=0.5, shape=".")+
-    #geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
-    geom_gate(gs_get_pop_paths(lin_gates)[c(2,4,7:9)])+
-  #size for paper=2, for small fig 2.5
-    geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, parse = T, lineheight=0.8)+
-    geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, lineheight=0.8)+
-    UMAP_theme+
-    ggtitle("\nMajor T cell lineages")+
-    theme(axis.title.y = element_blank(),
-          axis.title.x = element_text(color="white"),
-          strip.text = element_blank(),
-          axis.text = element_blank(),
-          plot.margin = unit(c(0,0,0,0), "cm"),
-          #plot.title = element_text(size=7, hjust = 0.5, vjust=-1))
-          plot.title = element_text(size=8, hjust = 0.5, vjust=-1))
-
-
-gate_labeled_gg <- as.ggplot(umap_gate_labeled)
-
-
-ctl_polygon <- data.frame("x"=c( -7.5,   -7,  -2, -2,  -7, -10.5),
-                          "y"=c( -7,   -8.2, -9.1, -5,   6,  5.5)
-)
-
-gate_labeled_gg <- gate_labeled_gg+
-  coord_cartesian(xlim=c(-13, 10), ylim=c(-11.2, 11.3))+
-  geom_polygon(data=ctl_polygon, aes(x=x, y=y), color="red", fill=NA)
-
-
-
-#ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.pdf", gate_labeled_gg, height=4, width=4)
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.png", gate_labeled_gg, height=2.3, width=2, dpi = 900)
-
+gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#66CCEE", "#4477AA")
   
+
+  umap_gate_labeled <- ggcyto(lin_gates, aes(x=UMAP1, y=UMAP2))+
+      #geom_hex(bins=228)+
+      geom_point(color="black", alpha=0.5, shape=".")+
+      #geom_gate(c(gs_get_pop_paths(lin_gates)[2:length(gs_get_pop_paths(lin_gates))]))+
+      geom_gate(gs_get_pop_paths(lin_gates)[c(2,4,7:9)])+
+    #size for paper=2, for small fig 2.5
+      geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, parse = T, lineheight=0.8)+
+      geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), size=2, lineheight=0.8)+
+      #UNCOMMENT TO COLOUR LABELS BY LINEAGE
+      # geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), colour=gate_label_positions$colour[4], size=2.3, parse = T, lineheight=0.8, fontface="bold")+
+      # geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), colour=gate_label_positions$colour[-4], size=2.3, lineheight=0.8, fontface="bold")+
+      UMAP_theme+
+      
+      ggtitle("\nMajor T cell lineages")+
+      theme(axis.title.y = element_blank(),
+            axis.title.x = element_text(color="white"),
+            strip.text = element_blank(),
+            axis.text = element_blank(),
+            plot.margin = unit(c(0,0,0,0), "cm"),
+            #plot.title = element_text(size=7, hjust = 0.5, vjust=-1))
+            plot.title = element_text(size=8, hjust = 0.5, vjust=-1))
+  
+  
+  gate_labeled_gg <- as.ggplot(umap_gate_labeled)
+  
+  
+  ctl_polygon <- data.frame("x"=c( -7.5,   -7,  -2, -2,  -7, -10.5),
+                            "y"=c( -7,   -8.2, -9.1, -5,   6,  5.5)
+  )
+  
+  gate_labeled_gg <- gate_labeled_gg+
+    coord_cartesian(xlim=c(-13, 10), ylim=c(-11.2, 11.3))+
+    geom_polygon(data=ctl_polygon, aes(x=x, y=y), color="red", fill=NA)
+  
+  
+  
+  #ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/1b_umap_gate_labeled.pdf", gate_labeled_gg, height=4, width=4)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/small_1b_umap_gate_labeled.png", gate_labeled_gg, height=2.3, width=2, dpi = 900)
+  
+    
   
   # Panel C: stacked barchart of T cell activation, colored by lineage, split by volunteer; with lineage pies ####
   

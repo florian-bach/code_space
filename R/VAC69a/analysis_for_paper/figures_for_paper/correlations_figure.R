@@ -491,9 +491,10 @@ t_cell_summary <- summary %>%
 
 combo <- data.frame("distance"=distance_frame$distance,
                     "alt"=t(2^t(log_plasma_data["alt",grepl("T6", colnames(log_plasma_data))])), 
-                    t_cell_summary[1:5,],
-                    max_temp = all_max_parasitaemias$Highest.Body.Temperature[1:5],
-                    lymphopenia=all_max_parasitaemias$Lymphopenia[1:5])
+                    t_cell_summary[1:5,]
+                    #max_temp = all_max_parasitaemias$Highest.Body.Temperature[1:5],
+                    #lymphopenia=all_max_parasitaemias$Lymphopenia[1:5]
+                    )
 
 
 volunteer_colours <- list("v02" = "#FB9A99",
@@ -658,10 +659,29 @@ lineage_freqs <- lineage_freqs %>%
 
 lineage_freqs_sansv09 <- subset(lineage_freqs, lineage_freqs$volunteer!="v09")
 
-lineage_freqs_sansv09 %>%
+lineage_freqs_sansv09 <- lineage_freqs_sansv09 %>%
   group_by(lineage) %>%
-  mutate("distance"=distance_frame$distance)%>%
+  mutate("distance"=distance_frame$distance)
+
+lineage_freqs_sansv09 %>%
   do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$distance, method="pearson"))) #%>%
+
+
+# cytof_conf_data <- filter(lineage_freqs_sansv09, lineage=="CD4")
+# 
+# ggplot(cytof_conf_data, aes(y=fraction_of_lineage_activated, x=distance))+
+#   geom_point(aes(colour=volunteer))+
+#   #xlab("Distance Traveled Plasma PCA")+
+#   xlab("Systemic Inflammation")+
+#   geom_smooth(method="lm", se=T, fill="lightgrey")+
+#   ylab("CD4 T cell Lineage Activation")+
+#   scale_color_manual(name="Volunteer", values=volunteer_palette)+
+#   theme_minimal()+
+#   scale_y_continuous(limits = c(0,NA), labels = scales::label_percent(accuracy = 1))+
+#   theme(legend.title=element_blank(),
+#         plot.margin = unit(c(1, 0.5, 0.5, 0.5), "cm"),
+#         axis.title = element_text(size=7),
+#         axis.text = element_text(size=6))
 
 # lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
 # <chr>          <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>                                <chr>      
