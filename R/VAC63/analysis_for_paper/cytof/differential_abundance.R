@@ -120,6 +120,8 @@ meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_com
 
 sce <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge")
 
+
+
 vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE,  k = "flo_merge", bars = TRUE, features = refined_markers)
 
 pdf("./figures/labeled_vac63c_tcell_cluster_heatmap.pdf", height = 8, width = 12)
@@ -191,7 +193,7 @@ table(rowData(all_da_c45$res)$p_adj < 0.05)
 
 
 #set log2FC to 1.5 for DoD because there are just too many...
-diffy <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_dod, sce, FDR = 0.05, logFC = 1.5)
+diffy <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_c45, sce, FDR = 0.05, logFC = 1.5)
   
 sig_cluster_boxplot_data <- diffy$data
 
@@ -204,11 +206,12 @@ time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
 
 
 
-sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=timepoint, y=frequency))+
+sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, levels=c("Baseline", "DoD", "T6", "C45")), y=frequency))+
   geom_boxplot(aes(fill=n_infection))+
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75))+
   facet_wrap(~cluster_id, scales = "free", ncol = 5, labeller = label_wrap_gen())+
   theme_minimal()+
+  scale_y_continuous(trans = "log10")+
   ylab("% of all CD3+ cells")+
   # scale_fill_manual(values = c("Baseline"=time_col[4],
   #                              "DoD"=time_col[2],
@@ -224,8 +227,8 @@ sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=timepoint, y=frequency
         axis.title.x = element_blank())
   
 #ggsave("./figures/sig_t6_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
-ggsave("./figures/sig_dod_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
-#ggsave("./figures/sig_c45_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
+#ggsave("./figures/sig_dod_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
+ggsave("./figures/sig_c45_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
 
 
 
@@ -286,5 +289,48 @@ ComplexHeatmap::draw(sig_c45_cluster_phenotype, show_heatmap_legend = FALSE)
 dev.off()
 
 
+# system.time(sce <- scater::runUMAP(sce,
+#                                     subset_row=refined_markers,
+#                                     exprs_values = "exprs",
+#                                     scale=T))
+# 
+# 
+# big_table <- vac69a.cytof::prep_sce_for_ggplot(sce)
+# 
+# data.table::fwrite(big_table, "vac63c_all_Tcells_with_UMAP.csv")
 
 
+library(vac69a.cytof)
+library(ggplot2)
+
+big_table <- data.table::fread("vac63c_all_Tcells_with_UMAP.csv")
+
+
+
+short_big_table_t6 <- subset(big_table, big_table$timepoint=="T6")
+
+short_big_table_t6 <- short_big_table_t6 %>%
+  group_by(n_infection) %>%
+  sample_n(5*10^4) %>%
+  ungroup()
+  
+
+# short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), ]
+# 
+
+short_big_table_t6  %>%
+  group_by(n_infection) %>%
+  summarise(n=n())
+
+
+# n_infection       n
+# <chr>         <int>
+# 1 First        663311
+# 2 Second       313358
+# 3 Third       1016788
+
+for(channel in refined_markers){
+  plotplot <- flo_umap(short_big_table_t6, color_by = channel, facet_by = "n_infection")
+  ggsave(paste("./figures/umaps/t6_n_infection_umap_", channel, ".png", sep = ""), plotplot,  height=4, width=8)
+  print(channel)
+}

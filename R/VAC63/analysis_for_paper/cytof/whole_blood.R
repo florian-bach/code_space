@@ -99,10 +99,17 @@ PBMC <- filterSCE(PBMC, k = "meta40", cluster_id %notin% c(39: 40))
 PBMC <- CATALYST::cluster(PBMC, features = refined_markers, xdim = 10, ydim = 10, maxK = 40)
 
 
-vac63c_control_pbmc_cluster_heatmap <- plotExprHeatmap(x = PBMC, by = "cluster", row_clust = FALSE, col_clust = FALSE,  k = "meta30", bars = TRUE, features = c(all_markers, "GATA3", "RORgt", "140Ce"))
+pdf("./figures/PBMC_CX3CR1_CD3_scatter.pdf")
+plotScatter(PBMC, chs=c("CX3CR1", "CD3"), color_by=NULL)
+dev.off()
 
-pdf("./figures/vac63c_control_pbmc_cluster_heatmap.pdf", height = 8, width = 9)
-vac63c_control_pbmc_cluster_heatmap
+pdf("./figures/PBMC_RORgt_CD3_scatter.pdf")
+plotScatter(PBMC, chs=c("RORgt", "CD3"), color_by=NULL)
+dev.off()
+
+
+pdf("./figures/PBMC_GATA3_CD3_scatter.pdf")
+plotScatter(PBMC, chs=c("GATA3", "CD3"), color_by=NULL)
 dev.off()
 
 
@@ -128,6 +135,14 @@ dev.off()
 meta30_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/debarcoded/supporting_files/meta30_PBMC_merge.csv")
 
 PBMC <- CATALYST::mergeClusters(PBMC, k = "meta30", table = meta30_table, id = "flo_meta30")
+
+
+vac63c_control_pbmc_cluster_heatmap <- plotExprHeatmap(x = PBMC, by = "cluster", row_clust = FALSE, col_clust = FALSE,  k = "flo_meta30", bars = TRUE, features = c(all_markers, "GATA3", "RORgt", "140Ce"))
+
+png("./figures/labeled_vac63c_control_pbmc_cluster_heatmap.png", height = 8, width = 12, units = "in", res = 400)
+vac63c_control_pbmc_cluster_heatmap
+dev.off()
+
 
 system.time(PBMC <- scater::runUMAP(merged_PBMC,
                               subset_row=refined_markers,
