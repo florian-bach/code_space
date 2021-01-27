@@ -10,7 +10,7 @@ library(shadowtext)
 #data <- read.csv("/Users/s1249052/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv")
 
 plasma <- read.csv("~/PhD/plasma/vac69a/Vivax_plasma_analytes2_no_inequalities.csv", header=T, stringsAsFactors = F)
-plasma <- filter(plasma, Volunteer!="v009")
+#plasma <- filter(plasma, Volunteer!="v009")
 
 long_data <- gather(plasma, Analyte, Concentration, colnames(plasma)[3:ncol(plasma)])
 

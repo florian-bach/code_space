@@ -81,7 +81,7 @@ data$flo_timepoint <- gsub("DoD ", "Diagnosis", data$flo_timepoint)
 
 long_data <- tidyr::gather(data, Symptom, Severity, colnames(data)[c(12, 14:ncol(data))])
 
-long_data <- mutate(long_data, Volunteer=gsub("69010", "V", long_data$trial_number))
+long_data <- dplyr::mutate(long_data, Volunteer=gsub("69010", "v", long_data$trial_number))
 
 timepoint_levels <- list("Timepoints"=unique(long_data$flo_timepoint[gtools::mixedorder(long_data$flo_timepoint)]))
 
@@ -93,17 +93,21 @@ myLoc <- (which(levels(long_data$flo_timepoint) == "DoD ") +
             which(levels(long_data$flo_timepoint) == "C15 pm")) / 
   2
 
+ae_title <- expression(paste("Clinical Symtpoms During ", italic("P. vivax"), " infection"))
+
 symptom_heatmap <- ggplot(long_data, aes(x=factor(flo_timepoint, levels=timepoint_levels), y=Symptom))+
   geom_tile(aes(fill=factor(Severity), width=0.93, height=0.93), color=ifelse(grepl("DoD", long_data$flo_timepoint), "black", "lightgrey"))+
   scale_fill_manual(values =  list("lightgrey", "yellow", "orange", "red"))+
-  facet_wrap(~Volunteer, scales="free")+
+  facet_wrap(~Volunteer, scales="free", ncol = 2)+
   theme_minimal()+
+  ggtitle(ae_title)+
+  xlab("Timepoint")+
   guides(fill=guide_legend(title="Severity"))+
-  theme(axis.text.x = element_text(hjust=1, angle=60),
-        axis.title = element_blank(),
-        legend.title = element_blank())
+  theme(axis.text.x = element_text(hjust=1, angle=45, size=5, vjust = 1.2),
+        axis.text.y = element_text(size=6),
+        plot.title = element_text(hjust=0.5))
 
-ggsave("/home/flobuntu/PhD/clinical_data/vac69a/figures/symptom_heatmap.png", symptom_heatmap, height=8, width=14)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_personal_symptom_heatmap.png", symptom_heatmap, height=6, width=8)
 
 # make a figure for number of AEs per timepoint
 

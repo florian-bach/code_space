@@ -106,6 +106,21 @@ list_of_named_unique <- lapply(list_of_named_files, function(x)
   
 )
 
+
+
+
+lapply(list_of_named_files, function(x)
+  x %>%
+    group_by(EntrezID) %>%
+    top_n(n = -1, wt = padj) %>%
+    distinct(EntrezID, .keep_all = TRUE) %>%
+    ungroup()
+  
+)
+
+
+
+
 list_of_named_unique_no_na <- lapply(list_of_named_unique, function(x)
   filter(x, !is.na(Symbol))
 )

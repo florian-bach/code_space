@@ -6,17 +6,30 @@ library(ggplot2)
 
 setwd("~/PhD/plasma/vac69a/")
 
-long_data <- read.csv("long_plasma_data.csv", header = TRUE, stringsAsFactors = FALSE)
-sig_analytes <- read.delim("analytes_sorted_by_padj.txt", header = T)
+
+volunteer_colours <- list("v02" = "#FB9A99",
+                          "v03" = "#E31A1C",
+                          "v05" = "#A6CEE3",
+                          "v06" = "#1F78B4",
+                          "v07" = "#F0E442",
+                          "v09" = "#E69F00")
+
+
+volunteer_palette <- unlist(unname(volunteer_colours))
+names(volunteer_palette) <- names(volunteer_colours)
+
+long_data <- read.csv("fancy_greek_long_data_sans9.csv", header = TRUE, stringsAsFactors = FALSE)
+sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)
+
+sig_analytes[1] <- "IFNγ"
+
 
 #filter for top 12 analytes
-long_data <- subset(long_data, long_data$Analyte %in% sig_analytes$Analyte[1:12])
+long_data <- subset(long_data, long_data$analyte %in% sig_analytes[1:12])
 
-data2 <- spread(long_data, Analyte, Concentration)
-split_data <- split(data2, data2$Volunteer)
+data2 <- spread(long_data, analyte, concentration)
+# split_data <- split(data2, data2$Volunteer)
 
-my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C")
-names(my_paired_palette) <- names(list_of_pcas)
 
 data3 <- data2
 data3[,3:ncol(data3)] <- log10(data3[,3:ncol(data3)])
@@ -28,12 +41,13 @@ big_pca2 <- cbind(data3[, 1:2], big_pca$x)
 
 
 all_vols_together_vol_color <- ggplot(big_pca2, aes(x=PC1, y=PC2))+
-  geom_shadowtext(aes(label=timepoint, color=Volunteer), size=5, fontface="bold")+
-  scale_color_manual(values=my_paired_palette)+
+  geom_text(aes(label=timepoint, color=Volunteer), size=2.5, fontface="bold")+
+  scale_color_manual(values=volunteer_palette)+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
-  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,3]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
-  theme(legend.position = "none",
+  xlim(-2.5, 2.5)+
+  theme(legend.position = "right",
         axis.text = element_text(size=10),
         panel.border = element_rect(color="black", fill=NA),
         axis.title = element_text(size=12),
@@ -42,7 +56,7 @@ all_vols_together_vol_color <- ggplot(big_pca2, aes(x=PC1, y=PC2))+
         plot.title = element_text(size=14, hjust=0.5)
   )
 
-ggsave("./figures/all_vols_together_top12_analytes.png", all_vols_together_vol_color)
+ggsave("~/PhD/figures_for_thesis/chapter_1/1_sig_plasma_pca.png", all_vols_together_vol_color, height=3, width=4.5)
 
 
 
@@ -57,7 +71,7 @@ arrow_pca_plot <- ggplot(arrow_pca, aes(x=PC1, y=PC2, group=Volunteer))+
   geom_point(aes(color=Volunteer))+
   geom_segment(data=wide_arrow_data, aes(x=`PC1_C-1`,xend=PC1_DoD, y=`PC2_C-1`, yend=PC2_DoD, color=Volunteer), arrow =arrow(length = unit(0.2, "cm")) )+
   #geom_line(arrow = arrow(length = unit(0.2, "cm")))+
-  scale_color_manual(values=my_paired_palette)+
+  scale_color_manual(values=volunteer_palette)+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
