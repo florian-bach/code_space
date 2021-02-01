@@ -20,8 +20,13 @@ library(ggrepel)
 # DoD sheet, repalce dod with T6 to read in other data
 dod_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
 t6_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_all.csv", header = T, stringsAsFactors = F)
+# 
+# dod_data <- t6_data
 
-#dod_data <- t6_data
+
+
+
+
 #dod_data <- subset(dod_data, grepl("5", dod_data$GOLevels))
 
 #length(unique(t6_data$GOTerm))
@@ -44,6 +49,8 @@ threshold <- 30
 # 
 # vivax_x_limits <- c(80, NA)
 # vivax_y_limits <- c(20, NA)
+
+hello <- "Diagnosis"
 
 dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
   theme_minimal()+
@@ -68,30 +75,35 @@ dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1
 dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
   theme_minimal()+
   xlab("# GO Terms")+
-  scale_y_continuous(breaks = seq(0,100, by=20), limits=c(-5, 105))+
-  scale_x_continuous(breaks = seq(10,80, by=20))+
+  scale_y_continuous(breaks = seq(0,100, by=20), limits=c(-5, 105), expand=c(0,0))+
+  #scale_x_continuous(breaks = seq(10,80, by=20))+
   geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey", size=0.15)+
   scale_fill_gradient2(low="#fec200", high="#db0085", midpoint = 50, mid = "lightgrey")+
-  guides(fill=guide_colorbar(title = "",
-                              label=FALSE,
-                             ticks=FALSE))+
+  # guides(fill=guide_colorbar(title = "",
+  #                             label=FALSE,
+  #                             ticks=FALSE))+
   theme(axis.title.y =  element_blank(),
         axis.text.y =  element_blank(),
         axis.title.x = element_text(size=8),
         axis.text.x = element_text(size=6),
-        #legend.position = "none",
+        # legend.position = "top",
+        # legend.direction = "horizontal",
         plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
 
-vivax_falci_enrichement_leg <- cowplot::get_legend(dod_hist_plot)
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_enrichment_legend.png", vivax_falci_enrichement_leg)
+# vivax_falci_enrichement_leg <- cowplot::get_legend(dod_hist_plot)
+# ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_enrichment_legend.png", vivax_falci_enrichement_leg)
 
 dod_hist_plot <- dod_hist_plot+theme(legend.position = "none")
 
 vivax_falciparum_dod <- cowplot::plot_grid(dod_dot_plot, dod_hist_plot, ncol=2, rel_widths = c(3,1), align="h", axis="b")
 #ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_t6_GO.png", vivax_falciparum_dod, height = 3, width=3.9, dpi=1200)
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_dod_GO.pdf", vivax_falciparum_dod, height = 3, width=3.9, dpi=1200)
+#ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_dod_GO.png", vivax_falciparum_dod, height = 3, width=3.9, dpi=1200)
 
+
+#ggsave("~/PhD/figures_for_thesis/chapter_1/vivax_falciparum_t6_GO.pdf", vivax_falciparum_dod, height = 3, width=3.9)
+
+ggsave("~/PhD/figures_for_thesis/chapter_1/vivax_falciparum_dod_GO.pdf", vivax_falciparum_dod, height = 3, width=3.9)
 
 
 

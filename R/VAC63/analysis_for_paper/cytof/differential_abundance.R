@@ -149,12 +149,12 @@ all_da_dod <- diffcyt(sce,
                       contrast = all_dod_contrast,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "flo_merge",
+                      clustering_to_use = "meta30",
                       verbose = T)
 
 table(rowData(all_da_dod$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 9    33 
+# 1    29
 
 
 
@@ -165,12 +165,12 @@ all_da_t6 <- diffcyt(sce,
                      contrast = all_t6_contrast,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-edgeR",
-                     clustering_to_use = "flo_merge",
+                     clustering_to_use = "meta30",
                      verbose = T)
 
 table(rowData(all_da_t6$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 14    28 
+# 17    13 
 
 
 all_c45_contrast <- createContrast(c(c(0,1,0,0), rep(0, 10)))
@@ -180,20 +180,27 @@ all_da_c45 <- diffcyt(sce,
                       contrast = all_c45_contrast,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "flo_merge",
+                      clustering_to_use = "meta30",
                       verbose = T)
 
 table(rowData(all_da_c45$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 38     4
+# 29     1
 
+
+da_c45 <- rowData(all_da_c45$res)
+da_t6<- rowData(all_da_t6$res)
+da_dod <- rowData(all_da_dod$res)
+
+
+#plotDiffHeatmap(x=sce, y=da_t6, fdr=0.05, k="meta30")
 
 
 
 
 
 #set log2FC to 1.5 for DoD because there are just too many...
-diffy <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_c45, sce, FDR = 0.05, logFC = 1.5)
+diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_c45, sce, FDR = 0.05, logFC = log2(2))
   
 sig_cluster_boxplot_data <- diffy$data
 
@@ -211,7 +218,7 @@ sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, leve
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75))+
   facet_wrap(~cluster_id, scales = "free", ncol = 5, labeller = label_wrap_gen())+
   theme_minimal()+
-  scale_y_continuous(trans = "log10")+
+  scale_y_continuous()+
   ylab("% of all CD3+ cells")+
   # scale_fill_manual(values = c("Baseline"=time_col[4],
   #                              "DoD"=time_col[2],
@@ -226,9 +233,9 @@ sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, leve
   theme(axis.text.x = element_text(angle = 45, hjust=1),
         axis.title.x = element_blank())
   
-#ggsave("./figures/sig_t6_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
+ggsave("./figures/sig_t6_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
 #ggsave("./figures/sig_dod_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
-ggsave("./figures/sig_c45_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
+#ggsave("./figures/sig_c45_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
 
 
 

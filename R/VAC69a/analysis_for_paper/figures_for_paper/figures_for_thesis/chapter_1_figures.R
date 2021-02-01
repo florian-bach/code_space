@@ -89,7 +89,7 @@ biochem_line_plot <- ggplot(long_line_plot_data, aes(x=factor(timepoint, levels=
   fig1_theme+
   #scale_y_continuous(label=scales::comma)+
   theme(plot.title = element_text(hjust=0.5),
-        axis.text.x = element_text(hjust=1, angle=45, size=6), 
+        axis.text.x = element_text(hjust=1, angle=45, size=8), 
         axis.title = element_blank(),
         legend.position = "right",
         strip.text = element_text(size=10))
@@ -636,33 +636,36 @@ adverse_pies <- long_ae_data %>%
                            "Ggt", "Ast", "Pyrexia_temp")) 
 
 adverse_pies$symptom <- gsub("Alt", "ALT", adverse_pies$symptom) 
+adverse_pies$symptom <- gsub("Back_pain", "Back Pain", adverse_pies$symptom) 
+
+adverse_pies$symptom <- gsub("WBC", "Total White Cells", adverse_pies$symptom) 
+
 
 for(i in unique(adverse_pies$source)){  
   
-  
-  plottable_data <- filter(adverse_pies, source==i)
-  plottable_data$severity <- factor(plottable_data$severity, levels=paste(seq(0,3)))
-  
-  ae_pies <- ggplot(plottable_data,  aes(x="", fill=severity))+
-    geom_bar(stat="count", position ="stack")+
-    scale_fill_manual(values =  list("0"="lightgrey", "1"="#FACA0F", "2"="chocolate1", "3"="red"))+
-    facet_grid(timepoint~symptom, switch="y")+
-    coord_polar(theta = "y")+
-    ggtitle(paste(i, "Adverse Events\n"))+
-    theme_void()+
-    fig1_theme+
-    theme(plot.title = element_text(hjust=0.5, vjust=0, size=10),
-          panel.grid.minor = element_blank(),
-          legend.position = "none",
-          axis.title = element_blank(),
-          strip.text.x = element_text(hjust=0.5, size=6, angle = 0),
-          strip.text.y.left = element_text(hjust=0.5, size=6, angle = 0))#+
-  # guides(fill=guide_legend(title="Severity",
-  #                          override.aes = list(size = 0.1),
-  #                          keywidth = 0.5,
-  #                          keyheight = 0.5))
-  
-  ggsave(paste("~/PhD/figures_for_thesis/chapter_1/1_", i, "_ae_pies.png", sep=''), ae_pies, height=3.5, width=0.75*length(unique(plottable_data$symptom)))
+    
+    plottable_data <- filter(adverse_pies, source==i)
+    plottable_data$severity <- factor(plottable_data$severity, levels=paste(seq(0,3)))
+    
+    ae_pies <- ggplot(plottable_data,  aes(x="", fill=severity))+
+      geom_bar(stat="count", position ="stack")+
+      scale_fill_manual(values =  list("0"="lightgrey", "1"="#FACA0F", "2"="chocolate1", "3"="red"),
+                        labels = c("None", "Mild", "Moderate", "Severe"))+
+      facet_grid(timepoint~symptom, switch="y")+
+      coord_polar(theta = "y")+
+      ggtitle(paste(i, "Adverse Events\n"))+
+      theme_void()+
+      guides(fill=guide_legend(title="Severity", override.aes = list(size=1)))+
+      fig1_theme+
+      theme(plot.title = element_text(hjust=0.5, vjust=0, size=10),
+            panel.grid.minor = element_blank(),
+            legend.position = "bottom",
+            legend.direction = "horizontal",
+            axis.title = element_blank(),
+            strip.text.x = element_text(hjust=0.5, size=7, angle = 0, vjust = 1),
+            strip.text.y.left = element_text(hjust=0.5, size=7.5, angle = 0))
+    
+    ggsave(paste("~/PhD/figures_for_thesis/chapter_1/1_", i, "_ae_pies.png", sep=''), ae_pies, height=3, width=0.9*length(unique(plottable_data$symptom)))
 }
 
 
@@ -687,12 +690,15 @@ parasitaemias$Timepoint <- gsub("D", "C", parasitaemias$Timepoint, fixed=T)
 
 parasitaemia_levels <- unique(gtools::mixedsort(parasitaemias$Timepoint))
 parasitaemias$Timepoint <- factor(parasitaemias$Timepoint,  levels=parasitaemia_levels)
-parasitaemias$Treatment <- factor(parasitaemias$Treatment, levels = c("before Treatment", "after Treatment"))
+parasitaemias$Treatment <- gsub("before Treatment", "Before Treatment", parasitaemias$Treatment)
+parasitaemias$Treatment <- gsub("after Treatment", "After Treatment", parasitaemias$Treatment)
 
-before_treatment <- filter(parasitaemias, Treatment=="before Treatment")
-after_treatment <- filter(parasitaemias, Treatment=="after Treatment")
+parasitaemias$Treatment <- factor(parasitaemias$Treatment, levels = c("Before Treatment", "After Treatment"))
 
-para_linetype <- c("before Treatment"="solid", "after Treatment"="dotted")
+before_treatment <- filter(parasitaemias, Treatment=="Before Treatment")
+after_treatment <- filter(parasitaemias, Treatment=="After Treatment")
+
+para_linetype <- c("Before Treatment"="solid", "After Treatment"="dotted")
 
 parasitaemia_curves <- ggplot()+
   geom_point(data=parasitaemias[!is.na(parasitaemias$Genomes),],
@@ -726,7 +732,8 @@ parasitaemia_curves <- ggplot()+
   scale_color_manual(values=volunteer_palette)+
   scale_x_discrete(breaks=parasitaemia_levels)+
   theme_minimal()+
-  scale_linetype_manual(values = para_linetype, guide = guide_legend(reverse = TRUE))+
+  scale_linetype_manual(values = para_linetype, guide = guide_legend(reverse = TRUE,
+                                                                     nrow = 2))+
   #ggtitle("Parasitaemia")+
   xlab("Day of Infection")+
   geom_hline(yintercept = 20, linetype="dashed")+
@@ -735,21 +742,15 @@ parasitaemia_curves <- ggplot()+
   fig1_theme+
   theme(legend.title = element_blank(),
         legend.text = element_text(size=9),
-        legend.position = "right",
-        plot.title = element_text(size=10, hjust=0.5, vjust=0),
-        axis.text.x = element_text(hjust=1, angle=45, size=7.5))
+        legend.position = "bottom",
+        #legend.direction = "horziontal",
+        #plot.title = element_text(size=10, hjust=0.5, vjust=0),
+        axis.text.x = element_text(hjust=1, angle=45, size=8))
 
 
 
 #ggsave ("/Users/s1249052/PhD/oxford/vac69/parasitaemias_vac69.pdf", height = 8, width=10)
-ggsave("~/PhD/figures_for_thesis/chapter_1/1_vac69a_parasitaemia.png", parasitaemia_curves, width=7, height=4)
-
-fig1 <- cowplot::plot_grid(parasitaemia_curves, all_ae_stack, fever_curves, align = "h", axis = "tblr", rel_widths=c(2, 1.66), rel_heights = c(2,1.6))
-
-ggsave("~/PhD/figures_for_thesis/chapter_1/1_parasitaemia_ae_fevermap.pdf", fig1, height = 5, width=8)
-
-
-
+ggsave("~/PhD/figures_for_thesis/chapter_1/1_vac69a_parasitaemia.png", parasitaemia_curves, width=8, height=5.7)
 
 
 # Panel C  plasma heatmap ####
@@ -980,6 +981,7 @@ long_data3$analyte <- gsub("IFNb", "IFNβ", long_data3$analyte)
 long_data3$analyte <- gsub("IFNa", "IFNα", long_data3$analyte)
 long_data3$analyte <- gsub("IL1B", "IL1β", long_data3$analyte)
 long_data3$analyte <- gsub("TGFb1freeactive", "TGFβ1", long_data3$analyte)
+long_data3$analyte <- gsub("DDimer", "D-Dimer", long_data3$analyte)
 
 # fancy <- subset(long_data3, long_data3$Volunteer!="v09")
 # write.csv(fancy, "~/PhD/plasma/vac69a/fancy_greek_long_data_sans9.csv", row.names = FALSE)
@@ -994,16 +996,22 @@ all_legendplex_plot <- ggplot(long_data3, aes(x=factor(timepoint, levels=c("Base
   theme_minimal()+
   scale_color_manual(values=volunteer_palette)+
   fig1_theme+
+  guides(colour=guide_legend(nrow = 1))+
   theme(axis.title.x = element_blank(),
-        legend.position = "right",
-        axis.text.x = element_text(hjust=1, angle=45, size=5),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust=1, angle=45, size=6),
+        axis.text.y = element_text(size=6),
         strip.background = element_rect(fill = "white", color = "white"))
 
 
 ggsave(filename = "~/PhD/figures_for_thesis/chapter_1/1_all_legendplex.png", all_legendplex_plot, width = 7, height=9.5)
 
 
-sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:9]
+sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:12]
+
+sig_analytes <- gsub("DDimer", "D-Dimer", sig_analytes)
 
 sig_analytes[1] <- "IFNγ"
 
@@ -1017,19 +1025,21 @@ sig_glm_plot <- ggplot(sig_legend_data, aes(x=factor(timepoint, levels=c("Baseli
   geom_line(aes(color=Volunteer), size=0.9)+
   geom_point(fill="white", stroke=1, shape=21, size=0.9)+
   scale_y_continuous(labels=scales::comma)+
-  facet_wrap(~ analyte, scales = "free", ncol=3)+
+  facet_wrap(~ analyte, scales = "free", ncol=4)+
   ylab("Plasma Concentration (pg / mL)")+
   xlab("Timepoint")+
   theme_minimal()+
   scale_color_manual(values=volunteer_palette)+
   fig1_theme+
+  guides(colour=guide_legend(nrow = 1))+
   theme(axis.title.x = element_blank(),
-        legend.position = "right",
-        axis.text.x = element_text(hjust=1, angle=45, size=5),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        axis.text.x = element_text(hjust=1, angle=45, size=7),
         strip.background = element_rect(fill = "white", color = "white"))
 
 
-ggsave(filename = "~/PhD/figures_for_thesis/chapter_1/1_sig_legendplex.png", sig_glm_plot, width = 6, height=5)
+ggsave(filename = "~/PhD/figures_for_thesis/chapter_1/1_sig_legendplex.png", sig_glm_plot, width = 7, height=5)
 
 
 
@@ -1060,19 +1070,30 @@ myLoc <- (which(levels(long_data$flo_timepoint) == "DoD ") +
 
 ae_title <- expression(paste("Clinical Symtpoms During ", italic("P. vivax"), " infection"))
 
+long_data$Symptom <- paste(
+  toupper(substr(long_data$Symptom, 1,1)),
+  substr(long_data$Symptom, 2,nchar(long_data$Symptom)),
+  sep="")
+
+long_data$Symptom  <- gsub("Back_pain", "Back Pain", long_data$Symptom)
+
 symptom_heatmap <- ggplot(long_data, aes(x=factor(flo_timepoint, levels=timepoint_levels), y=Symptom))+
   geom_tile(aes(fill=factor(Severity), width=0.93, height=0.93), color=ifelse(grepl("DoD", long_data$flo_timepoint), "black", "lightgrey"))+
-  scale_fill_manual(values =  list("lightgrey", "yellow", "orange", "red"))+
+  scale_fill_manual(values =  list("0"="lightgrey", "1"="yellow", "2"="orange", "3"="red"),
+                    labels = c("None", "Mild", "Moderate", "Severe"))+
   facet_wrap(~Volunteer, scales="free", ncol = 2)+
   theme_minimal()+
   ggtitle(ae_title)+
   xlab("Timepoint")+
   guides(fill=guide_legend(title="Severity", override.aes = list(size=1)))+
-  theme(axis.text.x = element_text(hjust=1, angle=45, size=5, vjust = 1.2),
+  theme(axis.text.x = element_text(hjust=1, angle=45, size=6.2, vjust = 1.2),
         axis.text.y = element_text(size=6),
+        axis.title = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
         plot.title = element_text(hjust=0.5))
 
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_personal_symptom_heatmap.png", symptom_heatmap, height=6, width=8)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_personal_symptom_heatmap.png", symptom_heatmap, height=7, width=8)
 
 
 

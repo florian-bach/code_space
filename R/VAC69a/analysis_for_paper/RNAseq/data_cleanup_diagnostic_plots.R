@@ -133,20 +133,28 @@ fwrite(big_table, "/home/flobuntu/PhD/RNAseq/vac69a/all/xls/all_unique_genes_cle
 
 library(ggplot2)
 
-big_table <- read.csv("all_unique_genes_cleaned.csv", header = T, stringsAsFactors = F)
+big_table <- read.csv("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/all_unique_genes_cleaned.csv", header = T, stringsAsFactors = F)
 
-comp_levels <- c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_Baseline")
+big_table$file_name <- gsub("_", " relative to ", big_table$file_name , fixed=T)
+big_table$file_name <- gsub("DoD", "Diagnosis", big_table$file_name  , fixed=T)
 
-(all_volcanoes <- ggplot(big_table, aes(x=log2FoldChange, y=-log10(padj)))+
+comp_levels <- gsub("_", " relative to ", c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_Baseline"))
+comp_levels <- gsub("DoD", "Diagnosis", comp_levels)
+
+sig_gene_counts$Comparison <- gsub("DoD", "Diagnosis", sig_gene_counts$Comparison , fixed=T)
+
+all_volcanoes <- ggplot(big_table, aes(x=log2FoldChange, y=-log10(padj)))+
   geom_point(shape="o", aes(color=ifelse(abs(log2FoldChange)>log2(1.5) & padj<0.05, "red", "black")))+
   theme_minimal()+
   #scale_y_continuous(limits = c(0, 0.1))+
   scale_color_manual(values = c("red"="red", "black"="black"))+
   facet_wrap(~factor(file_name, levels = comp_levels),
              ncol=5, scales="fixed")+
-  theme(legend.position = "none"))
+  theme(legend.position = "none",
+        strip.text = element_text(size=7.8))
 
-ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/all_volcanoes.png", all_volcanoes, width=12, height=5)
+ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/all_volcanoes.png", all_volcanoes, width=8, height=3)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_all_volcanoes.png", all_volcanoes, width=8, height=3)
 
 
 # sig_gene_counts <- rbind(data.frame(lapply(list_of_sig_unique_FC, nrow), "FC"="With Correction"),
@@ -166,20 +174,30 @@ sig_gene_counts$Direction <- ifelse(grepl("down", sig_gene_counts, fixed=T), "do
 sig_gene_counts$Comparison <- substr(sig_gene_counts$Comparison, 1, nchar(sig_gene_counts$Comparison)-ifelse(sig_gene_counts$Direction=="down", 5, 3))
 sig_gene_counts$DE_Genes <- ifelse(sig_gene_counts$Direction=="down", -sig_gene_counts$DE_Genes, sig_gene_counts$DE_Genes)
 
+sig_gene_counts$Comparison <- gsub("_", " relative to ", sig_gene_counts$Comparison , fixed=T)
+sig_gene_counts$Comparison <- gsub("DoD", "Diagnosis", sig_gene_counts$Comparison , fixed=T)
 
-(sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=comp_levels), y=DE_Genes))+
+comp_levels <- gsub("_", " relative to ", c("C14_Baseline", "DoD_Baseline", "T6_DoD", "T6_Baseline", "C56_Baseline"))
+comp_levels <-gsub("DoD", "Diagnosis", comp_levels)
+
+
+bar_palette <- colorspace::sequential_hcl(5, palette = "Purple Yellow")[c(4, 2, 3, 1, 5)]
+names(bar_palette) <- comp_levels
+
+sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=comp_levels), y=DE_Genes))+
   geom_bar(stat="identity", aes(fill=Comparison))+
   geom_text(aes(label=abs(DE_Genes), vjust= -0.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="up"))+
   geom_text(aes(label=abs(DE_Genes), vjust= 1.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="down"))+
   theme_minimal()+
   ylim(-1200, 2000)+
-  scale_fill_manual(values=colorspace::sequential_hcl(6, palette = "Purple Yellow"))+
+  scale_fill_manual(values=bar_palette)+
   ylab("Number of Differentially Expressed Genes\n")+
   theme(legend.position = "none",
         axis.title.x=element_blank(),
-        axis.text.x = element_text(angle=45, hjust=1)))
+        axis.text.x = element_text(angle=30, hjust=1))
 
-ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/sig_gene_count_plots_log2fc058.png", sig_gene_count_plots)
+#ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/sig_gene_count_plots_log2fc058.png", sig_gene_count_plots)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_sig_gene_count_plots_log2fc058.png", sig_gene_count_plots, height = 4.5, width = 4)
 
 
   # venn diagrams ####
