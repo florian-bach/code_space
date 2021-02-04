@@ -49,7 +49,7 @@ read_full <- function(path_to_directory){
   md <- read.csv(paste(working_directory, "meta_data.csv", sep=''), header=T, stringsAsFactors = F)
   md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "Diagnosis", "T6"))
   md <- md[with(md, order(md$volunteer, md$timepoint)),]
-  md$file_name <- paste(working_directory, md$file_name, sep='')
+  #md$file_name <- paste(working_directory, md$file_name, sep='')
 
   #read in panel
   panel <- read.csv(paste(working_directory, "VAC69_PANEL.CSV", sep=''), header = T, stringsAsFactors = F)

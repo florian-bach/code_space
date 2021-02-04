@@ -73,7 +73,7 @@ refined_markers <- c("CD4",
                    "Va72",
                    "CXCR5",
                    "CD38",
-                   "CD69",
+                   #"CD69",
                    "HLADR",
                    "ICOS",
                    "CD28",
@@ -107,14 +107,43 @@ refined_markers <- c("CD4",
 
 # all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
 
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
+set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 12, ydim = 12, maxK = 50)
 
 
-vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE,  k = "meta45", bars = TRUE, features = refined_markers)
+vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
+                                                        by = "cluster",
+                                                        row_clust = FALSE,
+                                                        col_clust = FALSE,
+                                                        k = "som144",
+                                                        bars = TRUE,
+                                                        features = refined_markers)
 
-pdf("./figures/vac63c_tcell_cluster_heatmap.pdf", height = 8, width = 9)
+pdf("./figures/vac63c_tcell_cluster_heatmap_som144_.pdf", height = 14, width = 9)
 vac63c_control_tcell_cluster_heatmap
 dev.off()
+
+
+ki67_cd38_plot <- plotScatter(sce, chs = c("Ki67", "CD38"))
+cxcr5_cd4_plot <- plotScatter(sce, chs = c("CXCR5", "CD4"))
+cd56_cd161_plot <- plotScatter(sce, chs = c("CD56", "CD161"))
+
+
+pdf("./figures/ki67_cd38_plot.pdf", height = 4, width = 4)
+ki67_cd38_plot
+dev.off()
+
+
+pdf("./figures/cxcr5_cd4_plot.pdf", height = 4, width = 4)
+cxcr5_cd4_plot
+dev.off()
+
+
+pdf("./figures/cd56_cd161_plot.pdf", height = 4, width = 4)
+cd56_cd161_plot
+dev.off()
+
+
+
 
 meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prelim_meta45_flo_merge.csv")
 

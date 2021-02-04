@@ -664,7 +664,7 @@ lineage_freqs_sansv09 <- lineage_freqs_sansv09 %>%
   mutate("distance"=distance_frame$distance)
 
 lineage_freqs_sansv09 %>%
-  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$distance, method="pearson"))) #%>%
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$distance, method="spearman"))) #%>%
 
 
 # cytof_conf_data <- filter(lineage_freqs_sansv09, lineage=="CD4")
@@ -708,7 +708,7 @@ lineage_freqs$max_ae <- all_max_parasitaemias$max_ae[match(lineage_freqs$volunte
 
 lineage_freqs %>%
   group_by(lineage) %>%
-  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="pearson"))) %>%
+  do(broom::tidy(cor.test(.$fraction_of_lineage_activated, .$alt, method="spearman"))) %>%
 
 
 # lineage     estimate statistic p.value parameter conf.low conf.high method                               alternative
@@ -750,10 +750,12 @@ lineage_freqs %>%
 activation_ae_corr_plot_data <- filter(lineage_freqs, lineage %notin% c("DN")) 
 #lineage_freqs$lineage <- factor(lineage_freqs$lineage, levels=c("Treg", "CD4", "gamma delta", "MAIT"))
 
-lineage_activation_ae_corr_plot <- ggplot(lineage_freqs, aes(x=lineage_freqs$max_ae, y=fraction_of_lineage_activated/100))+
+lineage_freqs_sansv09$lineage <- gsub("gamma delta", "γδ", lineage_freqs_sansv09$lineage)
+
+lineage_activation_ae_corr_plot <- ggplot(lineage_freqs_sansv09, aes(x=distance, y=fraction_of_lineage_activated/100))+
   geom_point(aes(colour=volunteer))+
   #xlab("Distance Traveled Plasma PCA")+
-  xlab("# of AEs around Diagnosis")+
+  xlab("Plasma PCA Distance Traveled")+
   geom_smooth(method="lm", se=T, fill="lightgrey")+
   ylab("T cell Lineage Activation")+
   scale_color_manual(name="Volunteer", values=volunteer_palette)+
@@ -765,7 +767,8 @@ lineage_activation_ae_corr_plot <- ggplot(lineage_freqs, aes(x=lineage_freqs$max
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_ae_corr_plot.pdf", lineage_activation_ae_corr_plot, height=2, width=7)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lineage_activation_plasma_corr_plot.png", lineage_activation_ae_corr_plot, height=2, width=7)
+ggsave("~/PhD/figures_for_thesis/chapter_2/lineage_activation_plasma_corr_plot.png", lineage_activation_ae_corr_plot, height=2, width=7)
 
 
 

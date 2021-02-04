@@ -68,7 +68,7 @@ time_col=colorspace::sequential_hcl(5, palette = "Purple Yellow")
 sig_plot <- ggplot2::ggplot(long_sig_results, ggplot2::aes(x=factor(timepoint), y=ydim*fraction))+
                ggplot2::geom_boxplot(ggplot2::aes(fill=timepoint), outlier.shape = NA)+
                ggplot2::geom_point(ggplot2::aes(shape=volunteer))+
-               ggplot2::facet_wrap(~cluster_id, scales = "free", ncol=5, labeller=ggplot2::label_wrap_gen())+
+               ggplot2::facet_wrap(~cluster_id, scales = "free", ncol=5, labeller=ggplot2::label_wrap_gen(width = 20))+
                ggplot2::theme_minimal()+
                ggplot2::scale_x_discrete(name = "Timepoint")+
                y_scale+

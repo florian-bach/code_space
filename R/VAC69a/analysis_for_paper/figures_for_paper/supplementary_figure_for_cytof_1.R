@@ -16,9 +16,17 @@ da_t6 <- diffcyt(merged_daf,
                  clustering_to_use = "flo_merge",
                  verbose = T)
 
-all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)
+all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)+
+    #scale_y_continuous(breaks=waiver(), n.breaks = 5)+
+    # ylab("Cell Counts")+
+    theme(axis.text.x = element_text(hjust=1, angle=30))
+   
+all_cluster_freqs$data$cluster_id <- gsub("gamma delta", "γδ", all_cluster_freqs$data$cluster_id, fixed=T)
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_all_clusters_freqs.pdf", all_cluster_freqs, height = 12, width=18)# works
+# ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_all_clusters_freqs.pdf", all_cluster_freqs, height = 12, width=18)# works
+# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_log_counts.png", all_cluster_freqs, height = 12 , width = 11)# works
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_freqs.png", all_cluster_freqs, height = 12 , width = 11)# works
+
 
 # Panel B: ds_limma results of differential marker expression on coarse clusters ####
 library(CATALYST)

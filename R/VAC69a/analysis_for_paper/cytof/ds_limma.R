@@ -9,7 +9,7 @@ library(vac69a.cytof)
 library(CATALYST)
 
 ### read in metadata etc. ####
-#path_to_directory <- "~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/"
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 #
 # character.check <- is.character(path_to_direcory)
 # space.check <- length(path_to_direcory) == 1
@@ -83,10 +83,10 @@ states <- states[-c(1:21,
 
 metadata(merged_daf)$id_state_markers <- states
 
-ds_c10 <- diffcyt(merged_daf,                                            
-                  design = design, contrast = pairwise_contrast_c10,                    
-                  analysis_type = "DS", method_DS = "diffcyt-DS-limma",       
-                  clustering_to_use = "coarse_merge", verbose = TRUE)               
+# ds_c10 <- diffcyt(merged_daf,                                            
+#                   design = design, contrast = pairwise_contrast_c10,                    
+#                   analysis_type = "DS", method_DS = "diffcyt-DS-limma",       
+#                   clustering_to_use = "coarse_merge", verbose = TRUE)               
 
 
 ds_dod <- diffcyt(merged_daf,                                            
@@ -108,8 +108,8 @@ topTable(ds_t6, top_n = 55, order_by = "cluster_id",
          show_meds = TRUE, format_vals = TRUE, digits = 3)
 
 
-res_DA_c10 <- topTable(ds_c10, all = TRUE, show_logFC = T)
-table(res_DA_c10$p_adj <= 0.05)
+# res_DA_c10 <- topTable(ds_c10, all = TRUE, show_logFC = T)
+# table(res_DA_c10$p_adj <= 0.05)
 
 res_DA_dod <- topTable(ds_dod, all = TRUE, show_logFC = T)
 table(res_DA_dod$p_adj <= 0.05)
@@ -117,32 +117,62 @@ table(res_DA_dod$p_adj <= 0.05)
 res_DA_t6 <- topTable(ds_t6, all = TRUE, show_logFC = T)
 table(res_DA_t6$p_adj <= 0.05)
 
-sigs_t6 <- subset(res_DA_t6, p_adj<=0.05)
+sigs_t6 <- subset(res_DA_t6, p_adj<=0.1)
 sigs_dod <- subset(res_DA_dod, p_adj<=0.05)
 
 spider_sigs_t6 <- data.frame(sigs_t6$cluster_id, sigs_t6$marker_id, sigs_t6$logFC)
-spider_sigs_t6$direction <- ifelse(sigs_t6$logFC>=0, "up", "down")
+#spider_sigs_t6 <- data.frame(sigs_dod$cluster_id, sigs_dod$marker_id, sigs_dod$logFC)
 
-trimmed_spider_sigs_t6 <- subset(spider_sigs_t6, 2^spider_sigs_t6$sigs_t6.logFC>= 1.1 |  2^spider_sigs_t6$sigs_t6.logFC<=0.9)
+#spider_sigs_t6$direction <- ifelse(sigs_t6$logFC>=0, "up", "down")
+
+#trimmed_spider_sigs_t6 <- subset(spider_sigs_t6, 2^spider_sigs_t6$sigs_t6.logFC>= 1.1 |  2^spider_sigs_t6$sigs_t6.logFC<=0.9)
 
 #trimmed_spider_sigs_t6$sigs_t6.cluster_id <- gsub("gamma delta", expression(alpha) , trimmed_spider_sigs_t6$sigs_t6.cluster_id)
 
-(ds_limma_t6_heatmap <- ggplot(trimmed_spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_t6.marker_id, label=round(2^sigs_t6.logFC, digits = 2)))+
+(ds_limma_t6_heatmap <- ggplot(data=spider_sigs_t6, aes(x= sigs_t6.cluster_id, y=sigs_t6.marker_id, label=round(2^sigs_t6.logFC, digits = 2)))+
   #geom_tile(aes(fill=rescale(sigs_t6.logFC, to=c(-5, 5))))+
   geom_tile(aes(fill=round(2^sigs_t6.logFC, digits = 2)))+
-  geom_text(parse = TRUE, aes(color=2^sigs_t6.logFC>0.8))+
+  geom_text(parse = TRUE, aes(color=2^spider_sigs_t6$sigs_t6.logFC>0.8))+
   scale_color_manual(values = c("TRUE"="black", "FALSE"="white"), guide=FALSE)+
-  scale_fill_gradientn("Fold Change", values = scales::rescale(c(2^min(trimmed_spider_sigs_t6$sigs_t6.logFC), 1, 2^max(trimmed_spider_sigs_t6$sigs_t6.logFC)), to=c(0,1)), colors = c("#0859C6","white","#FFA500"))+
+  scale_fill_gradientn("Fold Change", values = scales::rescale(c(2^min(spider_sigs_t6$sigs_t6.logFC), 1, 2^max(spider_sigs_t6$sigs_t6.logFC)), to=c(0,1)), colors = c("#0859C6","white","#FFA500"))+
   scale_x_discrete(labels=c("gamma delta"=expression(paste(gamma, delta))))+
   theme_minimal()+
   ggtitle("Fold Change in Intensity of Marker Expression\nper Cluster at T6 relative to Baseline")+
   theme(axis.title = element_blank(),
         axis.text = element_text(size=14, color = "black"),
-        axis.text.x = element_text(hjust=1, angle = 60),
+        axis.text.x = element_text(hjust=1, angle = 30),
         legend.position = "right",
         panel.grid = element_blank(),
         plot.title = element_text(hjust = 0.5))
 )
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/ds_limma_01.png", ds_limma_t6_heatmap, width = 7, height = 7)
+
+
+
+try <- data.frame(rowData(ds_t6$res))
+
+
+ms <- ahgg(merged_daf[refined_markers$refined_markers, ], by = c("cluster_id", "sample_id"))
+ms <- lapply(ms, reshape2::melt, varnames = c("antigen", "sample_id"))
+ms <- bind_rows(ms, .id = "cluster_id")
+
+ms$timepoint <- substr(ms$sample_id, 5, nchar(as.character(ms$sample_id)))
+
+scaled_ms <- ms %>%
+  group_by(cluster)
+
+
+
+# transform each channel according to its min/max ####
+scaled_ms <- ms %>%
+  group_by(antigen) %>%
+  group_by(sample_id) %>%
+  dplyr::mutate(value=scales::rescale(value, to=c(0,1))) %>%
+  ungroup()
+
+
+
 
 
 ggsave("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/diffcyt/ds_limma/timepoint_batch_t6_heatmap_with_cutoff.png", ds_limma_t6_heatmap, width = 7, height = 7)
@@ -151,8 +181,7 @@ plotDiffHeatmap(merged_daf, ds_dod, top_n = 5, order = TRUE,
                 th = FDR_cutoff, normalize = TRUE, hm1 = FALSE)   
 
 
-plotDiffHeatmap(merged_daf, ds_t6, top_n = 55, order = TRUE,    
-                th = FDR_cutoff, normalize = TRUE, hm1 = FALSE)   
+plotDiffHeatmap(merged_daf, res_DA_t6, top_n = all = T,fdr = FDR_cutoff, normalize = TRUE, )   
 
 
 table(sigs_t6$cluster_id)

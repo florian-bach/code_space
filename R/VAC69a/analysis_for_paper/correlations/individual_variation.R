@@ -103,6 +103,8 @@ ggsave("~/PhD/multi_omics/Activated_Aitchison's_CyTOF.png", activated_aitchison_
 
 #median marker expression
 
+limma_markers <- c(CD38  ICOS  CD27  Tbet  Ki67  FoxP3 CD127 PD1   BCL2  GZB   CTLA4 CD25  CD95  HLADR CD28)
+
 merged_daf <- vac69a.cytof::read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
 cs_by_s <- split(seq_len(ncol(merged_daf)), merged_daf$sample_id)
@@ -127,12 +129,18 @@ es <- as.matrix(SummarizedExperiment::assay(merged_daf, "exprs"))
     theme_minimal()+
     scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
     theme(legend.position = "none")+
+    guides(shape=guide_legend(title="Timepoint"),
+           color=guide_legen(title="Volunteer"))
     scale_color_manual(values = volunteer_palette)+
     scale_fill_manual(values = volunteer_palette)
   
   
   ggsave("~/PhD/multi_omics/state_markers_mds.png", state_markers_mds, width=4, height=3.5)
-    # 
+
+  
+  cowplot::plot_grid(state_markers_mds)
+  
+      # 
   # ggplot()+
   # geom_point(df, aes_(x=df$MDS1, y=df$MDS2, color=df$volunteer))+  
   # geom_segment(aes_(x=df2$MDS1[grepl("Baseline", df2$timepoint)],
