@@ -287,6 +287,9 @@ falci_t6_faves <- list("T Cell Genes of Interest"=c("CCR5", "CD19", "CD20", "CD2
 
 phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS", "CD28", "TBX21", "PDCD1", "HAVCR2"))
 
+
+phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS",
+                                         "CD28", "TBX21", "PDCD1", "HAVCR2"))
 #slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
 
 slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% phil_tcell_genes$`phils faves`)
@@ -399,12 +402,13 @@ col_fun_rna <- circlize::colorRamp2(seq(0,max(gene_matrix)+0.5, by=max(gene_matr
 
 #col_fun_rna <- circlize::colorRamp2(c(min(gene_matrix), 0, max(gene_matrix)), c("#0859C6", "black", "#FFA500"))
 
+colnames(gene_matrix) <- tolower(colnames(gene_matrix))
 
 
 gene_heatmap <- Heatmap(matrix = gene_matrix,
         cluster_rows = FALSE,
         show_heatmap_legend = TRUE,
-        column_title ="Signature T Cell Genes at T6",
+        #column_title ="Signature T Cell Genes at T6",
         heatmap_legend_param = list(title = "log2FC",
                                     at=seq(0,5)),
         cluster_columns = FALSE,
@@ -421,7 +425,7 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
 # 
 
 
-png("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/falci_vivax_rna_t6.png", height = 1.6, width=4.5, res = 900, units = "in")
+pdf("/home/flobuntu/PhD/figures_for_thesis/chapter_1/vivax_falciparum_rna_heat.pdf", height = 1.32, width=4.3)
 draw(gene_heatmap
 )
 dev.off()
