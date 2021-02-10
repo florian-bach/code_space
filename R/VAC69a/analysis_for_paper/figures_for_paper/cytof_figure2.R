@@ -421,10 +421,10 @@ ICOS_plot <- flo_umap(big_table, "ICOS", only_show = "T6")+supp_theme
 
 supp_umaps <- cowplot::plot_grid(Ki67_plot, Tbet_plot, CTLA4_plot, PD1_plot,
                                  GZB_plot, Perforin_plot, HLADR_plot, CD27_plot,
-                                 ICOS_plot, CD28_plot, 
-                                 ncol=4, align="hv", axis="l")
+                                 ICOS_plot, 
+                                 ncol=3, align="hv", axis="l")
 
-ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activation_UMAPs.png", supp_umaps, height=6, width=8, dpi=900)
+ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S4_Activation_UMAPs.pdf", supp_umaps, height=5, width=6.7, dpi=900)
 
 # mempry markers across whole UMAP ####
 
@@ -451,7 +451,7 @@ supp_theme2 <- theme(axis.title = element_text(size = 6),
                                      FoxP3_plot, CD25_plot, CD127_plot, CCR7_plot,
                                      CD45RO_plot, CD45RA_plot, CD57_plot,CX3CR1_plot,
                                      ncol=4, align="hv", axis="l")
-  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.png", memory_plots, height=5, width=8, dpi=900)
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/final_figure_pages/S2_Memory_Umaps.pdf", memory_plots, height=4.5, width=8, dpi=900)
 
 
 UMAP_theme <- theme_minimal()+theme(
@@ -487,7 +487,7 @@ short_big_table_t6 <- short_big_table_t6[seq(1,nrow(short_big_table_t6), by=3), 
   geom_point(aes(color=significant,  alpha=alpha), shape=".")+
   theme_minimal()+
   scale_color_manual(values=col_pal)+
-  geom_rect(xmin=0, xmax=4, ymin=2, ymax=4, color="red", fill=NA, size=0.5)+
+  geom_rect(xmin=0, xmax=4, ymin=2, ymax=4.5, color="red", fill=NA, size=0.2)+
   UMAP_theme+
   guides(colour = guide_legend(override.aes = list(size = 4)),
          alpha= "none")+
@@ -509,7 +509,11 @@ fig_2_umaps <- plot_grid(fig2_sig_clusters_umap, Ki67_plot,  Tbet_plot, CTLA4_pl
 fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,5))
 #fig_2_umaps_var <- plot_grid(zoom_plot, fig_2_umaps, rel_widths = c(1,4x))
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.png", fig_2_umaps_var, height=4, width=8, units = "in", dpi = 900)
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.png", fig_2_umaps_var, height=3, width=8, units = "in", dpi = 900)
+
+pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/sig_cluster_umaps.pdf", height=2.8, width=7.2, useDingbats = TRUE)
+fig_2_umaps_var
+dev.off()
 
 
 CD38_plot <- flo_umap(shorter_big_table_t6, "CD38")+theme(axis.title = element_blank(),legend.position = "none")+coord_cartesian(xlim = c(0,4),

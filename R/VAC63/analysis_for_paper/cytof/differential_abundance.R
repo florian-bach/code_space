@@ -15,6 +15,9 @@ fcs <- list.files(pattern = "fcs")
 #fcs <- subset(fcs, grepl(pattern = "Baseline", fcs))
 #fcs <- subset(fcs, !grepl(pattern = "DoD", fcs))
 fcs <- subset(fcs, !grepl(pattern = "ctrl", fcs))
+fcs <- subset(fcs, !grepl(pattern = "307", fcs))
+fcs <- subset(fcs, !grepl(pattern = "302", fcs))
+
 
 vac63_flowset <- flowCore::read.flowSet(fcs)
 
@@ -84,7 +87,7 @@ refined_markers <- c("CD4",
                    "CD27",
                    "Perforin",
                    "GZB",
-                   "TCRgd",
+                   #"TCRgd",
                    "Tbet",
                    "Eomes",
                    #"RORgt",
@@ -107,18 +110,18 @@ refined_markers <- c("CD4",
 
 # all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
 
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 12, ydim = 12, maxK = 50)
+set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
 
 
 vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
                                                         by = "cluster",
                                                         row_clust = FALSE,
                                                         col_clust = FALSE,
-                                                        k = "som144",
+                                                        k = "meta45",
                                                         bars = TRUE,
                                                         features = refined_markers)
 
-pdf("./figures/vac63c_tcell_cluster_heatmap_som144_.pdf", height = 14, width = 9)
+pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_.pdf", height = 10, width = 9)
 vac63c_control_tcell_cluster_heatmap
 dev.off()
 
@@ -147,7 +150,7 @@ dev.off()
 
 meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prelim_meta45_flo_merge.csv")
 
-sce <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge")
+sce <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge", overwrite = TRUE)
 
 
 
@@ -169,37 +172,47 @@ all_ei <- metadata(sce)$experiment_info
 all_design <- createDesignMatrix(all_ei, c("timepoint", "volunteer"))
 colnames(all_design)
 
+glm_formula <- createFormula(all_ei, cols_fixed = c("timepoint", "n_infection"), cols_random = "volunteer")
 
 
-all_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 10)))
+all_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 10), 0))
 
 all_da_dod <- diffcyt(sce,
                       design = all_design,
                       contrast = all_dod_contrast,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "meta30",
+                      clustering_to_use = "flo_merge",
                       verbose = T)
 
 table(rowData(all_da_dod$res)$p_adj < 0.05)
 # FALSE  TRUE 
 # 1    29
 
+dod_df <- data.frame(rowData(all_da_dod$res))
+dod_df <- subset(dod_df, dod_df$p_adj<0.05 & abs(dod_df$logFC)>1)
 
-
-all_t6_contrast <- createContrast(c(c(0,0,0,1), rep(0, 10)))
+all_t6_contrast <- createContrast(c(c(0,0,0,1), rep(0, 8)))
+t6_glm_contrast <- createContrast(c(1,0))
 
 all_da_t6 <- diffcyt(sce,
                      design = all_design,
                      contrast = all_t6_contrast,
+                     #formula = glm_formula,
+                     #contrast = t6_glm_contrast,
                      analysis_type = "DA",
-                     method_DA = "diffcyt-DA-edgeR",
-                     clustering_to_use = "meta30",
+                     method_DA = "diffcyt-DA-voom",
+                     #clustering_to_use = "meta45",
                      verbose = T)
+#View(data.frame(rowData(all_da_t6$res)))
+
 
 table(rowData(all_da_t6$res)$p_adj < 0.05)
 # FALSE  TRUE 
 # 17    13 
+
+t6_df <- data.frame(rowData(all_da_t6$res))
+t6_df <- subset(t6_df, t6_df$p_adj<0.05 & abs(t6_df$logFC)>1)
 
 
 all_c45_contrast <- createContrast(c(c(0,1,0,0), rep(0, 10)))
@@ -209,7 +222,7 @@ all_da_c45 <- diffcyt(sce,
                       contrast = all_c45_contrast,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "meta30",
+                      clustering_to_use = "flo_merge",
                       verbose = T)
 
 table(rowData(all_da_c45$res)$p_adj < 0.05)
@@ -229,12 +242,13 @@ da_dod <- rowData(all_da_dod$res)
 
 
 #set log2FC to 1.5 for DoD because there are just too many...
-diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_c45, sce, FDR = 0.05, logFC = log2(2))
+diffy <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_t6, sce, FDR = 0.05, logFC = log2(2))
   
 sig_cluster_boxplot_data <- diffy$data
 
 sig_cluster_boxplot_data$batch <- md$batch[match(sig_cluster_boxplot_data$sample_id, md$sample_id)]
 sig_cluster_boxplot_data$n_infection <- md$n_infection[match(sig_cluster_boxplot_data$sample_id, md$sample_id)]
+sig_cluster_boxplot_data$direction <- ifelse(sig_cluster_boxplot_data)
 
 library(ggplot2)
 
@@ -245,7 +259,7 @@ time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
 sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, levels=c("Baseline", "DoD", "T6", "C45")), y=frequency))+
   geom_boxplot(aes(fill=n_infection))+
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75))+
-  facet_wrap(~cluster_id, scales = "free", ncol = 5, labeller = label_wrap_gen())+
+  facet_wrap(~cluster_id, scales = "free", ncol = 5, labeller = label_wrap_gen(width = 10, multi_line = TRUE))+
   theme_minimal()+
   scale_y_continuous()+
   ylab("% of all CD3+ cells")+

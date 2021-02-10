@@ -10,7 +10,7 @@ setwd("~/PhD/plasma/vac69a/")
 data3 <- read.csv("big_plasma_table.csv")
 
 
-data3[,3:ncol(data3)] <- log2(data3[,3:ncol(data3)])
+data3[,3:ncol(data3)] <- log10(data3[,3:ncol(data3)])
 
 
 data3 <- data3 %>%
@@ -31,9 +31,25 @@ long_data3[,1:3] <- lapply(long_data3[,1:3], as.character)
 
 list_of_dfs_for_glm <- split(long_data3, long_data3$analyte)
 
-#list_of_models <- lapply(list_of_dfs_for_glm, function(x) glm(x[,3]~x[,2]+x[,1], data=x))
-list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) lm(concentration~timepoint+Volunteer, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(concentration~timepoint+(1|Volunteer), data=x))
 
+# 
+dod_contrast <- t(diffcyt::createContrast(c(0,0,1,0, rep(0,4))))
+t6_contrast <- t(diffcyt::createContrast(c(0,0,0,1, rep(0,4))))
+# c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
+#
+ list_of_tests <- lapply(list_of_models, function(x) multcomp::glht(x, t6_contrast))
+ list_of_pvalues <- sapply(list_of_tests, function(x) summary(x)$test$pvalues)
+#
+#
+ list_of_adj_pvalues <- p.adjust(list_of_pvalues, method = "fdr")
+#
+#
+list_of_adj_pvalues[order(list_of_adj_pvalues,decreasing = F)]
+# 
+# write.table(names(list_of_adj_pvalues[order(list_of_adj_pvalues,decreasing = F)]), "~/PhD/plasma/vac69a/analytes_sorted_by_padj_better.txt", sep = "\t", col.names = FALSE, row.names = FALSE)
 
 #list_of_summaries <- lapply(list_of_models, function(x) cbind(summary(x)$coefficients, names(x$data)[3]))
 list_of_summaries <- lapply(list_of_models, function(x)cbind(summary(x)$tTable, "analyte"=unique(x$data$analyte)))

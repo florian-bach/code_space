@@ -1009,11 +1009,13 @@ all_legendplex_plot <- ggplot(long_data3, aes(x=factor(timepoint, levels=c("Base
 ggsave(filename = "~/PhD/figures_for_thesis/chapter_1/1_all_legendplex.png", all_legendplex_plot, width = 7, height=9.5)
 
 
-sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:12]
+sig_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:24]
 
 sig_analytes <- gsub("DDimer", "D-Dimer", sig_analytes)
 
 sig_analytes[1] <- "IFNγ"
+
+sig_analytes <- c(sig_analytes, "IL2")
 
 sig_legend_data <- subset(long_data3, analyte %in% sig_analytes)
 

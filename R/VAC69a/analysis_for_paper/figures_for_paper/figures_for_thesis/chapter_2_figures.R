@@ -651,3 +651,38 @@ indie_var_plot <- cowplot::plot_grid(state_markers_mds, aitchison_cytof, plasma_
 
 ggsave("~/PhD/figures_for_thesis/chapter_2/indie_var_plot.pdf", indie_var_plot, height = 3.5, width=8)
 
+
+
+# umaps coloured by stuff
+
+
+library(vac69a.cytof)
+library(ggplot2)
+library(cowplot)
+
+sig_clusters <- scan("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", what ="character", sep = ",", skip = 1)
+sig_clusters <- sig_clusters[-9]
+
+
+big_table <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cells_with_UMAP_and_flo_merge_cluster.csv")
+
+
+supp_theme <- theme(axis.title = element_text(size = 6),
+                    legend.title = element_text(size = 6),
+                    legend.text = element_text(size=6))
+
+CD4_plot<- flo_umap(big_table, "CD4", only_show = "T6")+supp_theme+ggtitle("CD4")
+CD8_plot<- flo_umap(big_table, "CD8", only_show = "T6")+supp_theme+ggtitle("CD8")
+Vd2_plot <- flo_umap(big_table, "Vd2", only_show = "T6")+supp_theme+ggtitle(expression(paste(gamma,delta)))
+Va72_plot <- flo_umap(big_table, "Va72", only_show = "T6")+supp_theme+ggtitle(expression(paste("V",alpha,"7.2")))
+CCR7_plot <- flo_umap(big_table, "CCR7")+supp_theme+ggtitle("CCR7")
+CD45RO_plot <- flo_umap(big_table, "CD45RO")+supp_theme+ggtitle("CD45RO")
+CD45RA_plot <- flo_umap(big_table, "CD45RA")+supp_theme+ggtitle("CD45RA")
+CD57_plot <- flo_umap(big_table, "CD57")+supp_theme+ggtitle("CD57")
+
+
+memory_plots <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot,
+                                   CCR7_plot, CD45RO_plot, CD45RA_plot,CD57_plot,
+                                   ncol=4, align="hv", axis="l")
+ggsave("~/PhD/figures_for_thesis/chapter_2/lineage_memory_umaps.png", memory_plots, height=3, width=8, dpi=900)
+

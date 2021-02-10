@@ -763,7 +763,8 @@ data4[, 1:2] <- NULL
 trans_data <- data.frame("Sample_ID"=data4$Sample_ID, apply(data4[,1:ncol(data4)-1], 2, function(x) scale(x, center = TRUE, scale = TRUE)))
 
 
-plasma_levels <- read.delim("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt")
+plasma_levels <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj_better.txt", what = ",")
+plasma_levels <- append(plasma_levels[-20], "IL18", after = 7)
 
 
 t_trans_data <- t(trans_data)
@@ -774,7 +775,7 @@ plasma_matrix <- t_trans_data[2:nrow(t_trans_data),]
 class(plasma_matrix) <- "numeric"
 
 
-plasma_matrix <- plasma_matrix[match(plasma_levels$Analyte, rownames(plasma_matrix)),]
+plasma_matrix <- plasma_matrix[match(plasma_levels, rownames(plasma_matrix)),]
 
 
 plasma_matrix <- ifelse(plasma_matrix>2.5, 2.5, plasma_matrix)
@@ -804,16 +805,16 @@ combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = 
 
 
 # left anno #
-number_of_hits <- 9
-number_of_maybes <- 3
+number_of_hits <- 12
+number_of_maybes <- 0
 
-plasma_matrix <- head(plasma_matrix, n=18)
+plasma_matrix <- head(plasma_matrix, n=17)
 
 
-significant <-  c(rep("<0.05",number_of_hits), rep("<0.1", number_of_maybes), rep(">0.1", nrow(plasma_matrix)-number_of_hits-number_of_maybes))
+significant <-  c(rep("<0.05",number_of_hits), rep("<0.1", number_of_maybes), rep(">0.05", nrow(plasma_matrix)-number_of_hits-number_of_maybes))
 sig <- c("<0.05"="darkgreen",
-         "<0.1" = "lightgreen",
-         ">0.1"= "lightgrey")
+         #"<0.1" = "lightgreen",
+         ">0.05"= "lightgrey")
 
 
 left_anno <-  rowAnnotation(gap = unit(5, "mm"),
@@ -821,7 +822,7 @@ left_anno <-  rowAnnotation(gap = unit(5, "mm"),
                             show_annotation_name = FALSE,
                             "significant"=significant,
                             simple_anno_size = unit(2.5, "mm"), # width of the significance bar
-                            col=list("significant" = c("<0.05"="darkgreen", "<0.1"="lightgreen", ">0.1" ="lightgrey")),
+                            col=list("significant" = c("<0.05"="darkgreen", ">0.05" ="lightgrey")),
                             annotation_legend_param = list(significant = list(title ="FDR",
                                                                               at = rev(names(sig)),
                                                                               #title_gp=gpar(angle=45),
@@ -844,7 +845,11 @@ left_anno <-  rowAnnotation(gap = unit(5, "mm"),
 col_fun4 <- circlize::colorRamp2(c(-2.5, 0, 2.5), c("#0859C6", "black", "#FFA500"))
 
 rownames(plasma_matrix) <- gsub("DDimer", "D-Dimer", rownames(plasma_matrix))
-#rownames(plasma_matrix) <- gsub("IFNy", "IFNγ", rownames(plasma_matrix))
+rownames(plasma_matrix) <- gsub("IFNy", "IFNγ", rownames(plasma_matrix))
+
+
+
+
 
 combo_map <- Heatmap(matrix = plasma_matrix,
                      cluster_rows = FALSE,

@@ -63,7 +63,7 @@ dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
   scale_y_continuous(breaks = seq(0,100, by=20), limits=c(-5, 105))+
   scale_x_continuous(breaks = seq(10,60, by=20))+
   geom_histogram(aes(fill = ..y..), orientation = "y", binwidth = 1, color="darkgrey", size=0.15)+
-  scale_fill_gradient2(low="#fec200", high="#db0085", midpoint = 50)+
+    scale_fill_gradient2(low="#fec200", high="#db0085", midpoint = 50)+
   theme(axis.title.y =  element_blank(),
         axis.text.y =  element_blank(),
         axis.title.x = element_text(size=8),
@@ -288,8 +288,8 @@ falci_t6_faves <- list("T Cell Genes of Interest"=c("CCR5", "CD19", "CD20", "CD2
 phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS", "CD28", "TBX21", "PDCD1", "HAVCR2"))
 
 
-phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS",
-                                         "CD28", "TBX21", "PDCD1", "HAVCR2"))
+# phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS",
+#                                          "CD28", "TBX21", "PDCD1", "HAVCR2"))
 #slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
 
 slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% phil_tcell_genes$`phils faves`)
@@ -410,10 +410,14 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
         show_heatmap_legend = TRUE,
         #column_title ="Signature T Cell Genes at T6",
         heatmap_legend_param = list(title = "log2FC",
-                                    at=seq(0,5)),
+                                    at=seq(0,5),
+                                    title_gp=gpar(fontsize=8, fontface="bold"),
+                                    legend_height=unit(units = "mm",8),
+                                    labels_gp=gpar(fontsize=7)
+                                    ),
         cluster_columns = FALSE,
         column_names_gp = gpar(fontsize = 8),
-        row_names_gp = gpar(fontsize = 8),
+        row_names_gp = gpar(fontsize = 8, fontface="italic"),
         row_names_side = "left",
         col = col_fun_rna,
         column_names_rot = 45)
@@ -425,7 +429,7 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
 # 
 
 
-pdf("/home/flobuntu/PhD/figures_for_thesis/chapter_1/vivax_falciparum_rna_heat.pdf", height = 1.32, width=4.3)
+pdf("/home/flobuntu/PhD/figures_for_thesis/chapter_1/vivax_falciparum_rna_heat.pdf", height = 1.1, width=4.3)
 draw(gene_heatmap
 )
 dev.off()

@@ -88,8 +88,6 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
       # geom_text(data=gate_label_positions[4,], aes(x=x_coord, y=y_coord, label=gate_name), colour=gate_label_positions$colour[4], size=2.3, parse = T, lineheight=0.8, fontface="bold")+
       # geom_text(data=gate_label_positions[-4,], aes(x=x_coord, y=y_coord, label=gate_name), colour=gate_label_positions$colour[-4], size=2.3, lineheight=0.8, fontface="bold")+
       UMAP_theme+
-      
-      ggtitle("\nMajor T cell lineages")+
       theme(axis.title.y = element_blank(),
             axis.title.x = element_text(color="white"),
             strip.text = element_blank(),
@@ -107,6 +105,7 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
   )
   
   gate_labeled_gg <- gate_labeled_gg+
+    ggtitle("Major T cell lineages\n")+
     coord_cartesian(xlim=c(-13, 10), ylim=c(-11.2, 11.3))+
     geom_polygon(data=ctl_polygon, aes(x=x, y=y), color="red", fill=NA)
   
@@ -297,7 +296,7 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
           legend.text = element_text(size=6),
           axis.title = element_blank(),
           axis.text = element_blank(),
-          plot.title = element_text(hjust=0.5, size=8))+
+          plot.title = element_text(hjust=0.5, size=14))+
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
   
@@ -319,7 +318,7 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
           legend.title = element_blank(),
           axis.text = element_blank(),
           axis.title = element_blank(),
-          plot.title = element_text(hjust=0.5, size=8))+
+          plot.title = element_text(hjust=0.5, size=14))+
     coord_cartesian(xlim=c(-13, 10),
                     ylim=c(-11.2, 11.3))
   
@@ -335,6 +334,15 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
   
   horizontal_d_f_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, t6_all_clusters_umap, t6_sig_clusters_umap, ncol=4)
   ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.png",  horizontal_d_f_panel, height=2, width=8, dpi = 900)
+  
+  
+  horizontal_new_panel <- cowplot::plot_grid(cd38_plot, bcl2_plot, gate_labeled_gg, nrow=1, align = "hv")
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/new_horizontal_panel.png",  horizontal_new_panel, height=2.35, width=6, dpi = 900)
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/new_horizontal_panel.pdf",  horizontal_new_panel, height=2.35, width=6)
+  
+  horizontal_newer_panel <- cowplot::plot_grid(t6_all_clusters_umap, t6_sig_clusters_umap, nrow=1, align="hv")
+  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_newer_panel.pdf",  horizontal_newer_panel, height=4, width=8, dpi = 900)
+  
   
   # multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
   # ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)
