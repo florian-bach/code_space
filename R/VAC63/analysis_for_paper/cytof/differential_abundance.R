@@ -77,23 +77,23 @@ refined_markers <- c("CD4",
                    "CXCR5",
                    "CD38",
                    #"CD69",
-                   "HLADR",
-                   "ICOS",
+                   ##"HLADR",
+                   ##"ICOS",
                    "CD28",
                    "PD1",
                    #"TIM3",
                    "CD95",
-                   "BCL2",
+                   ##"BCL2",
                    "CD27",
                    "Perforin",
                    "GZB",
                    #"TCRgd",
-                   "Tbet",
+                   ##"Tbet",
                    "Eomes",
                    #"RORgt",
                    #"GATA3",
                    "CTLA4",
-                   "Ki67",
+                   ##"Ki67",
                    "CD127",
                    "CD56",
                    #"CD16",
@@ -121,7 +121,7 @@ vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
                                                         bars = TRUE,
                                                         features = refined_markers)
 
-pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_.pdf", height = 10, width = 9)
+pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_type_only.pdf", height = 10, width = 9)
 vac63c_control_tcell_cluster_heatmap
 dev.off()
 

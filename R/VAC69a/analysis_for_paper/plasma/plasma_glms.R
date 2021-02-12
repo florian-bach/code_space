@@ -39,7 +39,7 @@ list_of_models <- lapply(list_of_dfs_for_glm, function(x) lm(concentration~timep
 dod_contrast <- t(diffcyt::createContrast(c(0,0,1,0, rep(0,4))))
 t6_contrast <- t(diffcyt::createContrast(c(0,0,0,1, rep(0,4))))
 # c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
-#
+##
  list_of_tests <- lapply(list_of_models, function(x) multcomp::glht(x, t6_contrast))
  list_of_pvalues <- sapply(list_of_tests, function(x) summary(x)$test$pvalues)
 #
