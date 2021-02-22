@@ -36,16 +36,20 @@ list_of_models <- lapply(list_of_dfs_for_glm, function(x) lm(concentration~timep
 #list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(concentration~timepoint+(1|Volunteer), data=x))
 
 # 
+dod_contrast <- t(matrix(c(0,0,1,0)))
+t6_contrast <- t(matrix(c(0,0,0,1)))
+
 dod_contrast <- t(diffcyt::createContrast(c(0,0,1,0, rep(0,4))))
 t6_contrast <- t(diffcyt::createContrast(c(0,0,0,1, rep(0,4))))
 # c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
 ##
- list_of_tests <- lapply(list_of_models, function(x) multcomp::glht(x, t6_contrast))
+ list_of_tests <- lapply(list_of_models, function(x) multcomp::glht(x, dod_contrast))
  list_of_pvalues <- sapply(list_of_tests, function(x) summary(x)$test$pvalues)
 #
 #
- list_of_adj_pvalues <- p.adjust(list_of_pvalues, method = "fdr")
-#
+ list_of_adj_pvalues <- sort(p.adjust(list_of_pvalues, method = "fdr"))
+ subset(list_of_adj_pvalues, list_of_adj_pvalues<=0.05)
+ 
 #
 list_of_adj_pvalues[order(list_of_adj_pvalues,decreasing = F)]
 # 

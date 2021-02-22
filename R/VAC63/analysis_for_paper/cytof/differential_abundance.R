@@ -1,156 +1,157 @@
-library(CATALYST)
-library(diffcyt)
-# library(dplyr)
-# library(tidyr)
-#library(ggplot2)
-
-`%notin%` <- Negate(`%in%`)
-
-
-setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only")
-#setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/debarcoded/")
-
-fcs <- list.files(pattern = "fcs")
-#fcs <- subset(fcs, !grepl(pattern = "C45", fcs))
-#fcs <- subset(fcs, grepl(pattern = "Baseline", fcs))
-#fcs <- subset(fcs, !grepl(pattern = "DoD", fcs))
-fcs <- subset(fcs, !grepl(pattern = "ctrl", fcs))
-fcs <- subset(fcs, !grepl(pattern = "307", fcs))
-fcs <- subset(fcs, !grepl(pattern = "302", fcs))
-
-
-vac63_flowset <- flowCore::read.flowSet(fcs)
-
-# how md was made 
-# md <- data.frame("file_name"=fcs,
-#                  "volunteer"=paste("v", substr(fcs, 1,3), sep=''),
-#                  "timepoint"=substr(fcs, 5,7),
-#                  "batch"=rep(cytonorm_metadata$Batch[4:14], each=3)
-# )
+  library(CATALYST)
+  library(diffcyt)
+  # library(dplyr)
+  # library(tidyr)
+  #library(ggplot2)
+  
+  `%notin%` <- Negate(`%in%`)
+  
+  
+  setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only")
+  #setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/debarcoded/")
+  
+  fcs <- list.files(pattern = "fcs")
+  #fcs <- subset(fcs, !grepl(pattern = "C45", fcs))
+  #fcs <- subset(fcs, grepl(pattern = "Baseline", fcs))
+  #fcs <- subset(fcs, !grepl(pattern = "DoD", fcs))
+  fcs <- subset(fcs, !grepl(pattern = "ctrl", fcs))
+  fcs <- subset(fcs, !grepl(pattern = "307", fcs))
+  fcs <- subset(fcs, !grepl(pattern = "302", fcs))
+  
+  
+  vac63_flowset <- flowCore::read.flowSet(fcs)
+  
+  # how md was made 
+  # md <- data.frame("file_name"=fcs,
+  #                  "volunteer"=paste("v", substr(fcs, 1,3), sep=''),
+  #                  "timepoint"=substr(fcs, 5,7),
+  #                  "batch"=rep(cytonorm_metadata$Batch[4:14], each=3)
+  # )
+  # 
+  # md$timepoint <- ifelse(md$timepoint=="Bas", "Baseline", md$timepoint)
+  # md$timepoint <- gsub("_", "", md$timepoint, fixed=T)
+  # 
+  # md$sample_id <- paste(md$volunteer, "_", md$timepoint, sep='')
+  # 
+  # write.csv(md, "vac63c_metadata.csv", row.names = FALSE)
+  
+  
+  
+  
+  #only run this when exclusively looking at ctrl samples, they're not in the metadata file so you need something else
+  
+   # md <- cbind("file_name"=fcs, "batch"=c("batch_1", "batch_2", "batch_3"), "sample_id"=c("batch_1", "batch_2", "batch_3"))
+   # 
+   # panel <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_panel.csv", header=T)
+   # 
+   # sce <- prepData(vac63_flowset, panel, md, md_cols =
+   #                   list(file = "file_name", id = "sample_id", factors = "batch"))
+   # 
+   # 
+  
+  
+  
+  md <- read.csv("vac63c_metadata.csv", header = T)
+  
+  md <- subset(md, md$file_name %in% fcs)
+  md <- md[order(md$timepoint),]
+  
+   
+  #  
+  panel <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_panel.csv", header=T)
+  
+  sce <- prepData(vac63_flowset, panel, md, md_cols =
+                    list(file = "file_name", id = "sample_id", factors = c("volunteer", "timepoint", "n_infection", "batch")))
+  
+  
+  
+  # p <- plotExprs(sce, color_by = "batch")
+  # p$facet$params$ncol <- 7                   
+  # ggplot2::ggsave("marker_expression.png", p, width=12, height=12)                                      
+  
+  
+  refined_markers <- c("CD4",
+                     "CD8",
+                     "Vd2",
+                     "Va72",
+                     #"CXCR5",
+                     "CD38",
+                     #"CD69",
+                     "HLADR",
+                     "ICOS",
+                     "CD28",
+                     "PD1",
+                     #"TIM3",
+                     "CD95",
+                     "BCL2",
+                     "CD27",
+                     "Perforin",
+                     "GZB",
+                     #"TCRgd",
+                     "Tbet",
+                     "Eomes",
+                     #"RORgt",
+                     #"GATA3",
+                     "CTLA4",
+                     "Ki67",
+                     "CD127",
+                     "CD56",
+                     #"CD16",
+                     "CD161",
+                     "CD49d",
+                     "CD25",
+                     "FoxP3",
+                     "CD39",
+                     "CX3CR1",
+                     "CD57",
+                     "CD45RA",
+                     "CD45RO",
+                     "CCR7")
+  
+  # all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
+  
+  set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
+  
+  
+  vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
+                                                          by = "cluster",
+                                                          row_clust = FALSE,
+                                                          col_clust = FALSE,
+                                                          #m = "flo_merge",
+                                                          k= "meta50",
+                                                          bars = TRUE,
+                                                          features = refined_markers)
+  
+  pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_flo_names.pdf", height = 10, width = 9)
+  vac63c_control_tcell_cluster_heatmap
+  dev.off()
+  # 
 # 
-# md$timepoint <- ifelse(md$timepoint=="Bas", "Baseline", md$timepoint)
-# md$timepoint <- gsub("_", "", md$timepoint, fixed=T)
+# ki67_cd38_plot <- plotScatter(sce, chs = c("Ki67", "CD38"))
+# cxcr5_cd4_plot <- plotScatter(sce, chs = c("CXCR5", "CD4"))
+# cd56_cd161_plot <- plotScatter(sce, chs = c("CD56", "CD161"))
 # 
-# md$sample_id <- paste(md$volunteer, "_", md$timepoint, sep='')
 # 
-# write.csv(md, "vac63c_metadata.csv", row.names = FALSE)
+# pdf("./figures/ki67_cd38_plot.pdf", height = 4, width = 4)
+# ki67_cd38_plot
+# dev.off()
+# 
+# 
+# pdf("./figures/cxcr5_cd4_plot.pdf", height = 4, width = 4)
+# cxcr5_cd4_plot
+# dev.off()
+# 
+# 
+# pdf("./figures/cd56_cd161_plot.pdf", height = 4, width = 4)
+# cd56_cd161_plot
+# dev.off()
+# 
 
 
 
+meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_50_merge.csv")
 
-#only run this when exclusively looking at ctrl samples, they're not in the metadata file so you need something else
-
- # md <- cbind("file_name"=fcs, "batch"=c("batch_1", "batch_2", "batch_3"), "sample_id"=c("batch_1", "batch_2", "batch_3"))
- # 
- # panel <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_panel.csv", header=T)
- # 
- # sce <- prepData(vac63_flowset, panel, md, md_cols =
- #                   list(file = "file_name", id = "sample_id", factors = "batch"))
- # 
- # 
-
-
-
-md <- read.csv("vac63c_metadata.csv", header = T)
-
-md <- subset(md, md$file_name %in% fcs)
-md <- md[order(md$timepoint),]
-
- 
-#  
-panel <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_panel.csv", header=T)
-
-sce <- prepData(vac63_flowset, panel, md, md_cols =
-                  list(file = "file_name", id = "sample_id", factors = c("volunteer", "timepoint", "n_infection", "batch")))
-
-
-
-# p <- plotExprs(sce, color_by = "batch")
-# p$facet$params$ncol <- 7                   
-# ggplot2::ggsave("marker_expression.png", p, width=12, height=12)                                      
-
-
-refined_markers <- c("CD4",
-                   "CD8",
-                   "Vd2",
-                   "Va72",
-                   "CXCR5",
-                   "CD38",
-                   #"CD69",
-                   ##"HLADR",
-                   ##"ICOS",
-                   "CD28",
-                   "PD1",
-                   #"TIM3",
-                   "CD95",
-                   ##"BCL2",
-                   "CD27",
-                   "Perforin",
-                   "GZB",
-                   #"TCRgd",
-                   ##"Tbet",
-                   "Eomes",
-                   #"RORgt",
-                   #"GATA3",
-                   "CTLA4",
-                   ##"Ki67",
-                   "CD127",
-                   "CD56",
-                   #"CD16",
-                   "CD161",
-                   "CD49d",
-                   "CD25",
-                   "FoxP3",
-                   "CD39",
-                   "CX3CR1",
-                   "CD57",
-                   "CD45RA",
-                   "CD45RO",
-                   "CCR7")
-
-# all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
-
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
-
-
-vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
-                                                        by = "cluster",
-                                                        row_clust = FALSE,
-                                                        col_clust = FALSE,
-                                                        k = "meta45",
-                                                        bars = TRUE,
-                                                        features = refined_markers)
-
-pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_type_only.pdf", height = 10, width = 9)
-vac63c_control_tcell_cluster_heatmap
-dev.off()
-
-
-ki67_cd38_plot <- plotScatter(sce, chs = c("Ki67", "CD38"))
-cxcr5_cd4_plot <- plotScatter(sce, chs = c("CXCR5", "CD4"))
-cd56_cd161_plot <- plotScatter(sce, chs = c("CD56", "CD161"))
-
-
-pdf("./figures/ki67_cd38_plot.pdf", height = 4, width = 4)
-ki67_cd38_plot
-dev.off()
-
-
-pdf("./figures/cxcr5_cd4_plot.pdf", height = 4, width = 4)
-cxcr5_cd4_plot
-dev.off()
-
-
-pdf("./figures/cd56_cd161_plot.pdf", height = 4, width = 4)
-cd56_cd161_plot
-dev.off()
-
-
-
-
-meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prelim_meta45_flo_merge.csv")
-
-sce <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge", overwrite = TRUE)
+sce <- CATALYST::mergeClusters(sce, k = "meta50", table = meta45_table, id = "flo_merge", overwrite = TRUE)
 
 
 
@@ -165,24 +166,24 @@ dev.off()
 
 #plotAbundances(x = sce, by = "cluster_id", k = "meta35", group_by = "batch")
 
-# primaries <- filterSCE(sce, volunteer %in% c("v313", "v315", "v320"))
-# tertiaries <- filterSCE(sce, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
+primaries <- filterSCE(sce, volunteer %in% c("v313", "v315", "v320"))
+tertiaries <- filterSCE(sce, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
 
 all_ei <- metadata(sce)$experiment_info
-all_design <- createDesignMatrix(all_ei, c("timepoint", "volunteer"))
+all_design <- createDesignMatrix(all_ei, c("timepoint", "volunteer", "n_infection"))
 colnames(all_design)
 
 glm_formula <- createFormula(all_ei, cols_fixed = c("timepoint", "n_infection"), cols_random = "volunteer")
 
 
-all_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 10), 0))
+all_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 8)))
 
 all_da_dod <- diffcyt(sce,
                       design = all_design,
-                      contrast = all_dod_contrast,
+                      contrast = createContrast(c(0,0,1,0,0)),
                       analysis_type = "DA",
-                      method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "flo_merge",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "meta45",
                       verbose = T)
 
 table(rowData(all_da_dod$res)$p_adj < 0.05)

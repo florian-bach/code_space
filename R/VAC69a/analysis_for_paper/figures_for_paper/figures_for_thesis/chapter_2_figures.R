@@ -16,16 +16,75 @@ da_t6 <- diffcyt(merged_daf,
                  clustering_to_use = "flo_merge",
                  verbose = T)
 
-all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)+
+all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=1, logFC = 0)
   #scale_y_continuous(breaks=waiver(), n.breaks = 5)+
   # ylab("Cell Counts")+
-  theme(axis.text.x = element_text(hjust=1, angle=30))
+
+
+equal_breaks <- function(n = 3, s = 0.05, ...){
+  function(x){
+    # rescaling
+    d <- s * diff(range(x)) / (1+2*s)
+    seq(min(x)+d, max(x)-d, length=n)
+  }
+}
+
+
+all_cluster_freqs <- all_cluster_freqs+scale_y_continuous(breaks=equal_breaks(n=4, s=0.05),
+                                                          name = "Fraction of CD3+ T cells",
+                                                          label=scales::label_percent())+
+                                       theme(axis.text.x = element_text(hjust=1, angle=30),
+                                             legend.position = "bottom")
 
 all_cluster_freqs$data$cluster_id <- gsub("gamma delta", "γδ", all_cluster_freqs$data$cluster_id, fixed=T)
 
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_freqs.png", all_cluster_freqs, height = 11 , width = 8.5)# works
+
+
+
+all_cluster_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=TRUE, FDR=1, logFC = 0)+
+  scale_y_continuous(breaks=equal_breaks(n=4, s=0.05),
+                     name = "Fraction of CD3+ T cells",
+                     trans = "log10")+
+  theme(axis.text.x = element_text(hjust=1, angle=30),
+        legend.position = "bottom")
+
+all_cluster_freqs$data$cluster_id <- gsub("gamma delta", "γδ", all_cluster_freqs$data$cluster_id, fixed=T)
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_freqs.png", all_cluster_freqs, height = 11 , width = 8.5)# works
+
+
+
+all_cluster_counts <- diffcyt_boxplot(da_t6, merged_daf, counts=TRUE, FDR=1, logFC = 0)
+
+all_cluster_counts <- all_cluster_counts+scale_y_log10(name="Cell Counts Per Sample")+
+  theme(axis.text.x = element_text(hjust=1, angle=30),
+        legend.position = "bottom")
+
+all_cluster_counts$data$cluster_id <- gsub("gamma delta", "γδ", all_cluster_counts$data$cluster_id, fixed=T)
+
+#ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_counts.png", all_cluster_counts, height = 11 , width = 8.5)# works
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_log_counts.png", all_cluster_counts, height = 11 , width = 8.5)# works
+
+
+
+
+
+sig_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=F, FDR=0.05, logFC = 1)
+
+sig_cluster_freqs <- sig_cluster_freqs+scale_y_continuous(breaks=equal_breaks(n=4, s=0.05),
+                                                          name = "Fraction of CD3+ T cells",
+                                                          label=scales::label_percent())+
+  theme(axis.text.x = element_text(hjust=1, angle=30),
+        legend.position = "bottom")
+
+sig_cluster_freqs$data$cluster_id <- gsub("gamma delta", "γδ", sig_cluster_freqs$data$cluster_id, fixed=T)
+
+
+
 # ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/supp_all_clusters_freqs.pdf", all_cluster_freqs, height = 12, width=18)# works
 # ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_log_counts.png", all_cluster_freqs, height = 12 , width = 11)# works
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_all_clusters_freqs.png", all_cluster_freqs, height = 12 , width = 11)# works
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/2_sig_clusters_t6_freqs.png", sig_cluster_freqs, height = 5 , width = 9)# works
 
 
 
@@ -123,7 +182,7 @@ plotClusterHeatmap(merged_daf, hm2=NULL,
 
 ei <- metadata(merged_daf)$experiment_info
 
-design <- createDesignMatrix(ei, c("timepoint", "batch"))
+design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 
 levels(ei$timepoint)
 
@@ -141,17 +200,17 @@ FDR_cutoff <- 0.05
 
 # copntrasts for models excluding volunteer
 
-pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,1)))
-pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,1)))
-pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,1)))
+pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+pairwise_contrast_dod <- createContrast(c(c(0, 0, 1, 0), rep(0,5)))
+pairwise_contrast_c10 <- createContrast(c(c(0, 1, 0, 0), rep(0,5)))
 
 # how to test only activation markers
-states <- names(marker_classes(merged_daf))
-states <- states[-c(1:21,
-                    match(c("CCR7", "CD127", "CD20", "CXCR5", "CD103", "TCRgd", "TIM3", "IntegrinB7", "CD56", "CD3", "CD49d", "CD45RA", "CD4", "Vd2", "Va72", "CD161", "FoxP3", "CD45RO"), states),
-                    53, 54, 56:length(states)
-)
-]
+# states <- names(marker_classes(merged_daf))
+# states <- states[-c(1:21,
+#                     match(c("CCR7", "CD127", "CD20", "CXCR5", "CD103", "TCRgd", "TIM3", "IntegrinB7", "CD56", "CD3", "CD49d", "CD45RA", "CD4", "Vd2", "Va72", "CD161", "FoxP3", "CD45RO"), states),
+#                     53, 54, 56:length(states)
+# )
+# ]
 
 # how to test ALLL markers
 states <- names(marker_classes(merged_daf))
@@ -164,10 +223,14 @@ logic <- names(marker_classes(merged_daf)) %in% states
 
 metadata(merged_daf)$id_state_markers <- states
 
-# ds_c10 <- diffcyt(merged_daf,                                            
-#                   design = design, contrast = pairwise_contrast_c10,                    
-#                   analysis_type = "DS", method_DS = "diffcyt-DS-limma",       
-#                   clustering_to_use = "coarse_merge", verbose = TRUE)               
+trye <- diffcyt::diffcyt(merged_daf,
+                  design = design, contrast = pairwise_contrast_t6,
+                  analysis_type = "DA", method_DA = "diffcyt-DA-edgeR",
+                  clustering_to_use = "coarse_merge", verbose = TRUE)
+
+
+table(trye$res$p_adj <= 0.05)
+
 
 
 ds_dod <- diffcyt(merged_daf,                                            
@@ -180,6 +243,17 @@ ds_t6 <- diffcyt(merged_daf, markers_to_test = rep(TRUE, 28),
                  design = design, contrast = pairwise_contrast_t6,                    
                  analysis_type = "DS",  method_DS =  "diffcyt-DS-limma",         
                  clustering_to_use = "coarse_merge", verbose = TRUE)
+
+
+
+ds_formula <- createFormula(ei,                          
+                            cols_fixed = c("timepoint"), cols_random = "volunteer") 
+
+ds_t6 <- diffcyt(merged_daf, markers_to_test = rep(TRUE, 28),                         
+                 formula = ds_formula, contrast = createContrast(c(0,0,0,1)),                   
+                 analysis_type = "DS",  method_DS =  "diffcyt-DS-LMM",         
+                 clustering_to_use = "coarse_merge", verbose = TRUE)
+
 
 
 
@@ -199,6 +273,7 @@ res_DA_t6 <- topTable(ds_t6, all = TRUE, show_logFC = T)
 table(res_DA_t6$p_adj <= 0.05)
 
 sigs_t6 <- subset(res_DA_t6, p_adj<=0.05)
+#72 probe~timepoint+volunteer
 sigs_dod <- subset(res_DA_dod, p_adj<=0.05)
 
 spider_sigs_t6 <- data.frame(sigs_t6$cluster_id, sigs_t6$marker_id, sigs_t6$logFC)
@@ -241,7 +316,7 @@ shplit_cells <- function(x, by) {
   cd$cluster_id <- cluster_ids(x, "coarse_merge")
   dt <- data.table::data.table(cd, i = seq_len(ncol(x)))
   dt_split <- split(dt, by = by, sorted = TRUE, flatten = FALSE)
-  map_depth(dt_split, length(by), "i")
+  purrr::map_depth(dt_split, length(by), "i")
 }
 
 
@@ -249,14 +324,15 @@ ahgg <- function(x, by, fun = c("median", "mean", "sum")) {
   fun <- switch(match.arg(fun), 
                 median = rowMedians, mean = rowMeans, sum = rowSums)
   cs <- shplit_cells(x, by)
-  pb <- map_depth(cs, -1, function(i) {
+  pb <- purrr::map_depth(cs, -1, function(i) {
     if (length(i) == 0) return(numeric(nrow(x)))
     fun(assay(x, "exprs")[, i, drop = FALSE])
   })
-  map_depth(pb, -2, function(u) as.matrix(data.frame(
+  purrr::map_depth(pb, -2, function(u) as.matrix(data.frame(
     u, row.names = rownames(x), check.names = FALSE)))
 }
 
+refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv")
 
 
 ms <- ahgg(merged_daf[refined_markers$refined_markers, ], by = c("cluster_id", "sample_id"))
@@ -273,7 +349,10 @@ scaled_ms <- ms %>%
 
 #scaled_ms <- subset(scaled_ms, scaled_ms$antigen %in% states[-(c(3, 11:14))])
 
-sig_ds_contrasts <- subset(rowData(ds_t6$res), rowData(ds_t6$res)$p_adj<0.05)
+#sig_ds_contrasts <- subset(rowData(ds_t6$res), rowData(ds_t6$res)$p_adj<0.05)
+
+
+sig_ds_contrasts <- subset(rowData(ds_t6$res), rowData(ds_t6$res)$p_adj<0.05 & abs(rowData(ds_t6$res)$logFC) > log2(1.1))
 
 sig_ds_contrasts <- paste(sig_ds_contrasts$cluster_id, " (", sig_ds_contrasts$marker_id, ")", sep="")
 
@@ -335,6 +414,7 @@ median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
                                split = limma_row_split_lineage,
                                rect_gp = gpar(col = "white"),
                                show_heatmap_legend = TRUE,
+                               #row_names_gp = gpar(fontsize=9),
                                column_names_rot = 45,
                                heatmap_legend_param = list(legend_position = "top",
                                                            col=col_fun_ds_limma,
@@ -347,9 +427,14 @@ median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
                                #height = unit(16*9/28, "cm")
 )
 
-png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma.png", width = 8, height=10, units="in", res=400)
+png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=15, units="in", res=400)
 draw(median_cluster_heat, heatmap_legend_side = "bottom")
 dev.off()
+
+# png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma.png", width = 8, height=10, units="in", res=400)
+# draw(median_cluster_heat, heatmap_legend_side = "bottom")
+# dev.off()
+
 
 
 # activation stacked barhcart plus pie ####
@@ -556,7 +641,7 @@ aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
 merged_daf <- vac69a.cytof::read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
 
-limma_markers <- c("CD38','ICOS','CD27','Tbet','Ki67','FoxP3','CD127','PD1','BCL2','GZB','CTLA4','CD25','CD95','HLADR','CD28")
+limma_markers <- c("CD38","ICOS","CD27","Tbet","Ki67","FoxP3","CD127","PD1","BCL2","GZB","CTLA4","CD25","CD95","HLADR","CD28")
 
 cs_by_s <- split(seq_len(ncol(merged_daf)), merged_daf$sample_id)
 es <- as.matrix(SummarizedExperiment::assay(merged_daf, "exprs"))
@@ -564,7 +649,7 @@ ms <- vapply(cs_by_s, function(cs) Biobase::rowMedians(es[, cs, drop = FALSE]),
              numeric(nrow(merged_daf)))
 rownames(ms) <- rownames(merged_daf)
 # state markers, type markers or both
-ms <- subset(ms, rownames(ms)%in%climma_markers)
+ms <- subset(ms, rownames(ms) %in% limma_markers)
 
 mds <- limma::plotMDS(ms, plot = FALSE)
 df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
@@ -615,7 +700,7 @@ sig_analytes[1] <- "IFNγ"
 
 
 #filter for top 12 analytes
-long_data <- subset(long_data, long_data$analyte %in% sig_analytes[1:24])
+long_data <- subset(long_data, long_data$analyte %in% sig_analytes[1:12])
 
 data2 <- spread(long_data, analyte, concentration)
 # split_data <- split(data2, data2$Volunteer)
@@ -685,4 +770,51 @@ memory_plots <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot,
                                    CCR7_plot, CD45RO_plot, CD45RA_plot,CD57_plot,
                                    ncol=4, align="hv", axis="l")
 ggsave("~/PhD/figures_for_thesis/chapter_2/lineage_memory_umaps.png", memory_plots, height=3, width=8, dpi=900)
+
+
+
+
+
+
+
+
+
+slimmer_ms <- ms %>%
+  mutate("contrast"= paste(antigen, " on ", cluster_id))%>%
+  select(contrast, sample_id, value) %>%
+  pivot_wider(names_from = sample_id, values_from = value)
+
+slimmer_ms <- data.frame(slimmer_ms)
+rownames(slimmer_ms) <- slimmer_ms$contrast
+
+slimmer_ms$contrast <- NULL
+
+mds <- limma::plotMDS(slimmer_ms)
+df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
+md <- S4Vectors::metadata(merged_daf)$experiment_info
+m <- match(rownames(df), md$sample_id)
+df <- data.frame(df, md[m, ])
+
+#df2 <- filter(df, timepoint %in% c("Baseline", "DoD"))
+
+state_markers_mds_coarse <- ggplot(df, aes(x=MDS1, y=MDS2))+
+  geom_point(aes(shape=timepoint, color=volunteer, fill=volunteer))+
+  #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
+  theme_minimal()+
+  xlab("")+
+  ggtitle("Cell State Marker Expression")+
+  #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
+  scale_color_manual(values = volunteer_palette)+
+  scale_fill_manual(values = volunteer_palette)+
+  guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
+         shape=guide_legend(title="Timepoint", override.aes = list(size = 1)),
+         fill=guide_none())+
+  theme(legend.title = element_text(size=8),
+        legend.text = element_text(size=6),
+        plot.title = element_text(size=10, hjust=0.5),
+        legend.position = "none")
+
+
+
+
 

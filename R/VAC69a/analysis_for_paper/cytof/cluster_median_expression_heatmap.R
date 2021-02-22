@@ -70,13 +70,14 @@ ms_mean <- mutate(ms3, "mean_expression"= apply(ms3[,1:4], MARGIN = 1, mean ))
 
 write.csv(ms_mean, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_medians_all.csv")
 
-ms3 <- select(ms3, T6, cluster_id, Marker)
+ms3 <- dplyr::select(ms3, T6, cluster_id, Marker)
 
 ms4 <- as.matrix(tidyr::spread(ms3, cluster_id, T6))
 
 rownames(ms4) <- ms4[,1]
 ms5 <- ms4[,2:ncol(ms4)]
 
+#0,1 tranform each row(marker) to account for spread of all columns (populations)
 scaled_mat <- apply(apply(ms5, c(1,2), as.numeric), MARGIN = 1, function(x)scales::rescale(x, to=c(0, 1)))
 write.csv(scaled_mat, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_medians_heatmap_t6.csv")
 

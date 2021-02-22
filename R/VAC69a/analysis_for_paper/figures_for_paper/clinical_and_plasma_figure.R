@@ -456,6 +456,7 @@
     
     
     
+    lymphsss <- filter(long_haem_data, Cell=="lymphocytes")
     
     thrombos_lymphs <- ggplot(long_haem_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+
       scale_fill_manual(values=volunteer_palette)+
@@ -478,6 +479,28 @@
     
     ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/thrombos_lymphs.pdf", thrombos_lymphs, width=6, height=2.2)
     
+    
+    
+    lymph_plot <- ggplot(lymphsss, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+
+      scale_fill_manual(values=volunteer_palette)+
+      scale_color_manual(values=volunteer_palette)+
+      geom_line(aes(color=volunteer), size=0.9)+
+      geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+      theme_minimal()+
+      facet_wrap(~Cell, scales="free")+
+      xlab("Timepoint")+
+      ylab(expression(Cells~"/"~mu*L~blood))+
+      guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+      fig1_theme+
+      scale_y_continuous(label=scales::comma)+
+      theme(plot.title = element_text(hjust=0.5),
+            axis.text.x = element_text(hjust=1, angle=45, size=8), 
+            axis.title.x = element_blank(),
+            legend.position = "none",
+            strip.text = element_text(size=10))
+    
+    
+  ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/lymphs.pdf", lymph_plot, width=3, height=2.2)
     
     
     supp_haem_data_plots <- ggplot(supp_haem_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+

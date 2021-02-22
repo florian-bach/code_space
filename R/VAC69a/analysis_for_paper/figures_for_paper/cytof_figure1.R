@@ -220,9 +220,10 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
   
   #put the bar and pie charts together with cowlplot
   
-  panel_f <- cowplot::plot_grid(lineage_activation_pies, activation_stacked_barchart, ncol = 2, rel_widths = c(1,4), rel_heights = c(1,1), axis = "bt", align = "hv")
+  panel_f <- cowplot::plot_grid(activation_stacked_barchart, lineage_activation_pies, ncol = 2, rel_widths = rev(c(1,4)), rel_heights = c(1,1), axis = "bt", align = "hv")
   
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.pdf", panel_f, height=2, width=8)
+  #ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/panel_f.pdf", panel_f, height=2, width=8)
+  ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/panel_f.pdf", panel_f, height=2, width=8)
   
   ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/activation_stacked_barchart.pdf", activation_stacked_barchart, height=2, width=6.4)
   
