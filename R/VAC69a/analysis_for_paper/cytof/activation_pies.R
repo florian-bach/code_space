@@ -1,7 +1,7 @@
 # open diffuerential_abundance.R and run until diffcyt constructs edgeR comparisons for each timepoint
 # then proceed
 
-all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
+#all_cluster_freqs <- diffcyt_boxplot(da_t6, merged_daf, counts=T, FDR=1, logFC = 0)
 
 
 

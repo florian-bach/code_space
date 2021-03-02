@@ -1,5 +1,7 @@
 
 
+sce <- d_input 
+
 primaries <- filterSCE(sce, volunteer %in% c("v313", "v315", "v320"))
 tertiaries <- filterSCE(sce, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
 
@@ -96,14 +98,6 @@ sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, leve
 ggsave("./figures/sig_dod_ter_boxplot.png", sig_t6_all_plot, height=7, width=11)
 #ggsave("./figures/sig_dod_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
 #ggsave("./figures/sig_c45_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
-
-
-
-
-
-
-
-
 
 
 

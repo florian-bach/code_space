@@ -35,7 +35,6 @@ sce <- prepData(vac63_flowset, panel, md, md_cols =
                   list(file = "file_name", id = "sample_id", factors = c("volunteer", "timepoint", "n_infection", "batch")))
 
 
-
 # p <- plotExprs(sce, color_by = "batch")
 # p$facet$params$ncol <- 7                   
 # ggplot2::ggsave("marker_expression.png", p, width=12, height=12)                                      
@@ -102,16 +101,16 @@ colData(d_input)$cluster_id <- cluster_id
 # vac69a ####
 
 
-setwd("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-
-d_input <- vac69a.cytof::read_full(path_to_directory = "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
-
-code_id <- colData(d_input)$cluster_id
-cluster_id <- metadata(d_input)$cluster_codes[, 
-                                           "flo_merge"][code_id]
-
-colData(d_input)$code_id <- code_id
-colData(d_input)$cluster_id <- cluster_id
+# setwd("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+# 
+# d_input <- vac69a.cytof::read_full(path_to_directory = "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+# 
+# code_id <- colData(d_input)$cluster_id
+# cluster_id <- metadata(d_input)$cluster_codes[, 
+#                                            "flo_merge"][code_id]
+# 
+# colData(d_input)$code_id <- code_id
+# colData(d_input)$cluster_id <- cluster_id
 
 
 # glmmm ####
@@ -160,13 +159,13 @@ d_counts <- calcCounts(d_se)
   n_cells_smp <- colSums(counts)
   
   
-  formula <- createFormula(ei, cols_fixed = c("timepoint"), cols_random = "volunteer")
+  formula <- createFormula(ei, cols_fixed = c("timepoint", "n_infection"), cols_random = "volunteer")
   
   #no n_infection
   #all_t6_contrast <- t(diffcyt::createContrast(c(0,0,0,1)))
   
   #with n_infection
-  all_t6_contrast <- t(diffcyt::createContrast(c(0,0,0,1)))
+  all_t6_contrast <- t(diffcyt::createContrast(c(0,0,0,1,1)))
   
   
   p_vals <- rep(NA, length(cluster_id))
@@ -180,7 +179,7 @@ d_counts <- calcCounts(d_se)
       # fit <- survey::svyglm(y~timepoint+volunteer, design=survey::svydesign(ids=~1,
       #                                                                       weights=~n_cells_smp,
       #                                                                       data=data_i), family=binomial)
-      fit <- MASS::glmmPQL(y~timepoint, random= ~ 1 | volunteer, data = data_i, family = binomial, weights=n_cells_smp)
+      fit <- MASS::glmmPQL(y~timepoint+n_infection, random= ~ 1 | volunteer, data = data_i, family = binomial, weights=n_cells_smp)
       test <- multcomp::glht(fit, all_t6_contrast)
       summary(test)$test$pvalues
     }, error = function(e) NA)
@@ -196,36 +195,72 @@ d_counts <- calcCounts(d_se)
   row_data[cluster_id_nm, ] <- out
   row_data <- cbind(cluster_id = rowData(d_counts)$cluster_id, 
                     row_data)
-  res <- d_counts
-  rowData(res) <- row_data
- 
-  first <- row_data
-  
-  third <- row_data
+  # res <- d_counts
+  # rowData(res) <- row_data
+  # 
+  row_data$cluster_id[subset(row_data$cluster_id, row_data$p_adj<0.05)]
   
   
   
   
-  prim_fold_changes_t6 <- counts[,c(7:9, 16:18, 25:27, 34:36)]
-  ter_fold_changes_t6 <- counts[,-c(7:9, 16:18, 25:27, 34:36)]
+  
+  
+  #first_t6 <- row_data
+  third_t6 <- row_data
+  
+  first_dod <- row_data
+  #third_dod <- row_data
+  
+  sig_dod_all <- subset(row_data, row_data$p_adj<0.05)
+  sig_t6_all <- subset(row_data, row_data$p_adj<0.05)
+  
+  counts_plus <- counts+1
+  
+  norm_counts <- sapply(1:ncol(counts_plus), function(x) counts_plus[,x]/n_cells_smp[x])
+  colnames(norm_counts) <- names(n_cells_smp)
+  
+  # prim_fc_counts <- counts[,c(7:9, 16:18, 25:27, 34:36)]
+  # ter_fc_counts <- counts[,-c(7:9, 16:18, 25:27, 34:36)]
+  # 
+  
+  prim_fc_counts <- norm_counts[,c(7:9, 16:18, 25:27, 34:36)]
+  ter_fc_counts <- norm_counts[,-c(7:9, 16:18, 25:27, 34:36)]
   
   
   #apply(counts[,grepl("T6", colnames(prim_fold_changes_t6))], 1, mean)
   
   #select each timepoint seperately, calc cluster-wise mean, make fold change, log2 transform
   
-  prim_fold_changes_t6 <- log2(apply(prim_fold_changes_t6[,grepl("T6", colnames(prim_fold_changes_t6))], 1, mean) / apply(prim_fold_changes_t6[,grepl("Baseline", colnames(prim_fold_changes_t6))], 1, mean))
-  ter_fold_changes_t6 <-  log2(apply(ter_fold_changes_t6[,grepl("T6", colnames(ter_fold_changes_t6))], 1, mean) / apply(ter_fold_changes_t6[,grepl("Baseline", colnames(ter_fold_changes_t6))], 1, mean))
+  prim_fold_changes_t6 <- log2(apply(prim_fc_counts[,grepl("T6", colnames(prim_fc_counts))], 1, mean) / apply(prim_fc_counts[,grepl("Baseline", colnames(prim_fc_counts))], 1, mean))
+  ter_fold_changes_t6 <-  log2(apply(ter_fc_counts[,grepl("T6", colnames(ter_fc_counts))], 1, mean) / apply(ter_fc_counts[,grepl("Baseline", colnames(ter_fc_counts))], 1, mean))
   
-  first$logFC <- prim_fold_changes_t6[match(first$cluster_id, names(prim_fold_changes_t6))]
-  third$logFC <- ter_fold_changes_t6[match(third$cluster_id, names(ter_fold_changes_t6))]
+  prim_fold_changes_dod <- log2(apply(prim_fc_counts[,grepl("DoD", colnames(prim_fc_counts))], 1, mean) / apply(prim_fc_counts[,grepl("Baseline", colnames(prim_fc_counts))], 1, mean))
+  ter_fold_changes_dod <- log2(apply(ter_fc_counts[,grepl("DoD", colnames(ter_fc_counts))], 1, mean) / apply(ter_fc_counts[,grepl("Baseline", colnames(ter_fc_counts))], 1, mean))
   
-  sig_first <- subset(first, first$p_adj<0.05 & abs(first$logFC)>1)
-  #20
-  write.csv(x = first, "glmmPQL_first.csv")
-  sig_third <- subset(third, third$p_adj<0.05 & abs(third$logFC)>1)
+  
+  
+  first_t6$logFC <- prim_fold_changes_t6[match(first_t6$cluster_id, names(prim_fold_changes_t6))]
+  third_t6$logFC <- ter_fold_changes_t6[match(third_t6$cluster_id, names(ter_fold_changes_t6))]
+  
+  sig_first_t6 <- subset(first_t6, first_t6$p_adj<0.05 & abs(first_t6$logFC)>=1)
+  #26
+  write.csv(x = sig_first_t6, "glmmPQL_first_t6.csv")
+  sig_third_t6 <- subset(third_t6, third_t6$p_adj<0.05 & abs(third_t6$logFC)>1)
   #6
-  write.csv(x = third, "glmmPQL_third.csv")
+  write.csv(x = sig_first_t6, "glmmPQL_third_t6.csv")
+  
+  
+  
+  first_dod$logFC <- prim_fold_changes_dod[match(first$cluster_id, names(prim_fold_changes_dod))]
+  third_dod$logFC <- ter_fold_changes_dod[match(third$cluster_id, names(ter_fold_changes_dod))]
+  
+  sig_first_dod <- subset(first_dod, first_dod$p_adj<0.05 & abs(first_dod$logFC)>=1)
+  #4
+  write.csv(x = first_dod, "glmmPQL_first_dod.csv")
+  sig_third_dod <- subset(third_dod, third_dod$p_adj<0.05 & abs(third_dod$logFC)>1)
+  #1
+  write.csv(x = third_dod, "glmmPQL_third_dod.csv")
+  
   
   
   # all(sig_third$cluster_id %in% sig_third$cluster_id)
@@ -303,3 +338,42 @@ sig_third_plot <-  ggplot(third_gg_counts, aes(x=factor(timepoint, levels=c("Bas
                                  "third" = time_col[1]))
 
 ggsave("sig_third_plot.png", sig_third_plot, width=14, height=7)  
+
+
+
+
+# make a count matrix where every value has added one, to make fold changes possible
+prim_plus_counts <- prim_fc_counts+1
+ter_plus_counts <- ter_fc_counts+1
+
+#caluclate log2 foldchanges for each volunteer
+prim_plus_fold_changes_t6 <- log2(prim_plus_counts[,grepl("T6", colnames(prim_plus_counts))] / prim_plus_counts[,grepl("Baseline", colnames(prim_plus_counts))])
+ter_plus_fold_changes_t6 <-  log2(ter_plus_counts[,grepl("T6", colnames(ter_plus_counts))] / ter_plus_counts[,grepl("Baseline", colnames(ter_plus_counts))])
+
+#subset data to include only clusters that were significant at t6
+prim_plus_fold_changes_t6 <- subset(prim_plus_fold_changes_t6, rownames(prim_plus_fold_changes_t6)%in%sig_t6_all$cluster_id)
+ter_plus_fold_changes_t6 <-  subset(ter_plus_fold_changes_t6, rownames(ter_plus_fold_changes_t6)%in%sig_t6_all$cluster_id)
+
+# do t test, name list, adjust p value
+t_p_values_t6 <- lapply(1:nrow(ter_plus_fold_changes_t6), function(x) t.test(prim_plus_fold_changes_t6[x,], ter_plus_fold_changes_t6[x,])$p.value)
+names(t_p_values_t6) <- rownames(ter_plus_fold_changes_t6)
+
+t_padj_t6 <- p.adjust(t_p_values_t6, method="fdr")
+# subset(t_padj_t6, t_padj_t6<0.05)
+# activated_HLADR+_EM_CD8 activated_ICOS+HLADR+_EM_CD4 
+# 0.005779448                  0.007514583 
+
+
+prim_plus_fold_changes_DoD <- log2(prim_plus_counts[,grepl("DoD", colnames(prim_plus_counts))] / prim_plus_counts[,grepl("Baseline", colnames(prim_plus_counts))])
+ter_plus_fold_changes_DoD <-  log2(ter_plus_counts[,grepl("DoD", colnames(ter_plus_counts))] / ter_plus_counts[,grepl("Baseline", colnames(ter_plus_counts))])
+
+prim_plus_fold_changes_DoD <- subset(prim_plus_fold_changes_DoD, rownames(prim_plus_fold_changes_DoD)%in%sig_dod_all$cluster_id)
+ter_plus_fold_changes_DoD <-  subset(ter_plus_fold_changes_DoD, rownames(ter_plus_fold_changes_DoD)%in%sig_dod_all$cluster_id)
+
+
+t_p_values_dod <- lapply(1:nrow(ter_plus_fold_changes_DoD), function(x) t.test(prim_plus_fold_changes_DoD[x,], ter_plus_fold_changes_DoD[x,])$p.value)
+
+names(t_p_values_dod) <- rownames(prim_plus_fold_changes_DoD)
+
+t_padj_dod <- p.adjust(t_p_values_dod, method="fdr")
+subset(t_padj_dod, t_padj_dod<0.05)
