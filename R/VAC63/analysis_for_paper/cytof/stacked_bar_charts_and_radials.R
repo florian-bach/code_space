@@ -49,6 +49,7 @@ colcsv <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cl
 col_pal <- colcsv$colour
 names(col_pal) <- colcsv$cluster_id
 
+cluster_order <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_order.csv")$x
 
 
 summary$n_infection <- ifelse(summary$volunteer %in% c("v313", "v315", "v320"), "first", "third")
@@ -182,6 +183,77 @@ ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/f
 
 #ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/sig_activation_stacked_polar.png", sig_activation_polar, height=4, width=9)
 
+#non circular alternatives
+
+
+dodged_lollipop_bar <- ggplot(summary, aes(y=volunteer, x=frequency/100, fill=factor(cluster_id, levels=c(cluster_order))))+
+  geom_bar(stat="identity", position="dodge")+
+  #geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
+  theme_minimal()+
+  #facet_wrap(~timepointf, strip.position = "bottom", ncol=4)+
+  ggtitle("Overall T cell activation")+
+  scale_fill_manual(values=col_pal)+
+  # scale_fill_manual(values=lineage_palette, labels=rev(c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "NKT")))+
+  #scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  scale_x_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="none",
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+
+
+prim_sig_activation_lolli <- ggplot()+
+  geom_bar(data=prim_summary_t6,aes(y=factor(cluster_id, levels=cluster_order), x=scaled_freq/100, fill=factor(cluster_id, levels=cluster_order)), stat="identity", position="stack", width=1)+
+  theme_minimal()+
+  ggtitle("differentially UP at T6 first")+
+  scale_fill_manual(values=col_pal)+
+  scale_x_reverse(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), limits = c(0.05, 0), breaks=seq(1,5)/100, expand = c(0,0))+
+  guides(fill=guide_legend(reverse = TRUE, nrow = 5,keyheight = unit(2, "mm"), keywidth = unit(4, "mm")))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        strip.placement = "outside",
+        plot.margin = unit(c(1,0,1,5), "mm"),
+        legend.position = "bottom",
+        legend.text = element_text(size=6),
+        legend.title = element_blank())
+
+
+cluster_leg <- get_legend(prim_sig_activation_lolli)
+
+prim_sig_activation_lolli <- prim_sig_activation_lolli+theme(legend.position = "none")
+
+
+ter_sig_activation_lolli <-   ggplot()+
+  geom_bar(data=ter_summary_t6,aes(y=factor(cluster_id, levels=cluster_order), x=scaled_freq/100, fill=factor(fill, levels=cluster_order)), stat="identity", position="stack", width=1)+
+  theme_minimal()+
+  ggtitle("differentially UP at T6 third")+
+  scale_fill_manual(values=col_pal)+
+  scale_x_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), limits = c(0,0.05), breaks=seq(1,5)/100 ,expand = c(0,0))+
+  guides(fill=guide_legend(reverse = TRUE, nrow = 5,keyheight = unit(2, "mm"), keywidth = unit(4, "mm")))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        strip.placement = "outside",
+        plot.margin = unit(c(1,5,1,0), "mm"),
+        legend.position = "none",
+        legend.text = element_text(size=6),
+        legend.title = element_blank())
+
+
+
+combo_lolli <- plot_grid(prim_sig_activation_lolli, ter_sig_activation_lolli)
+
+combo_lolli <- plot_grid(combo_lolli, cluster_leg, ncol=1, rel_heights = c(5,1), rel_widths = c(1,1,2),align="v", axis = "tbrl")
+ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/all_activation_lollipop.png", combo_lolli, height=4, width=7)
 
 
 
