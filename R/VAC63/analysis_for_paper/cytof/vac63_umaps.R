@@ -7,8 +7,15 @@ library(dplyr)
 
 big_table <- data.table::fread("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_all_Tcells_with_UMAP.csv")
 
+
 t6_edger <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/t6_edgeR.csv", header = TRUE, stringsAsFactors = FALSE)
 sig_t6_clusters <- subset(t6_edger, t6_edger$p_adj<0.05 & abs(t6_edger$logFC)>1)$cluster_id
+
+sig_ter_t6_clusters <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/ter_t6_df_edger.csv", header = TRUE, stringsAsFactors = FALSE)
+sig_prim_t6_clusters <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/prim_t6_df_edger.csv", header = TRUE, stringsAsFactors = FALSE)
+
+sig_ter_t6_clusters <- subset(sig_ter_t6_clusters, sig_ter_t6_clusters$p_adj<0.05 & sig_ter_t6_clusters$logFC>1)$cluster_id
+sig_prim_t6_clusters <- subset(sig_prim_t6_clusters, sig_prim_t6_clusters$p_adj<0.05 & sig_prim_t6_clusters$logFC>1)$cluster_id
 
 #get rid of resting Vd cluster
 
@@ -117,24 +124,28 @@ refined_markers <- c("CD4",
                      "CCR7")
 
 
+#reduce table size by 66% 
 short_big_table <- big_table[seq(1,nrow(big_table), by=3),] 
 
 
-for(channel in refined_markers){
-  plotplot <- flo_umap(short_big_table, color_by = channel, facet_by = c("timepoint", "n_infection"))
-  ggsave(paste("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/umaps/t6_n_infection_umap_", channel, ".png", sep = ""), plotplot,  width=13, height=7)
-  print(paste("I printed the ", channel, " plot for you :) "))
-}
+# for(channel in refined_markers){
+#   plotplot <- flo_umap(short_big_table, color_by = channel, facet_by = c("timepoint", "n_infection"))
+#   ggsave(paste("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/umaps/t6_n_infection_umap_", channel, ".png", sep = ""), plotplot,  width=13, height=7)
+#   print(paste("I printed the ", channel, " plot for you :) "))
+# }
 
 
+#add a column whether this cluster was significant
+short_big_table$prim_significant <- ifelse(short_big_table$flo_label %in% sig_prim_t6_clusters, short_big_table$flo_label, "black")
+short_big_table$prim_alpha <- ifelse(short_big_table$flo_label %in% sig_prim_t6_clusters, 1, 0.6)
 
-short_big_table$significant <- ifelse(short_big_table$flo_label %in% sig_t6_clusters, short_big_table$flo_label, "black")
-short_big_table$alpha <- ifelse(short_big_table$flo_label %in% sig_t6_clusters, 1, 0.5)
+short_big_table$ter_significant <- ifelse(short_big_table$flo_label %in% sig_ter_t6_clusters, short_big_table$flo_label, "black")
+short_big_table$ter_alpha <- ifelse(short_big_table$flo_label %in% sig_ter_t6_clusters, 1, 0.6)
 
 
 
 cluster_names <- c(unique(short_big_table$flo_label))
-cols <- rev(c(color_103_scheme[1:length(cluster_names)]))
+cols <- rev(c(color_103_scheme[40:88]))
 names(cols)=cluster_names
 
 
@@ -145,15 +156,37 @@ colcsv <- read.csv("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/cluster_pa
 #gamma delta pink (to avoid duplication)
 
 vivax_colours <- colcsv$x
-vivax_colours[4] <- "#6F0062"
 
-vivax_colours <- vivax_colours[-c(1,3)]
+vivax_colours <- vivax_colours[-1]
 
-cols[grep("activated", names(cols))[2:9]] <- vivax_colours 
+cols[grep("activated", names(cols))[1:10]] <- vivax_colours
+
+#light grey to
+cols[grep("activated", names(cols))][15] <- "#FF913F"
+# #light red to
+cols[grep("activated", names(cols))][3] <- "#008941"
+#almost black to
+cols[grep("activated", names(cols))][13] <- "#3B5DFF"
+#light lime
+cols[grep("activated", names(cols))][14] <-"#A4E804"
+#dark blue
+cols[grep("activated", names(cols))][10] <-"#FFFF00"
+
+#dark yellow
+cols[grep("activated", names(cols))][5] <-"#D16100"
+
+#dark yellow
+# cols[grep("activated", names(cols))][17] <-"#0089A3"
+
+#   
 
 names(cols)=cluster_names
 
 
+
+
+
+show_col(subset(cols, names(cols) %in% sig_prim_t6_clusters))
 
 cols <- c(cols, "black"="black")
 
@@ -164,45 +197,55 @@ write.csv(data.frame("cluster_id"=names(cols), "colour"=unname(cols)), "~/PhD/cy
 short_big_table_t6 <- short_big_table %>%
   filter(timepoint=="T6") %>%
   group_by(n_infection) %>%
-  # sample_n(5*10^4) %>%
-  sample_n(0.1*10^4) %>%
+  sample_n(9*10^4) %>%
+  #sample_n(0.1*10^4) %>%
   ungroup()
 
 
 
-
+prim_t6_umap_data <- dplyr::filter(short_big_table_t6, n_infection=="First")
                 
-sig_colour_t_cells_umap <- ggplot(short_big_table_T6, aes(x=UMAP2, y=UMAP1, color=significant, alpha=alpha))+
-  facet_wrap(~n_infection, ncol=2)+
-  geom_point(shape="o")+
+sig_prim_colour_t_cells_umap <- ggplot(prim_t6_umap_data, aes(x=UMAP2, y=UMAP1, color=prim_significant, alpha=prim_alpha))+
+  geom_point(shape=".")+
   scale_colour_manual(values = cols)+
   UMAP_theme+
-  ggtitle("Differentially Abundant Clusters at T6")+
-  theme(strip.text = element_text(size=15),
-      panel.spacing.x = unit(10, "mm"),
-      plot.title = element_text(size=17),
-      axis.title = element_text(size=13))
+  ggtitle("significantly up at T6\nfirst infection (17)")+
+  theme(
+      #panel.spacing.x = unit(10, "mm"),
+      plot.title = element_text(size=13, hjust=0.5),
+      axis.title.y = element_blank(),
+      axis.title = element_text(size=10))
 
+ter_t6_umap_data <- dplyr::filter(short_big_table_t6, n_infection=="Third")
+
+sig_ter_colour_t_cells_umap <- ggplot(ter_t6_umap_data, aes(x=UMAP2, y=UMAP1, color=ter_significant, alpha=ter_alpha))+
+  geom_point(shape=".")+
+  scale_colour_manual(values = cols)+
+  ggtitle("significantly up at T6\nthird infection (11)")+
+  UMAP_theme+
+  theme(
+        #panel.spacing.x = unit(10, "mm"),
+        plot.title = element_text(size=13, hjust=0.5),
+        axis.title = element_blank())
 #ggsave("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/sig_colour_t_cells_umap.png", sig_colour_t_cells_umap, width=9, height=7)
 
 
 
-all_colour_t_cells_umap <- ggplot(short_big_table_T6, aes(x=UMAP2, y=UMAP1, color=flo_label, alpha=alpha))+
-  facet_wrap(~n_infection, ncol=2)+
-  geom_point(shape="o")+
+all_colour_t_cells_umap <- ggplot(short_big_table_t6, aes(x=UMAP2, y=UMAP1, color=flo_label))+
+  geom_point(shape=".")+
   scale_colour_manual(values = cols)+
   UMAP_theme+
-  ggtitle("All Clusters at T6")+
-  theme(strip.text = element_text(size=15),
-        panel.spacing.x = unit(10, "mm"),
-        plot.title = element_text(size=17),
-        axis.title = element_text(size=13))
+  ggtitle("All Clusters at T6\n")+
+  theme(
+        plot.title = element_text(size=13, hjust=0.5),
+        axis.title = element_text(size=10),
+        axis.title.x = element_blank())
 
 #ggsave("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/all_colour_t_cells_umap.png", all_colour_t_cells_umap, width=9, height=7)
 
 
-combo_plot <- plot_grid(all_colour_t_cells_umap, sig_colour_t_cells_umap, nrow=2)
-ggsave("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/combo_plot.png", combo_plot, width=7.5, height=8)
+combo_plot <- plot_grid(all_colour_t_cells_umap, sig_prim_colour_t_cells_umap, sig_ter_colour_t_cells_umap, nrow=1, align = "hv")
+ggsave("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/combo_plot.png", combo_plot, width=9, height=3)
 
 
 
