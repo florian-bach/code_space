@@ -419,3 +419,15 @@ for(channel in refined_markers){
   ggsave(paste("./figures/umaps/t6_n_infection_umap_", channel, ".png", sep = ""), plotplot,  height=4, width=8)
   print(channel)
 }
+
+
+# BOXPLOTS OF CLUSTER COUNTS AND FREQUENCIES ####
+
+all_cluster_counts <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_t6, sce, FDR = 1, logFC = log2(1), shape = "volunteer")
+all_cluster_log_counts <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_t6, sce, FDR = 1, logFC = log2(1), shape = "volunteer")+scale_y_log10(name = "Number of Cells in Sample")
+all_cluster_freqs <- vac69a.cytof::vac63_diffcyt_boxplot(all_da_t6, sce, FDR = 1, logFC = log2(1), shape = "volunteer")+theme(axis.title = element_text(size=12),
+                                                                                          axis.text = element_text(size=8))
+
+ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/all_clusters_counts.pdf",all_cluster_counts , height = 12, width=12, units = "in")# works
+ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/all_clusters_freqs.pdf",all_cluster_freqs, height = 12, width=12, units = "in") #works
+ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/all_clusters_log_counts.pdf",all_cluster_log_counts, height = 12, width=12, units = "in")# works

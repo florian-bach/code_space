@@ -199,7 +199,7 @@ col_inferno <-colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)
 reordered_sig_scaled_mat <- as.matrix(read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/cluster_medians_heatmap_t6.csv", header = T, row.names = 1))
 
 sig_clusters <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/sig_t6_clusters.csv", header = TRUE, stringsAsFactors = FALSE)
-sig_clusters <- sig_clusters <- sig_clusters[-9,2]
+sig_clusters <- sig_clusters[-9]
 
 all_t6_data <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv", stringsAsFactors = FALSE, header = T)
 
@@ -213,15 +213,15 @@ t6_map_data <- filter(t6_map_data, timepoint=="T6")
 t6_map_data <- t6_map_data[!duplicated(t6_map_data), ]
 
 
-t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, 1, 1)==" ", substr(t6_map_data$cluster_id, 2, nchar(t6_map_data$cluster_id)), t6_map_data$cluster_id)
-t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, 1, 1)==" ", substr(t6_map_data$cluster_id, 2, nchar(t6_map_data$cluster_id)), t6_map_data$cluster_id)
+# t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, 1, 1)==" ", substr(t6_map_data$cluster_id, 2, nchar(t6_map_data$cluster_id)), t6_map_data$cluster_id)
+# t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, 1, 1)==" ", substr(t6_map_data$cluster_id, 2, nchar(t6_map_data$cluster_id)), t6_map_data$cluster_id)
+# 
+# t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, nchar(t6_map_data$cluster_id), nchar(t6_map_data$cluster_id))==" ", substr(t6_map_data$cluster_id, 1, nchar(t6_map_data$cluster_id)-1), t6_map_data$cluster_id)
+# t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, nchar(t6_map_data$cluster_id), nchar(t6_map_data$cluster_id))==" ", substr(t6_map_data$cluster_id, 1, nchar(t6_map_data$cluster_id)-1), t6_map_data$cluster_id)
+# 
 
-t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, nchar(t6_map_data$cluster_id), nchar(t6_map_data$cluster_id))==" ", substr(t6_map_data$cluster_id, 1, nchar(t6_map_data$cluster_id)-1), t6_map_data$cluster_id)
-t6_map_data$cluster_id <- ifelse(substr(t6_map_data$cluster_id, nchar(t6_map_data$cluster_id), nchar(t6_map_data$cluster_id))==" ", substr(t6_map_data$cluster_id, 1, nchar(t6_map_data$cluster_id)-1), t6_map_data$cluster_id)
 
-
-
-t6_map_data <- filter(t6_map_data, cluster_id %in% sig_clusters)
+t6_map_data <- filter(t6_map_data, cluster_id %in% sig_clusters$x)
 t6_map_data <- t6_map_data[order(t6_map_data$mean_freq, decreasing = T),]
 
 

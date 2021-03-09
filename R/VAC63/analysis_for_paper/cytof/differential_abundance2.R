@@ -345,11 +345,12 @@ ggsave("./figures/sig_t6_prim_boxplot.png", sig_t6_all_plot, height=13, width=11
 
 
 
+t6_prim_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_t6_prim, sce, FDR =1, logFC = log2(1))
+t6_ter_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_t6_ter, sce, FDR = 1, logFC = log2(1))
 
 
-
-t6_prim_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_t6_prim, sce, FDR = 0.05, logFC = log2(2))
-t6_ter_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_t6_ter, sce, FDR = 0.05, logFC = log2(2))
+# t6_prim_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_t6_prim, sce, FDR = 0.05, logFC = log2(2))
+# t6_ter_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_t6_ter, sce, FDR = 0.05, logFC = log2(2))
 
 
 
@@ -370,12 +371,12 @@ combo <- rbind(t6_ter_diffy, t6_prim_diffy)
 
 combo$cluster_id <- as.character(combo$cluster_id)
 
-combo$clusterf <- ifelse(combo$cluster_id %in% t6_ter_diffy$cluster_id, paste("_", combo$cluster_id, sep=''), combo$cluster_id)
+#combo$clusterf <- ifelse(combo$cluster_id %in% t6_ter_diffy$cluster_id, paste("_", combo$cluster_id, sep=''), combo$cluster_id)
 
 sig_t6_all_plot <- ggplot(combo, aes(x=factor(timepoint, levels=c("Baseline", "DoD", "T6", "C45")), y=frequency))+
   geom_boxplot(aes(fill=n_infection))+
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75))+
-  facet_wrap(~clusterf, scales = "free", ncol = 6, labeller = label_wrap_gen(width = 8))+
+  facet_wrap(~cluster_id, scales = "free", ncol = 7, labeller = label_wrap_gen(width = 15))+
   theme_minimal()+
   scale_y_continuous()+
   ylab("% of all CD3+ cells")+
@@ -386,7 +387,8 @@ sig_t6_all_plot <- ggplot(combo, aes(x=factor(timepoint, levels=c("Baseline", "D
         axis.title.x = element_blank(),
         strip.text = element_text(size=7))
 
-ggsave("./figures/sig_t6_combo_boxplot.png", sig_t6_all_plot, height=14, width=13)
+# ggsave("./figures/sig_t6_combo_boxplot.png", sig_t6_all_plot, height=14, width=13)
+ggsave("./figures/sig_t6_combo_boxplot.pdf", sig_t6_all_plot, height=14, width=13)
 
 
 
@@ -445,7 +447,7 @@ scaled_mat <- apply(apply(ms5, c(1,2), as.numeric), MARGIN = 1, function(x)scale
 write.csv(scaled_mat, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_medians_prim_ter_T6.csv")
 
   
-
+scaled_mat <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_medians_prim_ter_T6.csv", row.names = 1)
 reordered_scaled_mat <- scaled_mat[,match(refined_markers, colnames(scaled_mat))]
 
 
@@ -454,14 +456,21 @@ reordered_scaled_mat <- scaled_mat[,match(refined_markers, colnames(scaled_mat))
 
 
 
-both <- ifelse(rownames(reordered_scaled_mat) %in% t6_ter_diffy$cluster_id, "both", "first only")
-both <- subset(both, rownames(reordered_scaled_mat) %in% sig_clusters)
+
+ter_t6_df <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/ter_t6_df_edger.csv")
+
+ter_sig_clusters <- ter_t6_df %>%
+  filter(p_adj <= 0.05, logFC >=1)%>%
+  select(cluster_id)
 
 
+
+prim_sig_clusters <- read.delim("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_sig_clusters.csv", header=FALSE)$V1
 
 colcsv <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_colours.csv")
+cluster_order <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_order.csv")$x
 
-sig_colcsv <- subset(colcsv, colcsv$cluster_id %in% sig_clusters)
+sig_colcsv <- subset(colcsv, colcsv$cluster_id %in% prim_sig_clusters)
 
 sig_colcsv <- sig_colcsv[rev(match(cluster_order, sig_colcsv$cluster_id)), ]
 
@@ -469,6 +478,7 @@ col_pal <- sig_colcsv$colour
 names(col_pal) <- sig_colcsv$cluster_id
 
 
+both <- ifelse(rownames(reordered_scaled_mat) %in% ter_sig_clusters$cluster_id, "both", "first only")
 
 
 combo_left_anno_var <-  rowAnnotation(annotation_name_gp = gpar(fontsize=10),
@@ -479,7 +489,7 @@ combo_left_anno_var <-  rowAnnotation(annotation_name_gp = gpar(fontsize=10),
                                       show_legend = c(FALSE, TRUE),
                                       
                                       show_annotation_name = TRUE,
-                                      simple_anno_size = unit(4, "mm"), # width of the significance bar
+                                      simple_anno_size = unit(8, "mm"), # width of the significance bar
                                       col=list("n_infection" = c("both"="darkgrey", "first only"="#36454f"),
                                                "cluster_id" = col_pal),
                                       annotation_legend_param = list(n_infection = list(title ="n_infection",
@@ -501,9 +511,7 @@ combo_left_anno_var <-  rowAnnotation(annotation_name_gp = gpar(fontsize=10),
 inferno <- colorspace::sequential_hcl("inferno", n=8)
 col_inferno <- circlize::colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)
 
-reordered_scaled_mat <- subset(reordered_scaled_mat, rownames(reordered_scaled_mat) %in% sig_clusters)
-
-cluster_order <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_order.csv")$x
+reordered_scaled_mat <- subset(reordered_scaled_mat, rownames(reordered_scaled_mat) %in% prim_sig_clusters)
 
 rereordered_scaled_mat <- reordered_scaled_mat[rev(cluster_order),]
 
@@ -511,13 +519,15 @@ rereordered_scaled_mat <- reordered_scaled_mat[rev(cluster_order),]
 # ht_opt("ROW_ANNO_PADDING" = unit(3,"mm"))
 # ht_opt(RESET = TRUE)
 
-all_cluster_heatmap <- Heatmap(matrix = rereordered_scaled_mat,
-                               cluster_rows = FALSE,
-                               show_row_dend = FALSE,
+all_cluster_heatmap <- Heatmap(matrix = as.matrix(rereordered_scaled_mat),
+                               #cluster_rows = FALSE,
+                               cluster_rows = TRUE,
+                               show_row_dend = TRUE,
                                show_heatmap_legend = FALSE,
                                name = "Median Marker Expression",
                                cluster_columns = FALSE,
                                row_names_side = "left",
+                               row_dend_side = "right",
                                col = col_inferno,
                                rect_gp = gpar(col = "white"),
                                left_annotation = combo_left_anno_var,
@@ -526,6 +536,30 @@ all_cluster_heatmap <- Heatmap(matrix = rereordered_scaled_mat,
                                # width = unit(16, "cm"),
                                # height = unit(16*34/28, "cm")
 )
+
+  png("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/sig_cluster_heatmap_var.png", width=16, height=8, units = "in", res=400)
+  draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
+  dev.off()
+
+
+
+all_cluster_heatmap <- Heatmap(#matrix = rereordered_scaled_mat,
+  matrix = as.matrix(rereordered_scaled_mat),
+  cluster_rows = TRUE,
+  show_row_dend = FALSE,
+  show_heatmap_legend = FALSE,
+  name = "Median Marker Expression",
+  cluster_columns = FALSE,
+  row_names_side = "left",
+  col = col_inferno,
+  rect_gp = gpar(col = "white"),
+  left_annotation = combo_left_anno_var,
+  column_names_rot = 45
+  #heatmap_legend_param = list(col = col_fun4, title = "Normalised Frequency", title_position = "topleft"),
+  # width = unit(16, "cm"),
+  # height = unit(16*34/28, "cm")
+)
+
 
 
 
