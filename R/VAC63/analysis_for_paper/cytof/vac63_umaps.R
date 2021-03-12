@@ -54,6 +54,14 @@ UMAP_theme <- theme_minimal()+theme(
 
 big_table$timepoint <- factor(big_table$timepoint, levels=c("Baseline", "DoD","T6","C45"))
 
+
+big_table$prim_significant <- ifelse(big_table$flo_label %in% sig_prim_t6_clusters, big_table$flo_label, "black")
+big_table$prim_alpha <- ifelse(big_table$flo_label %in% sig_prim_t6_clusters, 1, 0.6)
+
+big_table$ter_significant <- ifelse(big_table$flo_label %in% sig_ter_t6_clusters, big_table$flo_label, "black")
+big_table$ter_alpha <- ifelse(big_table$flo_label %in% sig_ter_t6_clusters, 1, 0.6)
+
+
 all_black_t_cells_umap <- ggplot(big_table, aes(x=UMAP2, y=UMAP1))+
   facet_wrap(n_infection~timepoint, ncol=4)+
   geom_point(color="black", shape="o")+
@@ -124,6 +132,8 @@ refined_markers <- c("CD4",
                      "CCR7")
 
 
+
+
 #reduce table size by 66% 
 short_big_table <- big_table[seq(1,nrow(big_table), by=3),] 
 
@@ -136,12 +146,6 @@ short_big_table <- big_table[seq(1,nrow(big_table), by=3),]
 
 
 #add a column whether this cluster was significant
-short_big_table$prim_significant <- ifelse(short_big_table$flo_label %in% sig_prim_t6_clusters, short_big_table$flo_label, "black")
-short_big_table$prim_alpha <- ifelse(short_big_table$flo_label %in% sig_prim_t6_clusters, 1, 0.6)
-
-short_big_table$ter_significant <- ifelse(short_big_table$flo_label %in% sig_ter_t6_clusters, short_big_table$flo_label, "black")
-short_big_table$ter_alpha <- ifelse(short_big_table$flo_label %in% sig_ter_t6_clusters, 1, 0.6)
-
 
 
 cluster_names <- c(unique(short_big_table$flo_label))
@@ -190,8 +194,10 @@ show_col(subset(cols, names(cols) %in% sig_prim_t6_clusters))
 
 cols <- c(cols, "black"="black")
 
+cluster_colors <- data.frame("cluster_id"=names(cols), "colour"=unname(cols))
+cluster_colors$cluster_id <- gsub("activated RA-RO- DN", "activated CD8lo Effector", cluster_colors$cluster_id)
 
-write.csv(data.frame("cluster_id"=names(cols), "colour"=unname(cols)), "~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_colours.csv", row.names =FALSE)
+write.csv(cluster_colors, "~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_colours.csv", row.names =FALSE)
 
 
 short_big_table_t6 <- short_big_table %>%

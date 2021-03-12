@@ -268,6 +268,7 @@ da_t6_prim <- diffcyt(primaries,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-edgeR",
                      clustering_to_use = "flo_merge",
+                     min_cells = 0,
                      verbose = T)
 
 
@@ -279,7 +280,8 @@ da_t6_ter <- diffcyt(tertiaries,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-edgeR",
                       clustering_to_use = "flo_merge",
-                      verbose = T)
+                      verbose = T,min_cells = 0
+                      )
 #View(data.frame(rowData(all_da_t6$res)))
 
 
@@ -300,6 +302,8 @@ write.csv(prim_t6_df, "./differential_abundance/edgeR/prim_t6_df_edger.csv", row
 
 sig_prim_t6_df <- subset(prim_t6_df, prim_t6_df$p_adj<0.05 & prim_t6_df$logFC>1)
 sig_ter_t6_df <- subset(ter_t6_df, ter_t6_df$p_adj<0.05 & ter_t6_df$logFC>1)
+
+write.table(x = sig_prim_t6_df$cluster_id, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_sig_clusters.csv", row.names = FALSE, col.names = FALSE)
 
 # sig_t6_clusters[sig_t6_clusters %notin% sig_ter_t6_df$cluster_id]
 # [1] "activated CD27- ICOS+HLADR+ EM CD4" "activated HLADR- EM CD4"
@@ -380,15 +384,14 @@ sig_t6_all_plot <- ggplot(combo, aes(x=factor(timepoint, levels=c("Baseline", "D
   theme_minimal()+
   scale_y_continuous()+
   ylab("% of all CD3+ cells")+
-  scale_fill_manual(values = c("First" = time_col[4],
-                               "Third" = time_col[1]))+    
-
+  scale_fill_manual(values = c("First" = NA,
+                               "Third" = NA))+    
   theme(axis.text.x = element_text(angle = 45, hjust=1),
         axis.title.x = element_blank(),
         strip.text = element_text(size=7))
 
 # ggsave("./figures/sig_t6_combo_boxplot.png", sig_t6_all_plot, height=14, width=13)
-ggsave("./figures/sig_t6_combo_boxplot.pdf", sig_t6_all_plot, height=14, width=13)
+ggsave("./figures/figures_for_paper/supp_all_cluster_freqs.pdf", sig_t6_all_plot, height=14, width=13)
 
 
 

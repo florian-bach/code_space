@@ -113,21 +113,29 @@
   set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
   
   
-  # vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
-  #                                                         by = "cluster",
-  #                                                         row_clust = FALSE,
-  #                                                         col_clust = FALSE,
-  #                                                         #m = "flo_merge",
-  #                                                         k= "meta50",
-  #                                                         bars = TRUE,
-  #                                                         features = refined_markers)
-  # 
-  # pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_flo_names.pdf", height = 10, width = 9)
-  # vac63c_control_tcell_cluster_heatmap
-  # dev.off()
-  # 
-# 
-# ki67_cd38_plot <- plotScatter(sce, chs = c("Ki67", "CD38"))
+  vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
+                                                          by = "cluster",
+                                                          row_clust = FALSE,
+                                                          col_clust = FALSE,
+                                                          m = "meta50",
+                                                          k= "som100",
+                                                          bars = TRUE,
+                                                          features = refined_markers)
+
+  pdf("./figures/vac63c_tcell_cluster_heatmap_som100_meta50_names.pdf", height = 20, width = 9)
+  vac63c_control_tcell_cluster_heatmap
+  dev.off()
+
+cd8lo <- filterSCE(sce, cluster_id==33, k="meta50")
+plotScatter(cd8lo, chs = c("TCRgd", "CD38"))
+
+cd8hi <- filterSCE(sce, cluster_id==32, k="meta50")
+plotScatter(cd8hi, chs = c("Vd2", "CD8"))
+
+gd <-filterSCE(sce, cluster_id==39, k="meta50")
+plotScatter(gd, chs = c("CD8", "TCRgd"))
+
+CATALYST::plotClusterExprs(cd8lo, k="meta50", features = "CD8")
 # cxcr5_cd4_plot <- plotScatter(sce, chs = c("CXCR5", "CD4"))
 # cd56_cd161_plot <- plotScatter(sce, chs = c("CD56", "CD161"))
 # 
@@ -205,6 +213,7 @@ all_da_t6 <- diffcyt(sce,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-edgeR",
                      clustering_to_use = "flo_merge",
+                     min_cells = 0,
                      verbose = T)
 #View(data.frame(rowData(all_da_t6$res)))
 
