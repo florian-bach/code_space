@@ -205,12 +205,12 @@ table(rowData(da_dod_ter$res)$p_adj < 0.05)
 
 prim_dod_df <- data.frame(rowData(da_dod_prim$res))
 prim_dod_df <- subset(prim_dod_df, prim_dod_df$p_adj<0.05 & abs(prim_dod_df$logFC)>1)
-
+prim_dod_df$n_infection <- "first"
 
 ter_dod_df <- data.frame(rowData(da_dod_ter$res))
 ter_dod_df <- subset(ter_dod_df, ter_dod_df$p_adj<0.05 & abs(ter_dod_df$logFC)>1)
-
-
+ter_dod_df$n_infection <- "third"
+write.csv(rbind(prim_dod_df, ter_dod_df), "./differential_abundance/edgeR/sig_dod_edgeR.csv", row.names = FALSE)
 
 
 dod_prim_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_dod_prim, sce, FDR = 0.05, logFC = log2(2))
@@ -303,7 +303,14 @@ write.csv(prim_t6_df, "./differential_abundance/edgeR/prim_t6_df_edger.csv", row
 sig_prim_t6_df <- subset(prim_t6_df, prim_t6_df$p_adj<0.05 & prim_t6_df$logFC>1)
 sig_ter_t6_df <- subset(ter_t6_df, ter_t6_df$p_adj<0.05 & ter_t6_df$logFC>1)
 
+all_sig_prim_t6_df <- subset(prim_t6_df, prim_t6_df$p_adj<0.05 & abs(prim_t6_df$logFC)>1)
+all_sig_prim_t6_df$n_infection <- "first"
+all_sig_ter_t6_df <- subset(ter_t6_df, ter_t6_df$p_adj<0.05 & abs(ter_t6_df$logFC)>1)
+all_sig_ter_t6_df$n_infection <-"third"
+
+
 write.table(x = sig_prim_t6_df$cluster_id, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_sig_clusters.csv", row.names = FALSE, col.names = FALSE)
+data.table:::fwrite(x = data.frame(rbind(all_sig_ter_t6_df, all_sig_prim_t6_df)), "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/sig_t6_edgeR.csv")
 
 # sig_t6_clusters[sig_t6_clusters %notin% sig_ter_t6_df$cluster_id]
 # [1] "activated CD27- ICOS+HLADR+ EM CD4" "activated HLADR- EM CD4"

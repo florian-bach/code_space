@@ -479,6 +479,9 @@ UMAP_theme <- theme_minimal()+theme(
 
 big_table$timepoint <- factor(big_table$timepoint, levels=c("Baseline", "DoD","T6","C45"))
 
+big_table$flo_label <- gsub("activated RA-RO- DN", "activated DN", big_table$flo_label)
+
+
 big_table$prim_significant <- ifelse(big_table$flo_label %in% sig_prim_t6_clusters, big_table$flo_label, "black")
 big_table$prim_alpha <- ifelse(big_table$flo_label %in% sig_prim_t6_clusters, 1, 0.6)
 
@@ -556,13 +559,14 @@ names(cols)=cluster_names
 
 cols <- c(cols, "black"="black")
 
+names(cols) <- gsub("activated RA-RO- DN", "activated DN", names(cols))
+
 cluster_colors <- data.frame("cluster_id"=names(cols), "colour"=unname(cols))
 cluster_colors$cluster_id <- gsub("activated RA-RO- DN", "activated DN", cluster_colors$cluster_id)
 
 write.csv(cluster_colors, "~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_colours.csv", row.names =FALSE)
 
 
-big_table$cluster_id <- gsub("activated RA-RO- DN", "activated DN", big_table$cluster_id)
 
 
 shorter_big_table_t6 <- big_table %>%
@@ -596,6 +600,7 @@ sig_ter_colour_t_cells_umap <- ggplot(ter_t6_umap_data, aes(x=UMAP2, y=UMAP1, co
   ggtitle("significantly up at T6\nthird infection (12)")+
   UMAP_theme+
   theme(
+    #legend.position="right",
     #panel.spacing.x = unit(10, "mm"),
     plot.title = element_text(size=13, hjust=0.5),
     axis.title = element_blank())
@@ -777,6 +782,6 @@ all_cluster_heatmap <- Heatmap(matrix = as.matrix(big_scaled_mat),
                                  border = FALSE)
 )
 
-pdf("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/all_cluster_heatmap_var.pdf", width=16, height=18)
+pdf("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/supp_all_cluster_heatmap.pdf", width=16, height=18)
 draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
 dev.off()
