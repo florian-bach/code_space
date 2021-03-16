@@ -175,11 +175,12 @@ d_counts <- calcCounts(d_se)
     p_vals[i] <- tryCatch({
       y <- counts[i, ]/n_cells_smp
       data_i <- cbind(y, n_cells_smp, formula$data)
-      #fit <- lme4::glmer(y~timepoint+(1|volunteer), data = data_i, family = binomial, weights = NULL)
-      # fit <- survey::svyglm(y~timepoint+volunteer, design=survey::svydesign(ids=~1,
+      #fit <- lme4::glmer(y~timepoint+n_infection+(1|volunteer), data = data_i, family = binomial, weights = n_cells_smp)
+      # fit <- survey::svyglm(y~timepoint+n_infection, design=survey::svydesign(ids=~1,
       #                                                                       weights=~n_cells_smp,
       #                                                                       data=data_i), family=binomial)
-      fit <- MASS::glmmPQL(y~timepoint+n_infection, random= ~ 1 | volunteer, data = data_i, family = binomial, weights=n_cells_smp)
+      fit <- NBZIMM::glmm.nb(y ~ timepoint + n_infection, random = ~ 1|volunteer, data_i, weights =n_cells_smp)
+      #fit <- MASS::glmmPQL(y~timepoint+n_infection, random= ~ 1 | volunteer, data = data_i, family = binomial, weights=n_cells_smp)
       test <- multcomp::glht(fit, all_t6_contrast)
       summary(test)$test$pvalues
     }, error = function(e) NA)
@@ -202,17 +203,14 @@ d_counts <- calcCounts(d_se)
   
   
   
-  
-  
-  
   #first_t6 <- row_data
   third_t6 <- row_data
   
-  first_dod <- row_data
+  #first_dod <- row_data
   #third_dod <- row_data
   
-  sig_dod_all <- subset(row_data, row_data$p_adj<0.05)
-  sig_t6_all <- subset(row_data, row_data$p_adj<0.05)
+  #sig_dod_all <- subset(row_data, row_data$p_adj<0.05)
+  #sig_t6_all <- subset(row_data, row_data$p_adj<2)
   
   counts_plus <- counts+1
   
@@ -242,13 +240,23 @@ d_counts <- calcCounts(d_se)
   first_t6$logFC <- prim_fold_changes_t6[match(first_t6$cluster_id, names(prim_fold_changes_t6))]
   third_t6$logFC <- ter_fold_changes_t6[match(third_t6$cluster_id, names(ter_fold_changes_t6))]
   
-  sig_first_t6 <- subset(first_t6, first_t6$p_adj<0.05 & abs(first_t6$logFC)>=1)
+  #sig_first_t6 <- subset(first_t6, first_t6$p_adj<0.05 & abs(first_t6$logFC)>=1)
   #26
-  write.csv(x = sig_first_t6, "glmmPQL_first_t6.csv")
-  sig_third_t6 <- subset(third_t6, third_t6$p_adj<0.05 & abs(third_t6$logFC)>1)
-  #6
-  write.csv(x = sig_first_t6, "glmmPQL_third_t6.csv")
   
+  # write.csv(x = first_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/glmer_first_t6.csv")
+  # write.csv(x = third_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/glmer_third_t6.csv")
+  # 
+  
+  # write.csv(x = first_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/svydesign_first_t6.csv")
+  # write.csv(x = third_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/svydesign_third_t6.csv")
+  write.csv(x = first_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/nbzimm_first_t6.csv")
+  write.csv(x = third_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/nbzimm_third_t6.csv")
+  
+  
+  
+  # write.csv(x = first_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/glmmPQL_first_t6.csv")
+  # write.csv(x = third_t6, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/glmmPQL_third_t6.csv")
+  # 
   
   
   first_dod$logFC <- prim_fold_changes_dod[match(first$cluster_id, names(prim_fold_changes_dod))]
@@ -377,3 +385,32 @@ names(t_p_values_dod) <- rownames(prim_plus_fold_changes_DoD)
 
 t_padj_dod <- p.adjust(t_p_values_dod, method="fdr")
 subset(t_padj_dod, t_padj_dod<0.05)
+
+
+
+
+
+
+# (broken) diffcyt approach
+first_t6_contrast <- diffcyt::createContrast(c(0,0,0,1,0))
+
+prim_da_t6 <- diffcyt(d_input,
+                      formula = formula,
+                      contrast = first_t6_contrast,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "flo_merge",
+                      verbose = T)
+ter_t6_contrast <- diffcyt::createContrast(c(0,0,0,1,1))
+
+ter_da_t6 <- diffcyt(d_input,
+                      formula = formula,
+                      contrast = ter_t6_contrast,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-GLMM",
+                      clustering_to_use = "flo_merge",
+                      verbose = T)
+
+prim_da_t6_res <- data.frame(rowData(prim_da_t6$res))
+ter_da_t6_res <- data.frame(rowData(ter_da_t6$res))
+

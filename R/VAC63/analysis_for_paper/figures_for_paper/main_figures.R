@@ -38,26 +38,6 @@ lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FF
 names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "NKT")
 
 
-
-#bigass color palette
-
-color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
-                      "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
-                      "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
-                      "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
-                      "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
-                      "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
-                      "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
-                      "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
-                      "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
-                      "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
-                      "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
-                      "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
-                      "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
-
-
-
-
 #stacked bar charts & lollipop bars####
 
 # only display DA clusters
@@ -384,10 +364,27 @@ big_table$ter_alpha <- ifelse(big_table$flo_label %in% ter_sig_clusters, 1, 0.6)
 
 
 
-#reduce table size by 66% short_big_table <- big_table[seq(1,nrow(big_table), by=3),] 
-
 
 # this is how col_pal is derived, in case individual cluster colors have to be changed..
+
+
+
+#bigass color palette
+# 
+# color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
+#                       "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
+#                       "#5A0007", "#809693", "#1B4400", "#4FC601", "#3B5DFF", "#4A3B53", "#FF2F80",
+#                       "#61615A", "#BA0900", "#6B7900", "#00C2A0", "#FFAA92", "#FF90C9", "#B903AA", "#D16100",
+#                       "#DDEFFF", "#000035", "#7B4F4B", "#A1C299", "#300018", "#0AA6D8", "#013349", "#00846F",
+#                       "#372101", "#FFB500", "#C2FFED", "#A079BF", "#CC0744", "#C0B9B2", "#C2FF99", "#001E09",
+#                       "#00489C", "#6F0062", "#0CBD66", "#EEC3FF", "#456D75", "#B77B68", "#7A87A1", "#788D66",
+#                       "#885578", "#FAD09F", "#FF8A9A", "#D157A0", "#BEC459", "#456648", "#0086ED", "#886F4C",
+#                       "#34362D", "#B4A8BD", "#00A6AA", "#452C2C", "#636375", "#A3C8C9", "#FF913F", "#938A81",
+#                       "#575329", "#00FECF", "#B05B6F", "#8CD0FF", "#3B9700", "#04F757", "#C8A1A1", "#1E6E00",
+#                       "#7900D7", "#A77500", "#6367A9", "#A05837", "#6B002C", "#772600", "#D790FF", "#9B9700",
+#                       "#549E79", "#FFF69F", "#201625", "#72418F", "#BC23FF", "#99ADC0", "#3A2465", "#922329",
+#                       "#5B4534", "#FDE8DC", "#404E55", "#0089A3", "#CB7E98", "#A4E804", "#324E72", "#6A3A4C")
+
 # cluster_names <- c(unique(short_big_table$flo_label))
 # cols <- rev(c(color_103_scheme[40:88]))
 # names(cols)=cluster_names
@@ -640,3 +637,42 @@ all_cluster_heatmap <- Heatmap(matrix = as.matrix(big_scaled_mat),
 pdf("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/supp_all_cluster_heatmap.pdf", width=16, height=18)
 draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
 dev.off()
+# all cluster freqs ####
+
+
+equal_breaks <- function(n = 3, s = 0.05, ...){
+  function(x){
+    # rescaling
+    d <- s * diff(range(x)) / (1+2*s)
+    seq(min(x)+d, max(x)-d, length=n)
+  }
+}
+
+all_freq_data <- mutate(stacked_bar_data, "n_infection" = ifelse(stacked_bar_data$volunteer %in% c("v313", "v315", "v320"), "first", "third")) 
+
+all_freq_data$cluster_id <- gsub(pattern = "activated CD27-ICOS-HLADR+ EM CD4", replacement = "activated CD27- ICOS-HLADR+ EM CD4",
+                                 fixed = TRUE,
+                                 all_freq_data$cluster_id) 
+
+all_cluster_freqs <- ggplot(all_freq_data, aes(x=factor(timepoint), y=frequency/100))+
+  geom_boxplot(aes(fill=n_infection), outlier.shape = NA)+
+  geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75), size=0.5)+
+  facet_wrap(~cluster_id, ncol=7, scales = "free_y", labeller=label_wrap_gen(width = 12))+
+  theme_minimal()+
+  scale_x_discrete(name = "Timepoint")+
+  scale_y_continuous(name = "Fraction of CD3+ T cells", label=scales::label_percent(), breaks=equal_breaks(n=4, s=0.05))+
+  scale_fill_manual(values = c("First" = NA,
+                               "Third" = NA))+
+  guides(color=guide_legend(nrow = 1),
+         fill=guide_none())+
+  theme(axis.text.x = element_text(angle = 45, hjust=1, size=5),
+        axis.title.x = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.spacing.x = unit(1, "mm"),
+        strip.text = element_text(size=5.5),
+        plot.margin = margin(c(2,2,2,2)))
+
+
+cowplot::ggsave2("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/supp_all_cluster_freqs_var.pdf", all_cluster_freqs, width=8.3, height=11.7)
+
