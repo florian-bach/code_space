@@ -4,7 +4,14 @@
 \alias{vac63_diffcyt_boxplot}
 \title{This function makes boxplots of the frequency or cell count of each cluster that's been determined to be differentially abundant using diffcyt.}
 \usage{
-vac63_diffcyt_boxplot(diffcyt_result, sce, counts = NULL, FDR, logFC = NULL)
+vac63_diffcyt_boxplot(
+  diffcyt_result,
+  sce,
+  counts = NULL,
+  FDR,
+  logFC = NULL,
+  shape = NULL
+)
 }
 \arguments{
 \item{diffcyt_result;}{result of \code{diffcyt()} in differential abundance mode}

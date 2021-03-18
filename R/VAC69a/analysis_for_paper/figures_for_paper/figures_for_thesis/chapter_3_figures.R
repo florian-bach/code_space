@@ -1,6 +1,7 @@
 # preamble ####
 
-
+library(cowplot)
+library(scales)
 library(ComplexHeatmap)
 library(circlize)
 library(gridBase)
@@ -81,6 +82,20 @@ names(col_pal) <- colcsv$cluster_id
 lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "pink")
 names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "NKT")
 
+#vol_pal <- colorspace::qualitative_hcl(n=9, palette = "dark3")[c(1,9,8,2:7)]
+vol_pal <-c("#FFC800",
+            "#EE000C",
+            "#FF8000",
+            "#0080FF",
+            "#009B95",
+            "#E54787",
+            "#8000FF",
+            "#66CCFF",
+            "#4B0055")
+
+names(vol_pal) <- c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310")
+
+
 time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
 
 inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
@@ -158,7 +173,7 @@ all_summary <- all_activated_data %>%
   mutate(n_infection = ifelse(.$volunteer %in% c("v313", "v315", "v320"), "first", "third")) %>%
   mutate(scaled_freq = ifelse(.$n_infection=="third",.$frequency/6, .$frequency/3))
 
-all_activation_stacked_barchart_lineage <- ggplot(summary, aes(x=volunteer, y=frequency/100, fill=lineage))+
+all_activation_stacked_barchart_lineage <- ggplot(all_summary, aes(x=volunteer, y=frequency/100, fill=lineage))+
   geom_bar(stat="identity", position="stack")+
   theme_minimal()+
   facet_wrap(~timepointf, strip.position = "bottom", ncol=4)+
@@ -234,8 +249,67 @@ combo_lolli <- cowplot::plot_grid(combo_lolli, cluster_leg, ncol=1, rel_heights 
 ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_sig_activation_lollipop.pdf", combo_lolli, height=4, width=7)
 
 
+# vivax vs falciparum barcharts ####
 
-# pie charts ####
+falci_activation_data <- all_summary
+
+vivax_activation_data <- data.table::fread("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/activation_barchart_data")
+vivax_activation_data$volunteer <- gsub("V", "v", vivax_activation_data$volunteer, fixed=T)
+
+vivax_activation_data$timepoint <- gsub("DoD", "Diagnosis", vivax_activation_data$timepoint, fixed=T)
+
+harmonised_colnames <- subset(colnames(vivax_activation_data), colnames(vivax_activation_data) %in% colnames(falci_activation_data))
+
+
+falci_activation_data <- falci_activation_data %>%
+  select(all_of(harmonised_colnames)) %>%
+  filter(timepoint %in% c("Baseline", "Diagnosis", "T6"))%>%
+  filter(lineage %notin% c("NKT")) %>%
+  mutate(species="P. falciparum")
+
+vivax_activation_data <- vivax_activation_data %>%
+  mutate(species="P. vivax") %>%
+  filter(timepoint %in% c("Baseline", "Diagnosis", "T6"))%>%
+  filter(lineage %notin% c("NKT")) %>%
+  select(all_of(colnames(falci_activation_data))) 
+  
+
+vivax_falci_summary <- rbind(vivax_activation_data, falci_activation_data)
+
+vivax_falci_summary$species <- factor(vivax_falci_summary$species, levels=c("P. vivax", "P. falciparum"))
+
+(vivax_falci_activation_stacked <- ggplot(vivax_falci_summary, aes(x=volunteer, y=frequency/100, fill=lineage))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_grid(timepoint~species, scales = "free_x")+
+  scale_fill_manual(values=lineage_palette)+
+  scale_y_continuous(name = "Percentage of CD3+ T cells activated\n", labels=scales::percent_format(accuracy = 1))+
+  guides(fill=guide_legend(nrow = 1, title="Lineage"))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        strip.text.x = element_text(face = "italic"),
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside"))
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vivax_falci_activation_stack.pdf", vivax_falci_activation_stacked, height=7, width=6)
+
+
+res <- vivax_falci_summary %>%
+  filter(timepoint=="T6")%>%
+  group_by(volunteer, lineage)%>%
+  summarise("perc"=sum(frequency))
+
+res %>%
+  group_by(species) %>%
+  summarise(mean(perc))
+
+
+
+  # pie charts ####
 
 #make the pie chart for primaries
 
@@ -482,7 +556,7 @@ ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_sig_cluster_freqs.pdf", sig_c
 
 
 
-# phenotypic heatmaps ##
+# phenotypic heatmaps ####
 
 #read in table of cluster medians, reorder channels, fix names
 scaled_mat <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_medians_prim_ter_T6.csv", row.names = 1)
@@ -544,6 +618,7 @@ sig_cluster_heatmap <- Heatmap(matrix = as.matrix(reordered_scaled_mat),
 pdf("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_sig_cluster_heatmap.pdf", width=16, height=8)
 draw(sig_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
 dev.off()
+
 
 
 big_scaled_mat <- scaled_mat[,match(refined_markers, colnames(scaled_mat))]
@@ -668,12 +743,58 @@ ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_sig_cluster_umap.png", combo_
     scale_fill_gradientn(colors=c(inferno_white[c(1, 2, 2:9,9, 9)]))
     
   
-    system.time(ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/density_umap_var2.png", hex_through_time, height=6, width=12))
+system.time(ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/density_umap_var2.png", hex_through_time, height=6, width=12))
   
 
+    
+# phenotypic UMAPs & gate_labeled_gg  ####   
+    
+library(vac69a.cytof)
+
+shortest_big_table_t6 <- big_table %>%
+     group_by(n_infection) %>%
+     sample_n(2*10^4) %>%
+     ungroup()
+    
 
 
-# phenotypic heatmaps   ####
+supp_theme <- theme(axis.title = element_text(size = 6),
+                    legend.title = element_text(size = 6),
+                    legend.text = element_text(size=6))
+
+
+cd4_plot<- vac63c_flo_umap(shortest_big_table_t6, "CD4", facet_by = "n_infection")+supp_theme+ggtitle("CD4")
+cd8_plot<- vac63c_flo_umap(shortest_big_table_t6, "CD8", facet_by = "n_infection")+supp_theme+ggtitle("CD8")
+vd2_plot<- vac63c_flo_umap(shortest_big_table_t6, "Vd2", facet_by = "n_infection")+supp_theme+ggtitle("Vd2")
+va72_plot<- vac63c_flo_umap(shortest_big_table_t6, "Va72", facet_by = "n_infection")+supp_theme+ggtitle("Va72")
+foxp3_plot<- vac63c_flo_umap(shortest_big_table_t6, "FoxP3", facet_by = "n_infection")+supp_theme+ggtitle("FoxP3")
+cd27_plot<- vac63c_flo_umap(shortest_big_table_t6, "CD27", facet_by = "n_infection")+supp_theme+ggtitle("CD27")
+ccr7_plot<- vac63c_flo_umap(shortest_big_table_t6, "CCR7", facet_by = "n_infection")+supp_theme+ggtitle("CCR7")
+cd45ra_plot<- vac63c_flo_umap(shortest_big_table_t6, "CD45RA", facet_by = "n_infection")+supp_theme+ggtitle("CD45RA")
+cd38_plot<- vac63c_flo_umap(shortest_big_table_t6, "CD38", facet_by = "n_infection")+supp_theme+ggtitle("CD38")
+bcl2_plot<- vac63c_flo_umap(shortest_big_table_t6, "BCL2", facet_by = "n_infection")+supp_theme+ggtitle("Bcl2")
+
+vac63c_pheno_umap <- cowplot::plot_grid(cd4_plot, cd8_plot, vd2_plot,
+                                        va72_plot, foxp3_plot,  ccr7_plot,
+                                        cd45ra_plot, cd27_plot, cd38_plot, bcl2_plot, align = "hv", axis = "tblr", ncol = 2)
+ 
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_pheno_umap.png", vac63c_pheno_umap, height = 10, width=8)      
+
+
+
+gate_label <- ggplot(shortest_big_table_t6, aes(x=UMAP2, y=UMAP1))+
+  geom_point(shape=".", color = "black", alpha=0.8)+
+  scale_colour_manual()+
+  UMAP_theme+
+  ggtitle("Major T Cell Lineages\n")+
+  theme(
+    plot.title = element_text(size=13, hjust=0.5),
+    axis.title = element_text(size=10))
+
+cowplot::ggsave2("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gate_unlabeled.png", gate_label, width=4, height=4)
+
+
+# ds_limma   ####
 # 
 
 num_wide_scaled_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/sample_wise_cluster_expression_matrix.csv", header=T, row.names = 1)
@@ -685,6 +806,7 @@ limma_col_split <- factor(rep(c("Baseline", "Diagnosis", "T6", "C45"), each=9), 
 
 open_bracket_positions <- sapply(rownames(num_wide_scaled_ms), function(x) regexpr(pattern = "*\\(", text=x))
 limma_row_split_lineage <- substr(rownames(num_wide_scaled_ms),open_bracket_positions-5, open_bracket_positions-2)
+sig_limma_markers <- unique(substr(rownames(num_wide_scaled_ms),open_bracket_positions+1, nchar(rownames(num_wide_scaled_ms))-1))
 
 limma_row_split_lineage <- limma_row_split_lineage %>%
   gsub(" ", "", ., fixed = TRUE) 
@@ -694,10 +816,6 @@ num_wide_scaled_ms <- num_wide_scaled_ms[,paste(rep(c("v313", "v315", "v320", "v
 
 
 colnames(num_wide_scaled_ms) <- gsub("_", " ", colnames(num_wide_scaled_ms))
-
-vol_pal <- colorspace::qualitative_hcl(n=9, palette = "dark3")[c(1,9,8,2:7)]
-names(vol_pal) <- c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310")
-
 
 num_wide_scaled_ms <- ifelse(num_wide_scaled_ms>abs(min(num_wide_scaled_ms)), abs(min(num_wide_scaled_ms)), as.matrix(num_wide_scaled_ms))
 
@@ -850,3 +968,342 @@ cytof_volcano_plot <- ggplot(big_model_df, aes(x=logFC, y=-log10(p_adj)))+
         strip.text.x = element_text(size=9))
 
 ggsave("~/PhD/figures_for_thesis/chapter_03/cytof_volcano_plot.pdf", cytof_volcano_plot, width=8, height=5)
+
+# parasitaemia ####
+
+vac63c_parasitaemia <- read.csv("~/PhD/clinical_data/vac63c/VAC063_parasitaemias_all.csv")
+
+long_vac63c_parasitaemia <- gather(vac63c_parasitaemia, vol_id, parasitaemia, colnames(vac63c_parasitaemia)[2:ncol(vac63c_parasitaemia)])
+
+long_vac63c_parasitaemia$Volunteer <- substr(long_vac63c_parasitaemia$vol_id, 1, 5)
+long_vac63c_parasitaemia$N_infection <- ifelse(grepl("First", long_vac63c_parasitaemia$vol_id)==T, "First",
+                                               ifelse(grepl("Second", long_vac63c_parasitaemia$vol_id)==T, "Second", "Third"))
+
+
+long_vac63c_parasitaemia$Volunteer <- gsub("X", "", long_vac63c_parasitaemia$Volunteer)
+long_vac63c_parasitaemia$Volunteer <- gsub("_", "", long_vac63c_parasitaemia$Volunteer)
+
+long_vac63c_parasitaemia <- long_vac63c_parasitaemia[!is.na(long_vac63c_parasitaemia$parasitaemia),]
+
+long_vac63c_parasitaemia <- long_vac63c_parasitaemia %>%
+  filter(Volunteer %in% c("313", "315", "320", "1039", "1040", "1061", "1068", "1075", "6032")) %>%
+  filter(N_infection %in% c("First", "Third"))
+
+
+
+# para_vol_pal <- c("#8000FF",
+#                   "#E54787",
+#                   "#0080FF",
+#                   "#FF8000",
+#                   "#009B95",
+#                   "#EE000C",
+#                   "#FFC800",
+#                   "#66CCFF",
+#                   "#4B0055")
+# 
+
+para_vol_pal <- vol_pal
+names(para_vol_pal ) <- c("313", "315", "320", "1039", "1040", "1061", "1068", "1075", "6032")
+
+
+vac63c_indie_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
+  geom_point(aes(color=Volunteer))+
+  geom_line(aes(color=Volunteer))+
+  scale_y_log10()+
+  theme_minimal()+
+  scale_colour_manual(values=para_vol_pal)+
+  ylab("Parasites / mL")+
+  xlab("Days Post Infection")+
+  theme(legend.position = "right",
+        axis.text = element_text(size=20),
+        axis.title.x = element_blank(),
+        axis.title = element_text(size=22),
+        legend.title = element_text(size=20),
+        legend.text = element_text(size=18))
+
+indie_para_leg <- get_legend(vac63c_indie_paras)
+
+vac63c_indie_paras <- vac63c_indie_paras+theme(legend.position = "none")
+
+vac63c_group_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
+  geom_point(aes(color=N_infection))+
+  geom_line(aes(color=N_infection))+
+  scale_y_log10()+
+  theme_minimal()+
+  ylab("Parasites / mL")+
+  xlab("Days Post Infection")+
+  labs(color="Infection")+
+  scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(size=20),
+        axis.title = element_text(size=22),
+        axis.title.x = element_blank(),
+        legend.title = element_text(size=20),
+        legend.text = element_text(size=18))
+
+
+group_para_leg <- get_legend(vac63c_group_paras)
+vac63c_group_paras <- vac63c_group_paras+theme(legend.position = "none")
+
+
+
+
+paras_lgd <- plot_grid(indie_para_leg, group_para_leg, ncol=1, align="hv", axis="tblr")
+vac63c_group_paras <- vac63c_group_paras+theme(legend.position = "none")      
+
+
+# make common x axis title
+days.grob <- textGrob("Days Post Infection", 
+                            gp=grid::gpar(fontsize=22))
+
+#add to plot
+vac63c_parasites_figure <- plot_grid(vac63c_indie_paras, vac63c_group_paras)
+vac63c_parasites_figure <- gridExtra::grid.arrange(gridExtra::arrangeGrob(vac63c_parasites_figure, bottom = days.grob))
+
+vac63c_parasites_figure <- plot_grid(vac63c_parasites_figure, paras_lgd, nrow = 1, rel_widths = c(10, 2))
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_parasitaemia.pdf", vac63c_parasites_figure, width=11, height=6)
+
+# indie variation: aitchison ####
+
+cytof_data <- stacked_bar_data
+
+# aitchison can't deal with 0s :/ so we have to get rid of those clusters or impute them but the matrix is too sparse..
+zero_clusters <- unique(subset(stacked_bar_data$cluster_id, stacked_bar_data$frequency==0))
+
+cytof_data$trans_freq=asin(sqrt(cytof_data$frequency/100))
+
+
+wide_cytof <- data.frame(cytof_data %>%
+                           select(cluster_id, sample_id, frequency) %>%
+                           filter(cluster_id %notin% zero_clusters)%>%
+                           spread(sample_id, frequency)
+)
+
+wide_cytof <- as.matrix(select(wide_cytof, -cluster_id))
+class(wide_cytof) <- "double"
+
+
+cytof_mds <- data.frame(cmdscale(robCompositions::aDist(t(wide_cytof))))
+
+# only activated clusters- individual variation is reduced overall, but still doesn't converge much thorugh time,
+# v05 & v09 cluster sperate from the other volutneers
+
+
+colnames(cytof_mds) <- c("MDS1", "MDS2")
+
+cytof_mds$sample_ID <- rownames(cytof_mds)
+cytof_mds$timepoint <- substr(cytof_mds$sample_ID, 6, nchar(cytof_mds$sample_ID))
+cytof_mds$timepoint <- gsub("DoD", "Diagnosis", cytof_mds$timepoint)
+cytof_mds$timepoint <- factor(cytof_mds$timepoint, levels=c("Baseline", "Diagnosis", "T6", "C45"))
+
+cytof_mds$volunteer <- substr(cytof_mds$sample_ID, 1, 4)
+cytof_mds$volunteer <- factor(cytof_mds$volunteer, levels=c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"))
+cytof_mds$n_infection <- ifelse(cytof_mds$volunteer %in% c("v313", "v315", "v320"), "First", "Third") 
+
+
+
+(indie_aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
+  geom_point(aes(colour=n_infection), alpha=0)+
+  geom_point(aes(shape=timepoint, fill=volunteer))+
+  #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
+  theme_minimal()+
+  scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=23, "C45"=25))+
+  scale_fill_manual(values = vol_pal)+
+  scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  guides(fill=guide_legend(title="Volunteer", order = 1, override.aes = list(size = 3, fill = unname(vol_pal), shape=21)),
+          colour=guide_legend(title="N_infection", order = 3, override.aes = list(size = 3, alpha=1)),
+          shape=guide_legend(title="Timepoint", order = 2, override.aes = list(size = 3)))+
+  theme(legend.title = element_text(size=8),
+        axis.title = element_blank(),
+        legend.position = "right"))
+
+
+indie_leg <- get_legend(indie_aitchison_cytof)
+indie_aitchison_cytof <- indie_aitchison_cytof+theme(legend.position = "none")
+
+n_infection_aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
+  geom_point(aes(shape=timepoint, color=n_infection, fill=n_infection))+
+  theme_minimal()+
+  scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=23, "C45"=25))+
+  scale_fill_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  guides(color = guide_legend(title="N_infection", override.aes = list(size = 1)))+
+  theme(legend.title = element_text(size=8),
+        legend.position = "none",
+        axis.title = element_blank())
+
+
+#add to plot
+vac63c_indie_var <- plot_grid(indie_aitchison_cytof, n_infection_aitchison_cytof, nrow = 1, axis = "tblr", align="hv")
+
+#ggsave("~/PhD/figures_for_thesis/chapter_03/Aitchisons_CyTOF.png", vac63c_indie_var2, width=8, height=5)   
+
+
+
+# indie variation: median marker expression ####
+
+# how the sausage was made
+
+# 
+# library(CATALYST)
+# library(diffcyt)
+# 
+# setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only")
+# #setwd("~/PhD/cytof/vac63c/normalised_renamed_comped/debarcoded/")
+# 
+# fcs <- list.files(pattern = "fcs")
+# #fcs <- subset(fcs, !grepl(pattern = "C45", fcs))
+# #fcs <- subset(fcs, grepl(pattern = "Baseline", fcs))
+# #fcs <- subset(fcs, !grepl(pattern = "DoD", fcs))
+# fcs <- subset(fcs, !grepl(pattern = "ctrl", fcs))
+# fcs <- subset(fcs, !grepl(pattern = "307", fcs))
+# fcs <- subset(fcs, !grepl(pattern = "302", fcs))
+# 
+# 
+# vac63_flowset <- flowCore::read.flowSet(fcs)
+# 
+# 
+# 
+# md <- read.csv("vac63c_metadata.csv", header = T)
+# 
+# md <- subset(md, md$file_name %in% fcs)
+# md <- md[order(md$timepoint),]
+# 
+# 
+# #
+# panel <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_panel.csv", header=T)
+# 
+# merged_daf <- prepData(vac63_flowset, panel, md, md_cols =
+#                          list(file = "file_name", id = "sample_id", factors = c("volunteer", "timepoint", "n_infection", "batch")))
+# 
+# # all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
+# 
+# shplit_cells <- function(x, by) {
+#   stopifnot(is.character(by), by %in% colnames(colData(x)))
+#   cd <- data.frame(colData(x))
+#   cd$cluster_id <- cluster_ids(x, "coarse_merge")
+#   dt <- data.table::data.table(cd, i = seq_len(ncol(x)))
+#   dt_split <- split(dt, by = by, sorted = TRUE, flatten = FALSE)
+#   purrr::map_depth(dt_split, length(by), "i")
+# }
+# 
+# 
+# ahgg <- function(x, by, fun = c("median", "mean", "sum")) {
+#   fun <- switch(match.arg(fun), 
+#                 median = rowMedians, mean = rowMeans, sum = rowSums)
+#   cs <- shplit_cells(x, by)
+#   pb <- purrr::map_depth(cs, -1, function(i) {
+#     if (length(i) == 0) return(numeric(nrow(x)))
+#     fun(assay(x, "exprs")[, i, drop = FALSE])
+#   })
+#   purrr::map_depth(pb, -2, function(u) as.matrix(data.frame(
+#     u, row.names = rownames(x), check.names = FALSE)))
+# }
+# 
+# 
+# 
+# ms <- ahgg(merged_daf[sig_limma_markers, ], by = c("cluster_id", "sample_id"))
+# ms <- lapply(ms, reshape2::melt, varnames = c("antigen", "sample_id"))
+# ms <- bind_rows(ms, .id = "cluster_id")
+# 
+# ms$timepoint <- substr(ms$sample_id, 5, nchar(as.character(ms$sample_id)))
+# 
+# write.csv(ms, "~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/median_expression_on_each_cluster.csv", row.names = F)
+
+ms <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/median_expression_on_each_cluster.csv", header=T)
+
+
+slimmer_ms <- ms %>%
+  mutate("contrast"= paste(antigen, " on ", cluster_id))%>%
+  select(contrast, sample_id, value) %>%
+  pivot_wider(names_from = sample_id, values_from = value)
+
+slimmer_ms <- data.frame(slimmer_ms)
+rownames(slimmer_ms) <- slimmer_ms$contrast
+
+slimmer_ms$contrast <- NULL
+
+mds <- limma::plotMDS(slimmer_ms)
+df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
+md <- S4Vectors::metadata(merged_daf)$experiment_info
+m <- match(rownames(df), md$sample_id)
+df <- data.frame(df, md[m, ])
+
+
+
+
+# do it by sample across all cells
+# 
+# 
+# 
+# 
+# 
+# cs_by_s <- split(seq_len(ncol(merged_daf)), merged_daf$sample_id)
+# es <- as.matrix(SummarizedExperiment::assay(merged_daf, "exprs"))
+# ms <- vapply(cs_by_s, function(cs) Biobase::rowMedians(es[, cs, drop = FALSE]), 
+#              numeric(nrow(merged_daf)))
+# rownames(ms) <- rownames(merged_daf)
+# 
+# #write.csv(ms, "~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/median_expression")
+# # state markers, type markers or both
+# ms <- subset(ms, rownames(ms)%in%sig_limma_markers)
+# 
+# mds <- limma::plotMDS(ms, plot = FALSE)
+# df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
+# md <- S4Vectors::metadata(merged_daf)$experiment_info
+# m <- match(rownames(df), md$sample_id)
+# df <- data.frame(df, md[m, ])
+df$timepoint <- gsub("DoD", "Diagnosis", df$timepoint)
+df$timepoint <- factor(df$timepoint, levels=c("Baseline", "Diagnosis", "T6", "C45"))
+df$volunteer <- factor(df$volunteer, levels=c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"))
+#df2 <- filter(df, timepoint %in% c("Baseline", "DoD"))
+
+state_markers_mds_indie <- ggplot(df, aes(x=MDS1, y=MDS2))+
+     geom_point(aes(colour=n_infection), alpha=0)+
+     geom_point(aes(shape=timepoint, fill=volunteer))+
+     theme_minimal()+
+     scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=23, "C45"=25))+
+     scale_fill_manual(values = vol_pal)+
+     scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+     guides(fill=guide_legend(title="Volunteer", order = 1, override.aes = list(size = 3, fill = unname(vol_pal), shape=21)),
+            colour=guide_legend(title="N_infection", order = 3, override.aes = list(size = 3, alpha=1)),
+            shape=guide_legend(title="Timepoint", order = 2, override.aes = list(size = 3)))+
+     theme(legend.title = element_text(size=8),
+           axis.title = element_blank(),
+           legend.position = "none")
+
+
+n_infection_state_markers_mds <- ggplot(df, aes(x=MDS1, y=MDS2))+
+  geom_point(aes(shape=timepoint, color=n_infection, fill=n_infection))+
+  theme_minimal()+
+  scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=23, "C45"=25))+
+  scale_fill_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  guides(color = guide_legend(title="N_infection", override.aes = list(size = 1)))+
+  theme(legend.title = element_text(size=8),
+        legend.position = "none",
+        axis.title = element_blank())
+
+marker_mds <- plot_grid(state_markers_mds_indie, n_infection_state_markers_mds, align="hv", axis = "tblr")
+marker.grob <- textGrob("Marker Expression", gp=grid::gpar(fontsize=12))
+vac63c_aitch_mds <- grid.arrange(arrangeGrob(marker_mds , top = marker.grob ))
+
+vac63c_indie_var <- plot_grid(indie_aitchison_cytof, n_infection_aitchison_cytof, axis = "tblr", align="hv")
+comp.grob <- textGrob("Composition", gp=grid::gpar(fontsize=12))
+vac63c_marker_mds <- grid.arrange(arrangeGrob(vac63c_indie_var , top = comp.grob ))
+
+mds.grob <-  textGrob("MDS1", gp=grid::gpar(fontsize=12))
+mds.grob2 <-  textGrob("MDS2", gp=grid::gpar(fontsize=12), rot=90)
+
+falci_indie_var <- plot_grid(vac63c_marker_mds, vac63c_aitch_mds,
+                             align="hv", axis = "tblr", nrow=2)
+falci_indie_var <- grid.arrange(arrangeGrob(falci_indie_var , bottom = mds.grob, left= mds.grob2))
+
+falci_indie_var2 <- plot_grid(falci_indie_var, indie_leg, rel_widths = c(6,1))
+
+ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_indie_var.png", falci_indie_var2, width=7, height=6)
+
+
+

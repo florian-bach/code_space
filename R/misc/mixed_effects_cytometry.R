@@ -179,7 +179,9 @@ d_counts <- calcCounts(d_se)
       # fit <- survey::svyglm(y~timepoint+n_infection, design=survey::svydesign(ids=~1,
       #                                                                       weights=~n_cells_smp,
       #                                                                       data=data_i), family=binomial)
-      fit <- NBZIMM::glmm.nb(y ~ timepoint + n_infection, random = ~ 1|volunteer, data_i, weights =n_cells_smp)
+      # fit <- NBZIMM::glmm.nb(y ~ timepoint + n_infection, random = ~ 1|volunteer, data_i, weights =n_cells_smp)
+      #fit <- NBZIMM::glmm.nb(y ~ timepoint + n_infection, random = ~ 1|volunteer, data_i, weights =n_cells_smp)
+      #fit <- MCMCglmm::MCMCglmm(y ~ timepoint + n_infection, random = ~volunteer, data=data_i)
       #fit <- MASS::glmmPQL(y~timepoint+n_infection, random= ~ 1 | volunteer, data = data_i, family = binomial, weights=n_cells_smp)
       test <- multcomp::glht(fit, all_t6_contrast)
       summary(test)$test$pvalues
