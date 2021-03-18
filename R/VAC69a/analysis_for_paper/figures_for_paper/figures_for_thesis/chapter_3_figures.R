@@ -96,6 +96,14 @@ vol_pal <-c("#FFC800",
 names(vol_pal) <- c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310")
 
 
+
+para_vol_pal <- vol_pal
+names(para_vol_pal ) <- c("313", "315", "320", "1039", "1040", "1061", "1068", "1075", "6032")
+
+lymph_vol_pal <- para_vol_pal
+names(lymph_vol_pal) <- paste("v", names(para_vol_pal), sep="")
+
+
 time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
 
 inferno_white <- c("#FFFFFF", colorspace::sequential_hcl("inferno", n=8))
@@ -162,7 +170,29 @@ activation_stacked_barchart_cluster <- ggplot(summary, aes(x=volunteer, y=freque
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
-ggsave("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/activation_stack_cluster_id.pdf", activation_stacked_barchart_cluster, height=4, width=8)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_activation_stack_cluster_id.pdf", activation_stacked_barchart_cluster, height=4, width=8)
+
+
+cd4_data <- subset(summary, grepl("CD4", summary$cluster_id))
+
+cd4_activation_stacked_barchart <- ggplot(cd4_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id, levels=c(cluster_order))))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_wrap(~timepointf, strip.position = "bottom", ncol=4)+
+  ggtitle("Overall T cell activation")+
+  scale_fill_manual(values=col_pal)+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="none",
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/cd4_activation_stack.pdf", cd4_activation_stacked_barchart, height=4, width=8)
+
+
 
 
 all_activated_data <- subset(stacked_bar_data, grepl("*activated*", stacked_bar_data$cluster_id))
@@ -180,14 +210,56 @@ all_activation_stacked_barchart_lineage <- ggplot(all_summary, aes(x=volunteer, 
   scale_fill_manual(values=lineage_palette)+
   scale_y_continuous(name = "Percentage of CD3+ T cells activated\n", labels=scales::percent_format(accuracy = 1))+
   theme(plot.title = element_text(hjust=0.5, size=11),
-        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        strip.text = element_text(hjust=0.5, size=13, face = "bold"),
         axis.title.x = element_blank(),
         legend.position="none",
-        axis.text.x = element_text(angle = 45, hjust=1),
+        axis.text.x = element_text(angle = 45, hjust=1, size=13),
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
 ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_all_activation_stack_lineage.pdf", all_activation_stacked_barchart_lineage, height=4, width=8)
+
+
+
+var_cluster_order <- unique(summary$cluster_id[order(summary$lineage)])
+
+activation_stacked_barchart_cluster_var <- ggplot(summary, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id, levels = var_cluster_order)))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_wrap(~timepointf, strip.position = "bottom", ncol=4)+
+  scale_fill_manual(values=col_pal)+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  guides(fill=guide_legend(override.aes = list(size=0.5), ncol = 1, keywidth = 0.5))+
+  theme(plot.title = element_text(hjust=0.5, size=14),
+        strip.text = element_blank(),
+        axis.title = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(size=9),
+        legend.position="none",
+        axis.text.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+
+
+all_activation_stacked_barchart_lineage_var <- all_activation_stacked_barchart_lineage+theme(legend.position = "bottom",
+                                                                                             legend.direction = "horizontal",
+                                                                                             legend.title = element_blank(),
+                                                                                             axis.title = element_blank())+guides(fill=guide_legend(override.aes = list(size=0.5), nrow=1))
+
+
+combo_cluster_lineage_plot <- plot_grid(activation_stacked_barchart_cluster_var, all_activation_stacked_barchart_lineage_var, ncol=1, rel_heights = c(1,1.2), align = "v", axis="ltbr")
+
+acti.grob <- textGrob("Percentage of CD3+ T cells Activated", 
+                      gp=grid::gpar(fontsize=14), rot = 90)
+
+#add to plot
+combo_cluster_lineage_plot <- gridExtra::grid.arrange(gridExtra::arrangeGrob(combo_cluster_lineage_plot, left = acti.grob))
+
+
+
+ggsave("~/PhD/figures_for_thesis/chapter_03/combo_cluster_lineage_plot.pdf", combo_cluster_lineage_plot, height=9, width = 9)
+
 
 
 
@@ -798,7 +870,19 @@ cowplot::ggsave2("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gate_unlabele
 # 
 
 num_wide_scaled_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/sample_wise_cluster_expression_matrix.csv", header=T, row.names = 1)
+
+# ter_dod_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_dod_ms.csv", header=T, row.names = 1)
+# prim_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/prim_t6_ms.csv", header=T, row.names = 1)
+# ter_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_t6_ms.csv", header=T, row.names = 1)
+# 
+#
+num_wide_scaled_ms <- ter_dod_ms
+
+
+
 rownames(num_wide_scaled_ms) <- gsub("CD8 Effector", "Effector CD8", rownames(num_wide_scaled_ms))
+rownames(num_wide_scaled_ms) <- gsub("CD8 CM", "CM CD8", rownames(num_wide_scaled_ms))
+
 colnames(num_wide_scaled_ms) <- gsub("DoD", "Diagnosis",colnames(num_wide_scaled_ms), fixed = TRUE)
 
 
@@ -809,7 +893,7 @@ limma_row_split_lineage <- substr(rownames(num_wide_scaled_ms),open_bracket_posi
 sig_limma_markers <- unique(substr(rownames(num_wide_scaled_ms),open_bracket_positions+1, nchar(rownames(num_wide_scaled_ms))-1))
 
 limma_row_split_lineage <- limma_row_split_lineage %>%
-  gsub(" ", "", ., fixed = TRUE) 
+  gsub(" ", "", ., fixed = TRUE)
 
 
 num_wide_scaled_ms <- num_wide_scaled_ms[,paste(rep(c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"),times=4), rep(c("Baseline", "Diagnosis", "T6", "C45"), each=9), sep="_")]
@@ -820,7 +904,7 @@ colnames(num_wide_scaled_ms) <- gsub("_", " ", colnames(num_wide_scaled_ms))
 num_wide_scaled_ms <- ifelse(num_wide_scaled_ms>abs(min(num_wide_scaled_ms)), abs(min(num_wide_scaled_ms)), as.matrix(num_wide_scaled_ms))
 
 col_fun_ds_limma <- circlize::colorRamp2(c(min(num_wide_scaled_ms), 0, max(num_wide_scaled_ms)), c("#0859C6", "black", "#FFA500"))
-
+#
 
 top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
                                       # annotation_name_rot = 45,
@@ -838,30 +922,30 @@ top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
                                                                                         legend_gp = gpar(fill = c("#36454f", "darkgrey")),
                                                                                         title_position = "topleft")
                                       )
-                                      
+
 )
 
 
-  
+
   limma_leg = Legend(at = c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"),
-                     type = "grid", 
+                     type = "grid",
                      legend_gp = gpar(fill = vol_pal, size=1),
                      title_position = "topleft",
                      direction = "horizontal",
                      nrow = 1,
                      labels_gp = gpar(fontsize =9),
                      title = "Volunteer")
-  
+
   limma_leg2 = Legend(at = c("first", "third"),
-                     type = "grid", 
+                     type = "grid",
                      legend_gp = gpar(fill = c("#36454f", "darkgrey")),
                      title_position = "topleft",
                      direction = "horizontal",
                      nrow = 1,
                      labels_gp = gpar(fontsize =9),
                      title = "N_infection")
-  
-  
+
+
   median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
                                  cluster_rows = TRUE,
                                  column_order = 1:36,
@@ -889,13 +973,33 @@ top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
                                  #width = unit(16, "cm"),
                                  #height = unit(16*9/28, "cm")
   )
-  
-  pdf("~/PhD/figures_for_thesis/chapter_03/all_markers_ds_limma.pdf", width = 10, height=12)
+
+
+  # pdf("~/PhD/figures_for_thesis/chapter_03/cross_sectional_t6_limma.pdf", width = 10, height=12)
+  # draw(median_cluster_heat,
+  #      annotation_legend_list = list(limma_leg, limma_leg2),
+  #      merge_legends = TRUE, heatmap_legend_side = "bottom")
+  # dev.off()
+
+
+  pdf("~/PhD/figures_for_thesis/chapter_03/ter_dod_limma.pdf", width = 10, height=5)
   draw(median_cluster_heat,
-       annotation_legend_list = list(limma_leg, limma_leg2), 
+       annotation_legend_list = list(limma_leg, limma_leg2),
        merge_legends = TRUE, heatmap_legend_side = "bottom")
   dev.off()
 
+  # pdf("~/PhD/figures_for_thesis/chapter_03/prim_t6_limma.pdf", width = 10, height=12)
+  # draw(median_cluster_heat,
+  #      annotation_legend_list = list(limma_leg, limma_leg2),
+  #      merge_legends = TRUE, heatmap_legend_side = "bottom")
+  # dev.off()
+  
+  # pdf("~/PhD/figures_for_thesis/chapter_03/ter_t6_limma.pdf", width = 10, height=6)
+  # draw(median_cluster_heat,
+  #      annotation_legend_list = list(limma_leg, limma_leg2),
+  #      merge_legends = TRUE, heatmap_legend_side = "bottom")
+  # dev.off()
+  
 
 # differential abundance modelling comparison ####
 
@@ -938,7 +1042,7 @@ big_model_df <- rbind(pql_glmm_first_t6, pql_glmm_third_t6, glmer_first_t6, glme
 
 
 performance <- big_model_df %>%
-  mutate(direction=ifelse(logFC>1, "up", "down"))%>%
+  mutate(direction=ifelse(logFC>0, "up", "down"))%>%
   group_by(model, n_infection, direction) %>%
   filter(abs(logFC)>1, p_adj<0.05)%>%
   tally(name = "significant clusters")
@@ -1002,24 +1106,21 @@ long_vac63c_parasitaemia <- long_vac63c_parasitaemia %>%
 #                   "#4B0055")
 # 
 
-para_vol_pal <- vol_pal
-names(para_vol_pal ) <- c("313", "315", "320", "1039", "1040", "1061", "1068", "1075", "6032")
-
 
 vac63c_indie_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
-  geom_point(aes(color=Volunteer))+
   geom_line(aes(color=Volunteer))+
+  geom_point(aes(fill=Volunteer), shape=21, size=2, stroke=0.1, color="black")+
   scale_y_log10()+
   theme_minimal()+
   scale_colour_manual(values=para_vol_pal)+
   ylab("Parasites / mL")+
   xlab("Days Post Infection")+
-  theme(legend.position = "right",
-        axis.text = element_text(size=20),
+  theme(legend.position = "none",
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=14),
         axis.title.x = element_blank(),
-        axis.title = element_text(size=22),
-        legend.title = element_text(size=20),
-        legend.text = element_text(size=18))
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=11))
 
 indie_para_leg <- get_legend(vac63c_indie_paras)
 
@@ -1027,6 +1128,7 @@ vac63c_indie_paras <- vac63c_indie_paras+theme(legend.position = "none")
 
 vac63c_group_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
   geom_point(aes(color=N_infection))+
+  geom_point(aes(fill=Volunteer), shape=21, alpha=0, size = 2, stroke=0.1, color="black")+
   geom_line(aes(color=N_infection))+
   scale_y_log10()+
   theme_minimal()+
@@ -1034,36 +1136,36 @@ vac63c_group_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=p
   xlab("Days Post Infection")+
   labs(color="Infection")+
   scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
+  scale_fill_manual(values=para_vol_pal)+
+  guides(fill=guide_legend(override.aes = list(alpha=1)))+
   theme(axis.title.y = element_blank(),
         axis.text.y = element_blank(),
-        axis.text = element_text(size=20),
-        axis.title = element_text(size=22),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=14),
         axis.title.x = element_blank(),
-        legend.title = element_text(size=20),
-        legend.text = element_text(size=18))
+        legend.title = element_text(size=12),
+        legend.text = element_text(size=11))
 
-
-group_para_leg <- get_legend(vac63c_group_paras)
-vac63c_group_paras <- vac63c_group_paras+theme(legend.position = "none")
-
-
-
-
-paras_lgd <- plot_grid(indie_para_leg, group_para_leg, ncol=1, align="hv", axis="tblr")
-vac63c_group_paras <- vac63c_group_paras+theme(legend.position = "none")      
+# 
+# group_para_leg <- get_legend(vac63c_group_paras)
+# vac63c_group_paras <- vac63c_group_paras+theme(legend.position = "none")
+# 
+# 
+# 
+# 
+# paras_lgd <- plot_grid(indie_para_leg, group_para_leg, ncol=1, align="hv", axis="tblr")
+# vac63c_group_paras <- vac63c_group_paras+theme(legend.position = "none")      
 
 
 # make common x axis title
 days.grob <- textGrob("Days Post Infection", 
-                            gp=grid::gpar(fontsize=22))
+                            gp=grid::gpar(fontsize=14))
 
 #add to plot
 vac63c_parasites_figure <- plot_grid(vac63c_indie_paras, vac63c_group_paras)
 vac63c_parasites_figure <- gridExtra::grid.arrange(gridExtra::arrangeGrob(vac63c_parasites_figure, bottom = days.grob))
 
-vac63c_parasites_figure <- plot_grid(vac63c_parasites_figure, paras_lgd, nrow = 1, rel_widths = c(10, 2))
-
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_parasitaemia.pdf", vac63c_parasites_figure, width=11, height=6)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_parasitaemia.pdf", vac63c_parasites_figure, width=8, height=4)
 
 # indie variation: aitchison ####
 
@@ -1304,6 +1406,80 @@ falci_indie_var <- grid.arrange(arrangeGrob(falci_indie_var , bottom = mds.grob,
 falci_indie_var2 <- plot_grid(falci_indie_var, indie_leg, rel_widths = c(6,1))
 
 ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_indie_var.png", falci_indie_var2, width=7, height=6)
+
+
+#lymphocytes ####
+
+
+vac63c_lymph <- read.csv("~/PhD/clinical_data/vac63c/VAC063_haem_all_sequenced_WBC_real_percent.csv")
+
+vac63c_lymph <- dplyr::filter(vac63c_lymph, Leukocytes=="Lymphocytes")
+
+vac63c_lymph <- select(vac63c_lymph, Volunteer_code, trial_number, timepoint, N_infection, Leukocytes, cell_counts)
+vac63c_lymph <- dplyr::filter(vac63c_lymph, timepoint %in% c("C-1", "Diagnosis", "D+6"))
+vac63c_lymph <- dplyr::filter(vac63c_lymph, N_infection %in% c("First", "Diagnosis", "Third"))
+vac63c_lymph$timepoint <- gsub("D+6", "T6", vac63c_lymph$timepoint, fixed=T)
+vac63c_lymph$timepoint <- gsub("C-1", "Baseline", vac63c_lymph$timepoint, fixed=T)
+
+vac63c_lymph$Volunteer_code <- gsub("V", "v", vac63c_lymph$Volunteer_code, fixed=T)
+vac63c_lymph<- filter(vac63c_lymph, vac63c_lymph$Volunteer_code %in% names(lymph_vol_pal))
+
+indie_lymph_vac63c <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=cell_counts*1000, group=trial_number))+
+  geom_point(aes(color=Volunteer_code))+
+  geom_line(aes(color=Volunteer_code))+
+  theme_minimal()+
+  scale_color_manual(values=lymph_vol_pal)+
+  xlab("Timepoint")+
+  ylab(expression(Lymphocytes~"/"~mu*L~blood))+
+  scale_y_continuous(label=scales::comma)+
+  theme(legend.position="none",
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size=14),
+        axis.text.x = element_text(size=12, angle=45, hjust=1),
+        plot.margin = unit(c(2,2,2,2), "mm"))
+
+
+# group_lymph_vac63c <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("C-1", "Diagnosis", "D+6")), y=cell_counts, group=trial_number))+
+#   geom_point(aes(color=vac63c_lymph$N_infection))+
+#   geom_line(aes(color=vac63c_lymph$N_infection))+
+#   theme_minimal()+
+#   xlab("Timepoint")+
+#   ylab(bquote('Lymphocytes ('*10^6~cells~'/ mL)'))+
+#   labs(color="Infection")
+#   
+
+
+group_lymph_vac63c_box <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=cell_counts*1000, fill=N_infection))+
+  geom_point(aes(colour=Volunteer_code), alpha=0)+
+  geom_boxplot()+
+  theme_minimal()+
+  xlab("Timepoint")+
+  ylab(bquote('Lymphocytes ('*10^6~cells~'/ mL)'))+
+  labs(fill="Infection")+
+  scale_y_continuous(label=scales::comma)+
+  scale_color_manual(values=lymph_vol_pal)+
+  scale_fill_manual(values=c("First"=time_col[2], "Third"=time_col[1]))+
+  guides(colour=guide_legend(title="", override.aes = list(alpha=1)))+
+  theme(axis.title = element_blank(),
+        axis.text.x = element_text(size=12, angle=45, hjust=1),
+        plot.margin = unit(c(2,2,2,2), "mm"))
+ 
+
+
+
+# lgd <- get_legend(group_lymph_vac63c_box)
+# group_lymph_vac63c_box <- group_lymph_vac63c_box + theme(legend.position = "none")
+
+# make common x axis title
+timepoint.grob <- textGrob("Timepoint", 
+                           gp=gpar(fontsize=14))
+
+#add to plot
+vac63c_lymphocytes_figure <- plot_grid(indie_lymph_vac63c, group_lymph_vac63c_box, align="h", axis="tblr")
+#vac63c_lymphocytes_figure <- grid.arrange(arrangeGrob(vac63c_lymphocytes_figure, bottom = timepoint.grob))
+
+
+ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_lymphocytes_figure.png", vac63c_lymphocytes_figure, width=7, height=3.15)
 
 
 
