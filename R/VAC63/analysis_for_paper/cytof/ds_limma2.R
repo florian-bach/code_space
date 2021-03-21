@@ -173,6 +173,37 @@ table(rowData(da_t6_ter$res)$p_adj < 0.05)
 # FALSE  TRUE 
 # 33    13 
 
+prim_c45_contrast <- createContrast(c(c(0,1,0,0), rep(0, 2)))
+ter_c45_contrast <- createContrast(c(c(0,1,0,0), rep(0, 5)))
+
+
+
+
+da_c45_prim <- diffcyt(primaries,
+                      design = prim_design,
+                      contrast = prim_c45_contrast,
+                      analysis_type = "DS", method_DS = "diffcyt-DS-limma",
+                      clustering_to_use = "coarse_merge", verbose = TRUE)
+
+
+da_c45_ter <- diffcyt(tertiaries,
+                     design = ter_design,
+                     contrast = ter_c45_contrast,
+                     analysis_type = "DS", method_DS = "diffcyt-DS-limma",
+                     clustering_to_use = "coarse_merge", verbose = TRUE)
+
+
+
+table(rowData(da_c45_prim$res)$p_adj < 0.05)
+# FALSE  TRUE 
+# 21    26 
+table(rowData(da_c45_ter$res)$p_adj < 0.05)
+# FALSE  TRUE 
+# 33    13 
+
+c45_ter_df <- data.frame(rowData(da_c45_ter$res))
+filter(c45_ter_df, p_adj<0.05)
+
 prim_t6_df <- data.frame(rowData(da_t6_prim$res))
 
 

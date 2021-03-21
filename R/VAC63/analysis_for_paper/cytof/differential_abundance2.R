@@ -108,19 +108,22 @@ refined_markers <- c("CD4",
                      "CD45RO",
                      "CCR7")
 
-# all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
+all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16","TCRgd", refined_markers)
 
 set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
 
+set.seed(123);funky <- CATALYST::cluster(funky_boys, features = all_markers, xdim = 10, ydim = 10, maxK = 5)
 
-# vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
-#                                                         by = "cluster",
-#                                                         row_clust = FALSE,
-#                                                         col_clust = FALSE,
-#                                                         #m = "flo_merge",
-#                                                         k= "meta50",
-#                                                         bars = TRUE,
-#                                                         features = refined_markers)
+
+vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = funky,
+                                                        by = "cluster",
+                                                        row_clust = FALSE,
+                                                        col_clust = FALSE,
+                                                        #m = "flo_merge",
+                                                        k= "meta5",
+                                                        bars = TRUE,
+                                                        perc = TRUE,
+                                                        features=all_markers)
 # 
 # pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_flo_names.pdf", height = 10, width = 9)
 # vac63c_control_tcell_cluster_heatmap
@@ -147,7 +150,7 @@ set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 1
 # dev.off()
 # 
 
-
+# funky_boys <- filterSCE(sce, cluster_id =="activated DN", k="flo_merge")
 
 meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_50_merge.csv")
 
@@ -577,3 +580,6 @@ png("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figu
 draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
 dev.off()
 
+dod_data <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/sig_dod_edgeR.csv")
+
+dod_ter_clusters <- subset(dod_data, dod_data$n_infection=="third", select="cluster_id")

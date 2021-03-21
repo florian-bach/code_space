@@ -194,6 +194,133 @@ ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/cd4_activation_stack.pd
 
 
 
+all_gd_data <- subset(stacked_bar_data, grepl("gd", stacked_bar_data$cluster_id, fixed=T))
+all_mait_data <- subset(stacked_bar_data, grepl("MAIT", stacked_bar_data$cluster_id, fixed=T))
+
+
+View(all_gd_data %>%
+  group_by(volunteer, timepoint) %>%
+  summarise(sum(frequency)))
+
+gd_activation_stacked_barchart <- ggplot(all_mait_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id)))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
+  scale_fill_manual(values=col_pal)+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_freq_plot.pdf", gd_activation_stacked_barchart, height=4, width=8)
+
+
+
+all_mamma_delta_data <- rbind(all_gd_data, all_mait_data)
+
+all_mamma_delta_data_summary <- all_mamma_delta_data %>%
+  group_by(lineage, volunteer, timepoint) %>%
+  mutate("sum"=sum(frequency)) %>%
+  mutate("scaled_freq"=frequency/sum)
+
+
+
+activated_all_mamma_delta_data <- subset(all_mamma_delta_data, grepl("*activated*", all_mamma_delta_data$cluster_id))
+
+
+activated_all_mamma_delta_plot <- ggplot(activated_all_mamma_delta_data, aes(x=volunteer, y=frequency/100, fill=factor(lineage)))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
+  scale_fill_manual(values=lineage_palette)+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        legend.text = element_text(size=7),
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_mait_stack.pdf", activated_all_mamma_delta_plot, height=4, width=9)
+
+
+
+
+all_mamma_delta_data_summary$pie_fill <- ifelse(grepl("*activated*", all_mamma_delta_data$cluster_id), as.character(all_mamma_delta_data$lineage), "resting")
+
+phil_palette <- c(lineage_palette, "resting"="grey")
+
+mait_gd_acti_plot <- ggplot(all_mamma_delta_data_summary, aes(x=volunteer, y=scaled_freq, fill=factor(pie_fill, levels=c("resting", "gd", "MAIT"))))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_grid(lineage~timepoint)+
+  #coord_polar(theta = "y")+
+  scale_fill_manual(values=phil_palette)+
+  scale_y_continuous(trans = "reverse", name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        legend.text = element_text(size=7),
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/mait_gd_acti_plot.pdf", mait_gd_acti_plot, height=8, width=9)
+
+
+all_cells_acti_summary <- stacked_bar_data %>%
+  group_by(lineage, volunteer, timepoint) %>%
+  mutate("sum"=sum(frequency)) %>%
+  mutate("scaled_freq"=frequency/sum)
+
+
+
+all_cells_acti_summary$pie_fill <- ifelse(grepl("*activated*", all_cells_acti_summary$cluster_id), as.character(all_cells_acti_summary$lineage), "resting")
+
+
+
+all_cells_acti_pie <- ggplot(all_cells_acti_summary, aes(x="", y=scaled_freq, fill=factor(pie_fill, levels=rev(names(phil_palette)))))+
+  #geom_bar(stat="identity", position="stack")+
+  geom_bar(stat="identity", position ="stack")+
+  # theme_minimal()+
+  facet_grid(volunteer~lineage+timepoint)+
+  coord_polar(theta = "y")+
+  scale_fill_manual(values=phil_palette)+
+  scale_y_continuous(trans = "reverse", name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
+  # theme(plot.title = element_text(hjust=0.5, size=11),
+  #       strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+  #       axis.title.x = element_blank(),
+  #       legend.position="bottom",
+  #       legend.direction = "horizontal",
+  #       legend.title = element_blank(),
+  #       legend.text = element_text(size=7),
+  #       axis.text.x = element_text(angle = 45, hjust=1),
+  #       panel.grid.minor.y = element_blank(),
+  #       strip.placement = "outside")+
+  theme_void()+
+  theme(legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank())
+
+# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/all_cells_acti_plot.pdf", all_cells_acti_plot, width=8, height=12)
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/all_cells_acti_pies.pdf", all_cells_acti_pie, width=20, height=8)
+
+
 
 all_activated_data <- subset(stacked_bar_data, grepl("*activated*", stacked_bar_data$cluster_id))
 
@@ -248,7 +375,7 @@ all_activation_stacked_barchart_lineage_var <- all_activation_stacked_barchart_l
                                                                                              axis.title = element_blank())+guides(fill=guide_legend(override.aes = list(size=0.5), nrow=1))
 
 
-combo_cluster_lineage_plot <- plot_grid(activation_stacked_barchart_cluster_var, all_activation_stacked_barchart_lineage_var, ncol=1, rel_heights = c(1,1.2), align = "v", axis="ltbr")
+combo_cluster_lineage_plot <- plot_grid(activation_stacked_barchart_cluster_var, all_activation_stacked_barchart_lineage_var, ncol=1, rel_heights = c(1,1.25), align = "v", axis="ltbr")
 
 acti.grob <- textGrob("Percentage of CD3+ T cells Activated", 
                       gp=grid::gpar(fontsize=14), rot = 90)
@@ -259,6 +386,9 @@ combo_cluster_lineage_plot <- gridExtra::grid.arrange(gridExtra::arrangeGrob(com
 
 
 ggsave("~/PhD/figures_for_thesis/chapter_03/combo_cluster_lineage_plot.pdf", combo_cluster_lineage_plot, height=9, width = 9)
+
+
+
 
 
 
@@ -876,7 +1006,7 @@ num_wide_scaled_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renam
 # ter_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_t6_ms.csv", header=T, row.names = 1)
 # 
 #
-num_wide_scaled_ms <- ter_dod_ms
+num_wide_scaled_ms <- ter_t6_ms
 
 
 
@@ -982,11 +1112,11 @@ top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
   # dev.off()
 
 
-  pdf("~/PhD/figures_for_thesis/chapter_03/ter_dod_limma.pdf", width = 10, height=5)
-  draw(median_cluster_heat,
-       annotation_legend_list = list(limma_leg, limma_leg2),
-       merge_legends = TRUE, heatmap_legend_side = "bottom")
-  dev.off()
+  # pdf("~/PhD/figures_for_thesis/chapter_03/ter_dod_limma.pdf", width = 10, height=5)
+  # draw(median_cluster_heat,
+  #      annotation_legend_list = list(limma_leg, limma_leg2),
+  #      merge_legends = TRUE, heatmap_legend_side = "bottom")
+  # dev.off()
 
   # pdf("~/PhD/figures_for_thesis/chapter_03/prim_t6_limma.pdf", width = 10, height=12)
   # draw(median_cluster_heat,
@@ -994,11 +1124,11 @@ top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
   #      merge_legends = TRUE, heatmap_legend_side = "bottom")
   # dev.off()
   
-  # pdf("~/PhD/figures_for_thesis/chapter_03/ter_t6_limma.pdf", width = 10, height=6)
-  # draw(median_cluster_heat,
-  #      annotation_legend_list = list(limma_leg, limma_leg2),
-  #      merge_legends = TRUE, heatmap_legend_side = "bottom")
-  # dev.off()
+  pdf("~/PhD/figures_for_thesis/chapter_03/ter_t6_limma.pdf", width = 10, height=7)
+  draw(median_cluster_heat,
+       annotation_legend_list = list(limma_leg, limma_leg2),
+       merge_legends = TRUE, heatmap_legend_side = "bottom")
+  dev.off()
   
 
 # differential abundance modelling comparison ####
@@ -1171,8 +1301,12 @@ ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_parasitaemia.pdf
 
 cytof_data <- stacked_bar_data
 
+#naughty and not that nice
+#cytof_data$frequency <- ifelse(cytof_data$frequency==0, 1/10000, cytof_data$frequency)
+
+
 # aitchison can't deal with 0s :/ so we have to get rid of those clusters or impute them but the matrix is too sparse..
-zero_clusters <- unique(subset(stacked_bar_data$cluster_id, stacked_bar_data$frequency==0))
+zero_clusters <- unique(subset(cytof_data$cluster_id,cytof_data$frequency==0))
 
 cytof_data$trans_freq=asin(sqrt(cytof_data$frequency/100))
 
@@ -1183,8 +1317,11 @@ wide_cytof <- data.frame(cytof_data %>%
                            spread(sample_id, frequency)
 )
 
+wide_cytof <- subset(wide_cytof, grepl("activated", wide_cytof$cluster_id))
+
 wide_cytof <- as.matrix(select(wide_cytof, -cluster_id))
 class(wide_cytof) <- "double"
+
 
 
 cytof_mds <- data.frame(cmdscale(robCompositions::aDist(t(wide_cytof))))
@@ -1204,7 +1341,7 @@ cytof_mds$volunteer <- substr(cytof_mds$sample_ID, 1, 4)
 cytof_mds$volunteer <- factor(cytof_mds$volunteer, levels=c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"))
 cytof_mds$n_infection <- ifelse(cytof_mds$volunteer %in% c("v313", "v315", "v320"), "First", "Third") 
 
-
+#cytof_mds <- filter(cytof_mds, timepoint%in%c("Baseline", "T6"))
 
 (indie_aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
   geom_point(aes(colour=n_infection), alpha=0)+
@@ -1329,7 +1466,9 @@ slimmer_ms$contrast <- NULL
 
 mds <- limma::plotMDS(slimmer_ms)
 df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
-md <- S4Vectors::metadata(merged_daf)$experiment_info
+# md <- S4Vectors::metadata(merged_daf)$experiment_info
+md <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/vac63c_metadata.csv")
+
 m <- match(rownames(df), md$sample_id)
 df <- data.frame(df, md[m, ])
 
@@ -1405,10 +1544,10 @@ falci_indie_var <- grid.arrange(arrangeGrob(falci_indie_var , bottom = mds.grob,
 
 falci_indie_var2 <- plot_grid(falci_indie_var, indie_leg, rel_widths = c(6,1))
 
-ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_indie_var.png", falci_indie_var2, width=7, height=6)
+ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_indie_var_activated.png", falci_indie_var2, width=7, height=6)
 
 
-#lymphocytes ####
+# lymphocytes ####
 
 
 vac63c_lymph <- read.csv("~/PhD/clinical_data/vac63c/VAC063_haem_all_sequenced_WBC_real_percent.csv")
@@ -1483,3 +1622,117 @@ ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_lymphocytes_figure.png", vac6
 
 
 
+
+# liver enzymes ####
+
+alt_data <- read.csv("~/PhD/clinical_data/vac63c/alt_data_thesis.csv", header=T)
+
+alt_data$volunteer <- gsub("6301", "v", alt_data$trial_number, fixed = TRUE)
+alt_data$trial_number <- NULL
+alt_data$timepoint <- gsub("C1_13", "C6", alt_data$timepoint, fixed = TRUE)
+alt_data$timepoint <- gsub("C28", "Diagnosis", alt_data$timepoint, fixed = TRUE)
+alt_data$timepoint <- gsub("C_1", "Baseline", alt_data$timepoint, fixed = TRUE)
+alt_data$species <- "P. falciparum"
+alt_data <- mutate(alt_data, n_infection = ifelse(alt_data$volunteer %in% c("v313", "v315", "v320"), "first", "third")) 
+
+falci_data <- select(alt_data, volunteer, timepoint, alt, n_infection, species)
+
+
+vivax_colours <- list("v02" = "#FB9A99",
+                          "v03" = "#E31A1C",
+                          "v05" = "#A6CEE3",
+                          "v06" = "#1F78B4",
+                          "v07" = "#F0E442",
+                          "v09" = "#E69F00")
+
+
+vivax_vol_pal <- unlist(unname(vivax_vol_pal))
+names(vivax_vol_pal) <- names(vivax_colours)
+
+
+
+vivax_biochem <- read.csv("~/PhD/clinical_data/vac69a/biochem.csv")
+
+colnames(vivax_biochem)[1] <- "volunteer"
+
+vivax_biochem$volunteer <- paste("v", substr(vivax_biochem$volunteer, 6, 7), sep='')
+
+
+
+lousy_timepoints <- unique(as.character(vivax_biochem$timepoint))
+
+good_timepoints <- c("C7 am", "C14 am", "Screening","Baseline", "Diagnosis", "C28", "T1", "T6", "C90", "EV")
+
+biochem_timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
+vivax_biochem$timepoint <- stringr::str_replace_all(vivax_biochem$timepoint, biochem_timepoint_replacement)
+
+vivax_biochem$species <- "P. vivax"
+vivax_biochem$n_infection <- "first"
+
+#biochem_data <- filter(biochem_data, timepoint %in% c("_C_1", "_T6", "_EP"))
+
+vivax_data <- select(vivax_biochem,  volunteer, timepoint, alt, n_infection, species)
+
+combo_alt_data <- rbind(falci_data, vivax_data)
+
+combo_alt_data <- combo_alt_data %>%
+  filter(timepoint %in% c("Baseline", "C7 am", "C6", "Diagnosis", "T6", "C90")) %>%
+  filter(volunteer %notin% c("v302", "v307"))
+
+falci_data <- falci_data %>%
+  filter(timepoint %in% c("Baseline", "C7 am", "C6", "Diagnosis", "T6", "C90")) %>%
+  filter(volunteer %notin% c("v302", "v307"))
+
+
+vivax_falci_palette <- c(vol_pal, vivax_vol_pal)
+
+indie_falci_alt <- ggplot(falci_data, aes(x=factor(timepoint, levels=c("Baseline", "C6", "C7 am", "Diagnosis", "T6", "C90")), y=alt, color=volunteer, group=volunteer))+
+  scale_fill_manual(values=vivax_falci_palette)+
+  scale_color_manual(values=vivax_falci_palette)+
+  geom_line(aes(color=volunteer), size=0.9)+
+  geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+  theme_minimal()+
+  xlab("Timepoint")+
+  ylab("ALT")+
+  guides(color=guide_legend(ncol=3))+
+  theme(axis.title.y=element_text(size=10),
+        axis.text.x = element_text(hjust=1, angle=45, size=8), 
+        legend.title = element_blank(),
+        axis.title.x = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        strip.text = element_text(size=10))
+
+indie_falci_n_infection <- ggplot(combo_alt_data, aes(x=factor(timepoint, levels=c("Baseline", "C6", "C7 am", "Diagnosis", "T6", "C90")), y=alt, color=n_infection, group=volunteer))+
+  scale_color_manual(values=c("first"=time_col[2], "third"=time_col[1]))+
+  geom_line(size=0.9)+
+  geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+  theme_minimal()+
+  xlab("Timepoint")+
+  ylab("ALT")+
+  theme(
+        axis.text.x = element_text(hjust=1, angle=45, size=8), 
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        axis.title = element_blank(),
+        legend.title = element_blank(),
+        strip.text = element_text(size=10))
+
+indie_falci_species <- ggplot(combo_alt_data, aes(x=factor(timepoint, levels=c("Baseline", "C6", "C7 am", "Diagnosis", "T6", "C90")), y=alt, color=species, group=volunteer))+
+  scale_color_manual(values=rev(c("#fec200", "#db0085")))+
+  geom_line(aes(color=species), size=0.9)+
+  geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+  theme_minimal()+
+  xlab("Timepoint")+
+  ylab("ALT")+
+  theme(
+        axis.text.x = element_text(hjust=1, angle=45, size=8), 
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        axis.title = element_blank(),
+        legend.title = element_blank(),
+        strip.text = element_text(size=10))
+
+alt_thesis_plot <- plot_grid(indie_falci_alt, indie_falci_n_infection, indie_falci_species, nrow=1, align="hv", axis="tblr")
+
+ggsave("~/PhD/figures_for_thesis/chapter_03/alt_combo_plot.pdf", width=8, height=4)
