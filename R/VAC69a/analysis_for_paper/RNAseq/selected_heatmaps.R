@@ -109,7 +109,6 @@ col_fun_rna_dod <- circlize::colorRamp2(breaks=seq(from = min(gene_matrix),
 rownames(gene_matrix) <- gsub("_", " relative to\n ", rownames(gene_matrix))
 rownames(gene_matrix) <- gsub("DoD", "Diagnosis", rownames(gene_matrix))
 
-colnames(gene_matrix) <- tolower(colnames(gene_matrix))
 
 gene_heatmap <- Heatmap(matrix = gene_matrix,
                         cluster_rows = FALSE,
@@ -119,7 +118,7 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
                         
                         heatmap_legend_param = list(title = "log2FC"),
                         cluster_columns = FALSE,
-                        column_names_gp = gpar(fontsize = 10),
+                        column_names_gp = gpar(fontsize = 10, fontface="italic"),
                         
                         #row_names_gp = gpar(fontsize = 8, just="center"),
                         show_row_names = FALSE,

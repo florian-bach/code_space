@@ -67,6 +67,16 @@ stacked_bar_data$lineage <- stringr::str_replace_all(stacked_bar_data$lineage, l
 stacked_bar_data$lineage <- factor(stacked_bar_data$lineage, levels=rev(c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "NKT")))
 
 
+all_cells_acti_summary <- stacked_bar_data %>%
+  group_by(lineage, volunteer, timepoint) %>%
+  mutate("sum"=sum(frequency)) %>%
+  mutate("scaled_freq"=frequency/sum)
+
+
+all_cells_acti_summary$pie_fill <- ifelse(grepl("*activated*", all_cells_acti_summary$cluster_id), as.character(all_cells_acti_summary$lineage), "resting")
+
+
+
 
 #all significant clusters at T6 in primaries (all in tertiaries are contained within as well)
 ter_sig_clusters <- scan("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/ter_sig_t6_clusters.txt", what = "")
@@ -201,26 +211,26 @@ all_mait_data <- subset(stacked_bar_data, grepl("MAIT", stacked_bar_data$cluster
 View(all_gd_data %>%
   group_by(volunteer, timepoint) %>%
   summarise(sum(frequency)))
-
-gd_activation_stacked_barchart <- ggplot(all_mait_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id)))+
-  geom_bar(stat="identity", position="stack")+
-  theme_minimal()+
-  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
-  scale_fill_manual(values=col_pal)+
-  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
-  theme(plot.title = element_text(hjust=0.5, size=11),
-        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-        axis.title.x = element_blank(),
-        legend.position="bottom",
-        legend.direction = "horizontal",
-        legend.title = element_blank(),
-        axis.text.x = element_text(angle = 45, hjust=1),
-        panel.grid.minor.y = element_blank(),
-        strip.placement = "outside")
-
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_freq_plot.pdf", gd_activation_stacked_barchart, height=4, width=8)
-
-
+# 
+# gd_activation_stacked_barchart <- ggplot(all_mait_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id)))+
+#   geom_bar(stat="identity", position="stack")+
+#   theme_minimal()+
+#   facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
+#   scale_fill_manual(values=col_pal)+
+#   scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+#   theme(plot.title = element_text(hjust=0.5, size=11),
+#         strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+#         axis.title.x = element_blank(),
+#         legend.position="bottom",
+#         legend.direction = "horizontal",
+#         legend.title = element_blank(),
+#         axis.text.x = element_text(angle = 45, hjust=1),
+#         panel.grid.minor.y = element_blank(),
+#         strip.placement = "outside")
+# 
+# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_freq_plot.pdf", gd_activation_stacked_barchart, height=4, width=8)
+# 
+# 
 
 all_mamma_delta_data <- rbind(all_gd_data, all_mait_data)
 
@@ -233,40 +243,72 @@ all_mamma_delta_data_summary <- all_mamma_delta_data %>%
 
 activated_all_mamma_delta_data <- subset(all_mamma_delta_data, grepl("*activated*", all_mamma_delta_data$cluster_id))
 
+# 
+# activated_all_mamma_delta_plot <- ggplot(activated_all_mamma_delta_data, aes(x=volunteer, y=frequency/100, fill=factor(lineage)))+
+#   geom_bar(stat="identity", position="stack")+
+#   theme_minimal()+
+#   facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
+#   scale_fill_manual(values=lineage_palette)+
+#   scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+#   theme(plot.title = element_text(hjust=0.5, size=11),
+#         strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+#         axis.title.x = element_blank(),
+#         legend.position="bottom",
+#         legend.direction = "horizontal",
+#         legend.title = element_blank(),
+#         legend.text = element_text(size=7),
+#         axis.text.x = element_text(angle = 45, hjust=1),
+#         panel.grid.minor.y = element_blank(),
+#         strip.placement = "outside")
+# 
+# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_mait_stack.pdf", activated_all_mamma_delta_plot, height=4, width=9)
+# 
 
-activated_all_mamma_delta_plot <- ggplot(activated_all_mamma_delta_data, aes(x=volunteer, y=frequency/100, fill=factor(lineage)))+
-  geom_bar(stat="identity", position="stack")+
-  theme_minimal()+
-  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
-  scale_fill_manual(values=lineage_palette)+
-  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
-  theme(plot.title = element_text(hjust=0.5, size=11),
-        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-        axis.title.x = element_blank(),
-        legend.position="bottom",
-        legend.direction = "horizontal",
-        legend.title = element_blank(),
-        legend.text = element_text(size=7),
-        axis.text.x = element_text(angle = 45, hjust=1),
-        panel.grid.minor.y = element_blank(),
-        strip.placement = "outside")
+# 
+# 
+# all_mamma_delta_data_summary$pie_fill <- ifelse(grepl("*activated*", all_mamma_delta_data$cluster_id), as.character(all_mamma_delta_data$lineage), "resting")
+# 
+# phil_palette <- c(lineage_palette, "resting"="grey")
+# 
+# mait_gd_acti_plot <- ggplot(all_mamma_delta_data_summary, aes(x=volunteer, y=scaled_freq, fill=factor(pie_fill, levels=c("resting", "gd", "MAIT"))))+
+#   geom_bar(stat="identity", position="stack")+
+#   theme_minimal()+
+#   facet_grid(lineage~timepoint)+
+#   #coord_polar(theta = "y")+
+#   scale_fill_manual(values=phil_palette)+
+#   scale_y_continuous(trans = "reverse", name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
+#   theme(plot.title = element_text(hjust=0.5, size=11),
+#         strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+#         axis.title.x = element_blank(),
+#         legend.position="bottom",
+#         legend.direction = "horizontal",
+#         legend.title = element_blank(),
+#         legend.text = element_text(size=7),
+#         axis.text.x = element_text(angle = 45, hjust=1),
+#         panel.grid.minor.y = element_blank(),
+#         strip.placement = "outside")
+# 
+# 
+# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/mait_gd_acti_plot.pdf", mait_gd_acti_plot, height=8, width=9)
 
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_mait_stack.pdf", activated_all_mamma_delta_plot, height=4, width=9)
 
+all_cells_acti_summary <- stacked_bar_data
 
-
-
-all_mamma_delta_data_summary$pie_fill <- ifelse(grepl("*activated*", all_mamma_delta_data$cluster_id), as.character(all_mamma_delta_data$lineage), "resting")
+#all_cells_acti_summary <- subset(all_cells_acti_summary, !grepl("Naive", all_cells_acti_summary$cluster_id, fixed=T))
 
 phil_palette <- c(lineage_palette, "resting"="grey")
 
-mait_gd_acti_plot <- ggplot(all_mamma_delta_data_summary, aes(x=volunteer, y=scaled_freq, fill=factor(pie_fill, levels=c("resting", "gd", "MAIT"))))+
-  geom_bar(stat="identity", position="stack")+
+
+(all_cells_acti_pie <- ggplot(all_cells_acti_summary, aes(x=volunteer, y=scaled_freq, fill=factor(pie_fill, levels=c("resting", "CD4", "CD8"))))+
+#(all_cells_acti_pie <- ggplot(all_cells_acti_summary, aes(x=volunteer, y=scaled_freq, fill=factor(cluster_id, levels=cluster_order)))+
+       #geom_bar(stat="identity", position="stack")+
+  geom_bar(stat="identity", position ="stack")+
   theme_minimal()+
   facet_grid(lineage~timepoint)+
   #coord_polar(theta = "y")+
   scale_fill_manual(values=phil_palette)+
-  scale_y_continuous(trans = "reverse", name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
+  #scale_fill_manual(values=col_pal)+
+  scale_y_continuous(name = "Percentage of Non-Naive Cells Activated", labels=scales::percent_format(accuracy = 1))+
   theme(plot.title = element_text(hjust=0.5, size=11),
         strip.text = element_text(hjust=0.5, size=10, face = "bold"),
         axis.title.x = element_blank(),
@@ -276,50 +318,16 @@ mait_gd_acti_plot <- ggplot(all_mamma_delta_data_summary, aes(x=volunteer, y=sca
         legend.text = element_text(size=7),
         axis.text.x = element_text(angle = 45, hjust=1),
         panel.grid.minor.y = element_blank(),
-        strip.placement = "outside")
-
-
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/mait_gd_acti_plot.pdf", mait_gd_acti_plot, height=8, width=9)
-
-
-all_cells_acti_summary <- stacked_bar_data %>%
-  group_by(lineage, volunteer, timepoint) %>%
-  mutate("sum"=sum(frequency)) %>%
-  mutate("scaled_freq"=frequency/sum)
-
-
-
-all_cells_acti_summary$pie_fill <- ifelse(grepl("*activated*", all_cells_acti_summary$cluster_id), as.character(all_cells_acti_summary$lineage), "resting")
-
-
-
-all_cells_acti_pie <- ggplot(all_cells_acti_summary, aes(x="", y=scaled_freq, fill=factor(pie_fill, levels=rev(names(phil_palette)))))+
-  #geom_bar(stat="identity", position="stack")+
-  geom_bar(stat="identity", position ="stack")+
-  # theme_minimal()+
-  facet_grid(volunteer~lineage+timepoint)+
-  coord_polar(theta = "y")+
-  scale_fill_manual(values=phil_palette)+
-  scale_y_continuous(trans = "reverse", name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
-  # theme(plot.title = element_text(hjust=0.5, size=11),
-  #       strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-  #       axis.title.x = element_blank(),
-  #       legend.position="bottom",
+        strip.placement = "outside"))
+  # theme(legend.position = "bottom",
   #       legend.direction = "horizontal",
-  #       legend.title = element_blank(),
-  #       legend.text = element_text(size=7),
-  #       axis.text.x = element_text(angle = 45, hjust=1),
-  #       panel.grid.minor.y = element_blank(),
-  #       strip.placement = "outside")+
-  theme_void()+
-  theme(legend.position = "bottom",
-        legend.direction = "horizontal",
-        legend.title = element_blank())
+  #       legend.title = element_blank())
 
 # ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/all_cells_acti_plot.pdf", all_cells_acti_plot, width=8, height=12)
 
 ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/all_cells_acti_pies.pdf", all_cells_acti_pie, width=20, height=8)
 
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/cd4_cd8_memory_acti.pdf", all_cells_acti_pie, width=8, height=5)
 
 
 all_activated_data <- subset(stacked_bar_data, grepl("*activated*", stacked_bar_data$cluster_id))
@@ -335,16 +343,19 @@ all_activation_stacked_barchart_lineage <- ggplot(all_summary, aes(x=volunteer, 
   theme_minimal()+
   facet_wrap(~timepointf, strip.position = "bottom", ncol=4)+
   scale_fill_manual(values=lineage_palette)+
-  scale_y_continuous(name = "Percentage of CD3+ T cells activated\n", labels=scales::percent_format(accuracy = 1))+
+  guides(fill=guide_legend(nrow=1, reverse = TRUE))+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), expand = expansion(0,0))+
   theme(plot.title = element_text(hjust=0.5, size=11),
         strip.text = element_text(hjust=0.5, size=13, face = "bold"),
         axis.title.x = element_blank(),
-        legend.position="none",
-        axis.text.x = element_text(angle = 45, hjust=1, size=13),
+        legend.position="bottom",
+        legend.title = element_blank(),
+        legend.direction = "horizontal",
+        axis.text.x = element_text(angle = 45, hjust=1, size=11),
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_all_activation_stack_lineage.pdf", all_activation_stacked_barchart_lineage, height=4, width=8)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_all_activation_stack_lineage.pdf", all_activation_stacked_barchart_lineage, height=4.4, width=8)
 
 
 
@@ -377,7 +388,7 @@ all_activation_stacked_barchart_lineage_var <- all_activation_stacked_barchart_l
 
 combo_cluster_lineage_plot <- plot_grid(activation_stacked_barchart_cluster_var, all_activation_stacked_barchart_lineage_var, ncol=1, rel_heights = c(1,1.25), align = "v", axis="ltbr")
 
-acti.grob <- textGrob("Percentage of CD3+ T cells Activated", 
+acti.grob <- textGrob("Percentage of CD3+ T cells", 
                       gp=grid::gpar(fontsize=14), rot = 90)
 
 #add to plot
@@ -447,6 +458,16 @@ ter_sig_activation_lolli <-   ggplot()+
 
 combo_lolli <- cowplot::plot_grid(prim_sig_activation_lolli, ter_sig_activation_lolli)
 
+
+lolli.grob <- textGrob("Percentage of all T cells", 
+                      gp=grid::gpar(fontsize=10))
+
+#add to plot
+combo_lolli <- gridExtra::grid.arrange(gridExtra::arrangeGrob(combo_lolli , bottom = lolli.grob))
+
+
+
+
 combo_lolli <- cowplot::plot_grid(combo_lolli, cluster_leg, ncol=1, rel_heights = c(5,1), rel_widths = c(1,1,2),align="v", axis = "tbrl")
 ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vac63c_sig_activation_lollipop.pdf", combo_lolli, height=4, width=7)
 
@@ -503,11 +524,12 @@ ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/vivax_falci_activation_
 res <- vivax_falci_summary %>%
   filter(timepoint=="T6")%>%
   group_by(volunteer, lineage)%>%
-  summarise("perc"=sum(frequency))
+  summarise("perc"=sum(frequency))%>%
+  ungroup()
 
-res %>%
-  group_by(species) %>%
-  summarise(mean(perc))
+vivax_falci_summary %>%
+  group_by(volunteer, timepoint) %>%
+  summarise(sum(frequency))
 
 
 
@@ -553,19 +575,19 @@ prim_circlize_plot = function() {
   # c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "NKT")
   
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="CD4"], track.index = 1,
-                   border = "black", text = "CD4", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "CD4", col = "white")
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="Treg"], track.index = 1,
-                   border = "black", text = "Treg", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "Treg", col = "white")
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="CD8"], track.index = 1,
-                   border = "black", text = "CD8", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "CD8", col = "white")
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="MAIT"], track.index = 1,
-                   border = "black", text = "MAIT", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "MAIT", col = "white")
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="gd"], track.index = 1,
-                   border = "black", text = "gd", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "gd", col = "white")
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="DN"], track.index = 1,
-                   border = "black", text = "DN", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "DN", col = "white")
   highlight.sector(sector.index = prim_pie_data$cluster_id[prim_pie_data$lineage=="NKT"], track.index = 1,
-                   border = "black", text = "NKT", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "NKT", col = "white")
   circos.clear()
   
 }
@@ -624,17 +646,17 @@ ter_circlize_plot = function() {
   
   
   highlight.sector(sector.index = ter_pie_data$cluster_id[ter_pie_data$lineage=="CD4"], track.index = 1,
-                   border = "black", text = "CD4", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "CD4", col = "white")
   highlight.sector(sector.index = ter_pie_data$cluster_id[ter_pie_data$lineage=="CD8"], track.index = 1,
-                   border = "black", text = "CD8", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "CD8", col = "white")
   highlight.sector(sector.index = ter_pie_data$cluster_id[ter_pie_data$lineage=="MAIT"], track.index = 1,
-                   border = "black", text = "MAIT", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "MAIT", col = "white")
   highlight.sector(sector.index = ter_pie_data$cluster_id[ter_pie_data$lineage=="gd"], track.index = 1,
-                   border = "black", text = "gd", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "gd", col = "white")
   highlight.sector(sector.index = ter_pie_data$cluster_id[ter_pie_data$lineage=="DN"], track.index = 1,
-                   border = "black", text = "DN", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "DN", col = "white")
   highlight.sector(sector.index = ter_pie_data$cluster_id[ter_pie_data$lineage=="NKT"], track.index = 1,
-                   border = "black", text = "NKT", col = "white", cex=0.7, niceFacing = TRUE, facing = "clockwise")
+                   border = "black", text = "NKT", col = "white")
   circos.clear()
   
 }
@@ -683,6 +705,7 @@ all_cluster_freqs <- ggplot(all_freq_data, aes(x=timepoint, y=frequency/100))+
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75), size=0.5)+
   facet_wrap(~cluster_id, ncol=7, scales = "free_y", labeller=label_wrap_gen(width = 12))+
   theme_minimal()+
+  scale_color_manual(values = vol_pal)+
   scale_x_discrete(name = "Timepoint")+
   scale_y_continuous(name = "Fraction of CD3+ T cells", label=scales::label_percent(), breaks=equal_breaks(n=4, s=0.05))+
   scale_fill_manual(values = c("Baseline"=time_col[4], "first"=time_col[2], "third"=time_col[1], "C45"=time_col[5]))+
@@ -710,6 +733,7 @@ all_cluster_counts <- ggplot(all_freq_data, aes(x=timepoint, y=count+1))+
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75), size=0.5)+
   facet_wrap(~cluster_id, ncol=7, labeller=label_wrap_gen(width = 12))+
   theme_minimal()+
+  scale_color_manual(values = vol_pal)+
   scale_x_discrete(name = "Timepoint")+
   scale_y_log10(name = "Number of Cells per Sample",)+
   scale_fill_manual(values = c("Baseline"=time_col[4], "first"=time_col[2], "third"=time_col[1], "C45"=time_col[5]))+
@@ -741,6 +765,7 @@ sig_cluster_freqs <- ggplot(sig_freq_data, aes(x=factor(timepoint), y=frequency/
   scale_x_discrete(name = "Timepoint")+
   scale_y_continuous(name = "log(%) of CD3+ T cells", label=scales::label_percent(accuracy = 0.01), trans = "log10")+
   scale_fill_manual(values = c("first"=time_col[2], "third"=time_col[1]), breaks =  c("first", "third"))+
+  scale_color_manual(values = vol_pal)+
   guides(color=guide_legend(nrow = 1, title = NULL, order = 1, keywidth = 0.5, override.aes = list(size = 2)),
          fill=guide_legend(title=NULL, order = 2))+
   theme(axis.text.x = element_text(angle = 45, hjust=1, size=6),
@@ -1224,6 +1249,8 @@ long_vac63c_parasitaemia <- long_vac63c_parasitaemia %>%
   filter(N_infection %in% c("First", "Third"))
 
 
+vol_replacement <- setNames(c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"), c("313", "315", "320", "1039", "1040", "1061", "1068", "1075", "6032"))
+long_vac63c_parasitaemia$Volunteerf <- stringr::str_replace_all(long_vac63c_parasitaemia$Volunteer, vol_replacement)
 
 # para_vol_pal <- c("#8000FF",
 #                   "#E54787",
@@ -1237,20 +1264,22 @@ long_vac63c_parasitaemia <- long_vac63c_parasitaemia %>%
 # 
 
 
-vac63c_indie_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
-  geom_line(aes(color=Volunteer))+
-  geom_point(aes(fill=Volunteer), shape=21, size=2, stroke=0.1, color="black")+
+(vac63c_indie_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
+  geom_line(aes(color=Volunteerf))+
+  geom_point(aes(fill=Volunteerf), shape=21, size=2, stroke=0.1, color="black")+
   scale_y_log10()+
   theme_minimal()+
-  scale_colour_manual(values=para_vol_pal)+
+  scale_colour_manual(values=vol_pal)+
+  scale_fill_manual(values=vol_pal)+
   ylab("Parasites / mL")+
   xlab("Days Post Infection")+
-  theme(legend.position = "none",
+  guides(color=guide_legend(title = "Volunteer"))+
+  theme(#legend.position = "none",
         axis.text = element_text(size=12),
         axis.title = element_text(size=14),
         axis.title.x = element_blank(),
         legend.title = element_text(size=12),
-        legend.text = element_text(size=11))
+        legend.text = element_text(size=11)))
 
 indie_para_leg <- get_legend(vac63c_indie_paras)
 
@@ -1258,7 +1287,7 @@ vac63c_indie_paras <- vac63c_indie_paras+theme(legend.position = "none")
 
 vac63c_group_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=parasitaemia, group=vol_id))+
   geom_point(aes(color=N_infection))+
-  geom_point(aes(fill=Volunteer), shape=21, alpha=0, size = 2, stroke=0.1, color="black")+
+  geom_point(aes(fill=Volunteerf), shape=21, alpha=0, size = 2, stroke=0.1, color="black")+
   geom_line(aes(color=N_infection))+
   scale_y_log10()+
   theme_minimal()+
@@ -1266,7 +1295,7 @@ vac63c_group_paras <- ggplot(data=long_vac63c_parasitaemia, aes(x=Timepoint, y=p
   xlab("Days Post Infection")+
   labs(color="Infection")+
   scale_color_manual(values = c("First"=time_col[2], "Third"=time_col[1]))+
-  scale_fill_manual(values=para_vol_pal)+
+  scale_fill_manual(values=vol_pal)+
   guides(fill=guide_legend(override.aes = list(alpha=1)))+
   theme(axis.title.y = element_blank(),
         axis.text.y = element_blank(),
@@ -1563,11 +1592,16 @@ vac63c_lymph$timepoint <- gsub("C-1", "Baseline", vac63c_lymph$timepoint, fixed=
 vac63c_lymph$Volunteer_code <- gsub("V", "v", vac63c_lymph$Volunteer_code, fixed=T)
 vac63c_lymph<- filter(vac63c_lymph, vac63c_lymph$Volunteer_code %in% names(lymph_vol_pal))
 
+
+vol_replacement <- setNames(c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"), c("v313", "v315", "v320", "v1039", "v1040", "v1061", "v1068", "v1075", "v6032"))
+vac63c_lymph$Volunteer_code <- stringr::str_replace_all(vac63c_lymph$Volunteer_code, vol_replacement)
+
+
 indie_lymph_vac63c <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=cell_counts*1000, group=trial_number))+
   geom_point(aes(color=Volunteer_code))+
   geom_line(aes(color=Volunteer_code))+
   theme_minimal()+
-  scale_color_manual(values=lymph_vol_pal)+
+  scale_color_manual(values=vol_pal)+
   xlab("Timepoint")+
   ylab(expression(Lymphocytes~"/"~mu*L~blood))+
   scale_y_continuous(label=scales::comma)+
@@ -1596,7 +1630,7 @@ group_lymph_vac63c_box <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c(
   ylab(bquote('Lymphocytes ('*10^6~cells~'/ mL)'))+
   labs(fill="Infection")+
   scale_y_continuous(label=scales::comma)+
-  scale_color_manual(values=lymph_vol_pal)+
+  scale_color_manual(values=vol_pal)+
   scale_fill_manual(values=c("First"=time_col[2], "Third"=time_col[1]))+
   guides(colour=guide_legend(title="", override.aes = list(alpha=1)))+
   theme(axis.title = element_blank(),
@@ -1618,7 +1652,7 @@ vac63c_lymphocytes_figure <- plot_grid(indie_lymph_vac63c, group_lymph_vac63c_bo
 #vac63c_lymphocytes_figure <- grid.arrange(arrangeGrob(vac63c_lymphocytes_figure, bottom = timepoint.grob))
 
 
-ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_lymphocytes_figure.png", vac63c_lymphocytes_figure, width=7, height=3.15)
+ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_lymphocytes_figure.png", vac63c_lymphocytes_figure, width=7, height=3.7)
 
 
 
@@ -1736,3 +1770,53 @@ indie_falci_species <- ggplot(combo_alt_data, aes(x=factor(timepoint, levels=c("
 alt_thesis_plot <- plot_grid(indie_falci_alt, indie_falci_n_infection, indie_falci_species, nrow=1, align="hv", axis="tblr")
 
 ggsave("~/PhD/figures_for_thesis/chapter_03/alt_combo_plot.pdf", width=8, height=4)
+
+
+
+
+alt_corr_data <- all_cells_acti_summary %>%
+  filter(timepoint=="T6" & pie_fill!="resting") %>%
+  group_by(lineage, volunteer) %>%
+  summarise("perc_acti"=sum(scaled_freq))
+  #mutate(sum_sum=sum(scaled_freq)) %>%
+
+
+alt_alt_corr_data <- filter(combo_alt_data, timepoint=="T6")
+  
+alt_corr_data$alt <- alt_alt_corr_data$alt[match(alt_corr_data$volunteer, alt_alt_corr_data$volunteer)]
+
+alt_corr_data$lineage <- factor(alt_corr_data$lineage, levels=names(phil_palette))
+
+alt_corr_plot <- alt_corr_data %>%
+  filter(volunteer %in% c("v313", "v315", "v320"))%>%
+ggplot(., aes(x=alt, y=perc_acti))+
+  geom_point(aes(color=volunteer))+
+  facet_wrap(~lineage, scales="free", ncol=4)+
+  xlab("ALT at T6")+
+  ylab("Percentage Activated")+
+  scale_x_log10()+
+  scale_y_continuous(labels=scales::percent_format(accuracy = 1))+
+  theme_minimal()+
+  #geom_smooth(method="lm")+
+  scale_color_manual(values=vol_pal)
+
+
+
+#ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_alt_corr_plot.pdf", height=4, width=8)
+ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_alt_corr_plot_prim.pdf", height=4, width=8)
+
+
+alt_corr_data %>%
+  filter(volunteer %in% c("v313", "v315", "v320"))%>%
+  do(broom::tidy(cor.test(.$perc_acti, .$alt, method="spearman"))) #%>%
+
+
+# lineage estimate statistic p.value parameter method                               alternative
+# <fct>      <dbl>     <dbl>   <dbl>     <int> <chr>                                <chr>      
+#   1 CD4      -0.0812   -0.0815   0.948         1 Pearson's product-moment correlation two.sided  
+# 2 Treg      0.331     0.351    0.785         1 Pearson's product-moment correlation two.sided  
+# 3 CD8      -0.183    -0.186    0.883         1 Pearson's product-moment correlation two.sided  
+# 4 MAIT      0.962     3.54     0.175         1 Pearson's product-moment correlation two.sided  
+# 5 gd        0.900     2.06     0.287         1 Pearson's product-moment correlation two.sided  
+# 6 DN        0.805     1.36     0.404         1 Pearson's product-moment correlation two.sided  
+# 7 NKT       0.739     1.10     0.470         1 Pearson's product-moment correlation two.sided 

@@ -383,6 +383,7 @@ num_wide_scaled_ms <- as.matrix(wide_scaled_ms[, 2:ncol(wide_scaled_ms)])
 
 rownames(num_wide_scaled_ms) <- gsub("gamma delta", "γδ", rownames(num_wide_scaled_ms), fixed=T)
 
+num_wide_scaled_ms <- ifelse(num_wide_scaled_ms>abs(min(num_wide_scaled_ms)), abs(min(num_wide_scaled_ms)), num_wide_scaled_ms)
 
 library(ComplexHeatmap)
 
@@ -427,13 +428,59 @@ median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
                                #height = unit(16*9/28, "cm")
 )
 
-png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=15, units="in", res=400)
+png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=13, units="in", res=700)
 draw(median_cluster_heat, heatmap_legend_side = "bottom")
 dev.off()
 
 # png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma.png", width = 8, height=10, units="in", res=400)
 # draw(median_cluster_heat, heatmap_legend_side = "bottom")
 # dev.off()
+
+
+
+
+
+
+
+
+slimmer_ms <- ms %>%
+  mutate("contrast"= paste(antigen, " on ", cluster_id))%>%
+  select(contrast, sample_id, value) %>%
+  pivot_wider(names_from = sample_id, values_from = value)
+
+slimmer_ms <- data.frame(slimmer_ms)
+rownames(slimmer_ms) <- slimmer_ms$contrast
+
+slimmer_ms$contrast <- NULL
+
+mds <- limma::plotMDS(slimmer_ms)
+df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
+md <- S4Vectors::metadata(merged_daf)$experiment_info
+m <- match(rownames(df), md$sample_id)
+df <- data.frame(df, md[m, ])
+
+#df2 <- filter(df, timepoint %in% c("Baseline", "DoD"))
+
+state_markers_mds_coarse <- ggplot(df, aes(x=MDS1, y=MDS2))+
+  geom_point(aes(shape=timepoint, color=volunteer, fill=volunteer))+
+  #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
+  theme_minimal()+
+  xlab("")+
+  ggtitle("Cell State Marker Expression")+
+  #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
+  scale_shape_manual(values = c("Baseline"=16, "Diagnosis"=15, "C10"=17, "T6"=3, "C45"=13))+
+  scale_color_manual(values = volunteer_palette)+
+  scale_fill_manual(values = volunteer_palette)+
+  guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
+         shape=guide_legend(title="Timepoint", override.aes = list(size = 1)),
+         fill=guide_none())+
+  theme(legend.title = element_text(size=8),
+        legend.text = element_text(size=6),
+        plot.title = element_text(size=10, hjust=0.5),
+        legend.position = "none")
+
+
+
 
 
 
@@ -628,6 +675,7 @@ aitchison_cytof <- ggplot(cytof_mds, aes(x=MDS1, y=MDS2))+
   #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
   scale_color_manual(values = volunteer_palette)+
   scale_fill_manual(values = volunteer_palette)+
+  scale_shape_manual(values = c("Baseline"=16, "Diagnosis"=15, "C10"=17, "T6"=3, "C45"=13))+
   guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
          shape=guide_legend(title="Timepoint", override.aes = list(size = 1)),
          fill=guide_none())+
@@ -650,7 +698,6 @@ ms <- vapply(cs_by_s, function(cs) Biobase::rowMedians(es[, cs, drop = FALSE]),
 rownames(ms) <- rownames(merged_daf)
 # state markers, type markers or both
 ms <- subset(ms, rownames(ms) %in% limma_markers)
-
 mds <- limma::plotMDS(ms, plot = FALSE)
 df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
 md <- S4Vectors::metadata(merged_daf)$experiment_info
@@ -660,13 +707,14 @@ df <- data.frame(df, md[m, ])
 #df2 <- filter(df, timepoint %in% c("Baseline", "DoD"))
 
 state_markers_mds <- ggplot(df, aes(x=MDS1, y=MDS2))+
-  geom_point(aes(shape=timepoint, color=volunteer, fill=volunteer))+
+  geom_point(aes(shape=factor(timepoint, levels = c("Baseline", "C10", "Diagnosis", "T6", "C45")), color=volunteer, fill=volunteer))+
   #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
   theme_minimal()+
   xlab("")+
   ggtitle("Cell State Marker Expression")+
   #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
   scale_color_manual(values = volunteer_palette)+
+  scale_shape_manual(values = c("Baseline"=16, "Diagnosis"=15, "C10"=17, "T6"=3, "C45"=13), drop = FALSE)+
   scale_fill_manual(values = volunteer_palette)+
   guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
          shape=guide_legend(title="Timepoint", override.aes = list(size = 1)),
@@ -726,13 +774,14 @@ plasma_pca <- ggplot(big_pca2, aes(x=PC1, y=PC2))+
   #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
   scale_color_manual(values = volunteer_palette)+
   scale_fill_manual(values = volunteer_palette)+
+  scale_shape_manual(values = c("Baseline"=16, "Diagnosis"=15, "C10"=17, "T6"=3, "C45"=13))+
   # guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
   #        shape=guide_legend(title="Timepoint", override.aes = list(size = 1)),
   #        fill=guide_none())+
   theme(legend.position = "none", plot.title = element_text(size=10, hjust=0.5))
 
 
-indie_var_plot <- cowplot::plot_grid(state_markers_mds, aitchison_cytof, plasma_pca, indie_var_lgd, nrow = 1, rel_widths = c(3,3,3,1))
+indie_var_plot <- cowplot::plot_grid(state_markers_mds_coarse, aitchison_cytof, plasma_pca, indie_var_lgd, nrow = 1, rel_widths = c(3,3,3,1))
 
 ggsave("~/PhD/figures_for_thesis/chapter_2/indie_var_plot.pdf", indie_var_plot, height = 3.5, width=8)
 
@@ -770,51 +819,3 @@ memory_plots <- cowplot::plot_grid(CD4_plot, CD8_plot, Vd2_plot, Va72_plot,
                                    CCR7_plot, CD45RO_plot, CD45RA_plot,CD57_plot,
                                    ncol=4, align="hv", axis="l")
 ggsave("~/PhD/figures_for_thesis/chapter_2/lineage_memory_umaps.png", memory_plots, height=3, width=8, dpi=900)
-
-
-
-
-
-
-
-
-
-slimmer_ms <- ms %>%
-  mutate("contrast"= paste(antigen, " on ", cluster_id))%>%
-  select(contrast, sample_id, value) %>%
-  pivot_wider(names_from = sample_id, values_from = value)
-
-slimmer_ms <- data.frame(slimmer_ms)
-rownames(slimmer_ms) <- slimmer_ms$contrast
-
-slimmer_ms$contrast <- NULL
-
-mds <- limma::plotMDS(slimmer_ms)
-df <- data.frame(MDS1 = mds$x, MDS2 = mds$y)
-md <- S4Vectors::metadata(merged_daf)$experiment_info
-m <- match(rownames(df), md$sample_id)
-df <- data.frame(df, md[m, ])
-
-#df2 <- filter(df, timepoint %in% c("Baseline", "DoD"))
-
-state_markers_mds_coarse <- ggplot(df, aes(x=MDS1, y=MDS2))+
-  geom_point(aes(shape=timepoint, color=volunteer, fill=volunteer))+
-  #ggrepel::geom_label_repel(aes_string(label = "sample_id"), show.legend = FALSE)+ 
-  theme_minimal()+
-  xlab("")+
-  ggtitle("Cell State Marker Expression")+
-  #scale_shape_manual(values = c("Baseline"=21, "C10"=24, "Diagnosis"=22, "T6"=3))+
-  scale_color_manual(values = volunteer_palette)+
-  scale_fill_manual(values = volunteer_palette)+
-  guides(color=guide_legend(title="Volunteer",override.aes = list(size = 1)),
-         shape=guide_legend(title="Timepoint", override.aes = list(size = 1)),
-         fill=guide_none())+
-  theme(legend.title = element_text(size=8),
-        legend.text = element_text(size=6),
-        plot.title = element_text(size=10, hjust=0.5),
-        legend.position = "none")
-
-
-
-
-

@@ -186,18 +186,20 @@ names(bar_palette) <- comp_levels
 
 sig_gene_count_plots <- ggplot(sig_gene_counts, aes(x=factor(Comparison, levels=comp_levels), y=DE_Genes))+
   geom_bar(stat="identity", aes(fill=Comparison))+
-  geom_text(aes(label=abs(DE_Genes), vjust= -0.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="up"))+
-  geom_text(aes(label=abs(DE_Genes), vjust= 1.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="down"))+
+  geom_text(aes(label=paste(abs(DE_Genes), "up"), vjust= -0.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="up"))+
+  geom_text(aes(label=paste(abs(DE_Genes), "down"), vjust= 1.2), data = subset(sig_gene_counts, sig_gene_counts$Direction=="down"))+
   theme_minimal()+
-  ylim(-1200, 2000)+
+  scale_y_continuous(labels = c("1000", "500", "0", "500", "1000"), limits = c(-1500, 1500), breaks = c(-1000, -500, 0, 500, 1000))+
   scale_fill_manual(values=bar_palette)+
+  scale_x_discrete(expand = expansion(add=0.5))+
   ylab("Number of Differentially Expressed Genes\n")+
   theme(legend.position = "none",
         axis.title.x=element_blank(),
         axis.text.x = element_text(angle=30, hjust=1))
+  
 
 #ggsave("/home/flobuntu/PhD/RNAseq/vac69a/all/xls/figures/sig_gene_count_plots_log2fc058.png", sig_gene_count_plots)
-ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_sig_gene_count_plots_log2fc058.png", sig_gene_count_plots, height = 4.5, width = 4)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_1/1_sig_gene_count_plots_log2fc058.png", sig_gene_count_plots, height = 4.5, width = 5)
 
 
   # venn diagrams ####

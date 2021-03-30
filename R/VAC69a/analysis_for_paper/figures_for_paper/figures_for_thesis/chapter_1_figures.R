@@ -632,7 +632,7 @@ adverse_pies <- long_ae_data %>%
   mutate(timepoint = gsub(" am", "", timepoint, fixed = T)) %>%
   mutate(symptom = gsub("Haemaglobin", "Haemoglobin", symptom, fixed = T)) %>%
   filter(timepoint %in% c("Diagnosis", "T1","T2", "T6")) %>%
-  filter(symptom %notin% c("vomiting", "nausea","pyrexia", "diarrhoea", "back_pain", "arthralgia",
+  filter(symptom %notin% c("vomiting", "nausea","Pyrexia", "diarrhoea", "back_pain", "arthralgia",
                            "Ggt", "Ast", "Pyrexia_temp")) 
 
 adverse_pies$symptom <- gsub("Alt", "ALT", adverse_pies$symptom) 
@@ -668,6 +668,7 @@ for(i in unique(adverse_pies$source)){
     ggsave(paste("~/PhD/figures_for_thesis/chapter_1/1_", i, "_ae_pies.png", sep=''), ae_pies, height=3, width=0.9*length(unique(plottable_data$symptom)))
 }
 
+# ggsave(paste("~/PhD/figures_for_thesis/chapter_1/1_", i, "_ae_pies.png", sep=''), ae_pies, height=4, width=0.7*length(unique(plottable_data$symptom)))
 
 # parasitaemias ####
 

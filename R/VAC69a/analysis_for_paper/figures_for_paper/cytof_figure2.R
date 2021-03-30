@@ -179,7 +179,7 @@ circlize_plot = function() {
   highlight.sector(sector.index = grep("MAIT", pie_data$cluster_id, value = T), track.index = 1, 
                    border = "black", text = "MAIT", col = "white")
   highlight.sector(sector.index = grep("gamma delta", pie_data$cluster_id, value = T), track.index = 1, 
-                   border = "black", text = "Vd2", col = "white", )
+                   border = "black", text = "gd", col = "white", )
   
   
   # # Just color, no text
@@ -215,6 +215,7 @@ lgd_cluster= Legend(at =lvls, type = "grid",
 
 #write out pie chart with legend
 
+# 
 pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cluster_activation_pie.pdf", width=7, height=4)
 
 plot.new()
@@ -229,6 +230,12 @@ draw(lgd_cluster, x = circle_size, just = "left")
 #title("Average Size of Significantly Upregulated Clusters at T6", 0,6)
 
 dev.off()
+# 
+
+
+
+
+
 
 
 
@@ -274,18 +281,26 @@ cd4_memory_activation_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, 
   scale_y_continuous(name = "Percentage of CD4 memory T cells at T6", labels=scales::percent_format(accuracy = 1))+
   theme_minimal()+
   xlab("Volunteer")+
-  guides(fill=guide_legend(ncol=2))+
+  guides(fill=guide_legend(ncol=1, override.aes = list(size=0.5)))+
   theme(plot.title = element_text(hjust=0.5, size=10),
         axis.text = element_text(size=8),
         axis.title = element_text(size=8),
         legend.title = element_blank(),
-        strip.text = element_text(hjust=0.5, face = "bold"),
-        legend.position = "none",
-        legend.justification = "center",
+        strip.text = element_text(hjust=1, face = "bold"),
+        #legend.position = "none",
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.text = element_text(size=8),
+        legend.key.size = unit(0.4, "lines"),
         panel.grid.minor.y = element_blank(),
         strip.placement = "outside")
 
-ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activation_stacked_barchart.pdf", cd4_memory_activation_stacked_barchart, width=2.5, height = 2.5)
+#ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/cd4_memory_activation_stacked_barchart.pdf", cd4_memory_activation_stacked_barchart, width=2.5, height = 2.5)
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_2/cd4_memory_activation_stacked_barchart.pdf", cd4_memory_activation_stacked_barchart, width=2.5, height = 3.4)
+
+
+
+
 
 sig_cd4_stacked_barchart <- ggplot(cd4_bar_data, aes(x=volunteer, y=frequency/100, fill=factor(cluster_id, levels = stacked_bar_levels)))+
   geom_bar(stat="identity", position="stack")+

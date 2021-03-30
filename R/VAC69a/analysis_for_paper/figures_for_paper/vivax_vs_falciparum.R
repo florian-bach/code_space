@@ -260,10 +260,10 @@ library(tidyr)
 library(dplyr)
 
 
-#falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
+falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
 #falci_t6_data <- read.csv("~/PhD/RNAseq/vac63c/T6vBas_First_DEGs_log2fc_cutoff.csv", header = T, stringsAsFactors = F, row.names = 1)
 
-falci_t6_data <- data.table::fread("~/PhD/RNAseq/vac63c/Set5_Tplus6_First_relativeto_Cminus1_First_ALLdata_genelist.xls", header = T, stringsAsFactors = F)
+#falci_t6_data <- data.table::fread("~/PhD/RNAseq/vac63c/Set5_Tplus6_First_relativeto_Cminus1_First_ALLdata_genelist.xls", header = T, stringsAsFactors = F)
 
 
 #careful, filtering by pvalue herem we usually use fold change
