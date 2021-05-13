@@ -261,7 +261,7 @@ library(dplyr)
 
 
 falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv", header = T, stringsAsFactors = F, row.names = 1)
-#falci_t6_data <- read.csv("~/PhD/RNAseq/vac63c/T6vBas_First_DEGs_log2fc_cutoff.csv", header = T, stringsAsFactors = F, row.names = 1)
+falci_t6_data <- read.csv("~/PhD/RNAseq/vac63c/T6vBas_First_DEGs_log2fc_cutoff.csv", header = T, stringsAsFactors = F, row.names = 1)
 
 #falci_t6_data <- data.table::fread("~/PhD/RNAseq/vac63c/Set5_Tplus6_First_relativeto_Cminus1_First_ALLdata_genelist.xls", header = T, stringsAsFactors = F)
 
@@ -269,7 +269,7 @@ falci_dod_data <- read.csv("~/PhD/RNAseq/vac63c/FirstDoD_genelist_padj_0.05.csv"
 #careful, filtering by pvalue herem we usually use fold change
 falci_t6_data <- falci_t6_data %>%
   group_by(Symbol) %>%
-  top_n(n = -1, wt = pvalue) %>%
+  top_n(n = -1, wt = padj) %>%
   #select(-PathwayID) %>%
   #distinct(Symbol, .keep_all = TRUE) %>%
   ungroup()
@@ -402,7 +402,7 @@ col_fun_rna <- circlize::colorRamp2(seq(0,max(gene_matrix)+0.5, by=max(gene_matr
 
 #col_fun_rna <- circlize::colorRamp2(c(min(gene_matrix), 0, max(gene_matrix)), c("#0859C6", "black", "#FFA500"))
 
-colnames(gene_matrix) <- tolower(colnames(gene_matrix))
+#colnames(gene_matrix) <- tolower(colnames(gene_matrix))
 
 
 gene_heatmap <- Heatmap(matrix = gene_matrix,
@@ -412,11 +412,11 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
         heatmap_legend_param = list(title = "log2FC",
                                     at=seq(0,5),
                                     title_gp=gpar(fontsize=8, fontface="bold"),
-                                    legend_height=unit(units = "mm",8),
+                                    #legend_height=unit(units = "mm",12),
                                     labels_gp=gpar(fontsize=7)
                                     ),
         cluster_columns = FALSE,
-        column_names_gp = gpar(fontsize = 8),
+        column_names_gp = gpar(fontsize = 8, fontface="italic"),
         row_names_gp = gpar(fontsize = 8, fontface="italic"),
         row_names_side = "left",
         col = col_fun_rna,
@@ -426,10 +426,10 @@ gene_heatmap <- Heatmap(matrix = gene_matrix,
 # draw(gene_heatmap
 # )
 # dev.off()
+
 # 
-
-
-pdf("/home/flobuntu/PhD/figures_for_thesis/chapter_1/vivax_falciparum_rna_heat.pdf", height = 1.1, width=4.3)
+# 
+pdf("/home/flobuntu/PhD/figures_for_thesis/chapter_1/vivax_falciparum_rna_heat.pdf", height = 1.6, width=4.3)
 draw(gene_heatmap
 )
 dev.off()

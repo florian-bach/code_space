@@ -243,53 +243,54 @@ all_mamma_delta_data_summary <- all_mamma_delta_data %>%
 
 activated_all_mamma_delta_data <- subset(all_mamma_delta_data, grepl("*activated*", all_mamma_delta_data$cluster_id))
 
-# 
-# activated_all_mamma_delta_plot <- ggplot(activated_all_mamma_delta_data, aes(x=volunteer, y=frequency/100, fill=factor(lineage)))+
-#   geom_bar(stat="identity", position="stack")+
-#   theme_minimal()+
-#   facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
-#   scale_fill_manual(values=lineage_palette)+
-#   scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
-#   theme(plot.title = element_text(hjust=0.5, size=11),
-#         strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-#         axis.title.x = element_blank(),
-#         legend.position="bottom",
-#         legend.direction = "horizontal",
-#         legend.title = element_blank(),
-#         legend.text = element_text(size=7),
-#         axis.text.x = element_text(angle = 45, hjust=1),
-#         panel.grid.minor.y = element_blank(),
-#         strip.placement = "outside")
-# 
-# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_mait_stack.pdf", activated_all_mamma_delta_plot, height=4, width=9)
-# 
 
-# 
-# 
-# all_mamma_delta_data_summary$pie_fill <- ifelse(grepl("*activated*", all_mamma_delta_data$cluster_id), as.character(all_mamma_delta_data$lineage), "resting")
-# 
-# phil_palette <- c(lineage_palette, "resting"="grey")
-# 
-# mait_gd_acti_plot <- ggplot(all_mamma_delta_data_summary, aes(x=volunteer, y=scaled_freq, fill=factor(pie_fill, levels=c("resting", "gd", "MAIT"))))+
-#   geom_bar(stat="identity", position="stack")+
-#   theme_minimal()+
-#   facet_grid(lineage~timepoint)+
-#   #coord_polar(theta = "y")+
-#   scale_fill_manual(values=phil_palette)+
-#   scale_y_continuous(trans = "reverse", name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
-#   theme(plot.title = element_text(hjust=0.5, size=11),
-#         strip.text = element_text(hjust=0.5, size=10, face = "bold"),
-#         axis.title.x = element_blank(),
-#         legend.position="bottom",
-#         legend.direction = "horizontal",
-#         legend.title = element_blank(),
-#         legend.text = element_text(size=7),
-#         axis.text.x = element_text(angle = 45, hjust=1),
-#         panel.grid.minor.y = element_blank(),
-#         strip.placement = "outside")
-# 
-# 
-# ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/mait_gd_acti_plot.pdf", mait_gd_acti_plot, height=8, width=9)
+activated_all_mamma_delta_plot <- ggplot(activated_all_mamma_delta_data, aes(x=volunteer, y=frequency/100, fill=factor(lineage)))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_wrap(~timepoint, strip.position = "bottom", ncol=4)+
+  scale_fill_manual(values=lineage_palette)+
+  scale_y_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        legend.text = element_text(size=7),
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gd_mait_stack.pdf", activated_all_mamma_delta_plot, height=4, width=9)
+
+
+
+
+all_mamma_delta_data_summary$pie_fill <- ifelse(grepl("*activated*", all_mamma_delta_data$cluster_id), as.character(all_mamma_delta_data$lineage), "resting")
+
+phil_palette <- c(lineage_palette, "resting"="grey")
+
+mait_gd_acti_plot <- ggplot(all_mamma_delta_data_summary, aes(x=volunteer, y=scaled_freq, fill=factor(pie_fill, levels=rev(c("gd", "MAIT", "resting")))))+
+  geom_bar(stat="identity", position="stack")+
+  theme_minimal()+
+  facet_grid(lineage~timepoint)+
+  #coord_polar(theta = "y")+
+  scale_fill_manual(values=phil_palette)+
+  scale_y_continuous(name = "Percentage of Lineage Activated", labels=scales::percent_format(accuracy = 1))+
+  theme(plot.title = element_text(hjust=0.5, size=11),
+        strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+        axis.title.x = element_blank(),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        legend.title = element_blank(),
+        legend.text = element_text(size=7),
+        axis.text.x = element_text(angle = 45, hjust=1),
+        panel.grid.minor.y = element_blank(),
+        strip.placement = "outside")
+
+
+#ggsave("/home/flobuntu/PhD/figures_for_thesis/chapter_03/mait_gd_acti_plot.pdf", mait_gd_acti_plot, height=8, width=9)
+ggsave("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/mait_gd_acti_plot.pdf", mait_gd_acti_plot, height=8, width=9)
 
 
 all_cells_acti_summary <- stacked_bar_data
@@ -1026,12 +1027,13 @@ cowplot::ggsave2("/home/flobuntu/PhD/figures_for_thesis/chapter_03/gate_unlabele
 
 num_wide_scaled_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/sample_wise_cluster_expression_matrix.csv", header=T, row.names = 1)
 
-# ter_dod_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_dod_ms.csv", header=T, row.names = 1)
-# prim_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/prim_t6_ms.csv", header=T, row.names = 1)
-# ter_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_t6_ms.csv", header=T, row.names = 1)
+ter_dod_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_dod_ms.csv", header=T, row.names = 1)
+prim_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/prim_t6_ms.csv", header=T, row.names = 1)
+ter_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_t6_ms.csv", header=T, row.names = 1)
 # 
 #
-num_wide_scaled_ms <- ter_t6_ms
+# slot ds limma dataset in here! 
+num_wide_scaled_ms <- prim_t6_ms
 
 
 
@@ -1137,19 +1139,19 @@ top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
   # dev.off()
 
 
-  # pdf("~/PhD/figures_for_thesis/chapter_03/ter_dod_limma.pdf", width = 10, height=5)
+  # pdf("~/PhD/figures_for_thesis/chapter_03/ter_dod_limma_var.pdf", width = 10, height=5)
   # draw(median_cluster_heat,
   #      annotation_legend_list = list(limma_leg, limma_leg2),
   #      merge_legends = TRUE, heatmap_legend_side = "bottom")
   # dev.off()
 
-  # pdf("~/PhD/figures_for_thesis/chapter_03/prim_t6_limma.pdf", width = 10, height=12)
-  # draw(median_cluster_heat,
-  #      annotation_legend_list = list(limma_leg, limma_leg2),
-  #      merge_legends = TRUE, heatmap_legend_side = "bottom")
-  # dev.off()
+  pdf("~/PhD/figures_for_thesis/chapter_03/prim_t6_limma.pdf", width = 10, height=12)
+  draw(median_cluster_heat,
+       annotation_legend_list = list(limma_leg, limma_leg2),
+       merge_legends = TRUE, heatmap_legend_side = "bottom")
+  dev.off()
   
-  pdf("~/PhD/figures_for_thesis/chapter_03/ter_t6_limma.pdf", width = 10, height=7)
+  pdf("~/PhD/figures_for_thesis/chapter_03/ter_t6_limma_var.pdf", width = 10, height=7)
   draw(median_cluster_heat,
        annotation_legend_list = list(limma_leg, limma_leg2),
        merge_legends = TRUE, heatmap_legend_side = "bottom")
@@ -1482,8 +1484,10 @@ vac63c_indie_var <- plot_grid(indie_aitchison_cytof, n_infection_aitchison_cytof
 
 ms <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/median_expression_on_each_cluster.csv", header=T)
 
+limma_markers <- scan("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/vac63c_sig_limma_markers.txt", what = "")
 
 slimmer_ms <- ms %>%
+  filter(antigen %in% limma_markers)%>%
   mutate("contrast"= paste(antigen, " on ", cluster_id))%>%
   select(contrast, sample_id, value) %>%
   pivot_wider(names_from = sample_id, values_from = value)

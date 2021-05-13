@@ -676,3 +676,149 @@ all_cluster_freqs <- ggplot(all_freq_data, aes(x=factor(timepoint), y=frequency/
 
 cowplot::ggsave2("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/figures_for_paper/supp_all_cluster_freqs_var.pdf", all_cluster_freqs, width=8.3, height=11.7)
 
+
+
+
+
+
+
+
+
+
+
+
+
+# ds_limma   ####
+# 
+
+num_wide_scaled_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/sample_wise_cluster_expression_matrix.csv", header=T, row.names = 1)
+
+ter_dod_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_dod_ms.csv", header=T, row.names = 1)
+prim_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/prim_t6_ms.csv", header=T, row.names = 1)
+ter_t6_ms <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_t6_ms.csv", header=T, row.names = 1)
+# 
+#
+# slot ds limma dataset in here! 
+num_wide_scaled_ms <- prim_t6_ms
+
+
+
+rownames(num_wide_scaled_ms) <- gsub("CD8 Effector", "Effector CD8", rownames(num_wide_scaled_ms))
+rownames(num_wide_scaled_ms) <- gsub("CD8 CM", "CM CD8", rownames(num_wide_scaled_ms))
+
+colnames(num_wide_scaled_ms) <- gsub("DoD", "Diagnosis",colnames(num_wide_scaled_ms), fixed = TRUE)
+
+
+limma_col_split <- factor(rep(c("Baseline", "Diagnosis", "T6", "C45"), each=9), levels=c(c("Baseline", "Diagnosis", "T6", "C45")))
+
+open_bracket_positions <- sapply(rownames(num_wide_scaled_ms), function(x) regexpr(pattern = "*\\(", text=x))
+limma_row_split_lineage <- substr(rownames(num_wide_scaled_ms),open_bracket_positions-5, open_bracket_positions-2)
+sig_limma_markers <- unique(substr(rownames(num_wide_scaled_ms),open_bracket_positions+1, nchar(rownames(num_wide_scaled_ms))-1))
+
+limma_row_split_lineage <- limma_row_split_lineage %>%
+  gsub(" ", "", ., fixed = TRUE)
+
+
+num_wide_scaled_ms <- num_wide_scaled_ms[,paste(rep(c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"),times=4), rep(c("Baseline", "Diagnosis", "T6", "C45"), each=9), sep="_")]
+
+
+colnames(num_wide_scaled_ms) <- gsub("_", " ", colnames(num_wide_scaled_ms))
+
+num_wide_scaled_ms <- ifelse(num_wide_scaled_ms>abs(min(num_wide_scaled_ms)), abs(min(num_wide_scaled_ms)), as.matrix(num_wide_scaled_ms))
+
+col_fun_ds_limma <- circlize::colorRamp2(c(min(num_wide_scaled_ms), 0, max(num_wide_scaled_ms)), c("#0859C6", "black", "#FFA500"))
+#
+
+top_anno <-  columnAnnotation(annotation_name_gp = gpar(fontsize=10),
+                              # annotation_name_rot = 45,
+                              gap = unit(1.5, "mm"),
+                              "volunteer"=rep(c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"),times=4),
+                              "n_infection"=rep(c("first", "first", "first", "third", "third", "third", "third", "third", "third"),times=4),
+                              show_legend = c(FALSE, FALSE),
+                              show_annotation_name = TRUE,
+                              simple_anno_size = unit(4, "mm"), # width of the significance bar
+                              col=list("n_infection" = c("third"="darkgrey", "first"="#36454f"),
+                                       "volunteer" = vol_pal),
+                              annotation_legend_param = list(n_infection = list(title ="n_infection",
+                                                                                at = c("first", "third"),
+                                                                                #title_gp=gpar(angle=45),
+                                                                                legend_gp = gpar(fill = c("#36454f", "darkgrey")),
+                                                                                title_position = "topleft")
+                              )
+                              
+)
+
+
+
+limma_leg = Legend(at = c("v313", "v315", "v320", "v306", "v301", "v308", "v305", "v304", "v310"),
+                   type = "grid",
+                   legend_gp = gpar(fill = vol_pal, size=1),
+                   title_position = "topleft",
+                   direction = "horizontal",
+                   nrow = 1,
+                   labels_gp = gpar(fontsize =9),
+                   title = "Volunteer")
+
+limma_leg2 = Legend(at = c("first", "third"),
+                    type = "grid",
+                    legend_gp = gpar(fill = c("#36454f", "darkgrey")),
+                    title_position = "topleft",
+                    direction = "horizontal",
+                    nrow = 1,
+                    labels_gp = gpar(fontsize =9),
+                    title = "N_infection")
+
+
+median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
+                               cluster_rows = TRUE,
+                               column_order = 1:36,
+                               name = "Scaled Marker Expression",
+                               cluster_columns = FALSE,
+                               show_row_dend = TRUE,
+                               row_dend_side = "right",
+                               row_names_side = "left",
+                               col = col_fun_ds_limma,
+                               column_names_gp = gpar(fontsize = 11),
+                               column_split = limma_col_split,
+                               top_annotation = top_anno,
+                               split = limma_row_split_lineage,
+                               rect_gp = gpar(col = "white"),
+                               show_parent_dend_line = FALSE,
+                               show_heatmap_legend = TRUE,
+                               column_names_rot = 45,
+                               heatmap_legend_param = list(legend_position = "top",
+                                                           col=col_fun_ds_limma,
+                                                           title = "Normalised Marker Expression",
+                                                           legend_direction = "horizontal",
+                                                           title_position = "topcenter",
+                                                           legend_width = unit(6.2, "cm"),
+                                                           border = FALSE)
+                               #width = unit(16, "cm"),
+                               #height = unit(16*9/28, "cm")
+)
+
+
+# pdf("~/PhD/figures_for_thesis/chapter_03/cross_sectional_t6_limma.pdf", width = 10, height=12)
+# draw(median_cluster_heat,
+#      annotation_legend_list = list(limma_leg, limma_leg2),
+#      merge_legends = TRUE, heatmap_legend_side = "bottom")
+# dev.off()
+
+
+# pdf("~/PhD/figures_for_thesis/chapter_03/ter_dod_limma_var.pdf", width = 10, height=5)
+# draw(median_cluster_heat,
+#      annotation_legend_list = list(limma_leg, limma_leg2),
+#      merge_legends = TRUE, heatmap_legend_side = "bottom")
+# dev.off()
+
+pdf("~/PhD/figures_for_thesis/chapter_03/prim_t6_limma.pdf", width = 10, height=12)
+draw(median_cluster_heat,
+     annotation_legend_list = list(limma_leg, limma_leg2),
+     merge_legends = TRUE, heatmap_legend_side = "bottom")
+dev.off()
+
+pdf("~/PhD/figures_for_thesis/chapter_03/ter_t6_limma_var.pdf", width = 10, height=7)
+draw(median_cluster_heat,
+     annotation_legend_list = list(limma_leg, limma_leg2),
+     merge_legends = TRUE, heatmap_legend_side = "bottom")
+dev.off()

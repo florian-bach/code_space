@@ -87,6 +87,16 @@ coarse_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_com
 sce <- CATALYST::mergeClusters(sce, k = "meta50", table = coarse_table, id = "coarse_merge", overwrite = TRUE)
 
 
+states <- state_markers(sce)
+states_plus <- c(states, "CXCR5", "CD161", "CD27", "FoxP3", "CD56", "CX3CR1")
+limma_markers <- states_plus[-c(8,9,21)]
+
+
+#logic <- names(marker_classes(sce)) %in% states
+
+metadata(sce)$id_state_markers <- limma_markers
+
+
 
 primaries <- filterSCE(sce, volunteer %in% c("v313", "v315", "v320"))
 tertiaries <- filterSCE(sce, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
@@ -216,6 +226,10 @@ prim_t6_contrasts <- subset(prim_t6_df, prim_t6_df$p_adj<0.05 & abs(prim_t6_df$l
 ter_t6_contrasts <- subset(ter_t6_df, ter_t6_df$p_adj<0.05 & abs(ter_t6_df$logFC) > log2(1.1))
 ter_dod_contrasts <- subset(ter_dod_df, ter_dod_df$p_adj<0.05 & abs(ter_dod_df$logFC) > log2(1.1))
 
+antigens <- unique(rbind(prim_t6_contrasts, ter_t6_contrasts, ter_dod_contrasts)$marker_id)
+write.table(antigens, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/vac63c_sig_limma_markers.txt", sep="\t", col.names = FALSE, row.names = FALSE)
+
+
 prim_t6_contrasts <- paste(prim_t6_contrasts$cluster_id, " (", prim_t6_contrasts$marker_id, ")", sep="")
 ter_t6_contrasts <- paste(ter_t6_contrasts$cluster_id, " (", ter_t6_contrasts$marker_id, ")", sep="")
 ter_dod_contrasts <- paste(ter_dod_contrasts$cluster_id, " (", ter_dod_contrasts$marker_id, ")", sep="")
@@ -275,8 +289,8 @@ rownames(wide_scaled_ms) <- wide_scaled_ms$contrast
 wide_scaled_ms$contrast <- NULL
 num_wide_scaled_ms <- as.matrix(wide_scaled_ms[, 2:ncol(wide_scaled_ms)])
 
-write.csv(num_wide_scaled_ms, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_dod_ms.csv")
-write.csv(num_wide_scaled_ms, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/prim_t6_ms.csv")
+#write.csv(num_wide_scaled_ms, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_dod_ms.csv")
+#write.csv(num_wide_scaled_ms, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/prim_t6_ms.csv")
 write.csv(num_wide_scaled_ms, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/ds_limma/ter_t6_ms.csv")
 
 

@@ -70,7 +70,7 @@ states_plus <- c(states, "CXCR5", "CD161", "CD27", "FoxP3", "CD56", "CX3CR1", "C
 
 logic <- names(marker_classes(merged_daf)) %in% states
 
-metadata(merged_daf)$id_state_markers <- states_plus
+metadata(merged_daf)$id_state_markers <- states_plus[-c(8,9,21,29)]
 
 
 
