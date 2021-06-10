@@ -865,3 +865,72 @@ ggplot(combo2, aes(x=sum_cd3, y=max_parasiatemia))+
 
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/tcell_activation_vs_max_parasiatemia.pdf")
 
+
+
+
+
+
+
+
+#### reviewer's comments tryout ####
+
+
+cytof_data_for_corr <- wide_cytof_sans_v09[grepl("activated", rownames(wide_cytof_sans_v09)),11:15]
+plasma_data_for_corr <- log_plasma_data[,c(2,5,8,11,14)]
+
+colnames(cytof_data_for_corr) <- substr(colnames(cytof_data_for_corr), 1,3)
+colnames(plasma_data_for_corr) <- substr(colnames(plasma_data_for_corr), 1,3)
+
+big_table <- rbind(cytof_data_for_corr, plasma_data_for_corr)
+
+timepoint <- big_table
+
+distance <- "euclidean" # manhattan/euclidean maybe
+
+spearman <- cor(t(timepoint), method = "spearman")
+
+baseline_dist <- dist(spearman, method = distance, diag = FALSE, upper = FALSE, p = 2)
+baseline_hclust <- hclust(baseline_dist)
+
+#check.names=FALSE here makes sure that the +/- symbols parse and spaces aren't dots
+colnames(spearman) <- gsub(".", " ", colnames(spearman), fixed=T)
+rownames(spearman) <- gsub(".", " ", rownames(spearman), fixed=T)
+
+baseline_spearman_df  <- data.frame(spearman, check.names = FALSE)
+colnames(baseline_spearman_df) <- gsub(".", " ", colnames(baseline_spearman_df), fixed=T)
+
+
+pearson_matrix <- as.matrix(baseline_spearman_df[rownames(baseline_spearman_df)[rev(baseline_hclust$order)],colnames(baseline_spearman_df)[rev(baseline_hclust$order)]])
+
+
+
+col_fun_pearson <- circlize::colorRamp2(c(min(pearson_matrix), 0, max(pearson_matrix)), c("#0859C6", "black", "#FFA500"))
+
+#doesnt work for pdf..
+# colnames(pearson_matrix) <- gsub("IFNy", "IFNγ", colnames(pearson_matrix))
+# rownames(pearson_matrix) <-  gsub("IFNy", "IFNγ",rownames(pearson_matrix))
+
+library(ComplexHeatmap)
+
+pearson_heatmap <- Heatmap(matrix = pearson_matrix,
+                           cluster_rows = TRUE,
+                           cluster_columns=TRUE,
+                           show_row_dend = FALSE,
+                           show_column_dend = TRUE,
+                           show_heatmap_legend = TRUE,
+                           name = "Spearmon rho",
+                           #name = "Pearson r",
+                           #cluster_columns = FALSE,
+                           column_names_gp = gpar(fontsize = 6),
+                           row_names_gp = gpar(fontsize = 6),
+                           row_names_side = "left",
+                           col = col_fun_pearson,
+                           column_names_rot = 45)
+
+# pdf("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/spearman_heatmap_.pdf", height=4.5, width = 5)
+# draw(pearson_heatmap, padding=unit(c(2,2,2,2), "mm"))
+# dev.off()
+
+pdf("/home/flobuntu/PhD/cytof/vac69a/figures_for_paper/plasma_dod_cytof_t6_spearman.pdf", height=4.5, width = 5)
+draw(pearson_heatmap, padding=unit(c(2,2,2,2), "mm"))
+dev.off()

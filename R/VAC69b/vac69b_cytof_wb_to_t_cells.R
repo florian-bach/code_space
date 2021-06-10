@@ -157,3 +157,66 @@ flowCore::write.flowSet(comped_T_cells_fs, outdir = "~/PhD/cytof/vac69b/T_cells_
 
 
 
+#### gate again to get rid of doublets??? ####
+
+library(openCyto)
+library(ggcyto)
+# library(dplyr)
+# library(tidyr)
+#library(ggplot2)
+# 
+`%notin%` <- Negate(`%in%`)
+# 
+# 
+
+setwd("~/PhD/cytof/vac69b/T_cells_only/comped/")
+
+
+md <- read.csv("~/PhD/cytof/vac69b/T_cells_only/metadata.csv")
+md <- subset(md, md$timepoint %in% c("baseline", "dod", "ep6", "c56"))
+
+
+vac69b_flowset <- flowCore::read.flowSet(md$file_name)
+
+vac69b_gs <- GatingSet(vac69b_flowset)
+
+
+#define DNA channels
+panel <- read.csv("~/PhD/cytof/vac69b/T_cells_only/vac69b_panel.csv", header=T)
+dna <- grep("^Ir", panel$fcs_colname, value = TRUE)
+
+
+
+gs_add_gating_method(vac69b_gs,
+                     alias = "cells",
+                     pop = "+", parent = "root",
+                     dims = "Ir191Di,Ce140Di",
+                     gating_method = "flowClust.2d",
+                     gating_args = "K=1,quantile=0.93,target=c(5,5)")
+
+
+
+gs_add_gating_method(vac69b_gs,
+                     alias = "singlets",
+                     pop = "+", parent = "cells",
+                     dims = paste(dna, collapse = ","),
+                     gating_method = "flowClust.2d",
+                     gating_args = "K=1,quantile=0.93,target=c(5,5)")
+
+df <- gs_pop_get_stats(vac69b_gs,
+                       type = "percent",
+                       nodes = c("cells", "singlets"))
+
+df
+
+
+all <- ggcyto(vac69b_gs, aes_string(dna[1], dna[2]))+
+  geom_hex(bins = 100)+
+  geom_gate("singlets")
+
+
+
+fs <- gs_pop_get_data(vac69b_gs, "/cells/singlets") # get data from ’GatingSet’
+write.flowSet(x = fs, outdir = "./recomped")
+
+

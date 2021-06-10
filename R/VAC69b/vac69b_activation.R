@@ -108,79 +108,197 @@ t_cell_pheno
 dev.off()
 
 
-meta50_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_50_merge.csv")
-merged_daf <- CATALYST::mergeClusters(sce, k = "meta50", table = meta45_table, id = "flo_merge", overwrite = TRUE)
+meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/rough_vac69b_meta45_merging_table.csv", header=T)
+merged_daf <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge", overwrite = TRUE)
+
+# differential abundance for plotting
+
+library(diffcyt)
+
+ei <- metadata(sce)$experiment_info
+vac69b_design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
+colnames(vac69b_design)
+  
+  
+t6_contrast <- createContrast(c(c(0,0,0,1), rep(0, 4)))
+  
+  
+  
+da_t6_all <- diffcyt(merged_daf,
+                         design = vac69b_design,
+                         contrast = t6_contrast,
+                         analysis_type = "DA",
+                         method_DA = "diffcyt-DA-edgeR",
+                         clustering_to_use = "flo_merge",
+                         verbose = T)
+  
+
+diffy_data <- vac69a.cytof::diffcyt_boxplot(da_t6_all, merged_daf, FDR=1, logFC=0)$data 
+diffy_data_count <- vac69a.cytof::diffcyt_boxplot(da_t6_all, merged_daf, FDR=1, logFC=0, counts = TRUE)$data 
+
+write.csv(diffy_data, "/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/vac69b_meta45_all_freqs.csv", row.names = FALSE)
+write.csv(diffy_data_count, "/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/vac69b_meta45_all_counts.csv", row.names = FALSE)
+
+
+# figures ####
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+vac69b_data <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/vac69b_meta45_all_freqs.csv", header = T)
+vac69a_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_freqs.csv", header = T)
+
+
+
+lousy_timepoints <- unique(vac69b_data$timepoint)
+
+good_timepoints <- c("Baseline", "C56", "Diagnosis", "T6")
+timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
+
+vac69b_data$timepoint <- stringr::str_replace_all(vac69b_data$timepoint, timepoint_replacement)
+vac69b_data$lineage <- ifelse(grepl("CD4", vac69b_data$cluster_id), "CD4", NA)
+vac69b_data$lineage <- ifelse(grepl("CD8", vac69b_data$cluster_id), "CD8", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("Treg", vac69b_data$cluster_id), "Treg", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("MAIT", vac69b_data$cluster_id), "MAIT", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("gd", vac69b_data$cluster_id), "gd", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("DN", vac69b_data$cluster_id), "DN", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("DP", vac69b_data$cluster_id), "DP", vac69b_data$lineage)
+
+vac69a_data$lineage <- ifelse(grepl("CD4", vac69a_data$cluster_id), "CD4", NA)
+vac69a_data$lineage <- ifelse(grepl("CD8", vac69a_data$cluster_id), "CD8", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("Treg", vac69a_data$cluster_id), "Treg", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("MAIT", vac69a_data$cluster_id), "MAIT", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("gamma delta", vac69a_data$cluster_id), "gd", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("DN", vac69a_data$cluster_id), "DN", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("DP", vac69a_data$cluster_id), "DP", vac69a_data$lineage)
+
+vac69a_data$volunteer <- gsub("V", "v", vac69a_data$volunteer, fixed=T)
+vac69a_data$timepoint <- gsub("DoD", "Diagnosis", vac69a_data$timepoint, fixed=T)
+
+vac69a_data$n_infection <- "First"
+vac69b_data$n_infection <- ifelse(vac69b_data$volunteer %in% c("v11", "v21"), "First", "Second")
+
+
+
+combo_data <- rbind(select(vac69a_data, cluster_id, sample_id, volunteer, timepoint, frequency, lineage, n_infection),
+                    select(vac69b_data, cluster_id, sample_id, volunteer, timepoint, frequency, lineage, n_infection)
+                    )
+
+plottable_data <- filter(combo_data, timepoint %in% c("Baseline, Diagnosis", "T6"))
+
+non_naive_perc <- plottable_data %>%
+  group_by(volunteer, timepoint, n_infection) %>%
+  filter(grepl("non-naive", cluster_id, fixed = F))%>%
+  summarise(sum(frequency))
+  
+
+plottable_data <- subset(plottable_data, grepl("activated", plottable_data$cluster_id))  
+plottable_data$volunteer <- factor(plottable_data$volunteer)
+
+lineage_palette <- c("#AA3377", "#EE6677", "#4477AA", "#66CCEE", "#228833", "#FFA500", "#BBBBBB")
+names(lineage_palette) <-c("CD4", "Treg", "CD8", "MAIT", "gd", "DN", "Resting")
+
+
+
+volunteer_colours <- list("v02" = "#FB9A99",
+                          "v03" = "#E31A1C",
+                          "v05" = "#A6CEE3",
+                          "v06" = "#1F78B4",
+                          "v07" = "#F0E442",
+                          "v09" = "#E69F00",
+                          "v11" = "#c3015c",
+                          "v21" = "#6d0133")
+
+
+
+volunteer_palette <- unlist(unname(volunteer_colours))
+names(volunteer_palette) <- names(volunteer_colours)
 
 
 
 
-test <- c("CD38", "FoxP3")
-plotScatter(sce, chs = c("Tb159Di", "Gd160Di"))
+
+activation_stacked_barchart <- ggplot(plottable_data, aes(x=volunteer, y=frequency/100, fill=lineage))+
+  geom_bar(stat="identity", position="stack")+
+  #geom_text(aes(y=(total_cd3/100)+0.01, label=paste0(round(total_cd3, digits = 1), "%", sep='')))+
+  theme_minimal()+
+  facet_wrap(timepoint~n_infection)+
+  ggtitle("Overall T cell activation")+
+  scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
+  scale_y_continuous(name = "Fraction of CD3+ T cells activated", labels=scales::percent_format(accuracy = 1))+
+  #ylim(0,25)+
+  #geom_text(aes(label=cluster_id), position = position_stack(vjust = .5))+
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust=0.5, size=8),
+    strip.text = element_text(),
+    strip.background = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_text(hjust=0.5, angle=45),
+    panel.spacing.x = unit(0.8,"lines"),
+    axis.title.y = element_text(size=7),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "none",)
 
 
 
+#### sandbox ####
 
+plottable_data <- filter(plottable_data, lineage=="CD4")  
 
+prim_summary_t6 <-  filter(plottable_data, n_infection=="First")
+  
+prim_sig_activation_lolli <- ggplot()+
+    geom_bar(data=prim_summary_t6,aes(y=factor(volunteer, levels=c("v02", "v03", "v05", "v06", "v07", "v09", "v11", "v21")), x=frequency/100, fill=lineage), stat="identity", position="stack", width=1)+
+    theme_minimal()+
+    ggtitle("T Cell Activation at T6 First Vivax Infection")+
+    scale_fill_manual(values=lineage_palette)+
+    #scale_x_reverse(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), limits=c(0.25, 0), breaks=c(25, 20, 15, 10, 5, 0)/100)+
+    scale_x_reverse(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), na.value=0, limits=c(0.15, 0),  breaks=c(15, 10, 5, 0)/100)+
+    guides(fill=guide_legend(nrow = 6,keyheight = unit(4, "mm"), keywidth = unit(8, "mm")))+
+    theme(plot.title = element_text(hjust=0.5, size=11),
+          strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.text.y = element_text(color = "white"),
+          strip.placement = "outside",
+          #plot.margin = unit(c(1,0,1,5), "mm"),
+          legend.position = "bottom",
+          legend.text = element_text(size=6),
+          legend.title = element_blank())
+  
+  
+  cluster_leg <- cowplot::get_legend(prim_sig_activation_lolli)
+  
+  prim_sig_activation_lolli <- prim_sig_activation_lolli+theme(legend.position = "none")
+  
+  
+  ter_summary_t6 <-  filter(plottable_data, n_infection=="Second")
+  
+  
+ ter_sig_activation_lolli <- ggplot()+
+    geom_bar(data=ter_summary_t6,aes(y=factor(volunteer, levels=c("v02", "v03", "v05", "v06", "v07", "v09", "v11", "v21")), x=frequency/100, fill=lineage), stat="identity", position="stack", width=1)+
+    theme_minimal()+
+    ggtitle("T Cell Activation at T6 Second Vivax Infection")+
+    scale_fill_manual(values=lineage_palette)+
+    scale_y_discrete(drop=FALSE)+
+    #scale_x_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), na.value=0, limits=c(0, 0.25),  breaks=c(25, 20, 15, 10, 5, 0)/100)+
+    scale_x_continuous(name = "Percentage of CD3+ T cells\n", labels=scales::percent_format(accuracy = 1), na.value=0, limits=c(0, 0.15),  breaks=c(15, 10, 5, 0)/100)+
+    guides(fill=guide_legend(reverse = TRUE, nrow = 5,keyheight = unit(2, "mm"), keywidth = unit(4, "mm")))+
+    theme(plot.title = element_text(hjust=0.5, size=11),
+          strip.text = element_text(hjust=0.5, size=10, face = "bold"),
+          axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          strip.placement = "outside",
+          #plot.margin = unit(c(1,5,1,0), "mm"),
+          legend.position = "none",
+          legend.text = element_text(size=6),
+          legend.title = element_blank())
+  
+  
+  
 
-#### gate again to get rid of doublets??? ####
-
-
-library(openCyto)
-library(ggcyto)
-# library(dplyr)
-# library(tidyr)
-#library(ggplot2)
-# 
-`%notin%` <- Negate(`%in%`)
-# 
-# 
-
-setwd("~/PhD/cytof/vac69b/T_cells_only/comped/")
-
-
-md <- read.csv("~/PhD/cytof/vac69b/T_cells_only/metadata.csv")
-md <- subset(md, md$timepoint %in% c("baseline", "dod", "ep6", "c56"))
-
-
-vac69b_flowset <- flowCore::read.flowSet(md$file_name)
-
-vac69b_gs <- GatingSet(vac69b_flowset)
-
-
-#define DNA channels
-panel <- read.csv("~/PhD/cytof/vac69b/T_cells_only/vac69b_panel.csv", header=T)
-dna <- grep("^Ir", panel$fcs_colname, value = TRUE)
-
-
-
-gs_add_gating_method(vac69b_gs,
-                     alias = "cells",
-                     pop = "+", parent = "root",
-                     dims = "Ir191Di,Ce140Di",
-                     gating_method = "flowClust.2d",
-                     gating_args = "K=1,quantile=0.93,target=c(5,5)")
-
-
-
-gs_add_gating_method(vac69b_gs,
-                     alias = "singlets",
-                     pop = "+", parent = "cells",
-                     dims = paste(dna, collapse = ","),
-                     gating_method = "flowClust.2d",
-                     gating_args = "K=1,quantile=0.93,target=c(5,5)")
-
-df <- gs_pop_get_stats(vac69b_gs,
-                       type = "percent",
-                       nodes = c("cells", "singlets"))
-
-df
-
-
-all <- ggcyto(vac69b_gs, aes_string(dna[1], dna[2]))+
-  geom_hex(bins = 100)+
-  geom_gate("singlets")
-
-
-
-fs <- gs_pop_get_data(vac69b_gs, "/cells/singlets") # get data from ’GatingSet’
-write.flowSet(x = fs, outdir = "./recomped")
+combo_lolli <- cowplot::plot_grid(prim_sig_activation_lolli, ter_sig_activation_lolli, cluster_leg, nrow=1, rel_widths = c(5,5,1),align="v", axis = "tbrl")
+ggsave("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/figures/vac69a_b_activation_lollipop2.pdf", combo_lolli, height=4, width=7.5)
+ 
+  
