@@ -53,7 +53,7 @@ refined_markers <- c("CD4",
                      "CD8",
                      "Vd2",
                      "Va72",
-                     #"CXCR5",
+                     "CXCR5",
                      "CD38",
                      #"CD69",
                      "HLADR",
@@ -94,6 +94,8 @@ all_markers <- c(non_t_cell_markers, refined_markers)
 
 set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 45)
 
+
+
 #t_cell_phenoh <- plotExprHeatmap(x = sce, by = "cluster", row_clust = TRUE, col_clust = FALSE, k = "meta50", bars = TRUE, features = all_markers)
 t_cell_pheno <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "meta45", bars = TRUE, features = all_markers)
 
@@ -103,15 +105,78 @@ t_cell_pheno <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_
 # t_cell_phenoh
 # dev.off()
 
-pdf("./figures/t_cell_pheno.pdf", height = 8, width = 9)
+
+pdf("./figures/t_cell_pheno2.pdf", height = 8, width = 9)
 t_cell_pheno
 dev.off()
+
 
 
 meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/rough_vac69b_meta45_merging_table.csv", header=T)
 merged_daf <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge", overwrite = TRUE)
 
-# differential abundance for plotting
+# playing with gating ####
+t6 <- filterSCE(sce, timepoint=="baseline")
+
+t6_fcs <- sce2fcs(sce, split_by = "sample_id")
+
+ggcyto(t6_fcs, aes(x="PD1", y="CXCR5"))+
+  geom_hex(bins = 60)+
+  #geom_density2d(colour = "black", bins=13)+
+  scale_y_flowCore_fasinh(a=5)+
+  scale_x_flowCore_fasinh(a=5)
+
+
+
+vac69b_gs <- GatingSet(t6_fcs)
+
+
+gs_add_gating_method(vac69b_gs,
+                     alias = "CD4_CD45RO",
+                     pop = "+", parent = "root",
+                     dims = "Nd145Di,Ho165Di",
+                     gating_method = "boundary",
+                     gating_args = "min = c(30, 30), max=c(400,400)")
+
+
+gs_add_gating_method(vac69b_gs,
+                     alias = "Tfh",
+                     pop = "+", parent = "CD4_CD45RO",
+                     dims = "Gd155Di, Sm149Di",
+                     gating_method = "boundary",
+                     gating_args = "min = c(30, 30), max=c(500,500)")
+
+
+# gs_add_gating_method(vac69b_gs,
+#                      alias = "Tfh",
+#                      pop = "+", parent = "CD4_memory",
+#                      dims = "Sm149Di",
+#                      gating_method = "mindensity")
+#
+#
+# df <- gs_pop_get_stats(vac69b_gs,
+#                        type = "percent",
+#                        nodes = c("CD4_memory", "Tfh"))
+#
+# df
+#
+
+ggcyto(vac69b_gs, aes(x="CXCR5", y="PD1"), subset="CD4_CD45RO")+
+  #geom_hex(bins=60)+
+  facet_null()+
+  facet_wrap(~name, nrow=5)+
+  geom_point(alpha=0.1, size=0.8)+
+  geom_gate("Tfh")+
+  geom_stats()+
+  scale_y_flowCore_fasinh(a=5)+
+  scale_x_flowCore_fasinh(a=5)
+
+
+
+
+
+
+# differential abundance for plotting ####
 
 library(diffcyt)
 

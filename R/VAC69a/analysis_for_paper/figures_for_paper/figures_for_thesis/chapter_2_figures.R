@@ -156,6 +156,13 @@ ggsave("~/PhD/figures_for_thesis/chapter_2/2_t_cell_counts.png", t_cell_counts, 
 #ds limma ####
 
 
+library(vac69a.cytof)
+library(dplyr)
+library(CATALYST)
+library(diffcyt)
+library(tidyr)
+
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
 daf <- read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
 
@@ -170,13 +177,13 @@ coarse_table$new_cluster <- factor(coarse_table$new_cluster)
 merged_daf<- mergeClusters(daf, k = "mod_meta45", table = coarse_table, id = "coarse_merge")
 
 
-plotClusterHeatmap(merged_daf, hm2=NULL,
-                   k = "mod_meta45",
-                   m = "coarse_merge",
-                   cluster_anno = FALSE,
-                   draw_freqs = TRUE,
-                   scale = TRUE
-)
+# plotClusterHeatmap(merged_daf, hm2=NULL,
+#                    k = "mod_meta45",
+#                    m = "coarse_merge",
+#                    cluster_anno = FALSE,
+#                    draw_freqs = TRUE,
+#                    scale = TRUE
+# )
 
 
 
@@ -354,6 +361,10 @@ scaled_ms <- ms %>%
 
 sig_ds_contrasts <- subset(rowData(ds_t6$res), rowData(ds_t6$res)$p_adj<0.05 & abs(rowData(ds_t6$res)$logFC) > log2(1.1))
 
+#diagnosis
+#sig_ds_contrasts <- subset(rowData(ds_dod$res), rowData(ds_dod$res)$p_adj<0.05 & abs(rowData(ds_dod$res)$logFC) > log2(1.1))
+
+
 sig_ds_contrasts <- paste(sig_ds_contrasts$cluster_id, " (", sig_ds_contrasts$marker_id, ")", sep="")
 
 
@@ -431,6 +442,10 @@ median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
 png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=13, units="in", res=700)
 draw(median_cluster_heat, heatmap_legend_side = "bottom")
 dev.off()
+
+# png("~/PhD/manuscripts/vac69a/jci_corrections/dod_ds_limma.png", width = 8, height=2.6, units="in", res=700)
+# draw(median_cluster_heat, heatmap_legend_side = "bottom")
+# dev.off()
 
 # png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma.png", width = 8, height=10, units="in", res=400)
 # draw(median_cluster_heat, heatmap_legend_side = "bottom")

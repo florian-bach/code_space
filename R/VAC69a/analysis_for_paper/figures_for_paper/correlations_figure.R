@@ -100,7 +100,7 @@ plasma_mds <- limma::plotMDS(log_plasma_data, plot = F)
 
 plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
 
-plasma_df$Sample_ID <- rownames(plasma_df)
+plasma_df$Sample_ID <- rownames(plasma_mds$distance.matrix.squared)
 plasma_df$Timepoint <- substr(plasma_df$Sample_ID, 5, nchar(plasma_df$Sample_ID))
 plasma_df$Volunteer <- substr(plasma_df$Sample_ID, 1, 3)
 
@@ -155,11 +155,11 @@ arrow_pca_plot <- ggplot(arrow_pca, aes(x=MDS1, y=MDS2))+
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/arrow_pca_plot.pdf", arrow_pca_plot, height=3, width =3)
 
 
-plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
-plasma_df$Sample_ID <- rownames(plasma_df)
-plasma_df$Timepoint <- substr(plasma_df$Sample_ID, 5, nchar(plasma_df$Sample_ID))
-plasma_df$Volunteer <- substr(plasma_df$Sample_ID, 1, 3)
-
+# plasma_df <- data.frame(MDS1 = plasma_mds$x, MDS2 = plasma_mds$y)
+# plasma_df$Sample_ID <- rownames(plasma_df)
+# plasma_df$Timepoint <- substr(plasma_df$Sample_ID, 5, nchar(plasma_df$Sample_ID))
+# plasma_df$Volunteer <- substr(plasma_df$Sample_ID, 1, 3)
+# 
 
 
 distance_traveled <- filter(plasma_df,Timepoint%in%c("Baseline", "Diagnosis"))

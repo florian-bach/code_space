@@ -1,38 +1,52 @@
 # dod hist plot ####
 
 
-  # data_up <- subset(data, data$log2FoldChange>0)
+# data_up <- subset(data, data$log2FoldChange>0)
 # 
 # data_down <- subset(data, data$log2FoldChange<0)
 # 
 # write.table(data$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_all.txt", sep = "\t", quote = F, row.names = F, col.names = F)
 # write.table(data_up$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_up.txt", sep = "\t", quote = F, row.names = F, col.names = F)
 # write.table(data_down$Symbol, "~/PhD/RNAseq/vac63c/vac63c_sig_t6_baseline_down.txt", sep = "\t", quote = F, row.names = F, col.names = F)
-# 
-# 
+
+
 
 library(magrittr)
 library(ggplot2)
 library(ggrepel)
 
+threshold <- 30
 
+#old analysis ####
 # DoD sheet
+
 dod_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_dod_all.csv", header = T, stringsAsFactors = F)
 dod_data <- subset(dod_data, grepl("5", dod_data$GOLevels))
-
-
-
 
 # positive means enriched in vivax, negative means enriched in falciparum
 dod_data$Cluster_Difference <- dod_data$`%Genes Cluster #2`-dod_data$`%Genes Cluster #1`
 
-
-
-threshold <- 30
-
-#DoD
 dod_falci_rich_data <- subset(dod_data, dod_data$Cluster_Difference< -threshold)
 dod_vivax_rich_data <- subset(dod_data, dod_data$Cluster_Difference> threshold)
+
+
+#new analysis ####
+
+dod_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/vivax_falci_dod_all_redo/vivax_falci_dod_all_redo/ClueGOResultTable-0.xls")
+
+redo_dod_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/vivax_falci_dod_all_redo/vivax_falci_dod_all_redo/ClueGOResultTable-0.xls")
+redo_dod_data <- subset(dod_data, grepl("5", dod_data$GOLevels))
+
+redo_dod_data$Cluster_Difference <- redo_dod_data$`%Genes Cluster #1`-redo_dod_data$`%Genes Cluster #2`
+
+dod_falci_rich_data <- subset(redo_dod_data, redo_dod_data$Cluster_Difference< -threshold)
+dod_vivax_rich_data <- subset(redo_dod_data, redo_dod_data$Cluster_Difference> threshold)
+
+dod_data <- redo_dod_data
+
+
+
+# combo plots ####
 
 vivax_x_limits <- c(80, NA)
 vivax_y_limits <- c(20, NA)
@@ -44,7 +58,7 @@ dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1
   scale_x_continuous(breaks=seq(0,100,by=10), labels = scales::label_number(suffix="%"), limits = c(-5, 105), expand=c(0,0))+
   ylab(expression('GO term enrichement'~italic("P. falciparum")~'at Diagnosis'))+
   xlab(expression('GO term enrichement'~italic("P. vivax")~'at Diagnosis'))+
-  ggitle("Diagnosis")+
+  ggtitle("Diagnosis")+
   ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
   # geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
   #               xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
@@ -94,12 +108,13 @@ t6_data <- data.table::fread("~/PhD/RNAseq/vac69a/cytoscape/vivax_falciparum_t6_
 # positive means enriched in vivax, negative means enriched in falciparum
 t6_data$Cluster_Difference <- t6_data$`%Genes Cluster #2`-t6_data$`%Genes Cluster #1`
 
+
 threshold <- 30
 
   
   #T6 for few labels on dot plot
-  t6_falci_rich_data <- subset(t6_data, t6_data$Cluster_Difference< -50)
-  t6_vivax_rich_data <- subset(t6_data, t6_data$Cluster_Difference> 50)
+t6_falci_rich_data <- subset(t6_data, t6_data$Cluster_Difference< -30)
+t6_vivax_rich_data <- subset(t6_data, t6_data$Cluster_Difference> 30)
   
   
   t6_vivax_x_limits <- c(NA, NA)

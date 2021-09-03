@@ -87,6 +87,11 @@ quick_gene_heatmaps(ifnbs, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(falci_t6_faves, sort_by = "T6_Baseline")
 
 quick_gene_heatmaps(cell_cycle_genes, sort = "T6_Baseline")
+
+search_terms <- c("translation")
+
+search_results <- search_genes(search_terms)
+quick_gene_heatmaps(search_results, sort = "DoD_Baseline")
   
 # MOST SIGNIFICANT GENES HEATMAPS ####
   

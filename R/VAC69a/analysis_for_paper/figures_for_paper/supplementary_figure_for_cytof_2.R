@@ -203,6 +203,9 @@ activation_stacked_barchart <- ggplot(all_activated, aes(x=volunteer, y=frequenc
 ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_all_activation.pdf", activation_stacked_barchart, height = 5, width=5.5)
 
 
+
+
+
 # non naive cd4 t cell activation ####
 
 cd4_memory <- all_data %>%
@@ -225,6 +228,14 @@ cd4_bar_data <- cd4_memory %>%
 cd4_bar_data <- subset(cd4_bar_data, grepl("activated",cd4_bar_data$cluster_id))
 
 
+
+
+cd4_acti <- cd4_bar_data %>%
+  group_by(volunteer, species) %>%
+  summarise(sum=sum(cd4_freq))
+
+wilcox.test(cd4_acti$sum~cd4_acti$species)
+#p-value = 0.04762
 
 (cd4_bar_plot <- ggplot(cd4_bar_data, aes(x=volunteer, y=cd4_freq, fill=lineage))+
     geom_bar(stat="identity", position="stack")+
@@ -266,6 +277,13 @@ all_data$pie_fill <- ifelse(grepl("*activated*", all_data$cluster_id), as.charac
 
 treg_memory <- all_data %>%
   filter(timepoint=="T6", lineage=="Treg")
+
+treg_acti <- treg_memory %>%
+  filter(pie_fill=="Treg") %>%
+  group_by(volunteer, species, pie_fill) %>%
+  summarise(sum=sum(scaled_freq))
+
+wilcox.test(treg_acti$sum~treg_acti$species)
 
 
 

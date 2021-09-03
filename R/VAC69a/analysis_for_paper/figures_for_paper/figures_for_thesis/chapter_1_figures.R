@@ -1071,7 +1071,7 @@ myLoc <- (which(levels(long_data$flo_timepoint) == "DoD ") +
             which(levels(long_data$flo_timepoint) == "C15 pm")) / 
   2
 
-ae_title <- expression(paste("Clinical Symtpoms During ", italic("P. vivax"), " infection"))
+ae_title <- expression(paste("Clinical Symptoms During ", italic("P. vivax"), " infection"))
 
 long_data$Symptom <- paste(
   toupper(substr(long_data$Symptom, 1,1)),

@@ -1275,7 +1275,8 @@ long_vac63c_parasitaemia$Volunteerf <- stringr::str_replace_all(long_vac63c_para
   scale_fill_manual(values=vol_pal)+
   ylab("Parasites / mL")+
   xlab("Days Post Infection")+
-  guides(color=guide_legend(title = "Volunteer"))+
+  guides(color=guide_legend(title = "Volunteer"),
+         fill=guide_legend(title = "Volunteer"))+
   theme(#legend.position = "none",
         axis.text = element_text(size=12),
         axis.title = element_text(size=14),
@@ -1603,9 +1604,9 @@ vac63c_lymph$Volunteer_code <- stringr::str_replace_all(vac63c_lymph$Volunteer_c
 
 indie_lymph_vac63c <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=cell_counts*1000, group=trial_number))+
   geom_point(aes(color=Volunteer_code))+
-  geom_line(aes(color=Volunteer_code))+
+  geom_line(aes(color=N_infection))+
   theme_minimal()+
-  scale_color_manual(values=vol_pal)+
+  scale_color_manual(values=c("First"=time_col[2], "Third"=time_col[1], vol_pal))+
   xlab("Timepoint")+
   ylab(expression(Lymphocytes~"/"~mu*L~blood))+
   scale_y_continuous(label=scales::comma)+
@@ -1636,7 +1637,7 @@ group_lymph_vac63c_box <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c(
   scale_y_continuous(label=scales::comma)+
   scale_color_manual(values=vol_pal)+
   scale_fill_manual(values=c("First"=time_col[2], "Third"=time_col[1]))+
-  guides(colour=guide_legend(title="", override.aes = list(alpha=1)))+
+  guides(colour=guide_legend(title="Volunteer", override.aes = list(alpha=1)))+
   theme(axis.title = element_blank(),
         axis.text.x = element_text(size=12, angle=45, hjust=1),
         plot.margin = unit(c(2,2,2,2), "mm"))
@@ -1656,7 +1657,7 @@ vac63c_lymphocytes_figure <- plot_grid(indie_lymph_vac63c, group_lymph_vac63c_bo
 #vac63c_lymphocytes_figure <- grid.arrange(arrangeGrob(vac63c_lymphocytes_figure, bottom = timepoint.grob))
 
 
-ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_lymphocytes_figure.png", vac63c_lymphocytes_figure, width=7, height=3.7)
+ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_lymphocytes_figure.pdf", vac63c_lymphocytes_figure, width=7, height=4.2)
 
 
 
@@ -1808,6 +1809,8 @@ ggplot(., aes(x=alt, y=perc_acti))+
 
 #ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_alt_corr_plot.pdf", height=4, width=8)
 ggsave("~/PhD/figures_for_thesis/chapter_03/vac63c_alt_corr_plot_prim.pdf", height=4, width=8)
+
+
 
 
 alt_corr_data %>%
