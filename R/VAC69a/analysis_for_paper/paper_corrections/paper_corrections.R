@@ -4,6 +4,8 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
+`%notin%` <- Negate(`%in%`)
+
 vol_pal <- rev(c("#FFC800",
                  "#EE000C",
                  "#FF8000",
@@ -36,6 +38,28 @@ vivax_falci_palette <- c(vol_pal, vivax_vol_pal)
 
 
 
+vac63c_haem <- read.csv("~/PhD/clinical_data/vac63c/VAC063_haem_all_sequenced_WBC_real_percent.csv")
+
+vac63c_haem$Volunteer_code <- gsub("V", "v", vac63c_haem$Volunteer_code)
+
+vac63c_haem$timepoint <- gsub("D+6", "T6", vac63c_haem$timepoint, fixed=T)
+vac63c_haem$timepoint <- gsub("C-1", "Baseline", vac63c_haem$timepoint, fixed=T)
+vac63c_haem$timepoint <- gsub("C+90", "C90", vac63c_haem$timepoint, fixed=T)
+
+vac63c_lymph <- vac63c_haem %>%
+  filter(N_infection=="First", Leukocytes=="Lymphocytes", timepoint %in% c("C-1", "Diagnosis", "D+6", "C+90"), Volunteer_code %in% c("v1039", "v1040", "v1061", "v1065", "v1067", "v1068", "v1075", "v313", "v315", "v320", "v6032", "v806", "v818")) %>%
+  select(Volunteer_code, trial_number, timepoint, N_infection, Leukocytes, cell_counts) 
+
+
+vac63c_lymph_premerge <- data.frame("volunteer" = vac63c_lymph$Volunteer_code,
+                                    "timepoint" = vac63c_lymph$timepoint,
+                                    "Cell" = vac63c_lymph$Leukocytes,
+                                    "Frequency" = vac63c_lymph$cell_counts,
+                                    "Species" = "P. falciparum")
+
+
+
+
 #whole blood RNAseq normalisation ####
 
 # raw_data <- data.table::fread("/home/flobuntu/PhD/RNAseq/vac69a/All_vivax_falcip_wholeblood_RawTranscriptCounts_19Feb2020.xls")
@@ -54,6 +78,44 @@ DoD_Baseline_sig <- list_of_all_sig_unique[[3]]
 super_sig_dod <- subset(DoD_Baseline_sig, abs(DoD_Baseline_sig$log2FoldChange)>log2(3))
 
 write.table(super_sig_dod$Symbol, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE, file = "/home/flobuntu/PhD/RNAseq/vac69a/all/xls/gene_lists/vivax_super_sig_dod_fc3.txt")
+
+
+super_sig_cluego <- readxl::read_xls("/home/flobuntu/PhD/RNAseq/vac69a/cytoscape/super_sig_dod/super_sig_dod_xls")
+
+top_10_go_dod_super_sig <- super_sig_cluego %>%
+  slice_min(n=30, order_by=`Term PValue`) %>%
+  select(GOTerm)
+
+top_10_go_dod_sig <- unique(redo_dod_data %>%
+  slice_min(n=43, order_by=`Term PValue`) %>%
+  summarise(GOTerm)
+)
+
+table(top_10_go_dod_super_sig$GOTerm %in% top_10_go_dod_sig$GOTerm)
+# FALSE  TRUE 
+# 21     9
+
+
+table(super_sig_cluego$GOTerm %in% redo_dod_data$GOTerm)
+
+# FALSE  TRUE 
+# 8    22 
+subset(super_sig_cluego, !super_sig_cluego$GOTerm %in% redo_dod_data$GOTerm, select = GOTerm)
+                                            
+# 1 negative regulation of cell cycle G2/M phase transition
+# 2 regulation of defense response to virus                
+# 3 2'-5'-oligoadenylate synthetase activity               
+# 4 regulation of ribonuclease activity                    
+# 5 mononuclear cell migration                             
+# 6 chemokine receptor binding                             
+# 7 granulocyte migration                                  
+# 8 chemokine activity  
+
+
+# so you do get slightly different GO Terms pop out- I reckon this has to do with the disparity of list length- also, slicing out
+# all DEGs with low-ish fold changes leaves you with not necessarily a representative list of pathways
+# longer lists may be penalised because you need a larger percentage of associated genes found to rise above the noise?
+# may need to think about that a littl more..
 
 # vivax falci transcriptomics correction ####
 
@@ -134,6 +196,42 @@ ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_falci_cluego_circle.png",
 
 
 
+# dod and t6 seperately for ClueGO ####
+
+solo_dod_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_DOD_ALL/old_files/VIVAX_DOD_ALL_RESULTS_TABLE.xls")
+
+solo_t6_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_T6_ALL/VIVAX_T6_ALL_RESULTS_TABLE")
+
+combo_dod_t6_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/VIVAX_BASE_DOD_T6/VIVAX_BASE_DOD_T6_Results_table.xls")
+
+#235
+solo_dod_terms <- solo_dod_data$GOTerm
+
+#149
+solo_t6_terms <- solo_t6_data$GOTerm
+
+#376 unique
+sep_dod_t6_terms <- c(solo_dod_terms, solo_t6_terms)
+
+#289 unique; 88 less than when doing things seperately
+combo_dod_t6_terms <- combo_dod_t6_data$GOTerm
+
+# there are 40 specific GO terms that only appear when combining the lists whiwch are a mixture of immune activation, proliferation,
+# and general cell biology stuff;
+combo_specific <- subset(combo_dod_t6_terms, !combo_dod_t6_terms %in% sep_dod_t6_terms)
+
+#there are a lot (170) of GO terms here that are specific to T6 that don't pop out when combining lists. they are all related to cell cycle
+#regulation though, so we're not missing out on biology
+sep_specific <- subset(sep_dod_t6_terms, !sep_dod_t6_terms %in% combo_dod_t6_terms)
+
+# i think there's a point to be made that if you wanted to most deeply understand these transcriptomic signatures you should really
+# analyse dod and t6 seperately, but the way we're doing it doesn't change the main message that's being told by the data
+
+# it's worth remembering though, that having gene lists of unequal length means that you're drowning out signal possibly- not an issue
+# in this dataset, but worth keeping in mind
+
+
+
 # full blood count variation ####
 
 
@@ -166,7 +264,7 @@ haem_data$volunteer <- gsub("69010", "v", haem_data$trial_number)
 supp_haem_data <- haem_data %>%
   select(volunteer, timepoint, wbc, neutrophils,  monocytes, eosinophils, lymphocytes, platelets) %>%
   #select(trial_number, timepoint, lymphocytes) %>%
-  filter(timepoint %in% c("_C_1", "_C1_7", "_C21", "_EP", "_T6")) %>%
+  filter(timepoint %in% c("_C_1", "_C1_7", "_C21", "_EP", "_T6", "_C90")) %>%
   gather(Cell, Frequency, c(wbc, neutrophils,  monocytes, eosinophils, lymphocytes, platelets))
 
 
@@ -226,29 +324,130 @@ mean_haem <- long_haem_perc %>%
 
 ggsave("~/PhD/manuscripts/vac69a/jci_corrections/whole_blood_cell_comp.png", blood_comp_plot,  height = 5, width=5)
 
+long_haem_falci <- vac63c_haem %>%
+  filter()
 
-
-
-supp_haem_data_plots <- ggplot(supp_haem_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+
-  scale_fill_manual(values=volunteer_palette)+
-  scale_color_manual(values=volunteer_palette)+
-  geom_line(aes(color=volunteer), size=0.9)+
-  geom_point(fill="white", stroke=1, shape=21, size=0.9)+
-  theme_minimal()+
-  facet_wrap(~Cell, scales="free", nrow = 2)+
-  xlab("Timepoint")+
-  ylab(expression(Cells~"/"~mu*L~blood))+
-  guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
-  fig1_theme+
-  scale_y_continuous(label=scales::comma)+
-  theme(plot.title = element_text(hjust=0.5),
-        axis.text.x = element_text(hjust=1, angle=45, size=8),
-        axis.title.x = element_blank(),
-        legend.position = "right",
-        strip.text = element_text(size=10))
-
+# 
+# supp_haem_data_plots <- ggplot(supp_haem_data, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")), y=Frequency*1000, color=volunteer, group=volunteer))+
+#   scale_fill_manual(values=volunteer_palette)+
+#   scale_color_manual(values=volunteer_palette)+
+#   geom_line(aes(color=volunteer), size=0.9)+
+#   geom_point(fill="white", stroke=1, shape=21, size=0.9)+
+#   theme_minimal()+
+#   facet_wrap(~Cell, scales="free", nrow = 2)+
+#   xlab("Timepoint")+
+#   ylab(expression(Cells~"/"~mu*L~blood))+
+#   guides(color=guide_legend(title="Volunteer", override.aes = list(size=1)))+
+#   fig1_theme+
+#   scale_y_continuous(label=scales::comma)+
+#   theme(plot.title = element_text(hjust=0.5),
+#         axis.text.x = element_text(hjust=1, angle=45, size=8),
+#         axis.title.x = element_blank(),
+#         legend.position = "right",
+#         strip.text = element_text(size=10))
+# 
 
 # ggsave("~/PhD/figures_for_thesis/chapter_1/1_haem_counts.png", supp_haem_data_plots, height=4, width=7)
+
+
+vac63a_haem <- read.csv("~/PhD/clinical_data/vac63a/vac063a_haem.csv")
+vac63a_haem$study_name <- "vac63a"
+
+vac63b_haem <- read.csv("~/PhD/clinical_data/vac63b/vac063b_haem.csv")
+vac63b_haem$study_name <- "vac63b"
+
+vac63c_haem <- read.csv("~/PhD/clinical_data/vac63c/vac063c_haem.csv")
+vac63c_haem$study_name <- "vac63c"
+
+all_colnames <- unique(c(colnames(vac63a_haem),
+                         colnames(vac63b_haem),
+                         colnames(vac63c_haem)))
+
+harmonise_colnames <- subset(all_colnames, all_colnames %in% colnames(vac63a_haem) & all_colnames %in% colnames(vac63b_haem) & all_colnames %in% colnames(vac63c_haem))
+
+falci_haem <- data.frame(rbind(vac63a_haem[,harmonise_colnames],
+                               vac63b_haem[,harmonise_colnames],
+                               vac63c_haem[,harmonise_colnames]))
+
+
+lousy_timepoints <- unique(falci_haem$timepoint)
+# [1] "C1_"        "C121_"      "TREATMENT_" "C28_"       "C1_12"      "D7"         "DIAG"       "C_1"        "C90"        "BC28"      
+# [11] "CE"         "SCR"        "C1_13"      "DoD"        "C45"        "EV"         "T6" 
+
+# [1] "Baseline"  "C6"        "Diagnosis" "C28"       "C6"        "Screening" "Diagnosis" "Baseline"  "C90"       "C28"      
+# [11] "Extra"     "Screening" "C6"        "Diagnosis"       "T6"        "Extra"     "C45"  
+
+great_timepoints <- c("Baseline", "C6", "Diagnosis", "C28", "C6", "Screening", "Diagnosis", "Baseline", "C90", "C28",
+                      "Extra", "Screening", "C6", "Diagnosis", "C45", "Extra", "T6")
+
+haem_timepoint_replacement <- setNames(great_timepoints, lousy_timepoints)
+falci_haem$timepoint <- stringr::str_replace_all(falci_haem$timepoint, haem_timepoint_replacement)
+
+
+long_falci_haem <- falci_haem %>%
+  select(c(timepoint, trial_number, wbc, neutrophils, monocytes, eosinophils, lymphocytes))%>%
+  filter(timepoint %in% c("Baseline", "C6", "Diagnosis", "C28", "T6", "C45")) %>%
+  filter(as.character(trial_number) %in% c("6301039", "6301040", "6301061", "6301068", "6301075", "6306032",
+                                                       "6301806", "6301818", "6301065", "6301067",
+                                                       "6301313", "6301315", "6301320"))
+
+long_falci_perc <- data.frame("timepoint"=long_falci_haem$timepoint, "volunteer"=long_falci_haem$trial_number, long_falci_haem[,4:7]/long_falci_haem$wbc)
+
+long_falci_perc <-  pivot_longer(long_falci_perc, cols = c(neutrophils, monocytes, eosinophils, lymphocytes), names_to = "Cell", values_to = "% of CD45+")
+
+long_falci_perc$timepoint <- ifelse(long_falci_perc$timepoint=="C28", "Memory", long_falci_perc$timepoint)
+long_falci_perc$timepoint <- ifelse(long_falci_perc$timepoint=="C45", "Memory", long_falci_perc$timepoint)
+
+long_falci_perc <- filter(long_falci_perc, timepoint %in% c("Baseline", "Diagnosis", "T6", "Memory"))
+
+
+falci_mean_haem <- long_falci_perc %>%
+  group_by(Cell, timepoint) %>%
+  summarise(Mean=mean(`% of CD45+`))
+
+
+long_falci_perc$`% of CD45+` <- ifelse(long_falci_perc$timepoint=="T6", long_falci_perc$`% of CD45+`*13/3, long_falci_perc$`% of CD45+`)
+
+(falci_blood_comp_plot <- ggplot(long_falci_perc, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6", "Memory")),
+                                               y=`% of CD45+`/13,
+                                               fill=factor(Cell)))+
+    geom_bar(position = "stack", stat="identity")+
+    scale_y_continuous(label=scales::percent)+
+    geom_text(aes(x=timepoint, y=Mean, label=paste(round(Mean*100, digits=2), "%", sep="")), data = falci_mean_haem, position = position_stack(vjust = .5))+
+    theme_minimal()+
+    ylab("% of CD45+")+
+    scale_fill_brewer(type="qual", palette = "Dark2", direction=-1)+
+    guides(fill=guide_legend(title="Cell Type"))+
+    ggtitle("Whole Blood Cellular Composition FIrst Pf Infection")+
+    theme(plot.title = element_text(hjust=0.5),
+          axis.text.x = element_text(hjust=1, angle=45, size=8),
+          axis.title.x = element_blank(),
+          legend.position = "right",
+          strip.text = element_text(size=10))
+)
+
+
+
+#memory means C28 for everybody except v313, v315 & 320
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/falciparum_whole_blood_cell_comp.png", falci_blood_comp_plot,  height = 5, width=5, bg="white")
+
+#individual haem through time plots
+
+longer_falci_haem <- pivot_longer(long_falci_haem, cols = c("wbc", "neutrophils", "monocytes", "eosinophils", "lymphocytes"), names_to = "Cell", values_to = "Cell_Count")
+
+vac63c_prim_indie_haem_plot <- ggplot(subset(longer_falci_haem, longer_falci_haem$trial_number %in% c(6301313, 6301315, 6301320)), aes(x=factor(timepoint, levels=c("Baseline", "C6", "Diagnosis", "T6", "C28", "C45", "C90")), y=Cell_Count, group=factor(trial_number), colour=factor(trial_number)))+
+  geom_point()+
+  geom_line()+
+  facet_wrap(~Cell, scales="free")+
+  ylab("10^6 Cells / mL")+
+  theme_minimal()+
+  guides(colour=guide_legend(title="Volunteer"))+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust=0.5))
+
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vac63c_prim_indie_haem_plot.png", vac63c_prim_indie_haem_plot,  height = 5, width=8, bg="white")
+
+
 
 # vivax falciparum parasitaemia comparison ####
 
@@ -349,9 +548,8 @@ combo_dod_para_all <- data.frame("volunteer" = c(highest_vivax_parasitaemias$Vol
 
 combo_dod_para_plot_all <- ggplot(combo_dod_para_all, aes(x=species, y=parasitaemia))+
   geom_boxplot(aes(fill=species))+
-  # geom_point(aes(color=volunteer, group=species, shape=species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
-  geom_point(aes(group=species, shape=species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
-  scale_y_log10()+
+  scale_y_log10(limits=c(100,200000), breaks=c(1000,10000,100000))+
+  #scale_y_continuous(breaks = c(5000, 10000, 20000, 50000, 100000, 200000))+
   ylab("Peak Genome Copies / mL")+
   #scale_colour_manual(values=subset(vivax_falci_palette, names(vivax_falci_palette) %in% unique(combo_dod_para$volunteer)))+
   scale_shape_manual(values = list("P. vivax"= 16,
@@ -365,59 +563,35 @@ combo_dod_para_plot_all <- ggplot(combo_dod_para_all, aes(x=species, y=parasitae
   theme(axis.text = element_text(size=12),
     axis.title = element_text(size=14),
     axis.title.x = element_blank(),
-    legend.title = element_text(size=12),
+    legend.title = element_blank(),
     legend.text = element_text(size=11))
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vac3abc_vivax_combo_dod_para_plot.png", combo_dod_para_plot_all, height=4, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_13v6_log.png", combo_dod_para_plot_all, height=4, width=5, bg="white")
+
+
 
 
 combo_dod_para_plot_prim <- ggplot(combo_dod_para_prim, aes(x=species, y=parasitaemia))+
   geom_boxplot(aes(fill=species))+
-  # geom_point(aes(color=volunteer, group=species, shape=species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
-  geom_point(aes(group=species, shape=species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
-  scale_y_log10()+
   ylab("Peak Genome Copies / mL")+
-  #scale_colour_manual(values=subset(vivax_falci_palette, names(vivax_falci_palette) %in% unique(combo_dod_para$volunteer)))+
-  scale_shape_manual(values = list("P. vivax"= 16,
-                                   "P. falciparum" = 17), guide="none")+
   scale_fill_manual(values=rev(c("#fec200", "#db0085")))+
-  # guides(color = guide_legend(title="Volunteer",
-  #                             override.aes = list(shape= c(rep(17,3),
-  #                                                          rep(16,6)))),
-  #        fill = guide_legend(title="Species"))+ 
+  scale_y_continuous(limits=c(0,20000))+
   theme_minimal()+
   theme(axis.text = element_text(size=12),
         axis.title = element_text(size=14),
         axis.title.x = element_blank(),
-        legend.title = element_text(size=12),
+        legend.title = element_blank(),
         legend.text = element_text(size=11))
 
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vac3abc_vivax_combo_dod_para_plot.png", combo_dod_para_plot_prim, height=4, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_3v6.png", combo_dod_para_plot_prim, height=4, width=5, bg="white")
 
 
 # vac69a vac63c first infection lymphopenia ####
 
 
-vac63c_lymph <- read.csv("~/PhD/clinical_data/vac63c/VAC063_haem_all_sequenced_WBC_real_percent.csv")
-
-vac63c_lymph$Volunteer_code <- gsub("V", "v", vac63c_lymph$Volunteer_code)
-vac63c_lymph <- vac63c_lymph %>%
-  filter(N_infection=="First", Leukocytes=="Lymphocytes", timepoint %in% c("C-1", "Diagnosis", "D+6"), Volunteer_code %in% c("v1039", "v1040", "v1061", "v1065", "v1067", "v1068", "v1075", "v313", "v315", "v320", "v6032", "v806", "v818")) %>%
-  select(Volunteer_code, trial_number, timepoint, N_infection, Leukocytes, cell_counts) 
-
-vac63c_lymph$timepoint <- gsub("D+6", "T6", vac63c_lymph$timepoint, fixed=T)
-vac63c_lymph$timepoint <- gsub("C-1", "Baseline", vac63c_lymph$timepoint, fixed=T)
-
-vac63c_lymph_premerge <- data.frame("volunteer" = vac63c_lymph$Volunteer_code,
-                                    "timepoint" = vac63c_lymph$timepoint,
-                                    "Cell" = vac63c_lymph$Leukocytes,
-                                    "Frequency" = vac63c_lymph$cell_counts,
-                                    "Species" = "P. falciparum")
-
-
 vac69a_lymph_premerge <- supp_haem_data %>%
-  filter(Cell=="Lymphocytes", timepoint %in% c("Baseline", "Diagnosis", "T6")) %>%
+  filter(Cell=="Lymphocytes", timepoint %in% c("Baseline", "Diagnosis", "T6", "C90")) %>%
   mutate("Species"="P. vivax")
 
 
@@ -435,23 +609,46 @@ indie_lymph_plot <- ggplot(vivax_falci_lymph_merge, aes(x=factor(timepoint, leve
         axis.title.x = element_blank())
 
 
-box_lymph_plot_all <- ggplot(vivax_falci_lymph_merge, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=Frequency))+
+box_lymph_plot_all <- ggplot(vivax_falci_lymph_merge, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6", "C90")), y=Frequency))+
     geom_boxplot(aes(fill=Species))+
-    geom_point(aes(color=volunteer, group=Species, shape=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75), )+
+    #geom_point(aes(color=volunteer, group=Species, shape=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75), )+
     scale_fill_manual(values=rev(c("#fec200", "#db0085")))+
     scale_colour_manual(na.value = "darkgrey", values=subset(vivax_falci_palette, names(vivax_falci_palette) %in% unique(vivax_falci_lymph_merge$volunteer)))+
     theme_minimal()+
-    scale_shape_manual(values = list("P. vivax"= 16,
-                                     "P. falciparum" = 17), guide="none")+
+    # scale_shape_manual(values = list("P. vivax"= 16,
+    #                                  "P. falciparum" = 17), guide="none")+
     #guides(color = guide_legend(title="Volunteer", override.aes = list(shape=c(rep(17,3), rep(16,6)))))+
     xlab("Timepoint")+
     ylab(bquote('Lymphocytes ('*10^6~cells~'/ mL)'))+
     theme(axis.text = element_text(size=16),
           axis.text.x = element_text(angle = 90, vjust = 0.5),
           axis.title = element_text(size=22),
+          legend.title = element_blank(),
           axis.title.x = element_blank())
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_falci_lymphocytes_all.png", box_lymph_plot_all, height=5.5, width=5.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_lymphocytes_6v13.png", box_lymph_plot_all, height=5.5, width=5.5, bg="white")
+
+
+vivax_falci_lymph_merge_prim <- filter(vivax_falci_lymph_merge, volunteer %notin% c("v1039", "v1040", "v1061", "v1065", "v1067", "v1068", "v1075", "v6032", "v806", "v818"))
+
+box_lymph_plot_prim <- ggplot(vivax_falci_lymph_merge_prim, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6", "C90")), y=Frequency))+
+  geom_boxplot(aes(fill=Species))+
+  #geom_point(aes(color=volunteer, group=Species, shape=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75), )+
+  scale_fill_manual(values=rev(c("#fec200", "#db0085")))+
+  scale_colour_manual(na.value = "darkgrey", values=subset(vivax_falci_palette, names(vivax_falci_palette) %in% unique(vivax_falci_lymph_merge$volunteer)))+
+  theme_minimal()+
+  # scale_shape_manual(values = list("P. vivax"= 16,
+  #                                  "P. falciparum" = 17), guide="none")+
+  #guides(color = guide_legend(title="Volunteer", override.aes = list(shape=c(rep(17,3), rep(16,6)))))+
+  xlab("Timepoint")+
+  ylab(bquote('Lymphocytes ('*10^6~cells~'/ mL)'))+
+  theme(axis.text = element_text(size=16),
+        axis.text.x = element_text(angle = 90, vjust = 0.5),
+        axis.title = element_text(size=22),
+        axis.title.x = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_lymphocytes_6v3.png", box_lymph_plot_prim, height=5.5, width=5.5, bg="white")
 
 
 
@@ -462,13 +659,9 @@ vivax_falci_lymph_merge_prim <- subset(vivax_falci_lymph_merge,
                                        
 box_lymph_plot_prim <- ggplot(vivax_falci_lymph_merge_prim, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=Frequency))+
   geom_boxplot(aes(fill=Species))+
-  geom_point(aes(color=volunteer, shape=Species, group=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
   scale_fill_manual(values=rev(c("#fec200", "#db0085")))+
   scale_colour_manual(na.value = "darkgrey", values=subset(vivax_falci_palette, names(vivax_falci_palette) %in% unique(vivax_falci_lymph_merge$volunteer)))+
   theme_minimal()+
-  scale_shape_manual(values = list("P. vivax"= 16,
-                                   "P. falciparum" = 17), guide="none")+
-  #guides(color = guide_legend(title="Volunteer", override.aes = list(shape=c(rep(17,3), rep(16,6)))))+
   xlab("Timepoint")+
   ylab(bquote('Lymphocytes ('*10^6~cells~'/ mL)'))+
   theme(axis.text = element_text(size=16),
