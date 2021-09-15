@@ -32,6 +32,17 @@ names(vivax_vol_pal) <- names(vivax_colours)
 
 
 
+volunteer_colours <- list("v02" = "#FB9A99",
+                          "v03" = "#E31A1C",
+                          "v05" = "#A6CEE3",
+                          "v06" = "#1F78B4",
+                          "v07" = "#F0E442",
+                          "v09" = "#E69F00")
+
+
+volunteer_palette <- unlist(unname(volunteer_colours))
+names(volunteer_palette) <- names(volunteer_colours)
+
 
 
 vivax_falci_palette <- c(vol_pal, vivax_vol_pal)
@@ -47,7 +58,7 @@ vac63c_haem$timepoint <- gsub("C-1", "Baseline", vac63c_haem$timepoint, fixed=T)
 vac63c_haem$timepoint <- gsub("C+90", "C90", vac63c_haem$timepoint, fixed=T)
 
 vac63c_lymph <- vac63c_haem %>%
-  filter(N_infection=="First", Leukocytes=="Lymphocytes", timepoint %in% c("C-1", "Diagnosis", "D+6", "C+90"), Volunteer_code %in% c("v1039", "v1040", "v1061", "v1065", "v1067", "v1068", "v1075", "v313", "v315", "v320", "v6032", "v806", "v818")) %>%
+  filter(N_infection=="First", Leukocytes=="Lymphocytes", timepoint %in% c("Baseline", "Diagnosis", "T6", "C90"), Volunteer_code %in% c("v1039", "v1040", "v1061", "v1065", "v1067", "v1068", "v1075", "v313", "v315", "v320", "v6032", "v806", "v818")) %>%
   select(Volunteer_code, trial_number, timepoint, N_infection, Leukocytes, cell_counts) 
 
 
@@ -235,17 +246,6 @@ sep_specific <- subset(sep_dod_t6_terms, !sep_dod_t6_terms %in% combo_dod_t6_ter
 # full blood count variation ####
 
 
-volunteer_colours <- list("v02" = "#FB9A99",
-                          "v03" = "#E31A1C",
-                          "v05" = "#A6CEE3",
-                          "v06" = "#1F78B4",
-                          "v07" = "#F0E442",
-                          "v09" = "#E69F00")
-
-
-volunteer_palette <- unlist(unname(volunteer_colours))
-names(volunteer_palette) <- names(volunteer_colours)
-
 
 fig1_theme <- theme(axis.title.x = element_blank(),
                     legend.title = element_text(size = 9), 
@@ -279,7 +279,7 @@ supp_haem_data$Cell <- factor(supp_haem_data$Cell, levels=c("Total White Cells",
 
 
 bad_timepoints <- c("_C_1", "_C1_7", "_C8_14", "_C21", "_EP", "_T6", "_C90")
-great_timepoints <- c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")
+great_timepoints <- c("Baseline", "C7", "C14 am", "Diagnosis", "T1", "T6", "C90")
 
 time_dic <- setNames(great_timepoints, bad_timepoints)
 
@@ -298,22 +298,27 @@ wide_haem_perc <- cbind("volunteer"=wide_haem_data$volunteer, "timepoint"=wide_h
 
 long_haem_perc <- pivot_longer(wide_haem_perc, cols = c(Neutrophils, Monocytes, Eosinophils, Lymphocytes), names_to = "Cell", values_to = "% of CD45+")
 
+long_haem_perc <- filter(long_haem_perc, timepoint%in%c("Baseline", "Diagnosis", "T6", "C90"))
+
 mean_haem <- long_haem_perc %>%
   group_by(Cell, timepoint) %>%
   summarise(Mean=mean(`% of CD45+`))
 
 
+long_haem_perc$`% of CD45+` <- ifelse(long_haem_perc$timepoint=="C90", long_haem_perc$`% of CD45+`*6/4, long_haem_perc$`% of CD45+`)
 
-(blood_comp_plot <- ggplot(long_haem_perc, aes(x=factor(timepoint, levels=c("Baseline", "C7 am", "C14 am", "Diagnosis", "T1", "T6", "C90")),
+
+(blood_comp_plot <- ggplot(long_haem_perc, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14 am", "Diagnosis", "T1", "T6", "C90")),
                                               y=`% of CD45+`/6,
                                               fill=factor(Cell)))+
   geom_bar(position = "stack", stat="identity")+
   scale_y_continuous(label=scales::percent)+
   geom_text(aes(x=timepoint, y=Mean, label=paste(round(Mean*100, digits=2), "%", sep="")), data = mean_haem, position = position_stack(vjust = .5))+
   theme_minimal()+
+  ylab("% of CD45+")+
   scale_fill_brewer(type="qual", palette = "Dark2", direction=-1)+
   guides(fill=guide_legend(title="Cell Type"))+
-  ggtitle("Whole Blood Cellular Composition")+
+  ggtitle("Whole Blood Cellular Composition First Pv Infection")+
   theme(plot.title = element_text(hjust=0.5),
           axis.text.x = element_text(hjust=1, angle=45, size=8),
           axis.title.x = element_blank(),
@@ -322,7 +327,7 @@ mean_haem <- long_haem_perc %>%
 )
 
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/whole_blood_cell_comp.png", blood_comp_plot,  height = 5, width=5)
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_whole_blood_cell_comp.png", blood_comp_plot,  height = 5, width=5, bg="white")
 
 long_haem_falci <- vac63c_haem %>%
   filter()
@@ -401,6 +406,11 @@ long_falci_perc$timepoint <- ifelse(long_falci_perc$timepoint=="C45", "Memory", 
 long_falci_perc <- filter(long_falci_perc, timepoint %in% c("Baseline", "Diagnosis", "T6", "Memory"))
 
 
+long_falci_perc$Cell <- paste(
+  toupper(substr(long_falci_perc$Cell, 1,1)),
+  substr(long_falci_perc$Cell, 2,nchar(long_falci_perc$Cell)),
+  sep="")
+
 falci_mean_haem <- long_falci_perc %>%
   group_by(Cell, timepoint) %>%
   summarise(Mean=mean(`% of CD45+`))
@@ -418,7 +428,7 @@ long_falci_perc$`% of CD45+` <- ifelse(long_falci_perc$timepoint=="T6", long_fal
     ylab("% of CD45+")+
     scale_fill_brewer(type="qual", palette = "Dark2", direction=-1)+
     guides(fill=guide_legend(title="Cell Type"))+
-    ggtitle("Whole Blood Cellular Composition FIrst Pf Infection")+
+    ggtitle("Whole Blood Cellular Composition First Pf Infection")+
     theme(plot.title = element_text(hjust=0.5),
           axis.text.x = element_text(hjust=1, angle=45, size=8),
           axis.title.x = element_blank(),
@@ -446,6 +456,42 @@ vac63c_prim_indie_haem_plot <- ggplot(subset(longer_falci_haem, longer_falci_hae
         axis.text.x = element_text(angle = 90, vjust=0.5))
 
 ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vac63c_prim_indie_haem_plot.png", vac63c_prim_indie_haem_plot,  height = 5, width=8, bg="white")
+
+
+
+# whole blood RNAseq heatmaps ####
+
+
+# run quick_heatmaps.R lines 1:24 before this
+
+
+flo_Inflammation_markers <- list(`Inflammation Markers` = c("STAT1", "STAT2",  "IRF1", "IRF2", "IRF7", "IRF9", "MYD88",
+                                                            "TICAM1", "TICAM2", "TLR4", "IDO1", "IDO2", "ACOD1", "GBP1",
+                                                            "GBP2", "GBP3", "GBP4", "GBP5", "GBP6", "SOD2", "SOD3",
+                                                            "S100A8", "S100A9", "HIF1A", "SECTM1", "ICAM1",
+                                                            "CD40", "CD274", "PDCD1LG2"))
+
+flo_More_Inflammation_Markers <- list(`Cytokines & Chemokines` = c("CXCL11", "CXCL10", "CCL2", "CCL25", "IL27", "TNFSF13B", "IL1RN",
+                                                                   "TNF", "IL15", "IL1B", "CSF1", "TNFSF13", "IL1A",
+                                                                   "IL7", "IFNA1", "IL10", "IL6", "IL12A"
+)
+)
+
+power2 <- 
+
+inflam1 <- quick_gene_heatmaps(flo_Inflammation_markers, sort_by = "DoD_Baseline")+
+  viridis::scale_fill_viridis(option = "B", breaks=c(2,4,6), limits=c(0,6.5))+
+  guides(fill=guide_colourbar(title="log2FC"))+
+  theme(axis.text.y = element_text(size=7, angle = 0, hjust=1))
+
+inflam2 <- quick_gene_heatmaps(flo_More_Inflammation_Markers, sort_by = "DoD_Baseline")+
+  viridis::scale_fill_viridis(option = "B", breaks=c(2,4,6), limits=c(0,6.5))+
+  guides(fill=guide_colourbar(title="log2FC"))+
+  theme(axis.text.y = element_text(size=7, angle=0, hjust=1))
+
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/cyto_chemo_heat.png", inflam2, height=5, width = 2.5, bg="white")
+
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/acute_phase_heat.png", inflam1, height=5, width = 2.5, bg="white")
 
 
 
@@ -587,6 +633,13 @@ combo_dod_para_plot_prim <- ggplot(combo_dod_para_prim, aes(x=species, y=parasit
 ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_3v6.png", combo_dod_para_plot_prim, height=4, width=5, bg="white")
 
 
+
+# p-value = 0.6388
+wilcox.test(x=subset(combo_dod_para_all, combo_dod_para_all$species=="P. vivax")$parasitaemia,
+            y=subset(combo_dod_para_all, combo_dod_para_all$species=="P. falciparum")$parasitaemia)
+
+
+
 # vac69a vac63c first infection lymphopenia ####
 
 
@@ -692,16 +745,8 @@ ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_falci_lymphocytes_prim.pn
 #write.csv(combo_alt_lineage_acti_data, "~/PhD/manuscripts/vac69a/jci_corrections/combo_alt_lineage_acti_data.csv", row.names = FALSE)
 combo_alt_lineage_acti_data <- read.csv("~/PhD/manuscripts/vac69a/jci_corrections/combo_alt_lineage_acti_data.csv")
 
-combo_alt_lineage_acti_data <- filter(combo_alt_lineage_acti_data, volunteer %notin% c("v301", "v302", "v304", "v305", "v306", "v307", "v308", "v310")) 
-
-
-
-ggplot(combo_alt_lineage_acti_data, aes(x=alt, y=activated))+
-  geom_point(aes(colour=volunteer))+
-  geom_smooth(method="lm")+
-  facet_wrap(~lineage, scales="free")+
-  theme_minimal()
-
+combo_alt_lineage_acti_data <- combo_alt_lineage_acti_data%>%
+  filter(volunteer %notin% c("v301", "v302", "v304", "v305", "v306", "v307", "v308", "v310"), lineage %in% c("CD4", "Treg"))
 
 
 
@@ -709,8 +754,33 @@ combo_alt_lineage_acti_data %>%
   group_by(lineage) %>%
   do(broom::tidy(cor.test(.$activated, .$alt, method="spearman")))
 
+combo_alt_lineage_acti_data$species <- ifelse(nchar(combo_alt_lineage_acti_data$volunteer)==3, "P. vivax", "P.falciparum")
 
-# ALL VOLUNTEERS INCLUDING THIRD INFECTION PEARSON#
+
+combo_alt_lineage_acti_data$lineage <- gsub("CD4", "CD4 (r=0.72, p=0.037)", combo_alt_lineage_acti_data$lineage)
+combo_alt_lineage_acti_data$lineage <- gsub("Treg", "Treg (r=0.68, p=0.05)", combo_alt_lineage_acti_data$lineage)
+
+alt_cd4_treg_plot <- ggplot(combo_alt_lineage_acti_data, aes(x=alt, y=activated/100))+
+  geom_point(aes(colour=volunteer, shape=species))+
+  geom_smooth(method="lm", colour="black")+
+  ylab("Fraction of Lineage Activated")+
+  xlab("ALT (IU / L)")+
+  guides(shape = guide_legend(title="Species"),
+         color = guide_legend(title="Volunteer",
+                              override.aes = list(shape= c(rep(16,6),
+                                                           rep(17,3)))),
+  )+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 2), limits=c(0,NA))+
+  scale_colour_manual(values=vivax_falci_palette[c(10:15, 1:3)])+
+  facet_wrap(~lineage, scales = "free_y")+
+  theme_minimal()+
+  theme(strip.text=element_text(size=12))
+
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/alt_tcell_activation_correlation.png", height=4, width=6.5, bg="white")
+
+
+
+l# ALL VOLUNTEERS INCLUDING THIRD INFECTION PEARSON#
 # 
 # A tibble: 7 x 9
 # # Groups:   lineage [7]
@@ -780,7 +850,7 @@ combo_alt_lineage_acti_data %>%
 vivax_para_model_data <- filter(parasitaemias, Treatment=="before Treatment", Genomes>100)
 
 
-vivax_para_model_data$Num_Timepoint <- gsub(" pm", ".5", vivax_para_model_data$Timepoint)
+vivax_para_model_data$Num_Timepoint <- gsub(" pm", ".3", vivax_para_model_data$Timepoint)
 vivax_para_model_data$Num_Timepoint <- gsub(" am", "", vivax_para_model_data$Num_Timepoint)
 vivax_para_model_data$Num_Timepoint <- as.numeric(gsub("C", "", vivax_para_model_data$Num_Timepoint))
 
@@ -819,12 +889,12 @@ growth_fun_v7 <- function(x) 10^(results$Num_Timepoint[5]*x)-10
 growth_fun_v9 <- function(x) 10^(results$Num_Timepoint[6]*x)-10
 
 
-model_prediction_v2 <- function(x) 10^(-0.55312352436819+0.2623927358832*x)
-model_prediction_v3 <- function(x) 10^(-0.904782606803606+0.390618031069026*x)
-model_prediction_v5 <- function(x) 10^(-0.772668465509619+0.312844030101444*x)
-model_prediction_v6 <- function(x) 10^(-0.860589257032035+0.299911906578387*x)
-model_prediction_v7 <- function(x) 10^(-1.19178974730539+0.329574037697282*x) 
-model_prediction_v9 <- function(x) 10^(-2.01553539605994+0.346866642799327*x) 
+model_prediction_v2 <- function(x) 10^(-0.5732747+0.2660029*x)
+model_prediction_v3 <- function(x) 10^(-0.8611585+0.3905966*x)
+model_prediction_v5 <- function(x) 10^(-0.7830211+0.3159702*x)
+model_prediction_v6 <- function(x) 10^(-0.8030917+0.2974601*x)
+model_prediction_v7 <- function(x) 10^(-1.1575100+0.3294735*x) 
+model_prediction_v9 <- function(x) 10^(-1.9519750+0.3445428*x) 
 
 list_of_predictions <- c(model_prediction_v2,
                          model_prediction_v3,
@@ -868,7 +938,10 @@ long_vac68_data <- pivot_longer(vac68_data, cols=2:ncol(vac68_data), names_to = 
 long_vac68_data$Volunteer <- gsub("01-004", "v04", long_vac68_data$Volunteer)
 long_vac68_data$Volunteer <- gsub("01-008", "v08", long_vac68_data$Volunteer)
 
-long_vac68_data$Num_Timepoint <- as.numeric(gsub("D", "", long_vac68_data$Num_Timepoint))
+long_vac68_data$Num_Timepoint <- gsub("D", "", long_vac68_data$Num_Timepoint)
+long_vac68_data$Num_Timepoint <- gsub(".5", ".3", long_vac68_data$Num_Timepoint)
+long_vac68_data$Num_Timepoint <- as.numeric(long_vac68_data$Num_Timepoint)
+
 long_vac68_data$Genomes <- log10(long_vac68_data$Genomes)
 
 
@@ -882,8 +955,8 @@ vac68_para_models <- lapply(vac68_model_data_split, function(x) lm(Genomes~Num_T
 
 vac_68_results <- data.frame(t(sapply(vac68_para_models, function(x) x$coefficients)))
 
-model_prediction_v4 <- function(x) 10^(-2.802661+0.5053534*x)
-model_prediction_v8 <- function(x) 10^(-2.433849+0.4827730*x)
+model_prediction_v4 <- function(x) 10^(-2.812654+0.5103351*x)
+model_prediction_v8 <- function(x) 10^(-2.368950+0.4809315*x)
 
 
 vac68_vac69_data <- c(vivax_para_model_data_split, vac68_model_data_split)

@@ -41,7 +41,8 @@ Inflammation_markers <- list(`Inflammation Markers` = c("STAT1", "STAT2",  "IRF1
                                                        "TICAM1", "TICAM2", "TLR4", "IDO1", "IDO2", "ACOD1", "GBP1",
                                                        "GBP2", "GBP3", "GBP4", "GBP5", "GBP6", "SOD1", "SOD2", "SOD3",
                                                        "S100A8", "S100A9", "HIF1A", "HMOX1", "HMOX2", "SECTM1", "ICAM1",
-                                                       "CD40", "PDCD1", "CD274", "PDCD1LG2"))  
+                                                       "CD40", "PDCD1", "CD274", "PDCD1LG2")) 
+ 
 
 More_Inflammation_Markers <- list(`More Inflammation Markers` = c("CXCL11", "CXCL10", "CCL2", "CCL25", "IL27", "CCL23", "TNFSF13B", "IL1RN",
                                                                   "TNF", "IL15", "IL1B", "CSF1", "TNFSF13", "TGFB1", "IL1A", "IL18", "IL18",
@@ -79,8 +80,10 @@ cell_cycle_genes <- list(`Cell Cycle Genes` = c("DTL", "CDC25A", "CDC6", "CCNE2"
 
 
 quick_gene_heatmaps(cleaned_search_results, sort_by = "DoD_Baseline")
+
 quick_gene_heatmaps(Inflammation_markers, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(More_Inflammation_Markers, sort_by = "DoD_Baseline")
+
 quick_gene_heatmaps(Even_More_Inflammation_Markers, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(ifnas, sort_by = "DoD_Baseline")
 quick_gene_heatmaps(ifnbs, sort_by = "DoD_Baseline")
@@ -93,6 +96,7 @@ search_terms <- c("translation")
 search_results <- search_genes(search_terms)
 quick_gene_heatmaps(search_results, sort = "DoD_Baseline")
   
+
 # MOST SIGNIFICANT GENES HEATMAPS ####
   
 big_table <- fread("all_unique_genes_cleaned.csv", header = TRUE, stringsAsFactors = TRUE)

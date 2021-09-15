@@ -67,7 +67,7 @@ quick_gene_heatmaps <- function(search_results, sort_by){
           #legend.box.margin=margin(0,0,0,0)
           )
 
-      ggplot2::ggsave(paste("./figures/quick_heatmaps/", names(list_of_dfs)[i], ".png", sep=''), width=8, height=2, plot_plot)
+      #ggplot2::ggsave(paste("./figures/quick_heatmaps/", names(list_of_dfs)[i], ".png", sep=''), width=8, height=2, plot_plot)
       return(plot_plot)
       }
 
