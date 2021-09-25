@@ -392,7 +392,7 @@ rownames(wide_scaled_ms) <- wide_scaled_ms$contrast
 wide_scaled_ms$contrast <- NULL
 num_wide_scaled_ms <- as.matrix(wide_scaled_ms[, 2:ncol(wide_scaled_ms)])
 
-rownames(num_wide_scaled_ms) <- gsub("gamma delta", "γδ", rownames(num_wide_scaled_ms), fixed=T)
+#rownames(num_wide_scaled_ms) <- gsub("gamma delta", "γδ", rownames(num_wide_scaled_ms), fixed=T)
 
 num_wide_scaled_ms <- ifelse(num_wide_scaled_ms>abs(min(num_wide_scaled_ms)), abs(min(num_wide_scaled_ms)), num_wide_scaled_ms)
 
@@ -407,7 +407,7 @@ limma_row_split_lineage <- factor(substr(rownames(wide_scaled_ms),0, 4))
 limma_row_split_lineage <- limma_row_split_lineage %>%
   gsub("Doub", "DN", .) %>%
   gsub(" ", "", ., fixed = TRUE) %>%
-  gsub("gamm", "γδ", .)
+  gsub("gamm", "gd", .)
 
 limma_row_split_antigen <- factor(wide_scaled_ms$antigen)
 
@@ -439,11 +439,13 @@ median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
                                #height = unit(16*9/28, "cm")
 )
 
-png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=13, units="in", res=700)
+# png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=13, units="in", res=700)
+# draw(median_cluster_heat, heatmap_legend_side = "bottom")
+# dev.off()
+pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_t6_ds_limma.pdf", width = 8, height=13)
 draw(median_cluster_heat, heatmap_legend_side = "bottom")
 dev.off()
-
-# png("~/PhD/manuscripts/vac69a/jci_corrections/dod_ds_limma.png", width = 8, height=2.6, units="in", res=700)
+# pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_dod_ds_limma.pdf", width = 8, height=2.6)
 # draw(median_cluster_heat, heatmap_legend_side = "bottom")
 # dev.off()
 

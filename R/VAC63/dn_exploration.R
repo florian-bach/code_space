@@ -1,6 +1,7 @@
 library(CATALYST)
 library(diffcyt)
 # library(dplyr)
+
 # library(tidyr)
 #library(ggplot2)
 
@@ -15,8 +16,6 @@ fcs <- list.files(pattern = "fcs")
 #fcs <- subset(fcs, grepl(pattern = "Baseline", fcs))
 #fcs <- subset(fcs, !grepl(pattern = "DoD", fcs))
 fcs <- subset(fcs, !grepl(pattern = "ctrl", fcs))
-fcs <- subset(fcs, !grepl(pattern = "307", fcs))
-fcs <- subset(fcs, !grepl(pattern = "302", fcs))
 
 
 vac63_flowset <- flowCore::read.flowSet(fcs)
@@ -51,7 +50,7 @@ vac63_flowset <- flowCore::read.flowSet(fcs)
 
 
 
-md <- read.csv("vac63c_metadata.csv", header = T)
+md <- read.csv("file_metadata.csv", header = T)
 
 md <- subset(md, md$file_name %in% fcs)
 md <- md[order(md$timepoint),]
@@ -108,27 +107,57 @@ refined_markers <- c("CD4",
                      "CD45RO",
                      "CCR7")
 
-all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16","TCRgd", refined_markers)
+all_markers <- c("CXCR5", "CD45", "CD3", "CD14", "CD16","TCRgd", refined_markers, "CD69")
 
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
-
-set.seed(123);funky <- CATALYST::cluster(funky_boys, features = all_markers, xdim = 10, ydim = 10, maxK = 5)
+set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 15, ydim = 15, maxK = 50)
 
 
-vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = funky,
+all_cluster_heatmap_unclustered <- plotExprHeatmap(x = sce,
                                                         by = "cluster",
                                                         row_clust = FALSE,
                                                         col_clust = FALSE,
                                                         #m = "flo_merge",
-                                                        k= "meta5",
+                                                        k= "meta50",
                                                         bars = TRUE,
                                                         perc = TRUE,
                                                         features=all_markers)
 # 
-# pdf("./figures/vac63c_tcell_cluster_heatmap_meta50_flo_names.pdf", height = 10, width = 9)
-# vac63c_control_tcell_cluster_heatmap
-# dev.off()
+pdf("./dn_exploration/unclustered_phenotypic_heatmap.pdf", height = 10, width = 9)
+all_cluster_heatmap_unclustered
+dev.off()
+
+
+
+
+dn_cluster_heatmap_clustered <- plotExprHeatmap(x = dn_only,
+                                                 by = "cluster",
+                                                 row_clust = TRUE,
+                                                 col_clust = FALSE,
+                                                 #m = "flo_merge",
+                                                 k= "meta50",
+                                                 bars = TRUE,
+                                                 perc = TRUE,
+                                                 features=all_markers)
 # 
+pdf("./dn_exploration/dn_only_phenotypic_heatmap.pdf", height = 2, width = 9)
+dn_cluster_heatmap_clustered
+dev.off()
+
+all_cluster_heatmap_clustered <- plotExprHeatmap(x = sce,
+                                                   by = "cluster",
+                                                   row_clust = TRUE,
+                                                   col_clust = FALSE,
+                                                   #m = "flo_merge",
+                                                   k= "meta50",
+                                                   bars = TRUE,
+                                                   perc = TRUE,
+                                                   features=all_markers)
+# 
+pdf("./dn_exploration/clustered_phenotypic_heatmap.pdf", height = 10, width = 9)
+all_cluster_heatmap_clustered
+dev.off()
+
+dn_only <- filterSCE(sce, cluster_id %in% c(3, 11, 31, 38), k="meta50")
 # 
 # ki67_cd38_plot <- plotScatter(sce, chs = c("Ki67", "CD38"))
 # cxcr5_cd4_plot <- plotScatter(sce, chs = c("CXCR5", "CD4"))
@@ -151,59 +180,58 @@ vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = funky,
 # 
 
 # funky_boys <- filterSCE(sce, cluster_id =="activated DN", k="flo_merge")
+# 
+# meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_50_merge.csv")
+# 
+# sce <- CATALYST::mergeClusters(sce, k = "meta50", table = meta45_table, id = "flo_merge", overwrite = TRUE)
+# 
+# t6_edger <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/t6_edgeR.csv", header = TRUE, stringsAsFactors = FALSE)
+# sig_t6_clusters <- subset(t6_edger, t6_edger$p_adj<0.05 & abs(t6_edger$logFC)>1)$cluster_id
 
-meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/prim_ter_50_merge.csv")
 
-sce <- CATALYST::mergeClusters(sce, k = "meta50", table = meta45_table, id = "flo_merge", overwrite = TRUE)
-
-t6_edger <- read.csv("~/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/differential_abundance/edgeR/t6_edgeR.csv", header = TRUE, stringsAsFactors = FALSE)
-sig_t6_clusters <- subset(t6_edger, t6_edger$p_adj<0.05 & abs(t6_edger$logFC)>1)$cluster_id
-
-
-primaries <- filterSCE(sce, volunteer %in% c("v313", "v315", "v320"))
-tertiaries <- filterSCE(sce, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310"))
+primaries <- filterSCE(dn_only, volunteer %in% c("v313", "v315", "v320"))
+tertiaries <- filterSCE(dn_only, volunteer %in% c("v301", "v304", "v305", "v306", "v308", "v310", "v307", "v302"))
 
 prim_ei <- metadata(primaries)$experiment_info
 prim_design <- createDesignMatrix(prim_ei, c("timepoint", "volunteer"))
 colnames(prim_design)
 
-prim_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 2)))
-ter_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 5)))
-
-
 ter_ei <- metadata(tertiaries)$experiment_info
 ter_design <- createDesignMatrix(ter_ei, c("timepoint", "volunteer"))
 colnames(ter_design)
 
+prim_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 2)))
+ter_dod_contrast <- createContrast(c(c(0,0,1,0), rep(0, 7)))
+
 
 prim_t6_contrast <- createContrast(c(c(0,0,0,1), rep(0, 2)))
-ter_t6_contrast <- createContrast(c(c(0,0,0,1), rep(0, 5)))
+ter_t6_contrast <- createContrast(c(c(0,0,0,1), rep(0, 7)))
 
 
 
 da_dod_prim <- diffcyt(primaries,
-                      design = prim_design,
-                      contrast = prim_dod_contrast,
-                      analysis_type = "DA",
-                      method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "flo_merge",
-                      verbose = T)
+                       design = prim_design,
+                       contrast = prim_dod_contrast,
+                       analysis_type = "DA",
+                       method_DA = "diffcyt-DA-edgeR",
+                       clustering_to_use = "meta50",
+                       verbose = T)
 
 da_dod_ter <- diffcyt(tertiaries,
                       design = ter_design,
                       contrast =ter_dod_contrast,
                       analysis_type = "DA",
                       method_DA = "diffcyt-DA-edgeR",
-                      clustering_to_use = "flo_merge",
+                      clustering_to_use = "meta50",
                       verbose = T)
 
 table(rowData(da_dod_prim$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 48     1 
+# 4     0
 
 table(rowData(da_dod_ter$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 18    31 
+# 3    1 
 
 
 prim_dod_df <- data.frame(rowData(da_dod_prim$res))
@@ -213,19 +241,21 @@ prim_dod_df$n_infection <- "first"
 ter_dod_df <- data.frame(rowData(da_dod_ter$res))
 ter_dod_df <- subset(ter_dod_df, ter_dod_df$p_adj<0.05 & abs(ter_dod_df$logFC)>1)
 ter_dod_df$n_infection <- "third"
-write.csv(rbind(prim_dod_df, ter_dod_df), "./differential_abundance/edgeR/sig_dod_edgeR.csv", row.names = FALSE)
+# write.csv(rbind(prim_dod_df, ter_dod_df), "./differential_abundance/edgeR/sig_dod_edgeR.csv", row.names = FALSE)
 
 
-dod_prim_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_dod_prim, sce, FDR = 0.05, logFC = log2(2))
-dod_ter_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_dod_ter, sce, FDR = 0.05, logFC = log2(2))
+dod_prim_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_dod_prim, sce, FDR = 1, logFC = log2(1))
+dod_ter_diffy <- vac69a.cytof::vac63_diffcyt_boxplot(da_dod_ter, sce, FDR = 1, logFC = log2(1))
 
-diffy <- dod_ter_diffy
+#diffy <- dod_ter_diffy
 
-sig_cluster_boxplot_data <- diffy$data
+sig_cluster_boxplot_data <- rbind(dod_prim_diffy$data, dod_ter_diffy$data)
+
 
 sig_cluster_boxplot_data$batch <- md$batch[match(sig_cluster_boxplot_data$sample_id, md$sample_id)]
 sig_cluster_boxplot_data$n_infection <- md$n_infection[match(sig_cluster_boxplot_data$sample_id, md$sample_id)]
-sig_cluster_boxplot_data$direction <- ifelse(sig_cluster_boxplot_data)
+sig_cluster_boxplot_data$n_infection <- ifelse(sig_cluster_boxplot_data$n_infection!="First", "Reinfection", "First")
+#sig_cluster_boxplot_data$direction <- ifelse(sig_cluster_boxplot_data)
 
 library(ggplot2)
 
@@ -234,7 +264,7 @@ time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
 
 
 sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, levels=c("Baseline", "DoD", "T6", "C45")), y=frequency))+
-  geom_boxplot(aes(fill=n_infection))+
+  geom_boxplot(aes(fill=cluster))+
   geom_point(aes(group=n_infection, colour=volunteer), position = position_dodge(width = 0.75))+
   facet_wrap(~cluster_id, scales = "free", ncol = 5, labeller = label_wrap_gen(width = 8))+
   theme_minimal()+
@@ -245,7 +275,8 @@ sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, leve
   #                              "T6"=time_col[1],
   #                              "C45"=time_col[5]))+
   scale_fill_manual(values = c("First" = time_col[4],
-                               "Third" = time_col[1]))+    
+                               "Reinfection" = time_col[1]))+   
+  guides(color=guide_legend(ncol=2))+
   # scale_fill_manual(values = c("First"="red",
   #                                "Second"="darkblue",
   #                                "Third"="darkgreen"))+
@@ -253,49 +284,68 @@ sig_t6_all_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, leve
         axis.title.x = element_blank(),
         strip.text = element_text(size=7))
 
-ggsave("./figures/sig_dod_ter_boxplot.png", sig_t6_all_plot, height=7, width=11)
-#ggsave("./figures/sig_dod_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
-#ggsave("./figures/sig_c45_boxplot.png", sig_t6_all_plot, height=7.5, width=12)
+
+ggsave("./dn_exploration/dn_freq.png", sig_t6_all_plot, height=3.5, width=7, bg = "white")
 
 
 
+var_plot <- ggplot(sig_cluster_boxplot_data, aes(x=factor(timepoint, levels=c("Baseline", "DoD", "T6", "C45")), y=frequency))+
+  geom_boxplot(position =  position_dodge(width=0.75), aes(fill=cluster_id))+
+  geom_point(aes(group=cluster_id, colour=volunteer), position = position_dodge(width=0.75))+
+  facet_wrap(~n_infection, scales = "fixed")+
+  theme_minimal()+
+  scale_y_continuous()+
+  ylab("% of all CD3+ cells")+
+  # scale_fill_manual(values = c("Baseline"=time_col[4],
+  #                              "DoD"=time_col[2],
+  #                              "T6"=time_col[1],
+  #                              "C45"=time_col[5]))+
+  guides(color=guide_legend(ncol=2))+
+  # scale_fill_manual(values = c("First"="red",
+  #                                "Second"="darkblue",
+  #                                "Third"="darkgreen"))+
+  theme(axis.text.x = element_text(angle = 45, hjust=1),
+        axis.title.x = element_blank(),
+        strip.text = element_text(size=7))
+
+ggsave("./dn_exploration/dn_freq_var.png", var_plot, height=3.5, width=7, bg = "white")
 
 
 
 
 da_t6_prim <- diffcyt(primaries,
-                     design = prim_design,
-                     contrast = prim_t6_contrast,
+                      design = prim_design,
+                      contrast = prim_t6_contrast,
+                      #formula = glm_formula,
+                      #contrast = t6_glm_contrast,
+                      analysis_type = "DA",
+                      method_DA = "diffcyt-DA-edgeR",
+                      #clustering_to_use = "flo_merge",
+                      clustering_to_use = "meta50",
+                      #min_cells = 0,
+                      verbose = T)
+
+
+da_t6_ter <- diffcyt(tertiaries,
+                     design = ter_design,
+                     contrast = ter_t6_contrast,
                      #formula = glm_formula,
                      #contrast = t6_glm_contrast,
                      analysis_type = "DA",
                      method_DA = "diffcyt-DA-edgeR",
                      #clustering_to_use = "flo_merge",
                      clustering_to_use = "meta50",
-                     min_cells = 0,
-                     verbose = T)
-
-
-da_t6_ter <- diffcyt(tertiaries,
-                      design = ter_design,
-                      contrast = ter_t6_contrast,
-                      #formula = glm_formula,
-                      #contrast = t6_glm_contrast,
-                      analysis_type = "DA",
-                      method_DA = "diffcyt-DA-edgeR",
-                     #clustering_to_use = "flo_merge",
-                     clustering_to_use = "meta50",
-                     verbose = T,min_cells = 0
-                      )
+                     verbose = T, #min_cells = 0
+)
 #View(data.frame(rowData(all_da_t6$res)))
 
 
 table(rowData(da_t6_prim$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 21    26 
+# 3    1 
 table(rowData(da_t6_ter$res)$p_adj < 0.05)
 # FALSE  TRUE 
-# 33    13 
+# 4    0
 
 prim_t6_df <- data.frame(rowData(da_t6_prim$res))
 
@@ -461,7 +511,7 @@ ms5 <- ms4[,2:ncol(ms4)]
 scaled_mat <- apply(apply(ms5, c(1,2), as.numeric), MARGIN = 1, function(x)scales::rescale(x, to=c(0, 1)))
 write.csv(scaled_mat, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_medians_prim_ter_T6.csv")
 
-  
+
 scaled_mat <- read.csv("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_medians_prim_ter_T6.csv", row.names = 1)
 reordered_scaled_mat <- scaled_mat[,match(refined_markers, colnames(scaled_mat))]
 
@@ -552,9 +602,9 @@ all_cluster_heatmap <- Heatmap(matrix = as.matrix(rereordered_scaled_mat),
                                # height = unit(16*34/28, "cm")
 )
 
-  png("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/sig_cluster_heatmap_var.png", width=16, height=8, units = "in", res=400)
-  draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
-  dev.off()
+png("/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/figures/sig_cluster_heatmap_var.png", width=16, height=8, units = "in", res=400)
+draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
+dev.off()
 
 
 

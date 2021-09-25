@@ -51,7 +51,7 @@
   
   
   
-  md <- read.csv("vac63c_metadata.csv", header = T)
+  md <- read.csv("file_metadata.csv", header = T)
   
   md <- subset(md, md$file_name %in% fcs)
   md <- md[order(md$timepoint),]
@@ -87,7 +87,7 @@
                      "CD27",
                      "Perforin",
                      "GZB",
-                     #"TCRgd",
+                     "TCRgd",
                      "Tbet",
                      "Eomes",
                      #"RORgt",
@@ -110,19 +110,19 @@
   
   # all_markers <- c("CD45", "CD3", "CD3", "CD14", "CD16", refined_markers)
   
-  set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
+  set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 15, ydim = 15, maxK = 50)
   
   
   vac63c_control_tcell_cluster_heatmap <- plotExprHeatmap(x = sce,
                                                           by = "cluster",
                                                           row_clust = FALSE,
                                                           col_clust = FALSE,
-                                                          m = "meta50",
-                                                          k= "som100",
+                                                          k = "meta50",
+                                                          #k= "som100",
                                                           bars = TRUE,
                                                           features = refined_markers)
 
-  pdf("./figures/vac63c_tcell_cluster_heatmap_som100_meta50_names.pdf", height = 20, width = 9)
+  pdf("./figures/vac63c_tcell_cluster_heatmap_som225_meta50_names.pdf", height = 10, width = 9)
   vac63c_control_tcell_cluster_heatmap
   dev.off()
 

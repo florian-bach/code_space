@@ -68,6 +68,7 @@ vac63c_lymph_premerge <- data.frame("volunteer" = vac63c_lymph$Volunteer_code,
                                     "Frequency" = vac63c_lymph$cell_counts,
                                     "Species" = "P. falciparum")
 
+redo_dod_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/vivax_falci_dod_all_redo/vivax_falci_dod_all_redo/ClueGOResultTable-0.xls")
 
 
 
@@ -144,7 +145,6 @@ dod_unpaired <- read.csv("~/PhD/RNAseq/vac63c/First_DoD_unpaired_all_VAC063data.
 write.table(dod_unpaired$Symbol, file = "~/PhD/RNAseq/vac63c/USE_THIS_VAC63ABC_DOD.txt", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
 
 
-redo_dod_data <- readxl::read_xls("~/PhD/RNAseq/vac69a/cytoscape/vivax_falci_dod_all_redo/vivax_falci_dod_all_redo/ClueGOResultTable-0.xls")
 redo_dod_data <- subset(redo_dod_data, grepl("6", redo_dod_data$GOLevels))
 
 # redo_dod_data$Cluster_Difference <- redo_dod_data$`%Genes Cluster #1.adjusted.to.input.list.size` -redo_dod_data$`%Genes Cluster #2.adjusted.to.input.list.size`
@@ -327,7 +327,7 @@ long_haem_perc$`% of CD45+` <- ifelse(long_haem_perc$timepoint=="C90", long_haem
 )
 
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_whole_blood_cell_comp.png", blood_comp_plot,  height = 5, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_whole_blood_cell_comp.pdf", blood_comp_plot,  height = 5, width=5, bg="white")
 
 long_haem_falci <- vac63c_haem %>%
   filter()
@@ -439,7 +439,7 @@ long_falci_perc$`% of CD45+` <- ifelse(long_falci_perc$timepoint=="T6", long_fal
 
 
 #memory means C28 for everybody except v313, v315 & 320
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/falciparum_whole_blood_cell_comp.png", falci_blood_comp_plot,  height = 5, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/falciparum_whole_blood_cell_comp.pdf", falci_blood_comp_plot,  height = 5, width=5, bg="white")
 
 #individual haem through time plots
 
@@ -455,7 +455,7 @@ vac63c_prim_indie_haem_plot <- ggplot(subset(longer_falci_haem, longer_falci_hae
   theme(axis.title.x = element_blank(),
         axis.text.x = element_text(angle = 90, vjust=0.5))
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vac63c_prim_indie_haem_plot.png", vac63c_prim_indie_haem_plot,  height = 5, width=8, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vac63c_prim_indie_haem_plot.pdf", vac63c_prim_indie_haem_plot,  height = 5, width=8, bg="white")
 
 
 
@@ -466,32 +466,78 @@ ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vac63c_prim_indie
 
 
 flo_Inflammation_markers <- list(`Inflammation Markers` = c("STAT1", "STAT2",  "IRF1", "IRF2", "IRF7", "IRF9", "MYD88",
-                                                            "TICAM1", "TICAM2", "TLR4", "IDO1", "IDO2", "ACOD1", "GBP1",
+                                                            "TICAM1", "TICAM2", "IDO1", "IDO2", "ACOD1", "GBP1",
                                                             "GBP2", "GBP3", "GBP4", "GBP5", "GBP6", "SOD2", "SOD3",
-                                                            "S100A8", "S100A9", "HIF1A", "SECTM1", "ICAM1",
+                                                            "HIF1A", "SECTM1", "ICAM1",
                                                             "CD40", "CD274", "PDCD1LG2"))
 
 flo_More_Inflammation_Markers <- list(`Cytokines & Chemokines` = c("CXCL11", "CXCL10", "CCL2", "CCL25", "IL27", "TNFSF13B", "IL1RN",
-                                                                   "TNF", "IL15", "IL1B", "CSF1", "TNFSF13", "IL1A",
-                                                                   "IL7", "IFNA1", "IL10", "IL6", "IL12A"
+                                                                   "TNF", "IL15", "IL1B", "CSF1", "TNFSF13",
+                                                                   "IFNA1"
 )
 )
 
-power2 <- 
 
-inflam1 <- quick_gene_heatmaps(flo_Inflammation_markers, sort_by = "DoD_Baseline")+
+inflam1 <- quick_gene_heatmaps(flo_Inflammation_markers, sort_by = "DoD_Baseline")$data
+#inflam1a <- quick_gene_heatmaps(flo_Inflammation_markers, sort_by = "T6_Baseline")$data
+
+combo_inflam1 <-inflam1
+
+combo_inflam1$file_name <- gsub("_", " vs. ", combo_inflam1$file_name)
+
+combo_inflam1$log2FoldChange <- ifelse(combo_inflam1$padj<=0.05, combo_inflam1$log2FoldChange, 0)
+
+inflam1_plot <- ggplot(combo_inflam1, aes(x=file_name, y=factor(Symbol, levels=inflam1$Symbol[order(inflam1$log2FoldChange, decreasing = FALSE)])))+
+  geom_tile(aes(fill=log2FoldChange))+
   viridis::scale_fill_viridis(option = "B", breaks=c(2,4,6), limits=c(0,6.5))+
-  guides(fill=guide_colourbar(title="log2FC"))+
-  theme(axis.text.y = element_text(size=7, angle = 0, hjust=1))
+  theme_void()+
+  ggtitle("Acute Phase Response Genes \n")+
+  guides(fill=guide_colorbar(title="log2FC", nbin=30))+
+  theme(
+    axis.text.y = element_text(size=7, angle = 0, hjust=1),
+    axis.text.x = element_text(size=7, angle = 0, hjust=0.5),
+    plot.title = element_text(hjust=0.5),
+    legend.title = element_text(),
+    plot.margin=margin(0,0,1,1),
+    legend.position = "right"
+    #legend.box.margin=margin(0,0,0,0)
+  )
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/acute_phase_heat.pdf", inflam1_plot, height=5, width = 2.5, bg="white")
 
-inflam2 <- quick_gene_heatmaps(flo_More_Inflammation_Markers, sort_by = "DoD_Baseline")+
+
+  
+
+inflam2 <- quick_gene_heatmaps(flo_More_Inflammation_Markers, sort_by = "DoD_Baseline")$data
+#inflam2a <- quick_gene_heatmaps(flo_More_Inflammation_Markers, sort_by = "T6_Baseline")$data
+  
+
+combo_inflam2 <- inflam2
+
+combo_inflam2$file_name <- gsub("_", " vs. ", combo_inflam2$file_name)
+
+combo_inflam2$log2FoldChange <- ifelse(combo_inflam2$padj<=0.05, combo_inflam2$log2FoldChange, 0)
+
+
+
+inflam2_plot <- ggplot(combo_inflam2, aes(x=file_name, y=factor(Symbol, levels=inflam2$Symbol[order(inflam2$log2FoldChange, decreasing = FALSE)])))+
+  geom_tile(aes(fill=log2FoldChange))+
   viridis::scale_fill_viridis(option = "B", breaks=c(2,4,6), limits=c(0,6.5))+
-  guides(fill=guide_colourbar(title="log2FC"))+
-  theme(axis.text.y = element_text(size=7, angle=0, hjust=1))
+  theme_void()+
+  ggtitle("Cytokines & Chemokines \n")+
+  guides(fill=guide_colorbar(title="log2FC", nbin=30))+
+  theme(
+    axis.text.y = element_text(size=7, angle = 0, hjust=1),
+    axis.text.x = element_text(size=7, angle = 0, hjust=0.5),
+    plot.title = element_text(hjust=0.5),
+    legend.title = element_text(),
+    plot.margin=margin(0,0,1,1),
+    legend.position = "right"
+    #legend.box.margin=margin(0,0,0,0)
+  )
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/cyto_chemo_heat.png", inflam2, height=5, width = 2.5, bg="white")
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/acute_phase_heat.png", inflam1, height=5, width = 2.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/cyto_chemo_heat.pdf", inflam2_plot, height=5, width = 2.5, bg="white")
+
 
 
 
@@ -612,7 +658,7 @@ combo_dod_para_plot_all <- ggplot(combo_dod_para_all, aes(x=species, y=parasitae
     legend.title = element_blank(),
     legend.text = element_text(size=11))
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_13v6_log.png", combo_dod_para_plot_all, height=4, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_13v6_log.pdf", combo_dod_para_plot_all, height=4, width=5, bg="white")
 
 
 
@@ -630,7 +676,7 @@ combo_dod_para_plot_prim <- ggplot(combo_dod_para_prim, aes(x=species, y=parasit
         legend.text = element_text(size=11))
 
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_3v6.png", combo_dod_para_plot_prim, height=4, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_dod_para_3v6.pdf", combo_dod_para_plot_prim, height=4, width=5, bg="white")
 
 
 
@@ -679,7 +725,7 @@ box_lymph_plot_all <- ggplot(vivax_falci_lymph_merge, aes(x=factor(timepoint, le
           legend.title = element_blank(),
           axis.title.x = element_blank())
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_lymphocytes_6v13.png", box_lymph_plot_all, height=5.5, width=5.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_lymphocytes_6v13.pdf", box_lymph_plot_all, height=5.5, width=5.5, bg="white")
 
 
 vivax_falci_lymph_merge_prim <- filter(vivax_falci_lymph_merge, volunteer %notin% c("v1039", "v1040", "v1061", "v1065", "v1067", "v1068", "v1075", "v6032", "v806", "v818"))
@@ -701,7 +747,7 @@ box_lymph_plot_prim <- ggplot(vivax_falci_lymph_merge_prim, aes(x=factor(timepoi
         axis.title.x = element_blank(),
         legend.title = element_blank())
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_lymphocytes_6v3.png", box_lymph_plot_prim, height=5.5, width=5.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_falci_lymphocytes_6v3.pdf", box_lymph_plot_prim, height=5.5, width=5.5, bg="white")
 
 
 
@@ -723,7 +769,7 @@ box_lymph_plot_prim <- ggplot(vivax_falci_lymph_merge_prim, aes(x=factor(timepoi
         axis.title.x = element_blank())
 
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_falci_lymphocytes_prim.png", box_lymph_plot_prim, height=5.5, width=5.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_falci_lymphocytes_prim.pdf", box_lymph_plot_prim, height=5.5, width=5.5, bg="white")
 
 # alt correlation ####
 
@@ -776,7 +822,7 @@ alt_cd4_treg_plot <- ggplot(combo_alt_lineage_acti_data, aes(x=alt, y=activated/
   theme_minimal()+
   theme(strip.text=element_text(size=12))
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/alt_tcell_activation_correlation.png", height=4, width=6.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/alt_tcell_activation_correlation.pdf", height=4, width=6.5, bg="white")
 
 
 
@@ -1036,4 +1082,4 @@ for(i in 1:8){
 
 all_para_plot <- cowplot::plot_grid(plotlist = para_plot_list, ncol = 3)    
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_pmr_plot.png", width=8, height=6, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_pmr_plot.pdf", width=8, height=6, bg="white")
