@@ -305,20 +305,32 @@ mean_haem <- long_haem_perc %>%
   summarise(Mean=mean(`% of CD45+`))
 
 
-long_haem_perc$`% of CD45+` <- ifelse(long_haem_perc$timepoint=="C90", long_haem_perc$`% of CD45+`*6/4, long_haem_perc$`% of CD45+`)
+#long_haem_perc$`% of CD45+` <- ifelse(long_haem_perc$timepoint=="C90", long_haem_perc$`% of CD45+`*6/4, long_haem_perc$`% of CD45+`)
+
+haem_palette <- c("#201F41", "#c90e46", "#eba715", "#eb4b15")
+names(haem_palette) <- c("Neutrophils", "Lymphocytes", "Monocytes", "Eosinophils")
 
 
-(blood_comp_plot <- ggplot(long_haem_perc, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14 am", "Diagnosis", "T1", "T6", "C90")),
-                                              y=`% of CD45+`/6,
+
+summary_long_haem_perc <- long_haem_perc %>%
+  group_by(Cell, timepoint) %>%
+  summarise("mean"=mean(`% of CD45+`))
+
+
+
+(blood_comp_plot <- ggplot(summary_long_haem_perc, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14 am", "Diagnosis", "T1", "T6", "C90")),
+                                              y=mean,
                                               fill=factor(Cell)))+
-  geom_bar(position = "stack", stat="identity")+
+  geom_bar(position = "stack", stat="identity", color=NA, size=0)+
   scale_y_continuous(label=scales::percent)+
-  geom_text(aes(x=timepoint, y=Mean, label=paste(round(Mean*100, digits=2), "%", sep="")), data = mean_haem, position = position_stack(vjust = .5))+
+  geom_text(aes(color=Cell, x=timepoint, y=Mean, label=paste(round(Mean*100, digits=2), "%", sep="")), data = mean_haem, position = position_stack(vjust = .5))+
   theme_minimal()+
-  ylab("% of CD45+")+
-  scale_fill_brewer(type="qual", palette = "Dark2", direction=-1)+
-  guides(fill=guide_legend(title="Cell Type"))+
-  ggtitle("Whole Blood Cellular Composition First Pv Infection")+
+  ylab("% of White Blood Cells")+
+  scale_fill_manual(values=haem_palette[rev(c(1,3,2,4))])+
+  scale_color_manual(values = c(rep("black", 3), "white"))+
+  guides(fill=guide_legend(title="Cell Type"),
+         color=guide_none())+
+  ggtitle(expression(paste("Whole Blood Cellular Composition First ", italic("P. vivax"), " Infection")))+
   theme(plot.title = element_text(hjust=0.5),
           axis.text.x = element_text(hjust=1, angle=45, size=8),
           axis.title.x = element_blank(),
@@ -327,7 +339,7 @@ long_haem_perc$`% of CD45+` <- ifelse(long_haem_perc$timepoint=="C90", long_haem
 )
 
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_whole_blood_cell_comp.pdf", blood_comp_plot,  height = 5, width=5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_whole_blood_cell_comp.pdf", blood_comp_plot,  height = 5, width=5.5, bg="white")
 
 long_haem_falci <- vac63c_haem %>%
   filter()
@@ -464,6 +476,8 @@ ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vac63c_prim_indie
 
 # run quick_heatmaps.R lines 1:24 before this
 
+purvesh_list <- c("TGFBI", "DEFA4", "LY86", "BATF",
+                  "HK3", "HLA-DPB1")
 
 flo_Inflammation_markers <- list(`Inflammation Markers` = c("STAT1", "STAT2",  "IRF1", "IRF2", "IRF7", "IRF9", "MYD88",
                                                             "TICAM1", "TICAM2", "IDO1", "IDO2", "ACOD1", "GBP1",
@@ -476,6 +490,7 @@ flo_More_Inflammation_Markers <- list(`Cytokines & Chemokines` = c("CXCL11", "CX
                                                                    "IFNA1"
 )
 )
+
 
 
 inflam1 <- quick_gene_heatmaps(flo_Inflammation_markers, sort_by = "DoD_Baseline")$data
@@ -638,6 +653,10 @@ combo_dod_para_all <- data.frame("volunteer" = c(highest_vivax_parasitaemias$Vol
 )
 
 
+wilcox.test(subset(combo_dod_para_all, combo_dod_para_all$species=="P. vivax")$parasitaemia,
+            subset(combo_dod_para_all, combo_dod_para_all$species=="P. falciparum")$parasitaemia)
+#p-value = 0.6388
+
 combo_dod_para_plot_all <- ggplot(combo_dod_para_all, aes(x=species, y=parasitaemia))+
   geom_boxplot(aes(fill=species))+
   scale_y_log10(limits=c(100,200000), breaks=c(1000,10000,100000))+
@@ -789,40 +808,50 @@ ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_falci_lymphocytes_prim.pd
 # combo_alt_lineage_acti_data$lineage <- gsub("gamma delta", "gd", combo_alt_lineage_acti_data$lineage)
 # 
 #write.csv(combo_alt_lineage_acti_data, "~/PhD/manuscripts/vac69a/jci_corrections/combo_alt_lineage_acti_data.csv", row.names = FALSE)
-combo_alt_lineage_acti_data <- read.csv("~/PhD/manuscripts/vac69a/jci_corrections/combo_alt_lineage_acti_data.csv")
+
+
+
+# here we made a df called vac69b_lineage_activation & vac69b_lin_acti_alt on line 284 in "vac69b_activation.R" to calculate the lineage-wise
+# activation at T6 and obtined alt data as well to buff out our first infection dataset
+
+combo_alt_lineage_acti_data <- rbind(combo_alt_lineage_acti_data, vac69b_lin_acti_alt[,1:4])
+write.csv(combo_alt_lineage_acti_data, "~/PhD/manuscripts/vac69a/jci_corrections/vac69a_b_vac63c_lineage_acti_data_.csv", row.names = FALSE)
+
+
+combo_alt_lineage_acti_data <- read.csv("~/PhD/manuscripts/vac69a/jci_corrections/vac69a_b_vac63c_lineage_acti_data_.csv")
 
 combo_alt_lineage_acti_data <- combo_alt_lineage_acti_data%>%
   filter(volunteer %notin% c("v301", "v302", "v304", "v305", "v306", "v307", "v308", "v310"), lineage %in% c("CD4", "Treg"))
 
-
+#combo_alt_lineage_acti_data <- subset(combo_alt_lineage_acti_data, combo_alt_lineage_acti_data$volunteer %notin% c("v313", "v315", "v320"))
 
 combo_alt_lineage_acti_data %>%
   group_by(lineage) %>%
-  do(broom::tidy(cor.test(.$activated, .$alt, method="spearman")))
+  do(broom::tidy(cor.test(.$activated, .$alt, method="pearson")))
 
 combo_alt_lineage_acti_data$species <- ifelse(nchar(combo_alt_lineage_acti_data$volunteer)==3, "P. vivax", "P.falciparum")
 
 
-combo_alt_lineage_acti_data$lineage <- gsub("CD4", "CD4 (r=0.72, p=0.037)", combo_alt_lineage_acti_data$lineage)
-combo_alt_lineage_acti_data$lineage <- gsub("Treg", "Treg (r=0.68, p=0.05)", combo_alt_lineage_acti_data$lineage)
+combo_alt_lineage_acti_data$lineage <- gsub("CD4", "CD4 (r=0.636, p=0.0404)", combo_alt_lineage_acti_data$lineage)
+combo_alt_lineage_acti_data$lineage <- gsub("Treg", "Treg (r=0.618, p=0.0478)", combo_alt_lineage_acti_data$lineage)
 
 alt_cd4_treg_plot <- ggplot(combo_alt_lineage_acti_data, aes(x=alt, y=activated/100))+
   geom_point(aes(colour=volunteer, shape=species))+
   geom_smooth(method="lm", colour="black")+
   ylab("Fraction of Lineage Activated")+
   xlab("ALT (IU / L)")+
-  guides(shape = guide_legend(title="Species"),
-         color = guide_legend(title="Volunteer",
-                              override.aes = list(shape= c(rep(16,6),
-                                                           rep(17,3)))),
-  )+
+  # guides(shape = guide_legend(title="Species"),
+  #        color = guide_legend(title="Volunteer",
+  #                             override.aes = list(shape= c(rep(16,6),
+  #                                                          rep(17,3)))),
+  # )+
   scale_y_continuous(labels = scales::percent_format(accuracy = 2), limits=c(0,NA))+
-  scale_colour_manual(values=vivax_falci_palette[c(10:15, 1:3)])+
+  #scale_colour_manual(values=vivax_falci_palette[c(10:15, 1:3)])+
   facet_wrap(~lineage, scales = "free_y")+
   theme_minimal()+
   theme(strip.text=element_text(size=12))
 
-ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/alt_tcell_activation_correlation.pdf", height=4, width=6.5, bg="white")
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/alt_tcell_activation_correlation_vac69ab.pdf", height=4, width=6.5, bg="white")
 
 
 
@@ -1083,3 +1112,296 @@ for(i in 1:8){
 all_para_plot <- cowplot::plot_grid(plotlist = para_plot_list, ncol = 3)    
 
 ggsave("~/PhD/manuscripts/vac69a/jci_corrections/vivax_pmr_plot.pdf", width=8, height=6, bg="white")
+
+# reworked figure 2 heatmaps ####
+vivax_t6_data <- read.csv("~/PhD/RNAseq/vac69a/all/xls/all_unique_genes_cleaned.csv")
+
+vivax_t6_data$Infection <- "P. vivax"
+
+# 
+diana_list <- scan("~/PhD/RNAseq/vac69a/all/xls/gene_lists/diana_cell_cycle_genes.txt", what="NULL", sep = ",")
+# 
+# 
+
+flo_Inflammation_markers <- c("STAT1", "STAT2",  "IRF1", "IRF2", "IRF7", "IRF9", "MYD88",
+                              "TICAM1", "TICAM2", "IDO1", "IDO2", "ACOD1", "GBP1",
+                              "GBP2", "GBP3", "GBP4", "GBP5", "GBP6", "SOD2", "SOD3",
+                              "HIF1A", "SECTM1", "ICAM1", "CD40", "CD274", "PDCD1LG2", "CXCL11",
+                              "CXCL10", "CCL2", "CCL25", "IL27", "TNFSF13B", "IL1RN", "TNF",
+                              "IL15", "IL1B", "CSF1", "TNFSF13", "IFNA1")
+)
+
+
+# inflammatory_list <- c("STAT1", "STAT2",  "IRF1", "IRF2", "IRF7", "IRF9", "MYD88",
+#                        "TICAM1", "TICAM2", "TLR4", "IDO1", "IDO2", "ACOD1", "GBP1",
+#                        "GBP2", "GBP3", "GBP4", "GBP5", "GBP6", "SOD1", "SOD2", "SOD3",
+#                        "S100A8", "S100A9", "HIF1A", "HMOX1", "HMOX2", "SECTM1", "ICAM1",
+#                        "CD40", "PDCD1", "CD274", "PDCD1LG2", "CXCL11", "CXCL10", "CCL2",
+#                        "CCL25", "IL27", "CCL23", "TNFSF13B", "IL1RN", "TNF", "IL15",
+#                        "IL1B", "CSF1", "TNFSF13", "TGFB1", "IL1A", "IL18", "IL18", "IL7", 
+#                        "IL12B", "CSF2", "LTA", "IFNB1", "IFNA1", "IL10", "IL6", "IL12A",
+#                        "CXCL8", "AIM2", "OASL", "MX1", "MX2", "DDX58", "IL18", "CXCL9", "IL6", "IL21")
+# 
+# #shorter
+# inflammatory_list <- c("STAT1", "STAT2",  "IRF1", "IRF2", "IRF7", "IRF9", "MYD88",
+#                        "TLR4", "IDO1", "IDO2", "ACOD1", "GBP1",
+#                        "GBP2", "GBP3", "GBP4", "GBP5", "GBP6", "SOD1", "SOD2", "SOD3",
+#                        "S100A8", "S100A9", "HIF1A", "HMOX1", "HMOX2", "ICAM1",
+#                        "CD40", "PDCD1", "CD274", "PDCD1LG2", "CXCL11", "CXCL10", "CCL2",
+#                        "CCL25", "IL27", "CCL23", "TNFSF13B", "IL1RN", "TNF", "IL15",
+#                        "IL1B", "CSF1", "TNFSF13", "TGFB1", "IL1A", "IL18", "IL18", "IL7", 
+#                        "IL12B", "CSF2", "LTA", "IFNB1", "IFNA1", "IL10", "IL6", "IL12A",
+#                        "CXCL8", "AIM2", "OASL", "MX1", "MX2", "DDX58", "IL18", "CXCL9", "IL6", "IL21")
+
+
+
+inflammatory_list <- c("IL1RN","IL1B",  "TNF", "IL15", "IL27", "STAT1", "STAT2", "GBP1", "GBP2", "OASL", "MX1", "MX2",
+                       "IRF1", "IRF9", "MYD88", "DDX58", "SOD2", "HIF1A", "CD274", "PDCD1LG2", "CASP1", "CASP3","CASP8",
+                       "BAK1", "BCL2L1", "BCL2L13", "ADAM17", "CCR1", "CCR2", "CCL2", "CCL3", #"CCL4", "CCL5",
+                       "CSF1", "CXCL10", "IDO1", "TNFa", "TLR", "NLRP", "MDA5", "MAVS", "AIM2")
+
+diana_list <- unlist(strsplit(c("POLA1, MKI67, POLA2, POLD1, POLD3, POLE2, PCNA, FANCE, FANCG, FANCI, FANCL, RAD51, RAD51AP1, RAD54L, CNE2, CDC25A, CDC6, CCNA2, CCNB1, CCNB2, CDC25C, CENPA, CENPE, CENPF, CENPI"),
+                              split = ", ",))
+
+
+tp_keep <- "T6_Baseline";chosen_list <- diana_list
+tp_keep <- "DoD_Baseline";chosen_list <- inflammatory_list
+
+
+
+faves_in_vivax <- vivax_t6_data %>%
+  #filter(file_name %in% tp_keep) %>%
+  #filter(file_name == "T6_Baseline") %>%
+  #filter(padj<=0.05)%>%
+  #filter(abs(log2FoldChange)>=log2(1.5))%>%
+  select(Symbol, log2FoldChange, padj, file_name) %>%
+  arrange(log2FoldChange)
+
+
+phil_cycle_faves <- c("CDC25A", "CCNB2", "CDK1", "CDC20", "RAD51", "BIRC5", "CEP55", "NEK2", "CENPI", "CDC6", "MKI67", "EXO1", "AURKB", "CENPF", "EZH2", "HELLS")
+
+chosen_list <- unique(c(diana_list, phil_cycle_faves, "STAT1", "STAT2",  "IRF1", "IRF7", "MYD88",
+                        "IDO1", "ACOD1", "GBP1",
+                        "GBP2", "GBP4", "GBP5", "GBP6", "SOD2",
+                        "HIF1A", "SECTM1", "ICAM1", "CD40", "CD274", "PDCD1LG2",
+                        "CXCL10", "CCL2", "CCL25", "IL27", "IL1RN", "TNF",
+                        "IL15", "IL1B", "CSF1"))
+
+
+
+
+#combo_data <- subset(faves_in_vivax, faves_in_vivax$Symbol %in% c(chosen_list))
+combo_data <- subset(faves_in_vivax, faves_in_vivax$Symbol %in% purvesh_list)
+
+combo_data$log2FoldChange <- ifelse(combo_data$padj>0.05, 0, combo_data$log2FoldChange)
+combo_data$log2FoldChange <- ifelse(abs(combo_data$log2FoldChange)<log2(1.5), 0, combo_data$log2FoldChange)
+
+
+gene_matrix <- data.frame(combo_data %>%
+                            arrange(desc(log2FoldChange)) %>%                          
+                            select(Symbol, file_name, log2FoldChange) %>%
+                            filter(log2FoldChange>log2(1.5))%>%
+                            pivot_wider(names_from = file_name, values_from = log2FoldChange))
+
+gene_matrix <- gene_matrix[gene_matrix[,2]!=0,]
+
+#gene_matrix <- gene_matrix[ifelse(gene_matrix$T6_Baseline==0&gene_matrix$DoD_Baseline==0, FALSE, TRUE), ]
+
+rownames(gene_matrix) <- gene_matrix$Symbol
+
+gene_matrix$Symbol <- NULL
+
+gene_matrix <- as.matrix(gene_matrix)
+
+
+inferno <- c(colorspace::sequential_hcl("inferno", n=10))
+
+
+col_fun_rna_t6 <- circlize::colorRamp2(breaks=seq(from = -0.5,
+                                                  to = max(gene_matrix),
+                                                  by = max(gene_matrix)/8),
+                                       colors=inferno)
+
+
+
+# rownames(gene_matrix) <- gsub("_", " relative to\n ", rownames(gene_matrix))
+# rownames(gene_matrix) <- gsub("DoD", "Diagnosis", rownames(gene_matrix))
+
+colnames(gene_matrix) <- gsub("_", " relative to\n ", colnames(gene_matrix))
+
+gene_heatmap <- Heatmap(matrix = gene_matrix,
+                        cluster_rows = FALSE,
+                        show_heatmap_legend = TRUE,
+                        column_title ="Selected Cell\nCycle Genes",
+                        column_title_gp = gpar(just="center", fontsize=10),
+                        cluster_columns = FALSE,
+                        row_names_gp = gpar(fontsize = 10, fontface="italic"),
+                        heatmap_legend_param = list(legend_position = "bottom",
+                                                    col=col_fun_rna_dod,
+                                                    title = "log2FC",
+                                                    legend_direction = "horizontal",
+                                                    title_position = "topcenter",
+                                                    #legend_width = unit(6.2, "cm"),
+                                                    border = FALSE),
+                        column_names_gp = gpar(fontsize = 8, just="center"),
+                        show_row_names = TRUE,
+                        row_names_side = "left",
+                        col = col_fun_rna_dod,
+                        column_names_rot = 45)
+
+
+
+pdf("/home/flobuntu/PhD/manuscripts/vac69a/jci_corrections/vivax_t6_heat.pdf", width = 2.5, height=8.2)
+draw(gene_heatmap,  heatmap_legend_side = "bottom",
+     padding=unit(c(2,8,2,8), "mm")
+)
+dev.off()
+
+
+
+
+
+faves_in_vivax_dod <- vivax_t6_data %>%
+  #filter(file_name %in% tp_keep) %>%
+  filter(file_name == "DoD_Baseline") %>%
+  #filter(padj<=0.05)%>%
+  #filter(abs(log2FoldChange)>=log2(1.5))%>%
+  select(Symbol, log2FoldChange, padj, file_name) %>%
+  arrange(log2FoldChange)
+
+
+
+combo_data2 <- subset(faves_in_vivax_dod, faves_in_vivax_dod$Symbol %in% purvesh_list)
+
+#combo_data2 <- subset(faves_in_vivax_dod, faves_in_vivax_dod$Symbol %in% chosen_list)
+
+combo_data2$log2FoldChange <- ifelse(combo_data2$padj>0.05, 0, combo_data2$log2FoldChange)
+combo_data2$log2FoldChange <- ifelse(abs(combo_data2$log2FoldChange)<log2(1.5), 0, combo_data2$log2FoldChange)
+
+
+
+gene_matrix2 <- data.frame(combo_data2 %>%
+                            arrange(desc(log2FoldChange)) %>%                          
+                            select(Symbol, file_name, log2FoldChange) %>%
+                            filter(log2FoldChange>log2(1.5))%>%
+                            pivot_wider(names_from = file_name, values_from = log2FoldChange))
+
+gene_matrix2 <- gene_matrix2[gene_matrix2[,2]!=0,]
+
+#gene_matrix <- gene_matrix[ifelse(gene_matrix$T6_Baseline==0&gene_matrix$DoD_Baseline==0, FALSE, TRUE), ]
+
+rownames(gene_matrix2) <- gene_matrix2$Symbol
+
+gene_matrix2$Symbol <- NULL
+
+gene_matrix2 <- as.matrix(gene_matrix2)
+
+
+
+colnames(gene_matrix2) <- gsub("_", " relative to\n ", colnames(gene_matrix2))
+
+
+
+col_fun_rna_dod <- circlize::colorRamp2(breaks=seq(from = -0.5,
+                                                   to = max(gene_matrix2),
+                                                   by = max(gene_matrix2)/9),
+                                        colors=inferno)
+
+
+
+
+gene_heatmap2 <- Heatmap(matrix = gene_matrix2,
+                        cluster_rows = FALSE,
+                        show_heatmap_legend = TRUE,
+                        column_title ="Selected \nInflammatory Genes",
+                        column_title_gp = gpar(just="center", fontsize=10),
+                        cluster_columns = FALSE,
+                        row_names_gp = gpar(fontsize = 10, fontface="italic"),
+                        heatmap_legend_param = list(legend_position = "bottom",
+                                                    col=col_fun_rna_dod,
+                                                    title = "log2FC",
+                                                    legend_direction = "horizontal",
+                                                    title_position = "topcenter",
+                                                    #legend_width = unit(6.2, "cm"),
+                                                    border = FALSE),
+                        column_names_gp = gpar(fontsize = 8, just="center"),
+                        show_row_names = TRUE,
+                        row_names_side = "left",
+                        col=col_fun_rna_dod,
+                        column_names_rot = 45)
+
+
+
+pdf("/home/flobuntu/PhD/manuscripts/vac69a/jci_corrections/vivax_dod_heat.pdf", width = 2.5, height=8.2)
+draw(gene_heatmap2,  heatmap_legend_side = "bottom",
+     padding=unit(c(2,8,2,8), "mm")
+)
+dev.off()
+
+
+# all genese heatmap checkerboard
+
+combo_data2 <- combo_data2[order(combo_data2$log2FoldChange),]
+
+all_genes_df <- as.matrix(data.frame("T6_Baseline"=as.numeric(combo_data$log2FoldChange)[match(combo_data2$Symbol, combo_data$Symbol)],
+                                     "Diagnosis_Baseline"=as.numeric(combo_data2$log2FoldChange)
+                                     
+))
+rownames(all_genes_df) <- combo_data2$Symbol
+
+all_genes_df <- subset(all_genes_df, !(all_genes_df[,1]==0&all_genes_df[,2]==0))
+
+all_genes_matrix <- t(all_genes_df)
+
+rownames(all_genes_matrix) <- gsub("_", " relative to\n ", rownames(all_genes_matrix))
+
+
+
+# col_fun_all <- circlize::colorRamp2(c(-max(all_genes_df), 0, max(all_genes_df)), c("#0859C6", "black", "#FFA500"))
+# 
+# col_fun_rna_all<- circlize::colorRamp2(breaks=seq(from = -0.5,
+#                                                    to = max(gene_matrix2),
+#                                                    by = max(gene_matrix2)/9),
+#                                         colors=c("#0859C6", inferno[1:9]))
+# 
+
+
+col_fun_rna_all <- circlize::colorRamp2(breaks=seq(from = 0,
+                                                   to = max(all_genes_matrix),
+                                                   by = max(all_genes_matrix)/9),
+                                        colors=inferno)
+
+
+
+gene_heatmap3 <- Heatmap(matrix = all_genes_matrix,
+                         cluster_columns = FALSE,
+                         cluster_rows=FALSE,
+                         show_heatmap_legend = TRUE,
+                         show_column_dend = FALSE,
+                         #column_title ="Selected \nInflammatory Genes",
+                         #column_title_gp = gpar(just="center", fontsize=10),
+                         column_names_gp = gpar(fontsize = 10, fontface="italic"),
+                         heatmap_legend_param = list(legend_position = "bottom",
+                                                     #col=col_fun_all,
+                                                     title = "log2FC",
+                                                     legend_direction = "horizontal",
+                                                     title_position = "topcenter",
+                                                     #legend_width = unit(6.2, "cm"),
+                                                     border = FALSE),
+                         show_row_names = TRUE,
+                         row_names_side = "left",
+                         col=col_fun_rna_all,
+                         column_names_rot = 90)
+
+
+
+pdf("/home/flobuntu/PhD/manuscripts/vac69a/jci_corrections/vivax_dod_t6_heat3.pdf", width = 8, height=3)
+draw(gene_heatmap3,  heatmap_legend_side = "bottom"
+     #padding=unit(c(2,8,2,8), "mm")
+)
+dev.off()
+
+
+
+
+

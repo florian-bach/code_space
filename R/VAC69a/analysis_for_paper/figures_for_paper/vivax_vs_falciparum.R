@@ -294,8 +294,10 @@ falci_t6_data$file_name <- "T6_Baseline"
 
 
 #falci_dod_data$file_name <- "DoD_Baseline"
-
 falci_data <- falci_t6_data
+
+
+falci_data <- falci_dod_data
 
 falci_t6_faves <- list("T Cell Genes of Interest"=c("CCR5", "CD19", "CD20", "CD28", "IgD", "CD27", "CD38", "CD79A", "CXCR5", "CD79B", "CTLA4", "CX3CR1", "CXCR3",
                                                     "CXCR4", "CXCR6", "ICOS", "IFNG", "IL12RB1", "IL12RB2", "IL21", "IL32","MKI67", "LAG3", "TBX21"))
@@ -306,6 +308,9 @@ phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA
 # phil_tcell_genes <- list("phils faves"=c("MKI67", "IL21", "IFNG", "EOMES", "CTLA4", "CD38", "CCR5", "LAG3", "CXCR3", "ICOS",
 #                                          "CD28", "TBX21", "PDCD1", "HAVCR2"))
 #slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% falci_t6_faves$`T Cell Genes of Interest`)
+
+slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in%  unlist(unname(purvesh_list)))
+
 
 slimmed_falci_data <- subset(falci_data, falci_data$Symbol %in% phil_tcell_genes$`phils faves`)
 

@@ -275,27 +275,57 @@ quant_biochem <- biochem %>%
 
 
 vac69c_alt <- quant_biochem %>%
-  filter(Analyte=="alt", n_infection%in%c("Second", "Third")) %>%
+  filter(Analyte=="alt") %>%
   mutate("alt"=Concentration)%>%
   dplyr::select(volunteer, timepoint, n_infection, alt)
 
 
 combo_alt <- rbind(vac69a_alt, vac69b_alt, vac69c_alt)
 
-combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96"))
+combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "C7", "Diagnosis", "T6"))
 
-abc_alt_line_plot <- ggplot(combo_alt, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96")), y=alt))+
-  scale_color_manual(values=n_infection_palette)+
-  geom_line(aes(color=n_infection, group=n_infection), size=0.9)+
-  geom_point(aes(color=n_infection), fill="white", stroke=1, shape=21, size=0.9)+
+combo_alt$sample_id <- paste(combo_alt$volunteer, combo_alt$n_infection, sep="_")
+
+
+model <- lm(alt~timepoint+n_infection+volunteer, data=combo_alt)
+
+mixed_model <- lme4::lmer(alt~timepoint+n_infection+(1|volunteer), data=combo_alt)
+
+drop1(mixed_model,test="Chisq")
+
+t6_first_vs_second_contrast <- t(matrix(c(0,0,0,1,1,rep(0,12))))
+t6__contrast <- t(matrix(c(0,0,0,1,0, rep(0,12))))
+
+t6_first_vs_second_contrast_mixed <- t(matrix(c(0,0,0,1,1,0)))
+
+
+model_tests <- multcomp::glht(model, t6_first_vs_second_contrast)
+
+mixed_model_tests <- multcomp::glht(mixed_model, t6_first_vs_second_contrast_mixed)
+
+summary(model_tests) # first vs. second at T6; p=0.116
+summary(mixed_model_tests) # first vs. second at T6; p=0.166
+#
+
+
+
+summary(model)
+
+(abc_alt_line_plot <- ggplot(combo_alt, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96")), y=alt))+
+  scale_fill_manual(values=n_infection_palette)+
+  #geom_line(aes(color=volunteer, group=sample_id), size=0.9)+
+  geom_boxplot(aes(fill=n_infection))+
+  geom_point(aes(color=volunteer, group=n_infection),  position = position_dodge(width = 0.75), fill="white", stroke=1, shape=21, size=0.9)+
   theme_minimal()+
-  facet_wrap(~volunteer, ncol=5)+
+  scale_y_log10()+
+  #facet_wrap(~n_infection, ncol=5)+
   xlab("Timepoint")+
   ylab("ALT")+
-  guides(color=guide_legend(ncol=1))+
+  #guides(color=guide_legend(ncol=1))+
   theme(plot.title = element_text(hjust=0.5),
         axis.text.x = element_text(hjust=1, angle=45, size=8), 
         axis.title.x = element_blank(),
         strip.text = element_text(size=10))
+)
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abc_alt_line_plot.png", abc_alt_line_plot, height=3, width=8, bg="white")

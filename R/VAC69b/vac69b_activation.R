@@ -281,6 +281,32 @@ volunteer_palette <- unlist(unname(volunteer_colours))
 names(volunteer_palette) <- names(volunteer_colours)
 
 
+vac69b_lineage_freqs <- vac69b_data %>%
+  group_by(volunteer, timepoint, lineage)%>%
+  summarise("lineage_freq"=sum(frequency)) %>%
+  mutate("sample_id"=paste(volunteer, timepoint, lineage, sep="_")) %>%
+  group_by(volunteer)
+
+
+vac69b_lin_acti_alt <- vac69b_data
+vac69b_lin_acti_alt$sample_id=paste(vac69b_lin_acti_alt$volunteer, vac69b_lin_acti_alt$timepoint, vac69b_lin_acti_alt$lineage, sep="_")
+
+vac69b_lin_acti_alt$lineage_freq <- 100*vac69b_lin_acti_alt$frequency/vac69b_lineage_freqs$lineage_freq[match(vac69b_lin_acti_alt$sample_id, vac69b_lineage_freqs$sample_id)]
+
+
+vac69b_lin_acti_alt <- vac69b_lin_acti_alt %>%
+  filter(volunteer %in% c("v11", "v21"), timepoint=="T6")%>%
+  filter(grepl("activated", cluster_id)) %>%
+  group_by(volunteer, lineage, timepoint) %>%
+  summarise("activated"=sum(lineage_freq))%>%
+  select(volunteer, lineage, activated) %>%
+  mutate("alt"=ifelse(volunteer=="v11", 65, 107),
+         "species"="P. vivax")
+
+
+
+
+
 
 
 
