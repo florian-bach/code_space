@@ -1,0 +1,153 @@
+---
+title: "Goncalves Modelling"
+author: "Florian Bach"
+date: "03/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analysis Plan & Input Data
+
+The aim of this project is to examine whether the data published in Gonçalves *et al.* (2014) supports the idea that first infections are more likely to involve severe disease than subsequent infections. In their paper, the authors report that the probability of severe disease given an infection is constant in the first few infections of life, i.e. no immunity to severe disease is rapidly acquired (the null hypothesis). To test this conclusion we will use a binomial distribution fit to the number of observations of first, second, third *etc.* infections and the estimated frequency of severe disease as reported in the paper. We can then determine the likelihood of the observed frequencies of severe disease given our modelled distributions. The null hypothesis is rejected if the number of severe cases is two standard deviations above/below the mean calculated with the simulation.
+In the paper, the number of severe episodes and the total number of infections is reported, forming the basis for this analysis:
+
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+```
+```{r data input}
+goncalves_data <- data.frame("Infection"=seq(0,14),
+                             "Severe"=c(0, 32, 18, 20, 9, 9, 2, 2, 8, NA, 1, NA, NA, NA, 1),
+                             "Infections"=c(0, 715, 540, 424, 330, 267, 220, 168, 131, NA, 90, NA, NA, NA, 25),
+                             "Susceptible"=c(102, 70, 52, 32, 23, 14, 12, 10, 2, 2, 1, 1, 1, 1, 0))
+
+```
+
+
+## The probability of severe disease
+
+Dividing the number of severe disease cases by the total number of cases shows the probability of severe disease decreases with the order of infection. However, the number of severe cases observed drops to single digits with the 4th and subsequent infections, meaning we can only have low confidence in these estimates. Note not all order of infection have an associated risk, because severe disease wasn't always observed.
+
+```{r severe probability plot, echo=FALSE}
+
+ggplot(goncalves_data, aes(x = Infection, y=Severe/Infections))+
+  ylab("Risk of Severe Disease")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.06))+
+  scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+
+  geom_point(colour="red", na.rm = TRUE)+
+  #geom_smooth()+
+  theme_minimal()
+
+```
+
+To determine the overall frequency of severe disease I therefore chose the mean/median of the first 5 infections (0.0372478 and 0.03370787, respectively). Given these probabilities, we ask how often one would observe severe disease, if X number of malaria cases are recorded. X in this instance is the total number of first, second, third etc. cases of malaria reported in the paper. This process is repeated 10,000 times.
+
+```{r only include first 5 infections, include=FALSE}
+
+#calculate fractions of severe disease relative to cases etc.
+goncalves_model_data <- subset(goncalves_data, Infection<6&Infection>0)
+goncalves_model_data$Severe_Div_Infection <- goncalves_model_data$Severe/goncalves_model_data$Infections
+goncalves_model_data$Severe_Div_Susceptible <- goncalves_model_data$Severe/(goncalves_model_data$Susceptible+goncalves_model_data$Severe)
+
+#make empty data.frame for loop
+simulation_mean <- data.frame("First"=NA, "Second"=NA, "Third"=NA, "Fourth"=NA, "Fifth"=NA)
+simulation_median <- data.frame("First"=NA, "Second"=NA, "Third"=NA, "Fourth"=NA, "Fifth"=NA)
+
+mean_risk <- mean(goncalves_model_data$Severe_Div_Infection)
+median_risk <- median(goncalves_model_data$Severe_Div_Infection)
+
+# for loops
+for(i in 1:10000){
+  new_entry <- rbinom(n=goncalves_model_data$Severe, size=goncalves_model_data$Infections, prob = mean_risk)
+  simulation_mean[i,]<-new_entry
+}
+
+for(i in 1:10000){
+  new_entry <- rbinom(n=goncalves_model_data$Severe, size=goncalves_model_data$Infections, prob = median_risk)
+  simulation_median[i,]<-new_entry
+}
+
+#long format for ggplot, replace integers with words  
+long_simulation_mean <- tidyr::pivot_longer(simulation_mean, cols=c(First, Second, Third, Fourth, Fifth), names_to = "n_infection", values_to = "severe_cases")
+
+long_simulation_median <- tidyr::pivot_longer(simulation_median, cols=c(First, Second, Third, Fourth, Fifth), names_to = "n_infection", values_to = "severe_cases")
+
+bad_numbers <- c("First", "Second", "Third", "Fourth", "Fifth")
+good_numbers <- as.character(seq(1:5))
+
+long_simulation_mean$n_infection_num <- stringr::str_replace(long_simulation_mean$n_infection, bad_numbers, good_numbers)
+long_simulation_median$n_infection_num <- stringr::str_replace(long_simulation_mean$n_infection, bad_numbers, good_numbers)
+
+
+# 
+
+#create summary dfs for mean, median and confidence intervals
+summary_df_mean <- long_simulation_mean %>%
+  group_by(n_infection)%>%
+  summarise("mean"=mean(severe_cases), "sd"=sd(severe_cases))
+
+summary_df_mean$mean_plus2 <- summary_df_mean$mean+(summary_df_mean$sd)*2
+summary_df_mean$mean_minus2 <- summary_df_mean$mean-(summary_df_mean$sd)*2
+
+summary_df_mean$mean_plus <- summary_df_mean$mean+summary_df_mean$sd
+summary_df_mean$mean_minus <- summary_df_mean$mean-summary_df_mean$sd
+
+summary_df_mean$n_infection_num <- c(5, 1, 4, 2, 3)
+
+
+
+
+summary_df_median <- long_simulation_median %>%
+  group_by(n_infection)%>%
+  summarise("mean"=mean(severe_cases), "sd"=sd(severe_cases))
+
+summary_df_median$mean_plus2 <- summary_df_median$mean+(summary_df_median$sd)*2
+summary_df_median$mean_minus2 <- summary_df_median$mean-(summary_df_median$sd)*2
+
+summary_df_median$mean_plus <- summary_df_median$mean+summary_df_median$sd
+summary_df_median$mean_minus <- summary_df_median$mean-summary_df_median$sd
+
+summary_df_median$n_infection_num <- c(5, 1, 4, 2, 3)
+
+
+
+
+```
+
+The plot below shows the distribution of simulated results as violin plots. The mean value of each violin plot is shown in blue, the values withing one standard deviation in dark grey, the area of two standard deviations (95% confidence interval) in light grey. The actual values observed in the paper are shown in red. As shown, the observed value is within the 95% confidence interval, but only just (for the median).
+
+```{r simulation plot, echo=FALSE}
+
+ggplot(long_simulation_mean, aes(x=as.numeric(n_infection_num), y=severe_cases))+
+  geom_violin(aes(x=n_infection_num, y=severe_cases), inherit.aes = FALSE)+
+  #geom_smooth(method = "loess", se=FALSE, formula = y ~ x)+
+  geom_line(data=summary_df_mean, aes(x=n_infection_num, y=mean), colour="blue", inherit.aes = FALSE)+
+  geom_point(data=goncalves_model_data, aes(x = Infection, y=Severe), color="red", inherit.aes = FALSE)+
+  xlab("Order of Infection")+
+  ggtitle("Mean Risk")+
+  geom_ribbon(aes(x=n_infection_num, ymin = mean_minus2, ymax = mean_plus2), alpha = 0.1, data = summary_df_mean, inherit.aes = FALSE)+
+  geom_ribbon(aes(x=n_infection_num, ymin = mean_minus, ymax = mean_plus), alpha = 0.2, data = summary_df_mean, inherit.aes = FALSE)+
+  ylab("Number of Severe Cases")+
+  theme_minimal()
+
+ggplot(long_simulation_median, aes(x=as.numeric(n_infection_num), y=severe_cases))+
+  geom_violin(aes(x=n_infection_num, y=severe_cases), inherit.aes = FALSE)+
+  #geom_smooth(method = "loess", se=FALSE, formula = y ~ x)+
+  geom_line(data=summary_df_median, aes(x=n_infection_num, y=mean), colour="blue", inherit.aes = FALSE)+
+  geom_point(data=goncalves_model_data, aes(x = Infection, y=Severe), color="red", inherit.aes = FALSE)+
+  xlab("Order of Infection")+
+  ggtitle("Median Risk")+
+  geom_ribbon(aes(x=n_infection_num, ymin = mean_minus2, ymax = mean_plus2), alpha = 0.1, data = summary_df_median, inherit.aes = FALSE)+
+  geom_ribbon(aes(x=n_infection_num, ymin = mean_minus, ymax = mean_plus), alpha = 0.2, data = summary_df_median, inherit.aes = FALSE)+
+  ylab("Number of Severe Cases")+
+  theme_minimal()
+
+
+```
+
+
+

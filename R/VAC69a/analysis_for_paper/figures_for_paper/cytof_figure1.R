@@ -257,6 +257,7 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
   names(col_pal) <- colcsv$X
   
   
+  
   #color_103_scheme
   {color_103_scheme <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941", "#006FA6", "#A30059",
                         "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43", "#8FB0FF", "#997D87",
@@ -342,8 +343,8 @@ gate_label_positions$colour <- c("#AA3377", "#AA3377", "#AA3377", "#228833", "#6
   ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/new_horizontal_panel.pdf",  horizontal_new_panel, height=2.35, width=6)
   
   horizontal_newer_panel <- cowplot::plot_grid(t6_all_clusters_umap, t6_sig_clusters_umap, nrow=1, align="hv")
-  ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_newer_panel.pdf",  horizontal_newer_panel, height=4, width=8, dpi = 900)
-  
+  #ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_newer_panel.pdf",  horizontal_newer_panel, height=4, width=8, dpi = 900)
+  ggsave("/home/flobuntu/PhD/manuscripts/vac69a/jci_corrections/final_figures/umap_coloured_by_cluster.pdf",  horizontal_newer_panel, height=4, width=8, bg="white")
   
   # multivivax_cd38_bcl2 <- cowplot::plot_grid(cd38_plot, bcl2_plot, ncol=2)
   # ggsave("/home/flobuntu/PhD/cytof/vac69a/final_figures_for_paper/horizontal_d_f_panel.pdf",  multivivax_cd38_bcl2, height=4, width=8, dpi=1200)

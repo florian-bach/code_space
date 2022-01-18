@@ -294,14 +294,34 @@ vac69b_lin_acti_alt$sample_id=paste(vac69b_lin_acti_alt$volunteer, vac69b_lin_ac
 vac69b_lin_acti_alt$lineage_freq <- 100*vac69b_lin_acti_alt$frequency/vac69b_lineage_freqs$lineage_freq[match(vac69b_lin_acti_alt$sample_id, vac69b_lineage_freqs$sample_id)]
 
 
-vac69b_lin_acti_alt <- vac69b_lin_acti_alt %>%
-  filter(volunteer %in% c("v11", "v21"), timepoint=="T6")%>%
+processed_vac69b_lin_acti_alt <- vac69b_lin_acti_alt %>%
+  filter(timepoint=="T6")%>%
   filter(grepl("activated", cluster_id)) %>%
-  group_by(volunteer, lineage, timepoint) %>%
-  summarise("activated"=sum(lineage_freq))%>%
-  select(volunteer, lineage, activated) %>%
-  mutate("alt"=ifelse(volunteer=="v11", 65, 107),
-         "species"="P. vivax")
+  group_by(volunteer, lineage, timepoint, n_infection) %>%
+  summarise("activated"=sum(lineage_freq), .groups="drop")
+
+lousy_alt <-  c("v02", "v05", "v07", "v11", "v21")
+good_alt <- c("14", "14", "93", "65", "107")
+
+alt_replacement <- setNames(good_alt, lousy_alt)
+
+processed_vac69b_lin_acti_alt$alt <- stringr::str_replace_all(processed_vac69b_lin_acti_alt$volunteer, alt_replacement)
+
+processed_vac69b_lin_acti_alt <- dplyr::select(processed_vac69b_lin_acti_alt, volunteer, lineage, activated, alt, n_infection)
+
+write.csv(processed_vac69b_lin_acti_alt, "~/PhD/manuscripts/vac69a/jci_corrections/vac69ab_t_lineage_acti_alt.csv", row.names = FALSE)
+
+
+# vac69b_lin_acti_alt <- vac69b_lin_acti_alt %>%
+#   filter(volunteer %in% c("v11", "v21"), timepoint=="T6")%>%
+#   filter(grepl("activated", cluster_id)) %>%
+#   group_by(volunteer, lineage, timepoint) %>%
+#   summarise("activated"=sum(lineage_freq))%>%
+#   select(volunteer, lineage, activated) %>%
+#   mutate("alt"=ifelse(volunteer=="v11", 65, 107),
+#          "species"="P. vivax")
+
+
 
 
 

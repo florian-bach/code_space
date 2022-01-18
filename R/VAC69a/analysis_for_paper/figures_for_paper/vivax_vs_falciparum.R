@@ -48,12 +48,14 @@ dod_data <- redo_dod_data
 
 # combo plots ####
 
+vivax_color <- rgb
+
 vivax_x_limits <- c(80, NA)
 vivax_y_limits <- c(20, NA)
 
 dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1`))+
   theme_minimal()+
-  scale_color_gradient2(high="#fec200", low="#db0085", midpoint = 0)+
+  scale_color_gradient2(high="#fec200", low="#db0066", midpoint = 0)+
   scale_y_continuous(breaks=seq(0,100,by=10), labels = scales::label_number(suffix="%"), limits = c(-5, 105), expand=c(0,0))+
   scale_x_continuous(breaks=seq(0,100,by=10), labels = scales::label_number(suffix="%"), limits = c(-5, 105), expand=c(0,0))+
   ylab(expression('GO term enrichement'~italic("P. falciparum")~'at Diagnosis'))+
@@ -62,7 +64,10 @@ dod_dot_plot <- ggplot(dod_data, aes(x=`%Genes Cluster #2`, y=`%Genes Cluster #1
   ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="grey", color=NA, alpha=0.2, inherit.aes = F)+
   # geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
   #               xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
-  geom_point(aes(color=Cluster_Difference))+
+  geom_point(color=ifelse(dod_data$Cluster_Difference>65, "#fec200",
+                          ifelse(dod_data$Cluster_Difference< -65, "#db0066", "darkgrey")
+                          )
+             )+
   # geom_label_repel(data=dod_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=1.8,
   #                  box.padding   = 0.35, nudge_x=-20, nudge_y=-30,
   #                  point.padding = 0.5, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits)+

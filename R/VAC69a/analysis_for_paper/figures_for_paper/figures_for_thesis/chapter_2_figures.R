@@ -396,10 +396,17 @@ num_wide_scaled_ms <- as.matrix(wide_scaled_ms[, 2:ncol(wide_scaled_ms)])
 
 num_wide_scaled_ms <- ifelse(num_wide_scaled_ms>abs(min(num_wide_scaled_ms)), abs(min(num_wide_scaled_ms)), num_wide_scaled_ms)
 
+#write.csv(num_wide_scaled_ms, "ds_limma_dod.csv")
+
 library(ComplexHeatmap)
 
+# num_wide_scaled_ms <- read.csv("/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/ds_limma_dod.csv")
+# rownames(num_wide_scaled_ms) <- num_wide_scaled_ms$X
+# num_wide_scaled_ms <- as.matrix(num_wide_scaled_ms[,-1])
+
 inferno <- colorspace::sequential_hcl("inferno", n=8)
-col_fun_ds_limma <- circlize::colorRamp2(c(min(num_wide_scaled_ms), 0, max(num_wide_scaled_ms)), c("#0859C6", "black", "#FFA500"))
+#col_fun_ds_limma <- circlize::colorRamp2(c(min(num_wide_scaled_ms), 0, max(num_wide_scaled_ms)), c("#0859C6", "black", "#FFA500"))
+col_fun_ds_limma <- circlize::colorRamp2(c(-4, 0, 4), c("#0859C6", "black", "#FFA500"))
 
 limma_col_split <- factor(substr(colnames(wide_scaled_ms)[2:ncol(wide_scaled_ms)], 5, 20))
 limma_row_split_lineage <- factor(substr(rownames(wide_scaled_ms),0, 4))
@@ -442,12 +449,12 @@ median_cluster_heat <- Heatmap(matrix = num_wide_scaled_ms,
 # png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma_vol_no_logfc_cutoff.png", width = 8, height=13, units="in", res=700)
 # draw(median_cluster_heat, heatmap_legend_side = "bottom")
 # dev.off()
-pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_t6_ds_limma.pdf", width = 8, height=13)
-draw(median_cluster_heat, heatmap_legend_side = "bottom")
-dev.off()
-# pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_dod_ds_limma.pdf", width = 8, height=2.6)
+# pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_t6_ds_limma.pdf", width = 8, height=13)
 # draw(median_cluster_heat, heatmap_legend_side = "bottom")
 # dev.off()
+pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/vivax_dod_ds_limma.pdf", width = 8, height=2.6)
+draw(median_cluster_heat, heatmap_legend_side = "bottom")
+dev.off()
 
 # png("~/PhD/figures_for_thesis/chapter_2/all_markers_ds_limma.png", width = 8, height=10, units="in", res=400)
 # draw(median_cluster_heat, heatmap_legend_side = "bottom")

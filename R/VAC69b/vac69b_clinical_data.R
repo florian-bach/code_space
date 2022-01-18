@@ -11,7 +11,7 @@ my_paired_palette <- c("#FB9A99","#E31A1C","#A6CEE3", "#1F78B4", "#B2DF8A", "#33
 
 ##########   biochem findings   #################
 
-data <- read.csv("biochem.csv", header=T)
+data <- read.csv("~/PhD/clinical_data/vac69b/biochem.csv", header=T)
 
 data_no_ae <- select(data, -c(colnames(data)[grep("_ae",colnames(data) ,fixed=T)]))
 
@@ -62,7 +62,7 @@ ggsave("~/PhD/clinical_data/vac69b/figures/haem_plot.png", haem_plot, height = 6
 
 
 
-  data <- read.csv("/Users/s1249052/PhD/clinical_data/alt_vivax.csv")
+data <- read.csv("/Users/s1249052/PhD/clinical_data/alt_vivax.csv")
 first_data <- subset(data, data$N_infection=="1")
 
 fit_Null <- lme4::lmer(alt ~ 0 + (1|Volunteer), data=data) #124.3561

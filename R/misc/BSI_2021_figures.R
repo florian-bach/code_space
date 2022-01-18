@@ -94,7 +94,7 @@ proto_falci_legend$timepoint <- gsub("D+", "T", proto_falci_legend$timepoint, fi
 proto_falci_legend$timepoint <- gsub("+", "", proto_falci_legend$timepoint, fixed = TRUE)
 
 
-#proto_falci_legend <- subset(proto_falci_legend, proto_falci_legend$N_infection=="First")
+proto_falci_legend <- subset(proto_falci_legend, proto_falci_legend$N_infection=="First")
 
 
 falci_legend <- data.frame("Volunteer"=gsub("V", "v", proto_falci_legend$Volunteer_code, fixed=TRUE),
@@ -125,21 +125,22 @@ combo_data <- rbind(falci_legend, select(vivax_legend, colnames(falci_legend)))
 #long_combo_data <- pivot_longer(combo_data, cols = colnames(combo_data)[4:42], names_to = "Analyte", values_to = "Concentration")
 
 
-interesting_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[c(1:3, 5:9)]
+#interesting_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[c(1:3, 5:9)]
+interesting_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:12]
 
 long_combo_data <- combo_data %>%
-  filter(Timepoint %in% c("Baseline", "Diagnosis", "T6"))#%>%
-  #filter(Analyte %in% interesting_analytes)
+  filter(Timepoint %in% c("Baseline", "Diagnosis", "T6"))%>%
+  filter(Analyte %in% interesting_analytes)
 
-#long_combo_data$Analyte <- gsub("IFNy", "IFNγ", long_combo_data$Analyte, fixed=T)
+long_combo_data$Analyte <- gsub("IFNy", "IFNγ", long_combo_data$Analyte, fixed=T)
 
-long_combo_data <- filter(long_combo_data, Analyte %in% names(subset(list_of_adj_pvalues_dod, list_of_adj_pvalues_dod<=0.05)
-))
+# long_combo_data <- filter(long_combo_data, Analyte %in% names(subset(list_of_adj_pvalues_dod, list_of_adj_pvalues_dod<=0.05)
+# ))
 
 vivax_falci_plasma_comparison <- ggplot(long_combo_data, aes(x=Timepoint, y=Concentration))+
-  geom_boxplot(aes(fill=Species))+
-  facet_wrap(~Analyte, scales="free", ncol = 5)+
-  geom_point(aes(color=Volunteer, group=Species, shape=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
+  geom_boxplot(aes(fill=Species), outlier.alpha = 1)+
+  facet_wrap(~Analyte, scales="free", ncol = 4)+
+  #geom_point(aes(color=Volunteer, group=Species, shape=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
   scale_fill_manual(values=rev(c("#fec200", "#db0085")))+
   scale_y_log10()+
   ylab("plasma concentration (pg / mL)")+
@@ -150,6 +151,7 @@ vivax_falci_plasma_comparison <- ggplot(long_combo_data, aes(x=Timepoint, y=Conc
   theme_minimal()+
   theme(axis.title.x = element_blank(),
         legend.position = "bottom",
+        legend.title = element_blank(),
         legend.spacing.x = unit(1.5, "mm"),
         axis.text.x = element_text(angle = 45, hjust=1))
 
@@ -157,6 +159,8 @@ vivax_falci_plasma_comparison <- ggplot(long_combo_data, aes(x=Timepoint, y=Conc
 #ggsave("~/postdoc/BSI2021/vivax_falci_plasma_comparison_big_with_reinfected.png", vivax_falci_plasma_comparison, height=25, width=10, dpi=444, bg="white")
 #ggsave("~/postdoc/BSI2021/vivax_falci_plasma_comparison_with_T6.png", vivax_falci_plasma_comparison, height=6, width=10, dpi=444, bg="white")
 ggsave("~/postdoc/BSI2021/vivax_falci_all_sig_dod_analytes.png", vivax_falci_plasma_comparison, height=6, width=9, dpi=444, bg="white")
+ggsave("~/postdoc/BSI2021/vivax_falci_all_sig_dod_analytes.pdf", vivax_falci_plasma_comparison, height=6, width=9, bg="white", device = cairo_pdf)
+ggsave("~/postdoc/BSI2021/vivax_falci_all_sig_dod_analytes_tall.pdf", vivax_falci_plasma_comparison, height=9, width=9, bg="white", device = cairo_pdf)
 
 ggsave("~/postdoc/BSI2021/big_vivax_falci_plasma_comparison.png", vivax_falci_plasma_comparison, height=14, width=9, dpi=444, bg="white")
 
