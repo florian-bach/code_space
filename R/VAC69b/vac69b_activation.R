@@ -53,7 +53,7 @@ refined_markers <- c("CD4",
                      "CD8",
                      "Vd2",
                      "Va72",
-                     "CXCR5",
+                     #"CXCR5",
                      "CD38",
                      #"CD69",
                      "HLADR",
@@ -81,7 +81,7 @@ refined_markers <- c("CD4",
                      "CD25",
                      "FoxP3",
                      "CD39",
-                     "CX3CR1",
+                     #"CX3CR1",
                      "CD57",
                      "CD45RA",
                      "CD45RO",
@@ -92,12 +92,12 @@ all_markers <- c(non_t_cell_markers, refined_markers)
 
 
 
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 45)
+set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 12, ydim = 12, maxK = 50)
 
 
 
 #t_cell_phenoh <- plotExprHeatmap(x = sce, by = "cluster", row_clust = TRUE, col_clust = FALSE, k = "meta50", bars = TRUE, features = all_markers)
-t_cell_pheno <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "meta45", bars = TRUE, features = all_markers)
+t_cell_pheno <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "meta50", bars = TRUE, features = all_markers)
 
 #ctrl_whole_blod_cluster_phenotype <- plotExprHeatmap(x = sce, by = "cluster", row_clust = TRUE, col_clust = FALSE, k = "meta40", bars = TRUE, features = all_markers)
 
@@ -106,14 +106,20 @@ t_cell_pheno <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_
 # dev.off()
 
 
-pdf("./figures/t_cell_pheno2.pdf", height = 8, width = 9)
+ pdf("./figures/t_cell_pheno2.pdf", height = 8, width = 9)
 t_cell_pheno
 dev.off()
 
 
 
-meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/rough_vac69b_meta45_merging_table.csv", header=T)
-merged_daf <- CATALYST::mergeClusters(sce, k = "meta45", table = meta45_table, id = "flo_merge", overwrite = TRUE)
+meta45_table <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/revised_rough_vac69b_meta50_merging_table.csv", header=T)
+merged_daf <- CATALYST::mergeClusters(sce, k = "meta50", table = meta45_table, id = "flo_merge", overwrite = TRUE)
+
+treg_daf <- CATALYST::filterSCE(merged_daf, cluster_id %in% c("resting_non-naive_Treg_10",
+                                                              "resting_non-naive_Treg_16",
+                                                              "resting_non-naive_Treg_17",
+                                                              "resting_non-naive_Treg_20",
+                                                              "resting_non-naive_Treg_21"), k = "flo_merge")
 
 # playing with gating ####
 t6 <- filterSCE(sce, timepoint=="baseline")
@@ -201,8 +207,8 @@ da_t6_all <- diffcyt(merged_daf,
 diffy_data <- vac69a.cytof::diffcyt_boxplot(da_t6_all, merged_daf, FDR=1, logFC=0)$data 
 diffy_data_count <- vac69a.cytof::diffcyt_boxplot(da_t6_all, merged_daf, FDR=1, logFC=0, counts = TRUE)$data 
 
-write.csv(diffy_data, "/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/vac69b_meta45_all_freqs.csv", row.names = FALSE)
-write.csv(diffy_data_count, "/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/vac69b_meta45_all_counts.csv", row.names = FALSE)
+write.csv(diffy_data, "/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/revised_vac69b_meta50_all_freqs.csv", row.names = FALSE)
+write.csv(diffy_data_count, "/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/revised_vac69b_meta50_all_counts.csv", row.names = FALSE)
 
 
 # figures ####
@@ -211,7 +217,7 @@ library(dplyr)
 library(ggplot2)
 library(tidyr)
 
-vac69b_data <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/vac69b_meta45_all_freqs.csv", header = T)
+vac69b_data <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/revised_vac69b_meta50_all_freqs.csv", header = T)
 vac69a_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_freqs.csv", header = T)
 
 
@@ -357,6 +363,7 @@ activation_stacked_barchart <- ggplot(plottable_data, aes(x=volunteer, y=frequen
 
 plottable_data <- filter(plottable_data, lineage=="CD4")  
 
+
 prim_summary_t6 <-  filter(plottable_data, n_infection=="First")
   
 prim_sig_activation_lolli <- ggplot()+
@@ -374,7 +381,7 @@ prim_sig_activation_lolli <- ggplot()+
           axis.text.y = element_text(color = "white"),
           strip.placement = "outside",
           #plot.margin = unit(c(1,0,1,5), "mm"),
-          legend.position = "bottom",
+          legend.position = "none",
           legend.text = element_text(size=6),
           legend.title = element_blank())
   
@@ -410,6 +417,130 @@ prim_sig_activation_lolli <- ggplot()+
   
 
 combo_lolli <- cowplot::plot_grid(prim_sig_activation_lolli, ter_sig_activation_lolli, cluster_leg, nrow=1, rel_widths = c(5,5,1),align="v", axis = "tbrl")
-ggsave("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/figures/vac69a_b_activation_lollipop2.pdf", combo_lolli, height=4, width=7.5)
+#ggsave("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/figures/vac69a_b_activation_lollipop2.pdf", combo_lolli, height=4, width=7.5)
  
-  
+ggsave("~/PhD/manuscripts/vac63c/nature_immunology/pdf/vac69a_b_activation_lollipop2.pdf", combo_lolli, height=4, width=7.5, bg="white")
+ggsave("~/PhD/manuscripts/vac63c/nature_immunology/png/vac69a_b_activation_lollipop2.png", combo_lolli, height=4, width=7.5, bg="white", dpi=444)
+
+
+#### vac63c paper revision ####
+
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+vac69b_data <- read.csv("/home/flobuntu/PhD/cytof/vac69b/T_cells_only/comped/recomped/revised_vac69b_meta50_all_freqs.csv", header = T)
+vac69a_data <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_cluster_freqs.csv", header = T)
+
+
+
+lousy_timepoints <- unique(vac69b_data$timepoint)
+
+good_timepoints <- c("Baseline", "C56", "Diagnosis", "T6")
+timepoint_replacement <- setNames(good_timepoints, lousy_timepoints)
+
+vac69b_data$timepoint <- stringr::str_replace_all(vac69b_data$timepoint, timepoint_replacement)
+vac69b_data$lineage <- ifelse(grepl("CD4", vac69b_data$cluster_id), "CD4", NA)
+vac69b_data$lineage <- ifelse(grepl("CD8", vac69b_data$cluster_id), "CD8", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("Treg", vac69b_data$cluster_id), "Treg", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("MAIT", vac69b_data$cluster_id), "MAIT", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("gd", vac69b_data$cluster_id), "gd", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("DN", vac69b_data$cluster_id), "DN", vac69b_data$lineage)
+vac69b_data$lineage <- ifelse(grepl("DP", vac69b_data$cluster_id), "DP", vac69b_data$lineage)
+
+vac69a_data$lineage <- ifelse(grepl("CD4", vac69a_data$cluster_id), "CD4", NA)
+vac69a_data$lineage <- ifelse(grepl("CD8", vac69a_data$cluster_id), "CD8", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("Treg", vac69a_data$cluster_id), "Treg", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("MAIT", vac69a_data$cluster_id), "MAIT", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("gamma delta", vac69a_data$cluster_id), "gd", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("DN", vac69a_data$cluster_id), "DN", vac69a_data$lineage)
+vac69a_data$lineage <- ifelse(grepl("DP", vac69a_data$cluster_id), "DP", vac69a_data$lineage)
+
+vac69a_data$volunteer <- gsub("V", "v", vac69a_data$volunteer, fixed=T)
+vac69a_data$timepoint <- gsub("DoD", "Diagnosis", vac69a_data$timepoint, fixed=T)
+
+vac69a_data$n_infection <- "First"
+vac69b_data$n_infection <- ifelse(vac69b_data$volunteer %in% c("v11", "v21"), "First", "Second")
+
+
+combo_data <- rbind(select(vac69a_data, cluster_id, sample_id, volunteer, timepoint, frequency, lineage, n_infection),
+                    select(vac69b_data, cluster_id, sample_id, volunteer, timepoint, frequency, lineage, n_infection)
+)
+
+all_data <- filter(combo_data, timepoint %in% c("Baseline", "Diagnosis", "T6"))
+
+naive_data <- subset(all_data, all_data$lineage=="CD4"&grepl("*_naive*", all_data$cluster_id))
+naive_data <- rbind(naive_data, subset(all_data, all_data$cluster_id=="naive CD4"))
+
+
+treg_data <- subset(all_data, all_data$lineage=="Treg")
+
+treg_summary_data <- treg_data %>%
+  group_by(volunteer, timepoint, n_infection) %>%
+  mutate("sum_treg"=sum(frequency)) %>%
+  mutate("perc_of_treg"=frequency/sum_treg)
+
+treg_acti_data <- subset(treg_summary_data, grepl("*activated*", treg_summary_data$cluster_id))
+
+treg_acti_data$volunteer <- factor(treg_acti_data$volunteer, levels=c("v02", "v05", "v07", "v03", "v06", "v09", "v11", "v21"))
+
+treg_acti_plot <- ggplot(treg_acti_data, aes(x=timepoint, y=perc_of_treg))+
+  geom_bar(stat="identity", position="stack", aes(fill=lineage))+
+  theme_minimal()+
+  facet_wrap(n_infection~volunteer, ncol = 8)+
+  scale_y_continuous(name = "Fraction of Treg T cells activated", labels=scales::percent_format(accuracy = 1))+
+  scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
+  theme(plot.title = element_text(hjust=0.5, size=8),
+    strip.text = element_text(),
+    strip.background = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    panel.spacing.x = unit(0.8,"lines"),
+    axis.title.y = element_text(size=7),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "none")
+
+ggsave(filename = "~/PhD/manuscripts/vac63c/nature_immunology/pdf/vac69ab_treg_activation.pdf", treg_acti_plot, height = 3.5, width=6, bg="white")
+ggsave(filename = "~/PhD/manuscripts/vac63c/nature_immunology/png/vac69ab_treg_activation.png",treg_acti_plot, height = 3.5, width=6, bg="white", dpi=444)
+
+
+memory_data <- subset(all_data, all_data$lineage=="CD4" & all_data$cluster_id %notin% naive_data)
+
+memory_summary_data <- memory_data %>%
+  group_by(volunteer, timepoint, n_infection) %>%
+  mutate("sum_memory"=sum(frequency)) %>%
+  mutate("perc_of_memory"=frequency/sum_memory)
+
+
+memory_acti_data <- subset(memory_summary_data, grepl("*activated*", memory_summary_data$cluster_id))
+
+memory_acti_data$volunteer <- factor(memory_acti_data$volunteer, levels=c("v02", "v05", "v07", "v03", "v06", "v09", "v11", "v21"))
+
+memory_acti_plot <- ggplot(memory_acti_data, aes(x=timepoint, y=perc_of_memory))+
+  geom_bar(stat="identity", position="stack", aes(fill=lineage))+
+  theme_minimal()+
+  facet_wrap(n_infection~volunteer, ncol = 8)+
+  scale_y_continuous(name = "Fraction of CD4 memory T cells activated", labels=scales::percent_format(accuracy = 1))+
+  scale_fill_manual(values=lineage_palette, labels=c("CD4", "Treg", "CD8", "MAIT", expression(paste(gamma, delta)), "DN", "Resting"))+
+  theme(legend.position = "none",
+  plot.title = element_text(hjust=0.5, size=8),
+  strip.text = element_text(),
+  strip.background = element_blank(),
+  axis.title.x = element_blank(),
+  axis.text.x = element_text(angle = 90, hjust=1), 
+  panel.spacing.x = unit(0.8,"lines"),
+  axis.title.y = element_text(size=7),
+  panel.grid.minor.y = element_blank())
+
+
+ggsave(filename = "~/PhD/manuscripts/vac63c/nature_immunology/pdf/vac69ab_cd4_memory_activation.pdf", memory_acti_plot, height = 3.5, width=6, bg="white")
+ggsave(filename = "~/PhD/manuscripts/vac63c/nature_immunology/png/vac69ab_cd4_memory_activation.png",memory_acti_plot, height = 3.5, width=6, bg="white", dpi=444)
+
+
+
+ggplot(treg_data, aes(x=timepoint, y=frequency))+
+  geom_boxplot(aes(fill=timepoint))+
+  geom_point(aes(color=volunteer))+
+  facet_wrap(~cluster_id, scales="free")+
+  theme_minimal()

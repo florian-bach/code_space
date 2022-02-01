@@ -1,4 +1,4 @@
-# longitudinal haem ####
+# preamble ####
 library(dplyr)
 library(ggplot2)
 library(tidyr)
@@ -23,6 +23,10 @@ vac69_colours <-list( "v02" = "#FB9A99",
 
 vac69_colours <- unlist(unname(vac69_colours))
 names(vac69_colours) <- names(vac69_colours)
+
+
+
+# longitudinal haem ####
 
 # vac69a ####
 
@@ -202,6 +206,7 @@ abc_line_plot <- ggplot(big_combo, aes(x=factor(timepoint, levels=c("Baseline", 
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abc_line_plot.png", abc_line_plot, height=10, width=5, bg="white")
 
+
 # longitudinal biochem ####
 
 # vac69a biochem ####
@@ -329,3 +334,172 @@ summary(model)
 )
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abc_alt_line_plot.png", abc_alt_line_plot, height=3, width=8, bg="white")
+
+
+# longitudinal fever / symptoms ####
+
+#collate all temperatures recorded as pyrexia/fever from the symptoms/AE tab
+
+# vac69a
+temp_data <- read.csv("~/PhD/clinical_data/vac69a/vac69a_body_temp.csv")
+
+fever <- temp_data %>%
+  mutate("volunteer" = gsub("69010", "v", trial_number)) %>%
+  filter(study_event_oid != "SE_VA69_C28") %>%
+  select(volunteer, timepoint, temp) %>%
+  #filter(temp>37.5)
+  filter(timepoint %in% c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
+                          "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6"))
+
+
+lousy_fever_timepoints <- c("03_chall___01_am", "14_chall___07_am", "24_chall___12_am","28_chall___14_am",
+                            "56_diagnosis_or_c_21", "58_postchall_ep1", "59_postchall_ep2", "62_postchall_t___6")
+
+good_fever_timepoints <- c("Baseline", "C7", "C12","C14", "Diagnosis", "T1", "T2", "T6")
+
+fever_timepoint_replacement <- setNames(good_fever_timepoints, lousy_fever_timepoints)
+fever$timepoint <- stringr::str_replace_all(fever$timepoint, fever_timepoint_replacement)
+
+
+symptom_data <- read.csv("~/PhD/clinical_data/vac69a/symptoms_vac69a.csv", header = T, stringsAsFactors = F)
+symptom_data$flo_timepoint <- gsub("am ", "am", symptom_data$flo_timepoint)
+symptom_data$flo_timepoint <- gsub("pm ", "pm", symptom_data$flo_timepoint)
+symptom_data$flo_timepoint <- gsub("DoD ", "Diagnosis", symptom_data$flo_timepoint)
+symptom_data$timepoint <- symptom_data$flo_timepoint
+
+symptom_data$volunteer <- gsub("69010", "v", symptom_data$trial_number)
+
+
+pyrexia <- symptom_data %>%
+  mutate("temp"=pyrexia_temp) %>%
+  select(volunteer, timepoint, temp) 
+
+pyrexia <- na.omit(pyrexia)
+
+pyrexia$timepoint <- c("T1", "C12", "T1", "C12", "Diagnosis", "T2", "C11", "Diagnosis", "T1", "Diagnosis")
+
+fever <- rbind(fever, pyrexia)
+
+fever$n_infection <- "First"
+
+real_fever <- fever %>%
+  group_by(volunteer, timepoint) %>%
+  summarise("max_temp"=max(temp)) %>%
+  ungroup() %>%
+  group_by(volunteer) %>%
+  summarise("max_temp"=max(max_temp))
+
+
+
+fever <- fever %>%
+  group_by(volunteer, timepoint) %>%
+  summarise("max_temp"=max(temp)) %>%
+  filter(timepoint %in% good_fever_timepoints)
+
+# 
+
+
+# 1 v02           38.5
+# 2 v03           39.7
+# 3 v05           37.1
+# 4 v06           37.9
+# 5 v07           38.7
+# 6 v09           36.9
+
+vac69a_fever <- subset(fever, fever$max_temp>37.5)
+vac69a_fever$n_infection <- "First"
+
+vac69b_data <- read.csv("~/PhD/clinical_data/vac69b/symptoms.csv")
+
+vac69b_data <- subset(vac69b_data, !is.na(vac69b_data$pyrexia_temp))
+
+vac69b_fever <- data.frame("volunteer" = gsub("69010", "v", vac69b_data$trial_number),
+                           "timepoint" = c("T1", "T2", "Diagnosis", "T1", "T2"),
+                           "max_temp"= vac69b_data$pyrexia_temp,
+                           "n_infection"=ifelse(vac69b_data$trial_number=="6901007", "Second", "First"))
+
+
+vac69c_data <- read.csv("~/PhD/clinical_data/vac69c/symptoms.csv")
+
+vac69c_data <- subset(vac69c_data, !is.na(vac69c_data$pyrexia_temp))
+
+vac69c_fever <- data.frame("volunteer" = gsub("69010", "v", vac69c_data$trial_number),
+                           "timepoint" = c("Diagnosis", "T1", "C15", "T1", "T1", "Diagnosis", "C19", "T1", "T1", "T1"),
+                           "max_temp"= vac69c_data$pyrexia_temp,
+                           "n_infection"=ifelse(vac69c_data$trial_number=="6901007", "Third",
+                                                ifelse(vac69c_data$trial_number %in% c("6901011", "6901021"), "Second", "First"))
+)
+
+
+abc_fever <- rbind(vac69a_fever, vac69b_fever, vac69c_fever)
+
+abc_max_fever <- abc_fever %>%
+  group_by(volunteer, n_infection) %>%
+  summarise("max_temperature"=max(max_temp))
+
+
+
+#collate all information from the observations tab, which includes all non-fever temperatures taken
+# at clinic. we then combine this with the fever temperatures and pick the highest value for each volunteer
+
+vac69a_temp <- read.csv("~/PhD/clinical_data/vac69a/vac69a_observations.csv")
+vac69a_temp <- vac69a_temp %>%
+  group_by(trial_number) %>%
+  summarise("max_temperature"=max(temp))
+vac69a_temp$volunteer <-gsub("69010", "v", vac69a_temp$trial_number)
+vac69a_temp$n_infection <- "First"
+
+
+vac69b_temp <- read.csv("~/PhD/clinical_data/vac69b/vac69b_observations.csv")
+vac69b_temp <- vac69b_temp %>%
+  group_by(trial_number) %>%
+  summarise("max_temperature"=max(temp))
+vac69b_temp$volunteer <-gsub("69010", "v", vac69b_temp$trial_number)
+vac69b_temp$n_infection <- ifelse(vac69b_temp$volunteer %in% c("v11", "v21"), "First", "Second")
+
+vac69c_temp <- read.csv("~/PhD/clinical_data/vac69c/vac69c_observations.csv")
+vac69c_temp <- vac69c_temp %>%
+  group_by(trial_number) %>%
+  summarise("max_temperature"=max(sc_temp, na.rm = TRUE))
+vac69c_temp$volunteer <- gsub("69010", "v", vac69c_temp$trial_number)
+vac69c_temp$n_infection <- ifelse(vac69c_temp$volunteer=="v07", "Third", ifelse(vac69c_temp$volunteer %in% c("v11", "v21"), "Second", "First")
+)
+                             
+
+
+abc_temp <- rbind(vac69a_temp, vac69b_temp, vac69c_temp)
+
+abc_max_temp <- abc_temp %>%
+  group_by(volunteer, n_infection)%>%
+  top_n(1, max_temperature)
+
+fever_temp_combo <- rbind(abc_max_temp, abc_max_fever)
+
+fever_temp_combo <- fever_temp_combo %>%
+  group_by(volunteer, n_infection) %>%
+  slice_max(order_by = max_temperature, with_ties = FALSE)
+
+
+n_infection_palette <- c(rgb(5,50,80, maxColorValue = 255),
+                         rgb(250, 100, 0, maxColorValue = 255),
+                         rgb(40,210,250, maxColorValue = 255))
+
+abc_fever_plot <- ggplot(fever_temp_combo, aes(x=n_infection,
+                             y=max_temperature,
+                             fill=n_infection))+
+  geom_boxplot(aes(fill=n_infection))+
+  geom_point(aes(color=volunteer),fill="white", stroke=1, shape=21, size=3, position = position_dodge2(width=0.2))+
+  #geom_line(aes(color=volunteer, group=volunteer), size=0.9)+
+  geom_hline(yintercept = 37.5, linetype="dashed", color="black")+
+  ylab(expression(paste("Temperature (",degree,"C)",sep="")))+
+  # scale_y_continuous(breaks = seq(36.5, 40, by=0.5),
+  #                    limits= c(36.5, 40))+
+  scale_fill_manual(values=n_infection_palette)+
+  #guides(color=guide_none())+
+  theme_minimal()+
+  theme(legend.position = "none", 
+    plot.title = element_text(hjust=0.5, vjust = 0, size=10),
+        axis.text.x = element_text(hjust=1, angle=45, size=8),
+        axis.title.x = element_blank())
+
+ggsave("~/PhD/clinical_data/vac69c/figures/abc_fever.png", abc_fever_plot, height=4, width=4, bg="white")

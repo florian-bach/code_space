@@ -1435,20 +1435,19 @@ dod_data$hist_color <- ifelse(dod_data$`%Genes Cluster #1`> 65, "#db0066" , dod_
     scale_x_continuous(breaks=seq(0,100,by=10), limits = c(-5, 105), expand=c(0,0))+
     ylab(expression('GO term enrichement'~italic("P. falciparum")~'(%)'))+
     xlab(expression('GO term enrichement'~italic("P. vivax")~'(%)'))+
-    #ggtitle("diagnosis")+
     #coord_fixed()+
     ggforce::geom_circle(aes(x0=50, y0=50, r=sqrt((0.5*threshold)^2+(0.5*threshold)^2)), fill="lightgrey", color=NA, alpha=0.2, inherit.aes = F)+
-    # geom_rect(aes(ymin=50-(threshold*0.5), ymax=50+(threshold*0.5),
-    #               xmin=50-(threshold*0.5), xmax=50+(threshold*0.5)),fill="grey", color=NA, alpha=0.2, inherit.aes = F )+
     geom_point(fill=dod_data$hist_color, color="black", stroke=0.1, shape=21)+
-    # geom_label_repel(data=dod_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=1.8,
-    #                  box.padding   = 0.35, nudge_x=-20, nudge_y=-30,
-    #                  point.padding = 0.5, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits)+
+    # theme(legend.position = "none",
+    #       axis.text = element_text(size=6),
+    #       axis.title = element_text(size=8, hjust = 0),
+    #       plot.title = element_text(hjust=1, face = "bold", size=9),
+    #       plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
     theme(legend.position = "none",
-          axis.text = element_text(size=6),
-          axis.title = element_text(size=8, hjust = 0),
-          plot.title = element_text(hjust=1, face = "bold", size=9),
-          plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
+                 axis.text = element_blank(),
+                 axis.title = element_blank(),
+                 plot.title = element_blank(),
+                 plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
   
   dod_hist_plot <- ggplot(dod_data, aes(y=`%Genes Cluster #1`))+
     theme_minimal()+
@@ -1458,19 +1457,25 @@ dod_data$hist_color <- ifelse(dod_data$`%Genes Cluster #1`> 65, "#db0066" , dod_
     geom_histogram(aes(fill = (hist_color)), orientation = "y", binwidth = 1, color="black", size=0.15)+
     #scale_fill_gradient2(low="#fec200", high="#db0085", midpoint = 50, mid = "lightgrey")+
     scale_fill_manual(values = c("#fec200"="#fec200", "#db0066"="#db0066", "darkgrey"="darkgrey"))+
-    
     # guides(fill=guide_colorbar(title = "",
     #                             label=FALSE,
     #                             ticks=FALSE))+
-    theme(axis.title.y =  element_blank(),
-          axis.text.y =  element_blank(),
-          axis.title.x = element_text(size=8),
-          axis.text.x = element_text(size=6),
-          panel.grid = element_blank(),
-          # legend.position = "top",
-          # legend.direction = "horizontal",
-          plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
+    # theme(axis.title.y =  element_blank(),
+    #       axis.text.y =  element_blank(),
+    #       axis.title.x = element_text(size=8),
+    #       axis.text.x = element_text(size=6),
+    #       panel.grid = element_blank(),
+    #       # legend.position = "top",
+    #       # legend.direction = "horizontal",
+    #       plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
+   theme(axis.title =  element_blank(),
+        axis.text =  element_blank(),
+        panel.grid = element_blank(),
+        # legend.position = "top",
+        # legend.direction = "horizontal",
+        plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
   
+    
   # vivax_falci_enrichement_leg <- cowplot::get_legend(dod_hist_plot)
   # ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_enrichment_legend.png", vivax_falci_enrichement_leg)
   
@@ -1540,10 +1545,15 @@ dod_data$hist_color <- ifelse(dod_data$`%Genes Cluster #1`> 65, "#db0066" , dod_
     # geom_label_repel(data=dod_vivax_rich_data, aes(label = stringr::str_wrap(GOTerm, 25)), size=1.8,
     #                  box.padding   = 0.35, nudge_x=-20, nudge_y=-30,
     #                  point.padding = 0.5, segment.alpha = 0.2, ylim  = vivax_y_limits, xlim  = vivax_x_limits)+
+    # theme(legend.position = "none",
+    #       axis.text = element_text(size=6),
+    #       axis.title = element_text(size=8, hjust = 0),
+    #       plot.title = element_text(hjust=1, face = "bold", size=9),
+    #       plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
     theme(legend.position = "none",
-          axis.text = element_text(size=6),
-          axis.title = element_text(size=8, hjust = 0),
-          plot.title = element_text(hjust=1, face = "bold", size=9),
+          axis.text = element_blank(),
+          axis.title = element_blank(),
+          plot.title = element_blank(),
           plot.margin=unit(c(0.5,0,0.5,0.5),"cm"))
   
   t6_hist_plot <- ggplot(t6_data, aes(y=`%Genes Cluster #1`))+
@@ -1558,15 +1568,21 @@ dod_data$hist_color <- ifelse(dod_data$`%Genes Cluster #1`> 65, "#db0066" , dod_
     # guides(fill=guide_colorbar(title = "",
     #                             label=FALSE,
     #                             ticks=FALSE))+
-    theme(axis.title.y =  element_blank(),
-          axis.text.y =  element_blank(),
-          axis.title.x = element_text(size=8),
-          axis.text.x = element_text(size=6),
-          panel.grid = element_blank(),
-          # legend.position = "top",
-          # legend.direction = "horizontal",
-          plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
-  
+    # theme(axis.title.y =  element_blank(),
+    #       axis.text.y =  element_blank(),
+    #       axis.title.x = element_text(size=8),
+    #       axis.text.x = element_text(size=6),
+    #       panel.grid = element_blank(),
+    #       # legend.position = "top",
+    #       # legend.direction = "horizontal",
+    #       plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
+    theme(axis.title =  element_blank(),
+        axis.text =  element_blank(),
+        panel.grid = element_blank(),
+        # legend.position = "top",
+        # legend.direction = "horizontal",
+        plot.margin=unit(c(0.5,0.5,0.5,0.3),"cm"))
+    
   vivax_falci_enrichement_leg <- cowplot::get_legend(t6_hist_plot)
   ggsave("~/PhD/cytof/vac69a/final_figures_for_paper/vivax_falciparum_enrichment_legend.pdf", vivax_falci_enrichement_leg)
   
@@ -1584,7 +1600,9 @@ dod_data$hist_color <- ifelse(dod_data$`%Genes Cluster #1`> 65, "#db0066" , dod_
   
   
   big_ass_combo <-  cowplot::plot_grid(vivax_falciparum_dod, vivax_falciparum_t6)
-  pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/GO_dot_plot_combo.pdf", height = 3.35, width=8, useDingbats = TRUE)
+  pdf("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/GO_dot_plot_combo_blank.pdf", height = 3.35, width=8 useDingbats = TRUE)
   big_ass_combo
   dev.off()
   
+
+ggsave("~/PhD/manuscripts/vac69a/jci_corrections/final_figures/GO_dot_plot_combo_blank.svg", height = 3.3, width=8)  
