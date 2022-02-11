@@ -1,5 +1,5 @@
 ---
-title: "Goncalves Modelling"
+title: "Gonçalves Modelling"
 author: "Florian Bach"
 date: "28/01/2022"
 output: html_document
@@ -11,8 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Analysis Plan & Input Data
 
-The aim of this project is to examine whether the data published in Gonçalves *et al.* (2014) supports the idea that first infections are more likely to involve severe disease than subsequent infections. In their paper, the authors report that the probability of severe disease given an infection is constant in the first few infections of life, i.e. no immunity to severe disease is rapidly acquired (the null hypothesis). To test this conclusion we will use a binomial distribution fit to the number of observations of first, second, third *etc.* infections and the estimated frequency of severe / moderate disease as reported in the paper. We can then determine the likelihood of the observed frequencies of severe disease given our modelled distributions. The null hypothesis is rejected if the number of severe cases is two standard deviations above/below the mean calculated with the simulation.
-In the paper, the number of severe episodes and the total number of infections is reported, forming the basis for this analysis:
+The aim of this project is to examine whether the data published in Gonçalves *et al.* (2014) supports the idea that first infections are more likely to involve severe disease than subsequent infections. In their paper, the authors report that the probability of severe disease given an infection is constant in the first few infections of life, i.e. no immunity to severe disease is rapidly acquired (the null hypothesis). To test this conclusion we will use a binomial distribution using their reported overall probability of severe disease to determine the likelihood of obtaining the data they observed. The null hypothesis is rejected if the number of severe cases is two standard deviations above/below the mean calculated with the binomial model.
+In the paper, the number of severe episodes, severe/moderate episodes and the total number of infections is reported, forming the basis for this analysis:
 
 
 ```{r include=FALSE}
@@ -43,9 +43,8 @@ goncalves_data <- data.frame("N_Infection"=seq(0,14),
 
 ## The probability of severe disease
 
-Dividing the number of severe disease cases by the total number of cases shows the probability of severe disease decreases with the order of infection. Note not all order of infection have an associated risk, because severe disease wasn't always observed.
+Dividing the number of severe disease cases by the total number of cases shows the probability of severe disease decreases somewhat with the order of infection, but it is not clear-cut. Severe/moderate disease risk appears to decrease more clearly. Note not all order of infection have an associated risk, because severe disease wasn't always observed.
 
-The same is done for data about severe+moderate disease instances which are reported in the supplementary.
 
 ```{r severe probability plot, echo=FALSE, warning=FALSE, fig.show="hold", out.width="50%"}
 
@@ -245,28 +244,32 @@ long_simulation$n_infection_num <- as.numeric(long_simulation$n_infection_num)
 There was a mismatch in the number of total cases reported at 1st, 2nd, 3rd infections etc. I therefore included both denominators for summary value calculation to test six "overall probabilities" of severe/moderate disease:
 
   1. the sum of severe cases divided by the sum of total cases: `r toString(round(mean_risk, digits=4))`
-  2. the median of all non-zero probabilities shown in the red bar graph above: `r toString(round(median_risk, digits=4))`
+  2. the median of all non-zero probabilities (fractions) shown in the red bar graph above: `r toString(round(median_risk, digits=4))`
   3. the sum of all moderate/severe cases divided by the sum of cases reported in the supplementary: `r toString(round(mean_mod_risk, digits=4))`
-  4. the median of all non-zero probabilities shown in the blue bar graph above: `r toString(round(median_mod_risk, digits=4))`
+  4. the median of all non-zero probabilities (fractions) shown in the blue bar graph above: `r toString(round(median_mod_risk, digits=4))`
   5. the sum of all moderate/severe cases divided by the sum of cases reported in the main paper: `r toString(round(mean_mod_risk_main_denom, digits=4))`
-  6. the median of all non-zero probabilities of moderate/severe disease using the main paper denominators: `r toString(round(median_mod_risk_main_denom, digits=4))`
+  6. the median of all non-zero probabilities (fractions) of moderate/severe disease using the main paper denominators: `r toString(round(median_mod_risk_main_denom, digits=4))`
 
 
-Given these probabilities, we ask how often one would observe severe disease, if X number of malaria cases are recorded. X in this instance is the total number of first, second, third etc. cases of malaria reported in the main paper / supplementary. This process is repeated 10,000 times.
+Given each of these probabilities, we ask how often one would observe severe disease, if X number of malaria cases were recorded, where X is the number of observations for each order of infection. This process is repeated 10,000 times to obtain means and confidence intervals.
 
-The plot below shows the distribution of simulated results as violin plots. The mean value of each violin plot is shown in blue, the area of two standard deviations (95% confidence interval) in light grey. The actual values observed in the paper are shown in red for severe cases and blue for moderate/severe cases. For severe cases, the observed value is within the 95% confidence interval, but only just- moderate/severe cases are outwith the 95% confidence interval in first infection regardless of how the mean/median probability was calculated.
+The plot below shows the distribution of simulated results as violin plots. The area of two standard deviations (95% confidence interval) is shaded light grey with the mean in black. The actual values observed in the paper are shown in red for severe cases and blue for moderate/severe cases. For severe cases, the observed value is within the 95% confidence interval, but only just- moderate/severe cases are outwith the 95% confidence interval in first infection regardless of how the mean/median probability was calculated.
 
 ```{r simulation plot, fig.height = 11, fig.width = 12, fig.align = "center", echo=FALSE}
 multi_facet_plot <- ggplot(long_simulation, aes(x=factor(n_infection, levels=n_infection_words), y=severe_cases))+
-  facet_wrap(~Simulation, ncol=2)+
+  facet_wrap(~Simulation, ncol=2, scales="fixed")+
   geom_violin()+
-  geom_line(aes(x=factor(n_infection, levels=n_infection_words), y=sim_mean), colour="lightgrey", inherit.aes = FALSE)+
-  geom_point(data=goncalves_model_data, aes(x = N_Infection_Words, y=Severe), alpha=c(rep(1,12),rep(0,24)), color="red", inherit.aes = FALSE)+
-  geom_point(data=goncalves_model_data, aes(x = N_Infection_Words, y=Severe_Moderate), alpha=c(rep(0,12),rep(1,24)), color="blue", inherit.aes = FALSE)+
+  geom_ribbon(aes(x=n_infection_num, ymin = mean_minus2, ymax = mean_plus2),
+             alpha = 0.2, inherit.aes = FALSE)+
+  geom_line(aes(x=factor(n_infection, levels=n_infection_words), y=sim_mean, group=Simulation), colour="black", inherit.aes = FALSE, data=long_simulation, size=0.6)+
+  geom_point(data=goncalves_model_data, aes(x = N_Infection_Words, y=Severe),
+             alpha=c(rep(1,12),rep(0,24)), color="red", inherit.aes = FALSE)+
+  geom_point(data=goncalves_model_data, aes(x = N_Infection_Words, y=Severe_Moderate),
+             alpha=c(rep(0,12),rep(1,24)), color="blue", inherit.aes = FALSE)+
   xlab("Order of Infection")+
   ylab("Number of Severe / Moderate Cases\n")+
   #geom_ribbon(aes(x=n_infection_num, ymin = mean_minus3, ymax = mean_plus3), alpha = 0.3, inherit.aes = FALSE)+
-  geom_ribbon(aes(x=n_infection_num, ymin = mean_minus2, ymax = mean_plus2), alpha = 0.2, inherit.aes = FALSE)+
+
 #guides(color=guide_legend(labels=c("Severe", "Moderate / Severe"),c ))
   theme_minimal()+
   theme(legend.position="right",
@@ -278,11 +281,11 @@ multi_facet_plot <- ggplot(long_simulation, aes(x=factor(n_infection, levels=n_i
 
 
 plot(multi_facet_plot)
-
+# 
 # rmarkdown::render(input = "~/code_space/R/postdoc/goncalves_modelling/binomial_model_with_moderate.Rmd",
 #                   output_file = "~/postdoc/goncalves_modelling/markdown/binomial_model_with_moderate.html",
 #                   output_format = "html_document")
-# 
+
 # rmarkdown::render(input = "~/code_space/R/postdoc/goncalves_modelling/binomial_model_with_moderate.Rmd",
 #                   output_file = "~/postdoc/goncalves_modelling/markdown/binomial_model_with_moderate.pdf",
 #                   output_format = "pdf_document")

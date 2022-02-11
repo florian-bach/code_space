@@ -137,6 +137,8 @@ long_combo_data$Analyte <- gsub("IFNy", "IFNγ", long_combo_data$Analyte, fixed=
 # long_combo_data <- filter(long_combo_data, Analyte %in% names(subset(list_of_adj_pvalues_dod, list_of_adj_pvalues_dod<=0.05)
 # ))
 
+long_combo_data <- filter(long_combo_data, n_infection == "First")
+
 vivax_falci_plasma_comparison <- ggplot(long_combo_data, aes(x=Timepoint, y=Concentration))+
   geom_boxplot(aes(fill=Species), outlier.alpha = 1)+
   facet_wrap(~Analyte, scales="free", ncol = 4)+
@@ -158,11 +160,12 @@ vivax_falci_plasma_comparison <- ggplot(long_combo_data, aes(x=Timepoint, y=Conc
 
 #ggsave("~/postdoc/BSI2021/vivax_falci_plasma_comparison_big_with_reinfected.png", vivax_falci_plasma_comparison, height=25, width=10, dpi=444, bg="white")
 #ggsave("~/postdoc/BSI2021/vivax_falci_plasma_comparison_with_T6.png", vivax_falci_plasma_comparison, height=6, width=10, dpi=444, bg="white")
-ggsave("~/postdoc/BSI2021/vivax_falci_all_sig_dod_analytes.png", vivax_falci_plasma_comparison, height=6, width=9, dpi=444, bg="white")
-ggsave("~/postdoc/BSI2021/vivax_falci_all_sig_dod_analytes.pdf", vivax_falci_plasma_comparison, height=6, width=9, bg="white", device = cairo_pdf)
-ggsave("~/postdoc/BSI2021/vivax_falci_all_sig_dod_analytes_tall.pdf", vivax_falci_plasma_comparison, height=9, width=9, bg="white", device = cairo_pdf)
+ggsave("~/postdoc/presentations/BSI2021/vivax_falci_all_sig_dod_analytes.png", vivax_falci_plasma_comparison, height=6, width=9, dpi=444, bg="white")
+ggsave("~/postdoc/presentations/BSI2021/vivax_falci_all_sig_dod_analytes.pdf", vivax_falci_plasma_comparison, height=6, width=9, bg="white", device = cairo_pdf)
+ggsave("~/postdoc/presentations/BSI2021/vivax_falci_all_sig_dod_analytes_tall.pdf", vivax_falci_plasma_comparison, height=9, width=9, bg="white", device = cairo_pdf)
 
-ggsave("~/postdoc/BSI2021/big_vivax_falci_plasma_comparison.png", vivax_falci_plasma_comparison, height=14, width=9, dpi=444, bg="white")
+ggsave("~/postdoc/presentations/BSI2021/first_second_third_vivax_falci_plasma_comparison.png", vivax_falci_plasma_comparison, height=17, width=11.5, dpi=444, bg="white")
+ggsave("~/postdoc/presentations/BSI2021/first_vivax_falci_plasma_comparison.png", vivax_falci_plasma_comparison, height=17, width=11.5, dpi=444, bg="white")
 
 
 
@@ -178,30 +181,49 @@ glm_data$Concentration <- log10(glm_data$Concentration)
 list_of_dfs_for_glm <- split(glm_data, glm_data$Analyte)
 
 #list_of_models <- lapply(list_of_dfs_for_glm, function(x) lm(Concentration~timepoint+Volunteer, data=x))
-#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
-list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(Concentration~Timepoint+Species+(1|Volunteer), data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(Concentration~Timepoint+Species, random=~1|Volunteer, data=x))
+list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(Concentration~Timepoint+Species+(1|Volunteer), REML=TRUE, data=x))
 
 # 
 dod_contrast <- t(matrix(c(0,1,0,1)))
 t6_contrast <- t(matrix(c(0,0,1,1)))
+# 
+list_of_tests_t6 <- lapply(list_of_models, function(x) multcomp::glht(model = x, linfct = t6_contrast))
+t6_results <- lapply(list_of_tests_t6, function(x) cbind("coef"=summary(x)$test$coefficients, 
+                                                          "pvalue"=summary(x)$test$pvalues))
 
-list_of_tests_t6 <- lapply(list_of_models, function(x) multcomp::glht(x, t6_contrast))
-list_of_pvalues_t6 <- sapply(list_of_tests_t6, function(x) summary(x)$test$pvalues)
-
-#
-#
-list_of_adj_pvalues_t6 <- sort(p.adjust(list_of_pvalues_t6, method = "fdr"))
-subset(list_of_adj_pvalues_t6, list_of_adj_pvalues_t6<=0.05)
-subset(list_of_pvalues_t6, list_of_pvalues_t6<=0.05)
-
+# 
+# #
+# #
+# list_of_adj_pvalues_t6 <- sort(p.adjust(list_of_pvalues_t6, method = "fdr"))
+# subset(list_of_adj_pvalues_t6, list_of_adj_pvalues_t6<=0.05)
+# subset(list_of_pvalues_t6, list_of_pvalues_t6<=0.05)
+# 
 
 
 list_of_tests_dod <- lapply(list_of_models, function(x) multcomp::glht(x, dod_contrast))
-list_of_pvalues_dod <- sapply(list_of_tests_dod, function(x) summary(x)$test$pvalues)
+dod_results <- lapply(list_of_tests_dod, function(x) cbind("coef"=summary(x)$test$coefficients, 
+                                                                   "pvalue"=summary(x)$test$pvalues))
 
-list_of_adj_pvalues_dod <- sort(p.adjust(list_of_pvalues_dod, method = "fdr"))
-subset(list_of_adj_pvalues_dod, list_of_adj_pvalues_dod<=0.05)
-subset(list_of_pvalues_dod, list_of_pvalues_dod<=0.05)
+dod_results_df <- data.frame("analyte"=names(dod_results),
+                             "contrast"="base_dod_species",
+                             do.call(rbind, dod_results))
+
+#coef>1 means more in vivax, coef<1 means more in falciparum
+dod_results_df$padj <- p.adjust(dod_results_df$pvalue)
+subset(dod_results_df, dod_results_df$padj<=0.05)
+
+
+
+
+
+t6_results_df <- data.frame("analyte"=names(t6_results),
+                             "contrast"="base_t6_species",
+                             do.call(rbind, t6_results))
+
+#coef>1 means more in vivax, coef<1 means more in falciparum
+t6_results_df$padj <- p.adjust(t6_results_df$pvalue)
+subset(t6_results_df, t6_results_df$padj<=0.05)
 
 
 adj_results_df <- data.frame("dod"=list_of_adj_pvalues_dod, "t6"=list_of_adj_pvalues_t6)
