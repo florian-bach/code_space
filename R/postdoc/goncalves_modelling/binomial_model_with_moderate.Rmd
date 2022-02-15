@@ -7,6 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir="~/postdoc/goncalves_modelling/markdown")
+
 ```
 
 ## Analysis Plan & Input Data
@@ -204,12 +206,12 @@ good_numbers <- as.character(seq(1:length(bad_numbers)))
 long_simulation$n_infection_num <- as.numeric(stringr::str_replace(long_simulation$n_infection, bad_numbers, good_numbers))
 
 
-#create summary dfs for mean, median and confidence intervals; 2simga=95% CI; 3sigma=99.7% CI;
+#create summary dfs for mean, median and confidence intervals; 1.96 simga=95% CI; 3sigma=99.7% CI;
 summary_df <- long_simulation %>%
   group_by(Simulation, n_infection)%>%
   summarise("mean"=mean(severe_cases), "sd"=sd(severe_cases))%>%
-  mutate("mean_plus2"=mean+(sd*2))%>%
-  mutate("mean_minus2"=mean-(sd*2))%>%
+  mutate("mean_plus2"=mean+(sd*1.96))%>%
+  mutate("mean_minus2"=mean-(sd*1.96))%>%
   mutate("mean_plus3"=mean+(sd*3))%>%
   mutate("mean_minus3"=mean-(sd*3))
 
@@ -251,9 +253,9 @@ There was a mismatch in the number of total cases reported at 1st, 2nd, 3rd infe
   6. the median of all non-zero probabilities (fractions) of moderate/severe disease using the main paper denominators: `r toString(round(median_mod_risk_main_denom, digits=4))`
 
 
-Given each of these probabilities, we ask how often one would observe severe disease, if X number of malaria cases were recorded, where X is the number of observations for each order of infection. This process is repeated 10,000 times to obtain means and confidence intervals.
+Given each of these probabilities, we ask how often one would observe severe disease, if X number of malaria cases were recorded, where X is the number of observations for each order of infection. This process is repeated 10,000 times to obtain means and 95% confidence intervals.
 
-The plot below shows the distribution of simulated results as violin plots. The area of two standard deviations (95% confidence interval) is shaded light grey with the mean in black. The actual values observed in the paper are shown in red for severe cases and blue for moderate/severe cases. For severe cases, the observed value is within the 95% confidence interval, but only just- moderate/severe cases are outwith the 95% confidence interval in first infection regardless of how the mean/median probability was calculated.
+The plot below shows the distribution of simulated results as violin plots. The area of 1.96 standard deviations (95% confidence interval) is shaded light grey with the mean in black. The actual values observed in the paper are shown in red for severe cases and blue for moderate/severe cases. For severe cases, the observed value is within the 95% confidence interval, but only just- moderate/severe cases are outwith the 95% confidence interval in first infection regardless of how the mean/median probability was calculated.
 
 ```{r simulation plot, fig.height = 11, fig.width = 12, fig.align = "center", echo=FALSE}
 multi_facet_plot <- ggplot(long_simulation, aes(x=factor(n_infection, levels=n_infection_words), y=severe_cases))+
@@ -290,6 +292,78 @@ plot(multi_facet_plot)
 #                   output_file = "~/postdoc/goncalves_modelling/markdown/binomial_model_with_moderate.pdf",
 #                   output_format = "pdf_document")
 ```
+## Linear Regression on Severe / Moderate Risk Fractions
+
+To quantify how the risk evolves as a function of previous exposure we can use generalised linear models. We will use the number of severe or severe/moderate cases as our dependent variable, respectively and order of infection as our independent variable. Order of infection can be modelled a number of ways: categorically or continuously, and linearly or quadratically. We will use Akaike's Information Criterion (AIC) to compare model fit and will choose the model with the lowest AIC if $\Delta AIC \geq 2$ if the difference is smaller we will select the more parsimonious model. 
+
+```{r linear regession, echo=FALSE}
+
+goncalves_glm_data <- goncalves_data[-1,] %>% replace(is.na(.),0)
+goncalves_glm_data$First <- ifelse(goncalves_glm_data$N_Infection==1, TRUE, FALSE)
+goncalves_glm_data$N_Infection2 <- (goncalves_glm_data$N_Infection)^2
+
+severe_cat_lin_model <- glm(Severe/Infections~N_Infection_Words, family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
+severe_con_lin_model <- glm(Severe/Infections~N_Infection,  family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
+severe_con_quad_model <- glm(Severe/Infections~N_Infection+I(N_Infection^2),  family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
 
 
 
+moderate_cat_lin_model <- glm(Severe_Moderate/Supp_Infections~N_Infection_Words, family = "binomial", weights = Supp_Infections, data=goncalves_glm_data[1:11,])
+moderate_con_lin_model <- glm(Severe_Moderate/Supp_Infections~N_Infection, family = "binomial", weights = Supp_Infections, data=goncalves_glm_data[1:11,])
+moderate_con_quad_model <- glm(Severe_Moderate/Supp_Infections~N_Infection+I(N_Infection^2), family = "binomial", weights = Supp_Infections, data=goncalves_glm_data[1:11,])
+
+
+main_denom_moderate_cat_lin_model <- glm(Severe_Moderate/Infections~N_Infection_Words, family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
+main_denom_main_denom_moderate_con_lin_model <- glm(Severe_Moderate/Infections~N_Infection, family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
+main_denom_moderate_con_quad_model <- glm(Severe_Moderate/Infections~N_Infection+I(N_Infection^2), family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
+
+
+list_of_models <- list(severe_cat_lin_model, severe_con_lin_model, severe_con_quad_model,
+                       moderate_cat_lin_model, moderate_con_lin_model, moderate_con_quad_model,
+                       main_denom_moderate_cat_lin_model, main_denom_main_denom_moderate_con_lin_model, main_denom_moderate_con_quad_model)
+
+
+
+list_of_formulas <- as.character(unlist(sapply(list_of_models, function(x)x$formula)))
+list_of_coef <- unlist(sapply(list_of_models, function(x)x$coefficients[2]))
+list_of_aic <- sapply(list_of_models, function(x)AIC(x))
+
+
+model_result_df <- data.frame("model_formula" = list_of_formulas, 
+                              "aic" = list_of_aic,
+                              "n_infection_coef" = list_of_coef)
+
+fit <- moderate_con_quad_model
+prd <- data.frame(N_Infection = seq(from = 1, to = 11, length.out = 100))
+err <- predict(fit, newdata = prd, se.fit = TRUE)
+
+prd$lci <- err$fit - 1.96 * err$se.fit
+prd$fit <- err$fit
+prd$uci <- err$fit + 1.96 * err$se.fit
+
+# moderate_con_quad_model$coefficients
+# (Intercept)      N_Infection I(N_Infection^2) 
+# -1.87837101      -0.26703997       0.01384391 
+model3 <- function(x){-0.26703997*x+(0.01384391*x^2)+11}
+model3 <- function(x){moderate_con_quad_model$coefficients[2]*x+
+    (moderate_con_quad_model$coefficients[3]*x^2)+moderate_con_quad_model$coefficients[1]}
+
+
+  # ggplot(prd, aes(x = N_Infection, y = fit)) +
+  #   theme_bw()+
+  #   geom_line()+
+  #   geom_smooth(aes(ymin = lci, ymax = uci), stat = "identity")+
+  #   geom_function(fun=model3, linetype="dotted")+
+  #   geom_point(data=goncalves_glm_data[1:11,], aes(x=N_Infection, y=Severe_Moderate/Supp_Infections), inherit.aes = FALSE)+
+  #   xlim(0,11)+
+
+
+
+```{r results table, echo=FALSE}
+
+knitr::kable(model_result_df, caption="model selection results") %>%
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+From these results we can conclude that modelling N_Infection continuously and linearly is the way to go.
