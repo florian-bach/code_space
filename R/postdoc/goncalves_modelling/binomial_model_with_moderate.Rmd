@@ -1,7 +1,7 @@
 ---
 title: "Gonçalves Modelling"
 author: "Florian Bach"
-date: "28/01/2022"
+date: "18/02/2022"
 output: html_document
 ---
 
@@ -85,12 +85,360 @@ plot(severe_disease_bar)
 plot(moderate_disease_bar)
 ```
 
+## Linear Regression on Severe / Moderate Risk Fractions
+
+Following Nick's suggestions there are three hypotheses we would like to test:
+
+1. The risk of severe disease declines at a constant rate with the number of infections.
+
+2. The risk of severe disease drops from 1st to 2nd infection in life and then remains constant.
+
+3. The risk of severe disease declines with the number of infections and the rate of decline is highest from 1st to 2nd infection.
+
+
+While it is not clear to me how to best test hypothesis 2), hypotheses 1) and 3) can be straight-forwardly tested with linear models. We will use the ratio of severe/moderate cases and the number of observations as our dependent variable and order of infection as our independent variable. Order of infection can be modelled and linearly or quadratically. Comparing the fit of linear/quadratic models addresses the question whether the decline in the rate of severe disease is best modelled as having a constant rate or not.
+
+Using weighted least squares regression allows us to incorporate the uncertainty resulting from the rapidly declining number of observations. To find which model fits best, we will use Akaike's Information Criterion (AIC). For nested models, we will choose the model with the lowest AIC if $|\Delta AIC| \geq 2$. If the difference is smaller we will select the more parsimonious model. 
+
+
+```{r linear regession, echo=FALSE}
+
+goncalves_glm_data <- goncalves_data[-c(1),] %>% replace(is.na(.),0)
+goncalves_glm_data$First <- ifelse(goncalves_glm_data$N_Infection==1, TRUE, FALSE)
+goncalves_glm_data$N_Infection2 <- (goncalves_glm_data$N_Infection)^2
+
+
+# severe_cat_lin_model <- lm(Severe/Infections~N_Infection_Words, data=goncalves_glm_data[1:8,])
+severe_con_lin_model <- lm(Severe/Infections~N_Infection, data=goncalves_glm_data[1:8,], weights = Infections)
+severe_con_quad_model <- lm(Severe/Infections~N_Infection+I(N_Infection^2), data=goncalves_glm_data[1:8,], weights = Infections)
+
+
+#moderate_cat_lin_model <- lm(Severe_Moderate/Supp_Infections~N_Infection_Words, data=goncalves_glm_data[1:11,])
+moderate_con_lin_model <- lm(Severe_Moderate/Supp_Infections~N_Infection, data=goncalves_glm_data[1:11,], weights = Supp_Infections)
+moderate_con_quad_model <- lm(Severe_Moderate/Supp_Infections~N_Infection+I(N_Infection^2), data=goncalves_glm_data[1:11,], weights = Supp_Infections)
+
+
+# main_denom_moderate_cat_lin_model <- lm(Severe_Moderate/Infections~N_Infection_Words, data=goncalves_glm_data[1:8,])
+main_denom_main_denom_moderate_con_lin_model <- lm(Severe_Moderate/Infections~N_Infection, data=goncalves_glm_data[1:8,], weights = Infections)
+main_denom_moderate_con_quad_model <- lm(Severe_Moderate/Infections~N_Infection+I(N_Infection^2),  data=goncalves_glm_data[1:8,], weights = Infections)
+
+
+
+list_of_models <- list(severe_con_lin_model,
+                       severe_con_quad_model,
+                       moderate_con_lin_model,
+                       moderate_con_quad_model,
+                       main_denom_main_denom_moderate_con_lin_model,
+                       main_denom_moderate_con_quad_model)
+
+
+list_of_formulas <- as.character(unlist(sapply(list_of_models, function(x)x$call[2])))
+
+list_of_formulas <- gsub("(", "", list_of_formulas, fixed=TRUE)
+list_of_formulas <- gsub(")", "", list_of_formulas, fixed=TRUE)
+list_of_formulas <- gsub("IN_Infection", "N_Infection", list_of_formulas, fixed=TRUE)
+
+
+
+list_of_coef2 <- unlist(sapply(list_of_models, function(x)x$coefficients[2]))
+list_of_coef3 <- unlist(sapply(list_of_models, function(x)x$coefficients[3]))
+list_of_aic <- sapply(list_of_models, function(x)AIC(x))
+
+
+model_result_df <- data.frame("Model Formula" = list_of_formulas, 
+                              "AIC" = list_of_aic,
+                              "Linear Coefficient" = list_of_coef2,
+                              "Quadratic Coefficient" = list_of_coef3)
+# 
+# fit <- moderate_con_quad_model
+# prd <- data.frame(N_Infection = seq(from = 1, to = 11, length.out = 100))
+# err <- predict(fit, newdata = prd, se.fit = TRUE)
+# 
+# prd$lci <- err$fit - 1.96 * err$se.fit
+# prd$fit <- err$fit
+# prd$uci <- err$fit + 1.96 * err$se.fit
+# 
+# # moderate_con_quad_model$coefficients
+# # (Intercept)      N_Infection I(N_Infection^2) 
+# # -1.87837101      -0.26703997       0.01384391 
+# # model3 <- function(x){-0.26703997*x+(0.01384391*x^2)+11}
+# # model3 <- function(x){moderate_con_quad_model$coefficients[2]*x+
+# #     (moderate_con_quad_model$coefficients[3]*x^2)+moderate_con_quad_model$coefficients[1]}
+# # 
+# 
+# ggplot(prd, aes(x = N_Infection, y = exp(fit))) +
+#   theme_bw()+
+#   geom_line()+
+#   geom_smooth(aes(ymin = exp(lci), ymax = exp(uci)), stat = "identity")+
+#   #geom_function(fun=model3, linetype="dotted")+
+#   geom_point(data=glm_data, aes(x=N_Infection, y=Moderate_Prob), inherit.aes = FALSE)+
+#   xlim(-0,8)
+
+``` 
+
+```{r results table, echo=FALSE}
+
+  
+  
+knitr::kable(model_result_df, caption="Model Comparison") %>%
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+The best performing models are shown below.  
+
+
+```{r probability model fit, echo=FALSE, warning=FALSE, fig.show="hold", out.width="50%"}
+
+
+
+moderate_lin_fun <- function(x){moderate_con_lin_model$coefficients[1]+moderate_con_lin_model$coefficients[2]*x}
+
+
+fit1 <- moderate_con_lin_model
+prd1 <- data.frame(N_Infection = seq(from = 1, to = 14, length.out = 100))
+err1 <- predict(fit1, newdata = prd1, se.fit = TRUE)
+
+prd1$lci <- err1$fit - 1.96 * err1$se.fit
+prd1$fit <- err1$fit
+prd1$uci <- err1$fit + 1.96 * err1$se.fit
+
+
+
+severe_disease_point <- ggplot(goncalves_data, aes(x = N_Infection, y=Severe/Infections))+
+  ylab("Risk of Severe Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+  scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+
+  #geom_text(aes(label= paste0("frac(",Severe_Moderate, ",", Supp_Infections,")")),parse = TRUE, vjust= -2, data = goncalves_data, size=3.5)+
+  geom_point(color="red")+
+  ggtitle("Severe Disease\n")+
+  geom_smooth(method="lm", colour="red", formula = y~x)+
+  theme_minimal()+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+        )
+
+
+
+
+moderate_disease_point <- ggplot(goncalves_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
+  ylab("\n\nRisk of Severe / Moderate Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+  scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+#
+  # geom_text(aes(label= paste0("frac(",Severe_Moderate, ",", Supp_Infections,")")),parse = TRUE, vjust= -0.2, data = goncalves_data, size=3.5)+
+  geom_point(color="blue", na.rm = TRUE)+
+  ggtitle("Severe / Moderate Disease")+
+  theme_minimal()+
+  # geom_function(fun=moderate_lin_fun)+
+  # geom_ribbon(data=prd1, aes(x=N_Infection, ymin = lci, ymax = uci),
+  #            alpha = 0.2, inherit.aes = FALSE)+
+  geom_smooth(method="lm", formula=y~x+I(x^2))+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+        )
+
+
+plot(severe_disease_point)
+plot(moderate_disease_point)
+
+```
+
+
+From these results we can conclude that modelling N_Infection quadratically improves model fit for severe/moderate cases but not severe cases. This suggests that protection from moderate disease is acquired most quickly following early infections. So severe only data is consistent with hypoethesis 1) and not 3) while the reverse is true for moderate cases.
+
+
+After this observation I had an idea on how to test hypothesis 2) (a discrete jump in risk reduction following first infection which then continuous decline) through regression: I wondered whether a quadratic effect of N_Infection was still the best fitting model for moderate disease after censoring the first infection data point. If it still was, this would suggest that the reduction in risk was not at a constant rate from second infection onwards.
+
+
+
+```{r linear regession with censor, echo=FALSE}
+
+goncalves_glm_data_censor <- goncalves_data[-c(1:2),] %>% replace(is.na(.),0)
+goncalves_glm_data_censor$First <- ifelse(goncalves_glm_data_censor$N_Infection==1, TRUE, FALSE)
+
+
+
+
+#moderate_cat_lin_model <- lm(Severe_Moderate/Supp_Infections~N_Infection_Words, data=goncalves_glm_data[1:11,])
+censor_moderate_con_lin_model <- lm(Severe_Moderate/Supp_Infections~N_Infection, data=goncalves_glm_data_censor[1:10,], weights = Supp_Infections)
+censor_moderate_con_quad_model <- lm(Severe_Moderate/Supp_Infections~N_Infection+I(N_Infection^2), data=goncalves_glm_data_censor[1:10,], weights = Supp_Infections)
+
+
+
+censor_main_denom_main_denom_moderate_con_lin_model <- lm(Severe_Moderate/Infections~N_Infection, data=goncalves_glm_data_censor[1:8,], weights = Infections)
+censor_main_denom_moderate_con_quad_model <- lm(Severe_Moderate/Infections~N_Infection+I(N_Infection^2),  data=goncalves_glm_data_censor[1:8,], weights = Infections)
+
+
+
+list_of_censor_models <- list(censor_moderate_con_lin_model,
+                       censor_moderate_con_quad_model,
+                       censor_main_denom_main_denom_moderate_con_lin_model,
+                       censor_main_denom_moderate_con_quad_model
+                       )
+
+
+list_of_censor_formulas <- as.character(unlist(sapply(list_of_censor_models, function(x)x$call[2])))
+
+list_of_censor_formulas <- gsub("(", "", list_of_censor_formulas, fixed=TRUE)
+list_of_censor_formulas <- gsub(")", "", list_of_censor_formulas, fixed=TRUE)
+list_of_censor_formulas <- gsub("IN_Infection", "N_Infection", list_of_censor_formulas, fixed=TRUE)
+
+
+
+list_of_censor_coef2 <- unlist(sapply(list_of_censor_models, function(x)x$coefficients[2]))
+list_of_censor_coef3 <- unlist(sapply(list_of_censor_models, function(x)x$coefficients[3]))
+list_of_censor_aic <- sapply(list_of_censor_models, function(x)AIC(x))
+
+
+censor_model_result_df <- data.frame("Model Formula" = list_of_censor_formulas, 
+                              "AIC" = list_of_censor_aic,
+                              "Linear Coefficient" = list_of_censor_coef2,
+                              "Quadratic Coefficient" = list_of_censor_coef3)
+``` 
+
+```{r censored results table, echo=FALSE}
+
+knitr::kable(censor_model_result_df, caption="Censored Model Comparison") %>%
+  kableExtra::kable_styling(full_width = F)
+
+```
+
+Interestingly, censoring the first observation means that a quadratic effect of N_Infection does not significantly improve model performance. Very interestingly, the first data point actually sits outside of the 95% confidence interval of that model. This suggests for moderate disease, the data is consistent with hypothesis 2) as well as hypothesis 3). 
+
+```{r censor model fit, echo=FALSE, warning=FALSE}
+
+
+
+moderate_lin_fun <- function(x){censor_moderate_con_lin_model$coefficients[1]+censor_moderate_con_lin_model$coefficients[2]*x}
+
+
+fit1 <- censor_moderate_con_lin_model
+prd1 <- data.frame(N_Infection = seq(from = 1, to = 14, length.out = 100))
+err1 <- predict(fit1, newdata = prd1, se.fit = TRUE)
+
+prd1$lci <- err1$fit - 1.96 * err1$se.fit
+prd1$fit <- err1$fit
+prd1$uci <- err1$fit + 1.96 * err1$se.fit
+
+
+
+censor_moderate_disease_point <- ggplot(goncalves_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
+  ylab("\n\nRisk of Severe / Moderate Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(-0.04, 0.12))+
+  scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+#
+  # geom_text(aes(label= paste0("frac(",Severe_Moderate, ",", Supp_Infections,")")),parse = TRUE, vjust= -0.2, data = goncalves_data, size=3.5)+
+  geom_point(color="blue", na.rm = TRUE)+
+  ggtitle("Severe / Moderate Disease")+
+  theme_minimal()+
+  geom_function(fun=moderate_lin_fun)+
+  geom_ribbon(data=prd1, aes(x=N_Infection, ymin = lci, ymax = uci),
+             alpha = 0.2, inherit.aes = FALSE)+
+  #geom_smooth(method="lm", formula=y~x+I(x^2))+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+        )
+
+
+plot(censor_moderate_disease_point)
+
+```
+
+A caveat to the analysis above is that, generally speaking, these data would be best modelled by logistic regression, since we're essentially recording a binary outcome of complicated / uncomplicated disease. 
+
+```{r binomial models, echo=FALSE,fig.show="hold", out.width="50%", warning=FALSE}
+
+# severe_binom_model <- glm(Severe/Infections~N_Infection, data=goncalves_glm_data[1:8,], weights = Infections, family="binomial")
+# moderate_binom_model <- glm(Severe_Moderate/Supp_Infections~N_Infection, data=goncalves_glm_data[1:11,], weights = Supp_Infections, family="binomial")
+
+severe_binom_model <- MASS::glm.nb(Severe/Infections~N_Infection, data=goncalves_glm_data[1:8,], weights = Infections)
+moderate_binom_model <- MASS::glm.nb(Severe_Moderate/Supp_Infections~N_Infection, data=goncalves_glm_data[1:11,], weights = Supp_Infections)
+
+
+# lin_func <- function(x){exp(-2.0513077)*exp(-0.1432331)^x}
+
+severe_fun <- function(x){exp(as.numeric(coef(severe_binom_model)[1]))*(exp(as.numeric(coef(severe_binom_model)[2])))^x}
+
+
+fit1 <- severe_binom_model
+prd1 <- data.frame(N_Infection = seq(from = 1, to = 14, length.out = 100))
+err1 <- predict(fit1, newdata = prd1, se.fit = TRUE)
+
+prd1$lci <- err1$fit - 1.96 * err1$se.fit
+prd1$fit <- err1$fit
+prd1$uci <- err1$fit + 1.96 * err1$se.fit
+
+
+
+severe_disease_point <- ggplot()+
+  ylab("Risk of Severe Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+  scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+
+  ggtitle("Severe Disease\n")+
+  geom_line(data=prd1, aes(x = N_Infection, y = exp(fit)), inherit.aes = FALSE)+
+  geom_function(fun=severe_fun, linetype="dotted")+
+  geom_ribbon(data=prd1, aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
+             alpha = 0.2, inherit.aes = FALSE)+
+  geom_point(data=goncalves_data, aes(x = N_Infection, y=Severe/Infections), color="red")+
+  theme_minimal()+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+        )
+
+
+fit2 <- moderate_binom_model
+prd2 <- data.frame(N_Infection = seq(from = 1, to = 14, length.out = 100))
+err2 <- predict(fit2, newdata = prd2, se.fit = TRUE)
+
+prd2$lci <- err2$fit - 1.96 * err2$se.fit
+prd2$fit <- err2$fit
+prd2$uci <- err2$fit + 1.96 * err2$se.fit
+
+
+moderate_fun <- function(x){exp(as.numeric(coef(moderate_binom_model)[1]))*(exp(as.numeric(coef(moderate_binom_model)[2])))^x}
+
+
+
+moderate_disease_point <- ggplot()+
+  ylab("\n\nRisk of Severe / Moderate Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 1.1*max(exp(prd2$uci))))+
+  scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+#
+  geom_point(data=goncalves_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections), color="blue")+
+  ggtitle("Severe / Moderate Disease")+
+  geom_line(data=prd2, aes(x = N_Infection, y = exp(fit)), inherit.aes = FALSE)+
+  geom_function(fun=moderate_fun, linetype="dotted")+
+  geom_ribbon(data=prd2, aes(x = N_Infection, ymin = exp(lci), ymax = exp(uci)),
+             alpha = 0.2, inherit.aes = FALSE)+
+  geom_point(data=goncalves_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections), color="blue")+
+  theme_minimal()+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        )
+
+plot(severe_disease_point)
+plot(moderate_disease_point)
+
+
+```
+
+The appearance of these regression models, to me, is consisten with the previous analysis which indicated that severe disease risk declines at a (more or less) steady rate, while moderate disease risk declined more quickly early in infection history. Presently I am not sure how to best address whether hypothesis 2) or 3) best fit the data for moderate disease.
+
 ```{r only include first 5 infections, include=FALSE}
 
 
 # here we fix how many orders of infection we want to simulate
 
 goncalves_data$N_Infection_Words <- c("Zero", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eight", "Nineth", "Tenth", "Eleventh", "Twelveth", "Thirteenth", "Fourteenth")
+
+goncalves_data$N_Infection_Words <- factor(goncalves_data$N_Infection_Words, levels=c("Zero", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eight", "Nineth", "Tenth", "Eleventh", "Twelveth", "Thirteenth", "Fourteenth"))
 
 n_infection_colnames <- list("First"=NA,
                        "Second"=NA,
@@ -243,6 +591,8 @@ long_simulation$n_infection_num <- as.numeric(long_simulation$n_infection_num)
 
 ```
 
+## Simulating a Stable Risk for Severe Disease
+
 There was a mismatch in the number of total cases reported at 1st, 2nd, 3rd infections etc. I therefore included both denominators for summary value calculation to test six "overall probabilities" of severe/moderate disease:
 
   1. the sum of severe cases divided by the sum of total cases: `r toString(round(mean_risk, digits=4))`
@@ -292,78 +642,3 @@ plot(multi_facet_plot)
 #                   output_file = "~/postdoc/goncalves_modelling/markdown/binomial_model_with_moderate.pdf",
 #                   output_format = "pdf_document")
 ```
-## Linear Regression on Severe / Moderate Risk Fractions
-
-To quantify how the risk evolves as a function of previous exposure we can use generalised linear models. We will use the number of severe or severe/moderate cases as our dependent variable, respectively and order of infection as our independent variable. Order of infection can be modelled a number of ways: categorically or continuously, and linearly or quadratically. We will use Akaike's Information Criterion (AIC) to compare model fit and will choose the model with the lowest AIC if $\Delta AIC \geq 2$ if the difference is smaller we will select the more parsimonious model. 
-
-```{r linear regession, echo=FALSE}
-
-goncalves_glm_data <- goncalves_data[-1,] %>% replace(is.na(.),0)
-goncalves_glm_data$First <- ifelse(goncalves_glm_data$N_Infection==1, TRUE, FALSE)
-goncalves_glm_data$N_Infection2 <- (goncalves_glm_data$N_Infection)^2
-
-severe_cat_lin_model <- glm(Severe/Infections~N_Infection_Words, family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
-severe_con_lin_model <- glm(Severe/Infections~N_Infection,  family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
-severe_con_quad_model <- glm(Severe/Infections~N_Infection+I(N_Infection^2),  family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
-
-
-
-moderate_cat_lin_model <- glm(Severe_Moderate/Supp_Infections~N_Infection_Words, family = "binomial", weights = Supp_Infections, data=goncalves_glm_data[1:11,])
-moderate_con_lin_model <- glm(Severe_Moderate/Supp_Infections~N_Infection, family = "binomial", weights = Supp_Infections, data=goncalves_glm_data[1:11,])
-moderate_con_quad_model <- glm(Severe_Moderate/Supp_Infections~N_Infection+I(N_Infection^2), family = "binomial", weights = Supp_Infections, data=goncalves_glm_data[1:11,])
-
-
-main_denom_moderate_cat_lin_model <- glm(Severe_Moderate/Infections~N_Infection_Words, family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
-main_denom_main_denom_moderate_con_lin_model <- glm(Severe_Moderate/Infections~N_Infection, family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
-main_denom_moderate_con_quad_model <- glm(Severe_Moderate/Infections~N_Infection+I(N_Infection^2), family = "binomial", weights = Infections, data=goncalves_glm_data[1:8,])
-
-
-list_of_models <- list(severe_cat_lin_model, severe_con_lin_model, severe_con_quad_model,
-                       moderate_cat_lin_model, moderate_con_lin_model, moderate_con_quad_model,
-                       main_denom_moderate_cat_lin_model, main_denom_main_denom_moderate_con_lin_model, main_denom_moderate_con_quad_model)
-
-
-
-list_of_formulas <- as.character(unlist(sapply(list_of_models, function(x)x$formula)))
-list_of_coef <- unlist(sapply(list_of_models, function(x)x$coefficients[2]))
-list_of_aic <- sapply(list_of_models, function(x)AIC(x))
-
-
-model_result_df <- data.frame("model_formula" = list_of_formulas, 
-                              "aic" = list_of_aic,
-                              "n_infection_coef" = list_of_coef)
-
-fit <- moderate_con_quad_model
-prd <- data.frame(N_Infection = seq(from = 1, to = 11, length.out = 100))
-err <- predict(fit, newdata = prd, se.fit = TRUE)
-
-prd$lci <- err$fit - 1.96 * err$se.fit
-prd$fit <- err$fit
-prd$uci <- err$fit + 1.96 * err$se.fit
-
-# moderate_con_quad_model$coefficients
-# (Intercept)      N_Infection I(N_Infection^2) 
-# -1.87837101      -0.26703997       0.01384391 
-model3 <- function(x){-0.26703997*x+(0.01384391*x^2)+11}
-model3 <- function(x){moderate_con_quad_model$coefficients[2]*x+
-    (moderate_con_quad_model$coefficients[3]*x^2)+moderate_con_quad_model$coefficients[1]}
-
-
-  # ggplot(prd, aes(x = N_Infection, y = fit)) +
-  #   theme_bw()+
-  #   geom_line()+
-  #   geom_smooth(aes(ymin = lci, ymax = uci), stat = "identity")+
-  #   geom_function(fun=model3, linetype="dotted")+
-  #   geom_point(data=goncalves_glm_data[1:11,], aes(x=N_Infection, y=Severe_Moderate/Supp_Infections), inherit.aes = FALSE)+
-  #   xlim(0,11)+
-
-
-
-```{r results table, echo=FALSE}
-
-knitr::kable(model_result_df, caption="model selection results") %>%
-  kableExtra::kable_styling(full_width = F)
-
-```
-
-From these results we can conclude that modelling N_Infection continuously and linearly is the way to go.

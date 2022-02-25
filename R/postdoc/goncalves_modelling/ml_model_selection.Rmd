@@ -1,0 +1,370 @@
+---
+title: "Goncalves Modelling (Model Selection via Maximum Likelihood)"
+author: "Florian Bach"
+date: "25/02/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir="~/postdoc/goncalves_modelling/markdown")
+
+
+library(dplyr, quietly=TRUE)
+library(ggplot2, quietly=TRUE)
+library(stats4, quietly = TRUE)
+```
+
+
+## Hypotheses
+
+To further characterise the the best model to describe the risk dynamics of severe disease we will use maximum likelihood estimation and AIC to test several models:
+
+1. The risk of severe disease is constant across infections
+2. The risk of severe disease declines at a constant rate with the number of infections.
+3. The risk of severe disease  drops sharply from 1st to 2nd infection in life and then declines at a constant rate.
+4. The risk of severe disease declines exponentially.
+
+
+As a reminder, here are the fractions we're modelling.
+
+```{r severe probability plot, echo=FALSE, warning=FALSE}
+
+goncalves_data <- data.frame("N_Infection"=seq(0,14),
+                             "Severe"=c(0, 32, 18, 20, 9, 9, 2, 2, 8, NA, 1, NA, NA, NA, 1),
+                             "Infections"=c(0, 715, 540, 424, 330, 267, 220, 168, 131, NA, 90, NA, NA, NA, 25),
+                             "Susceptible"=c(102, 70, 52, 32, 23, 14, 12, 10, 2, 2, 1, 1, 1, 1, 0),
+                             "Severe_Moderate"=c(0, 76, 41, 31, 15, 12, 5, 8, 5, 1, 1, 3, NA, NA, 1),
+                             "Supp_Infections"=c(0, 715, 501, 369, 276, 213, 169, 120, 86, 62, 55, 47, NA, NA, 25))
+
+goncalves_data <- goncalves_data%>%
+  replace(is.na(.), 0)
+
+goncalves_plot_data <- subset(goncalves_data, goncalves_data$N_Infection>0&goncalves_data$N_Infection<12)
+
+# severe_disease_bar <- ggplot(goncalves_data, aes(x = N_Infection, y=Severe/Infections))+
+#   ylab("Risk of Severe Disease\n")+
+#   scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+#   scale_x_continuous(breaks = seq(0,14, by=1), expand = expansion(add = c(0.2,0)))+
+#   geom_bar(stat="identity", fill="red", na.rm = TRUE)+
+#   geom_text(aes(label= paste0("frac(",Severe, ",", Infections,")")),parse = TRUE, vjust= -0.2, data = goncalves_data, size=3.5)+
+#    ggtitle("Severe Disease\n")+
+#   #geom_smooth()+
+#   theme_minimal()+
+#   theme(plot.title = element_text(size=15, hjust = 0.5),
+#         axis.text = element_text(size=12),
+#         axis.title = element_text(size=13.5)
+#         #plot.margin = unit(c(2,2,2,2), "lines")
+#         )
+
+moderate_disease_bar <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
+  ylab("\n\nRisk of Severe / Moderate Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+  scale_x_continuous(breaks=seq(1, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+#
+  geom_text(aes(label= paste0("frac(",Severe_Moderate, ",", Supp_Infections,")")),parse = TRUE, vjust= -0.2, data = goncalves_plot_data, size=3.5)+
+  geom_bar(stat="identity", fill="blue", na.rm = TRUE)+
+  ggtitle("Severe / Moderate Disease")+
+  theme_minimal()+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+        )
+
+#combo_plot <- cowplot::plot_grid(severe_disease_bar, moderate_disease_bar)
+
+# plot(severe_disease_bar)
+plot(moderate_disease_bar)
+```
+
+
+## Model Definitions
+  
+We will model the data as derived from a binomial distribution $N \sim {\sf Binom}(M, P_{i})$ where
+
+* $N$ is a vector of successes (i.e. instances of severe disease at each order of infection $i$)
+* $M$ is a vector of the number of observations (i.e. number infections at each order of infection $i$)
+* $P_{i}$ is a vector of probabilities giving the probability $p$ of success at each trial (i.e. the severe disease risk at each order of infection $i$)
+
+The first two parameters $N, M$ are fixed, as they correspond to the numerator and denominator of the fractions of severe disease, respectively, at each order of infection. The vector of probabilities of success, $P_{i}$, is what we aim to estimate using maximum likelihood. In this format the above hypotheses 1-4) can be rewritten as estimating $P_{i}$ as:
+
+1. $P_{i} = p_{1} =$ constant
+2. $P_{i} = p_{1}-\alpha(i-1)$
+3. $P_{i} = p_{1} -\alpha(i-2)$
+4. $P_{i} = p_{1} e^{-\alpha(i-1)}$
+
+For determining the maximum likelihood I used `stats4::mle()` which implements the Nelder-Mead algorithm (https://doi.org/10.1093/comjnl/7.4.308).
+
+```{r defining binom functions, warning=FALSE, echo=FALSE}
+
+n_successes <- goncalves_data$Severe_Moderate[2:12]
+m_trials <- goncalves_data$Supp_Infections[2:12]
+
+# n_successes <- goncalves_data$Severe[2:9]
+# m_trials <- goncalves_data$Infections[2:9]
+
+
+## flat probability
+
+# this returns a log likelihood; setting log = FALSE and multiplying returns the same , non-log result
+flat_likelihood <- function(p){
+  sum(dbinom(n_successes, m_trials, p, log = TRUE))*-1
+}
+
+no_decay_estimate <- stats4::mle(minuslog=flat_likelihood, start=list(p=0.1))
+
+# logLik(no_decay_estimate)
+# summary(no_decay_estimate)
+# log Lik.' -27.72533 (df=1)
+# Coefficients:
+#     Estimate  Std. Error
+# p 0.07880817 0.005443811
+# 
+# -2 log L: 55.45065
+
+
+
+
+## steady decay
+
+# alpha cannot exceed the fraction of p over the number of observations (otherwise we may venture into negative
+# probability space) 
+
+steady_decay_likelihood <- function(p_i, alpha){
+  p_vec <- p_i - alpha * (seq(1, length(n_successes), by=1)-1)
+  sum(
+    dbinom(x = n_successes, size = m_trials, prob = p_vec, log = TRUE)
+    )*-1
+}
+
+steady_decay_estimate <- stats4::mle(minuslog=steady_decay_likelihood, start=list(p_i=0.1,alpha=0.005))
+
+# logLik(steady_decay_estimate)
+# summary(steady_decay_estimate)
+# Coefficients:
+#          Estimate  Std. Error
+# p_i   0.096175803 0.007841390
+# alpha 0.008368463 0.002122148
+# 
+#'log Lik.' -21.54903 (df=2)
+
+
+## exponential decay
+
+exponential_decay_likelihood <- function(p_i, alpha){
+  p_vec <- p_i * exp(- alpha * (seq(1, length(n_successes), by=1)-1))
+  sum(
+    dbinom(x = n_successes, size = m_trials, prob = p_vec, log = TRUE)
+    )*-1
+}
+
+exponential_decay_estimate <- stats4::mle(minuslog=exponential_decay_likelihood, start=list(p_i=0.1,alpha=0.01))
+
+# logLik(exponential_decay_estimate)
+# summary(exponential_decay_estimate)
+# Coefficients:
+#        Estimate  Std. Error
+# p_i   0.1013627 0.009283059
+# alpha 0.1386613 0.039169689
+# 
+#'log Lik.' -20.78666 (df=2)
+
+## stepwise decay
+
+nick_decay_likelihood2 <- function(p_i, alpha){
+  p_vec <- p_i - alpha * (seq(1, length(n_successes), by=1)-2)
+  sum(
+    dbinom(x = n_successes, size = m_trials, prob = p_vec, log = TRUE)
+    )*-1
+}
+
+nick_2decay_estimate <- stats4::mle(minuslog=nick_decay_likelihood2, start=list(p_i=0.1,alpha=0.01))
+
+# summary(nick_2decay_estimate)
+# logLik(nick_2decay_estimate)
+# Coefficients:
+#          Estimate  Std. Error
+# p_i   0.087981101 0.006441400
+# alpha 0.008454629 0.002137552
+# 
+# 'log Lik.' -21.54822 (df=2)
+
+nick_3decay_likelihood <- function(p_i, alpha){
+  p_vec <- p_i - alpha * (seq(1, length(n_successes), by=1)-3)
+  sum(
+    dbinom(x = n_successes, size = m_trials, prob = p_vec, log = TRUE)
+    )*-1
+}
+
+nick_3decay_likelihood <- stats4::mle(minuslog=nick_3decay_likelihood, start=list(p_i=0.1,alpha=0.01))
+
+# summary(nick_3decay_likelihood)
+# logLik(nick_3decay_likelihood)
+
+# Coefficients:
+#          Estimate  Std. Error
+# p_i   0.079489796 0.005483685
+# alpha 0.008442253 0.002153242
+# 
+# 'log Lik.' -21.54823 (df=2)
+
+fit <- glm(Severe_Moderate/Supp_Infections~N_Infection, weights = Supp_Infections, family="binomial", data=goncalves_plot_data)
+
+
+
+results_df <- data.frame(check.names = FALSE,
+                         "Model"=c("No Decay",
+                                "Constant Decay",
+                                "Constant Decay with Kink",
+                                "Exponential Decay",
+                                "Exponential Decay (glm)"),
+                      "P1"=c(no_decay_estimate@coef,
+                              steady_decay_estimate@coef[1],
+                              nick_2decay_estimate@coef[1],
+                              exponential_decay_estimate@coef[1],
+                             exp(fit$coefficients[1])),
+                      "SE(P1)"=c(summary(no_decay_estimate)@coef[1,2],
+                                  summary(steady_decay_estimate)@coef[1,2],
+                                  summary(nick_2decay_estimate)@coef[1,2],
+                                  summary(exponential_decay_estimate)@coef[1,2],
+                                 summary(fit)$coef[1,2]),
+                      "alpha"=c(NA,
+                              steady_decay_estimate@coef[2],
+                              nick_2decay_estimate@coef[2],
+                              exponential_decay_estimate@coef[2],
+                              -fit$coefficients[2]),
+                      "SE(alpha)"=c(summary(no_decay_estimate)@coef[,2],
+                                  summary(steady_decay_estimate)@coef[2,2],
+                                  summary(nick_2decay_estimate)@coef[2,2],
+                                  summary(exponential_decay_estimate)@coef[2,2],
+                                  summary(fit)$coef[2,2]),
+                      "logL"=c(logLik(no_decay_estimate),
+                               logLik(steady_decay_estimate),
+                               logLik(nick_2decay_estimate),
+                               logLik(exponential_decay_estimate),
+                               logLik(fit)),
+                      "AIC"=c(AIC(no_decay_estimate),
+                               AIC(steady_decay_estimate),
+                               AIC(nick_2decay_estimate),
+                               AIC(exponential_decay_estimate),
+                               AIC(fit))
+                               
+                      )
+
+```
+
+```{r results table, echo=FALSE}
+
+knitr::kable(results_df, caption="Model Comparison") %>%
+  kableExtra::kable_styling(full_width = TRUE)
+
+
+```
+I tried different versions of the kink model ($i-3$ etc.), but none of them did well. I also tried a model with a third parameter $p_{1} -\alpha(i-j)$ to model ideal position of the kink, but ran into a problem of local minima, where the estimate for j was always very close to the starting position of the optimiser.
+
+Based on AIC & log likelihood, exponential decay provides the best fit for this data. The corresponding model is shown below on the left, next to the logistic regression model suggested by `stats::glm()`. I am not 100% sure why those two models are slightly different, and particularly why the confidence interval on the logistic regression model is that much tighter, but I'm trying to read up on the underlying methods.
+
+```{r function plots, warning=FALSE, echo=FALSE, fig.show="hold", out.width="50%"}
+exp_model <- function(x){exponential_decay_estimate@coef[1]*exp(-exponential_decay_estimate@coef[2]*x)}
+
+
+fit <- glm(Severe_Moderate/Supp_Infections~N_Infection, weights = Supp_Infections, family="binomial", data=goncalves_plot_data)
+moderate_exp_fun <- function(x){exp(fit$coefficients[1])*exp(fit$coefficients[2])^x}
+
+prd <- data.frame(N_Infection = seq(from = 1, to = 11, length.out = 100))
+err <- predict(fit, newdata = prd, se.fit = TRUE)
+
+prd$lci <- err$fit - 1.96 * err$se.fit
+prd$fit <- err$fit
+prd$uci <- err$fit + 1.96 * err$se.fit
+
+
+
+pi<-summary(exponential_decay_estimate)@coef[1]
+pi_se <- summary(exponential_decay_estimate)@coef[3]
+alpha <- summary(exponential_decay_estimate)@coef[2]
+alpha_se <- summary(exponential_decay_estimate)@coef[4]
+
+prd2 <-  data.frame(N_Infection = seq(from = 1, to = 11, length.out = 100))
+prd2$fit <- exp_model(prd2$N_Infection)
+prd2$uci <- (pi+1.96*pi_se)*exp((-alpha+1.96*alpha_se)*prd2$N_Infection)
+prd2$lci <- (pi-1.96*pi_se)*exp((-alpha-1.96*alpha_se)*prd2$N_Infection)
+
+
+glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
+  ylab("\n\nRisk of Severe / Moderate Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+  scale_x_continuous(breaks=seq(1, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
+  geom_point(colour="blue")+
+  ggtitle("Severe / Moderate Disease")+
+  theme_minimal()+
+  geom_ribbon(data=prd, aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  # geom_ribbon(data=prd2, aes(x=N_Infection, ymin = lci, ymax = uci),
+  #             alpha = 0.2, inherit.aes = FALSE)+
+  # geom_function(fun = exp_model, color="blue")+
+  geom_function(fun = moderate_exp_fun, colour="purple")+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+  )
+
+
+
+hand_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
+  ylab("\n\nRisk of Severe / Moderate Disease\n")+
+  scale_y_continuous(label=scales::percent, limits=c(0, 0.13))+
+  scale_x_continuous(breaks=seq(1, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
+  geom_point(colour="blue")+
+  ggtitle("Severe / Moderate Disease")+
+  theme_minimal()+
+  # geom_ribbon(data=prd, aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
+  #             alpha = 0.2, inherit.aes = FALSE)+
+  geom_ribbon(data=prd2, aes(x=N_Infection, ymin = lci, ymax = uci),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_function(fun = exp_model, color="blue")+
+  # geom_function(fun = moderate_exp_fun, colour="purple")+
+  theme(plot.title = element_text(size=15, hjust = 0.5),
+        axis.text = element_text(size=12),
+        axis.title = element_text(size=13.5)
+        #plot.margin = unit(c(2,2,2,2), "lines")
+  )
+
+plot(hand_model)
+plot(glm_model)
+
+# 
+# model_params <- results_df[results_df$Model=="Constant Decay",]
+# 
+# 
+# model_plot_df <- data.frame("N_Infection"=1:8,
+#                             "mean"=model_params$P_i-model_params$alpha*1:8,
+#                             "uci"=model_params$P_i+1.96*model_params$SE.P_i.-model_params$alpha+(1.96*model_params$SE.alpha.*1:8),
+#                             "lci"=model_params$P_i-1.96*model_params$SE.P_i.-model_params$alpha-1.96*model_params$SE.alpha.*1:8)
+# 
+# 
+# steady_model_plot <- ggplot(model_plot_df, aes(x=N_Infection, y=mean))+
+#   geom_line(colour="purple")+
+#   geom_point(data=goncalves_plot_data, aes(x=N_Infection, y=Severe_Moderate/Supp_Infections), color="blue")+
+#     ylab("\n\nRisk of Severe / Moderate Disease\n")+
+#   scale_y_continuous(label=scales::percent, limits = c(0,NA))+
+#   scale_x_continuous(breaks=seq(1, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
+#     geom_ribbon(aes(x=N_Infection, ymin = lci, ymax = uci),
+#               alpha = 0.2)+
+#   # geom_text(aes(label= paste0("frac(",Severe_Moderate, ",", Supp_Infections,")")),parse = TRUE, vjust= -0.2, data = goncalves_plot_data, size=3.5)+
+#   # geom_bar(stat="identity", fill="blue", na.rm = TRUE)+
+#   ggtitle("Severe / Moderate Disease")+
+#   theme_minimal()+
+#   theme(plot.title = element_text(size=15, hjust = 0.5),
+#         axis.text = element_text(size=12),
+#         axis.title = element_text(size=13.5)
+#         #plot.margin = unit(c(2,2,2,2), "lines")
+#         )
+# 
+
+
+```
+
+
+
