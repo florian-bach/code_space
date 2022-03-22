@@ -28,9 +28,16 @@ combo_frame <- subset(combo_frame, combo_frame$lineage!="NKT")
 # 
 # #combo_alt_lineage_acti_data <- subset(combo_alt_lineage_acti_data, combo_alt_lineage_acti_data$volunteer %notin% c("v313", "v315", "v320"))
 # 
-combo_frame %>%
+pearson_results <- combo_frame %>%
    group_by(lineage) %>%
-   do(broom::tidy(cor.test(.$activated, .$alt, method="spearman")))
+   do(broom::tidy(cor.test(.$activated, .$alt, method="pearson")))
+
+spearman_results <- combo_frame %>%
+  group_by(lineage) %>%
+  do(broom::tidy(cor.test(.$activated, .$alt, method="spearman")))
+
+write.table(data.frame(rbind(pearson_results, spearman_results)), "~/postdoc/grant_stuff/vivax_falci_all_tcell_alt_correlations.csv", row.names = FALSE, quote = FALSE, sep=",")
+
 # 
 # lineage estimate statistic p.value parameter conf.low conf.high method          alternative
 # <chr>      <dbl>     <dbl>   <dbl>     <int>    <dbl>     <dbl> <chr>           <chr>      
