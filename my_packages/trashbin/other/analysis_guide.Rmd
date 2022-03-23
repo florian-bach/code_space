@@ -1,0 +1,210 @@
+---
+title: "analysing & visualising CyTOF data with R"
+author: "Florian Bach"
+date: "Feburary 2022"
+output:
+  prettydoc::html_pretty:
+    theme: hpstr
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      eval = FALSE,
+                      tidy=TRUE,
+                      tidy.opts=list(width.cutoff=55))
+```
+
+## quick intro
+In this guide we'll go over some of the basics of analysis CyTOF using the CATALYST pipeline. We'll start by:
+
+* installing required packages
+* reading in the data
+* clustering & dimensionality reduction
+  + how to visualise those
+* statistical methods to define differential abundance and differential marker expression
+  + and how to visualise those
+
+Much of what I'm writing here is based on this [fantastic publication](https://f1000research.com/articles/6-748) by the authors of CATALYST. I highly recommend you read it at some point as it not only covers & explains a lot of code which is about follow, but also goes a bit into some of the theoretical considerations of high-dimensional cytometry analysis. For the purposes of this tutorial we're going to reanalyse the VAC69a CyTOF data.
+
+## reading in the data
+
+CATALYST relies on the bioconductor infrastructure for single-cell data: `SingleCellExperiment`. What that means is that a single object stores the raw data, metadata, clustering results & dimensionality reduction results all in one which makes life a lot easier as the same object can be used for data exploration, analysis, and visualisation. The fcs data is represented as one big table where each row is a channel and each column a cell. To create the object we need to point the `prepData()` function from CATALYST to a few bits of information:
+
+* `x`: the fcs files you want to analyse (these should be normalised, compensated & debarcoded). can be passed as a `flowSet` or as filepaths
+* `panel`: a table for your antibody panel
+* `md`: a table of metadata linking fcs files names to volunteer codes, timepoints, batches, tissue types etc. whatever is relevant for your experiment
+
+``` {r prepData}
+
+# put all the fcs files, the panel and metadata csv files in the same folder, setwd() to that folder
+library(CATALYST)
+
+setwd("/whatever/your/working/directory/is")
+working_directory <- getwd()
+
+# read in the metadata file. they MUST have the columns "file_name" and "sample_id" the rest is optional and depends on your experiment. in our case we'll add "timepoint", "batch" and "volunteer".
+# then we order the table- I don't think this is necessary, but for some reason I wrote it that way at the time soooo
+md <- read.csv("meta_data.csv", header=TRUE, stringsAsFactors = FALSE)
+md$timepoint <- factor(md$timepoint, levels = c("Baseline", "C8", "C10", "C12", "Diagnosis", "T6"))
+md <- md[with(md, order(md$volunteer, md$timepoint)),]
+
+#read in panel; must have colnames of "fcs_colname" "antigen" "marker_class"
+panel <- read.csv("VAC69_PANEL.CSV", header = TRUE, stringsAsFactors = FALSE)
+
+### read in fcs files using flowCore; the way i wrote this means that you can filter the md table (if you only want to work on one sample type, volunteer or whatever, and thus only read in the files you need)
+vac69a <- flowCore::read.flowSet(md$file_name)
+
+sce <- CATALYST::prepData(vac69a,
+                          panel=panel,
+                          md=md,
+                          md_cols = list(file = "file_name", id = "sample_id", factors = c("timepoint", "batch", "volunteer")),
+                          panel_cols = list(channel = "fcs_colname", antigen = "antigen", class = "marker_class")
+                          )
+```
+### quick tangent: downsampling fcs files before analysis
+
+Some aspects of high-dimensional cytometry analysis can take a long time to run and eat up your RAM. If you just want to quickly test / optimise something, it can be useful to downsample fcs files so that instead of 100,000 cells per file you only have 1,000, for example. To do this we can do the following:
+
+```{r downsampling}
+ 
+# this is how you check how many cells are in your flowSet:
+flowCore::fsApply(vac69a, nrow)
+
+# this function will create a new flowSet where each file is proportionally downsampled. "event_number" is the sampling floor i.e. if you set it to 100, the smallest file will have 100 cells in it, every file that's twice as big 200 and so on.
+proportional_downsample <- function(fs, event_number){
+  flowCore::fsApply(fs, function(ff){
+      idx <- sample.int(nrow(ff), nrow(ff)/min(flowCore::fsApply(fs, nrow))*event_number)
+      ff[idx,]})
+}
+
+# the function is then used like this:
+smaller_vac69a <- proportional_downsample(vac69a, 100)
+
+# if for some reason you don't want proportional downsampling, say because cell numbers between fcs files are very heterogeneous, this function will randomly downsample a fixed number of cells: 
+
+hard_downsample <- function(fs, event_number){
+      flowCore::fsApply(fs, function(ff){
+      idx <- sample.int(nrow(ff), min(event_number, nrow(ff)))
+      ff[idx,]
+    })
+      }
+
+even_smaller_vac69a <- hard_downsample(vac69a, 100)
+
+```
+
+
+## running FlowSOM
+
+Now that we've put together our `SingleCellExperiment` we can start doing some analysis. The first step will be to run FlowSOM and check out the results.
+
+I recommend listing all markers like this and simply commmenting out the markers you don't want to use for clustering. Don't use markers that were used to pregate data (e.g. CD45, CD3) and don't use markers where you're unsure about the quality of the staining. I ordered these in the way that I want them to be displayed in heatmaps *etc* with linege & activation markers on the left, memory markers on the right, and everything else in between, loosely grouped as I thought made sense at the time.
+
+```{r refined markers}
+  refined_markers <- c("CD4",
+                       "CD8",
+                       "Vd2",
+                       "Va72",
+                       "CD38",
+                       "HLADR",
+                       "ICOS",
+                       "CD28",
+                       "PD1",
+                       #"TIM3",
+                       "CD95",
+                       "BCL2",
+                       "CD27",
+                       "Perforin",
+                       "GZB",
+                       "CX3CR1",
+                       "Tbet",
+                       "CTLA4",
+                       "Ki67",
+                       "CD127",
+                       #"IntegrinB7",
+                       #"CD56",
+                       #"CD16",
+                       "CD161",
+                       #"CD49d",
+                       #"CD103",
+                       "CD25",
+                       "FoxP3",
+                       "CD39",
+                       "CLA",
+                       #"CXCR5",
+                       "CD57",
+                       "CD45RA",
+                       "CD45RO",
+                       "CCR7")
+```
+
+
+You may want to save this list somewhere as a txt or csv file, it will come in handy later, but it's not absolutely required.
+
+Like many clustering methods, FlowSOM is not deterministic, which is to say different runs will yield slightly different results, as it is initialised with an element of randomness. This randomness (the seed) can be fixed in order to have reproducible results when re-running the analysis.
+FlowSOM wants several arguments: the `SingleCellExperiment`, which markers it should use to cluster, them number of clusters to use (take the square root and pass each number to `xdim` and `ydim`) and maximum number of metaclusters. **NB** the way the metaclustering works is that if e.g. `maxK=50` the results with 49, 48, 47... *etc.* are saved as well and can be inspected. So set the number at slightly larger than what you think it should be and compare a few different versions so see what looks best. You can also manually merge clusters (which we'll cover later). This is how we run flowSOM and make a quick heatmap to show the results. Later, we'll cover how these heatmaps can be beautified. 
+```{r clustering}
+
+set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
+
+# in this heatmap rows are clusters and columns are markers. you may wish to cluster rows, which will group phenotypically similar clusters together. to do this set "row_clust = TRUE" for merging clusters however, you want them in numerical order. bars = TRUE draws a wee bargraph on the right indicating the size of each cluster. The "features" argument takes a vector (e.g. c(CD4, CD8) ) and defines what markers will be shown. these could also include markers that weren't part of the clustering if you want.
+
+# the "k" argument specifies which clustering should be displayed, it can take any value <= maxK (see previous step). Note that it has to be a character string that matches one of the clusterings saved in the sce object. to display all clustering names uncomment and run the following line
+
+# names(cluster_codes(sce))
+
+cluster_phenotype_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "meta40", bars = TRUE, features = refined_markers)
+
+# we'll create a folder named figures in our current directory (you only need to do this once)
+dir.create("figures")
+
+# and now we save our figure
+pdf("./figures/meta40_phenotype.pdf", height = 8, width = 9)
+cluster_phenotype_heatmap
+dev.off()
+
+# can do png too or whatever you want
+png("./figures/meta40_phenotype.png", height = 8, width = 9)
+cluster_phenotype_heatmap
+dev.off()
+```
+
+## tinkering with clustering
+
+Deciding how many clusters are in your dataset and what cells belong to which cluster is the most subjective part of cytometry analysis, think of it as gate placement. There are different philosophies about this, personally I think doing a mixture of supervised and unsupervised clustering is the way to go. That way you balance personal bias (I think these cells are special and shouldn't be merged with those) with algorithmic bias (these cells are biologically distinct but look similar to computer eyes). Algorithmic bias comes down to clustering being agnostic to how "important" individual markers are. If, say, two T cell clusters look almost identical except CCR7 expression, an algorithm might, understandably merge these at some point. But this one marker is biologically actually very important so preventing that from happening makes sense. In practice, what I like doing is "overclustering" i.e. divide cells into more clusters than I think is biologically the case (100-200). Then I use unsupervised clustering to bring that down to a more manageable number (~50). If some of those are very similar I manually merge them. At the same time, I quickly check the results of the "unsupervised" clustering to see whether it did anything weird. Central memory CD4 T cells for example are sometimes merged with CCR7- populations or Tregs with non-Tregs.
+
+In my experience, it is normal to go back and forth a bit with this step, you might settle on 35 clusters and continue with the analysis and then you realise something doesn't look right with a subset, so you go back and investigate. It's a job that's never quite finished, so don't get hung up here initially.
+
+This is how we check on the unsupervised clustering.
+
+```{r check on FlowSom}
+
+# "k" selects the clustering to display. in our case "som100" refers to the FlowSOM clustering without any metaclustering at all,
+# "m" allows you to display show in which metacluster each cluster of "som100" ended up in
+
+big_cluster_phenotype_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "som100", m = "meta40", bars = TRUE, features = refined_markers)
+
+pdf("./figures/meta40_phenotype.pdf", height = 16, width = 9)
+big_cluster_phenotype_heatmap
+dev.off()
+
+```
+
+If we're happy with how the metaclustering worked but want to simplify the clustering even further we can use a merging table to manually merge clusters as we deem fit. For this we use excel or something similar to make a table with two columns: "old_cluster" and "new_cluster". If more than one "old_cluster" corresponds to the same entry in "new_cluster" it will be merged. This is also where we can name the clusters something informative. What I suggest to do for this is to get a spreadsheet where one column each corresponds to:
+  * activation status
+  * lineage
+  * memory subset
+  * other phenotypic info that you think is important
+  
+You can then concatenate those columns with a non-space separator (e.g "_") to create informative names that are consistently named. The consistency here allows you later on to subset / manipulate all names programmatically, rather than doing it by hand. For making publication-quality figures you might want more visually pleasing names of course.
+```{r cluster merging}
+
+# read in merging_table
+meta40_merging_table <- read.csv("path/to/merging/table.csv", header = T, stringsAsFactors = F)
+
+# apply merging table to sce. for this you specify which metaclustering you wish to modify (meta40), which table to use (meta40_merging_table) and the name of the new metaclustering (wiebke_40_merge)
+
+merged_sce <- mergeClusters(sce, k = "meta40", table = meta40_merging_table, id = "wiebke_40_merge")
+
+
+```
