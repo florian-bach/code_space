@@ -9,8 +9,11 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
-                      tidy=TRUE,
+                      #tidy=TRUE,
                       tidy.opts=list(width.cutoff=55))
+```
+
+```{r load libs, include=FALSE, eval=TRUE}
 
 library(CATALYST)
 library(flowCore)
@@ -161,7 +164,7 @@ I recommend listing all markers like this and simply commmenting out the markers
                        "CD45RO",
                        "CCR7")
 
-# You may want to save this list somewhere as a txt or csv file, it will come in handy later, but it's not absolutely required. if you would like to do this just uncomment these lines
+#You may want to save this list somewhere as a txt or csv file, it will come in handy later, but it's not absolutely required. if you would like to do this just uncomment these lines
 
 # write.table(refined_markers, "refined_markers.txt", sep = "\t", row.names = FALSE, col.names = FALSE)
 
@@ -173,16 +176,18 @@ I recommend listing all markers like this and simply commmenting out the markers
 Like many clustering methods, FlowSOM is not deterministic, which is to that there isn't one correct solution, rather than many plausible ones. This means that different runs will yield slightly different results, as each clustering is initialised with an element of randomness. This randomness (the seed) can be fixed in order to have reproducible results when re-running the analysis.
 FlowSOM wants several arguments: the `SingleCellExperiment`, which markers it should use to cluster, them number of clusters to use (take the square root and pass each integer number to `xdim` and `ydim`) and maximum number of metaclusters. **NB** the way the metaclustering works is that if e.g. `maxK=50` the results with 49, 48, 47... *etc.* are saved as well and can be inspected. So set the number at slightly larger than what you think it should be and compare a few different versions so see what looks best. You can also manually merge clusters (which we'll cover later). This is how we run flowSOM and make a quick heatmap to show the results. Later, we'll cover how these heatmaps can be beautified. 
 
+We will display the clustering results in a heatmap where rows are clusters and columns are markers. You may (or not) wish to hierarchically cluster rows, which will group phenotypically similar clusters together. For making merging tables it's easier to leave them in numerical order, however. `bars = TRUE` draws a wee bargraph on the right indicating the size of each cluster. The "features" argument takes a vector (e.g. `c(CD4, CD8)`) and defines what markers will be shown. these could also include markers that weren't part of the clustering if you want.
 
-```{r clustering}
 
-set.seed(123);sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
+```{r clustering, eval=FALSE}
 
-# in this heatmap rows are clusters and columns are markers. you may wish to cluster rows, which will group phenotypically similar clusters together. to do this set "row_clust = TRUE" for merging clusters however, you want them in numerical order. bars = TRUE draws a wee bargraph on the right indicating the size of each cluster. The "features" argument takes a vector (e.g. c(CD4, CD8) ) and defines what markers will be shown. these could also include markers that weren't part of the clustering if you want.
+set.seed(1234); sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 50)
+
+
 
 # the "k" argument specifies which clustering should be displayed, it can take any value <= maxK (see previous step). Note that it has to be a character string that matches one of the clusterings saved in the sce object. to display all clustering names uncomment and run the following line
 
-# names(cluster_codes(sce))
+names(cluster_codes(sce))
 
 cluster_phenotype_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "meta40", bars = TRUE, features = refined_markers)
 
@@ -200,6 +205,15 @@ cluster_phenotype_heatmap
 dev.off()
 ```
 
+```{r phenotype plot, echo=FALSE, fig.height = 8, fig.width = 9}
+
+set.seed(1234); sce <- CATALYST::cluster(sce, features = refined_markers, xdim = 10, ydim = 10, maxK = 30)
+
+cluster_phenotype_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = TRUE, col_clust = FALSE, k = "meta30", bars = TRUE, features = refined_markers)
+
+cluster_phenotype_heatmap
+```
+
 ## tinkering with clustering
 
 Deciding how many clusters are in your dataset and what cells belong to which cluster is the most subjective part of cytometry analysis, think of it as gate placement. There are different philosophies about this, personally I think doing a mixture of supervised and unsupervised clustering is the way to go. That way you balance personal bias (I think these cells are special and shouldn't be merged with those) with algorithmic bias (these cells are biologically distinct but look similar to computer eyes). Algorithmic bias comes down to clustering being agnostic to how "important" individual markers are. If, say, two T cell clusters look almost identical except CCR7 expression, an algorithm might, understandably merge these at some point. But this one marker is biologically actually very important so preventing that from happening makes sense. In practice, what I like doing is "overclustering" i.e. divide cells into more clusters than I think is biologically the case (100-200). Then I use unsupervised clustering to bring that down to a more manageable number (~50). If some of those are very similar I manually merge them. At the same time, I quickly check the results of the "unsupervised" clustering to see whether it did anything weird. Central memory CD4 T cells for example are sometimes merged with CCR7- populations or Tregs with non-Tregs.
@@ -208,14 +222,14 @@ In my experience, it is normal to go back and forth a bit with this step, you mi
 
 This is how we check on the unsupervised clustering.
 
-```{r check on FlowSom}
+```{r check on FlowSom, eval=FALSE}
 
 # "k" selects the clustering to display. in our case "som100" refers to the FlowSOM clustering without any metaclustering at all,
 # "m" allows you to display show in which metacluster each cluster of "som100" ended up in
 
-big_cluster_phenotype_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "som100", m = "meta40", bars = TRUE, features = refined_markers)
+big_cluster_phenotype_heatmap <- plotExprHeatmap(x = sce, by = "cluster", row_clust = FALSE, col_clust = FALSE, k = "som100", m = "meta30", bars = TRUE, features = refined_markers)
 
-pdf("./figures/meta40_phenotype.pdf", height = 16, width = 9)
+pdf("./figures/meta30_phenotype.pdf", height = 16, width = 9)
 big_cluster_phenotype_heatmap
 dev.off()
 
@@ -228,7 +242,8 @@ If we're happy with how the metaclustering worked but want to simplify the clust
   * other phenotypic info that you think is important
   
 You can then concatenate those columns with a non-space separator (e.g "_") to create informative names that are consistently named. The consistency here allows you later on to subset / manipulate all names programmatically, rather than doing it by hand. For making publication-quality figures you might want more visually pleasing names of course.
-# ```{r cluster merging, eval=FALSE}
+
+```{r cluster merging, eval=FALSE}
 
 # read in merging_table
 meta40_merging_table <- read.csv("path/to/merging/table.csv", header = T, stringsAsFactors = F)
@@ -236,6 +251,5 @@ meta40_merging_table <- read.csv("path/to/merging/table.csv", header = T, string
 # apply merging table to sce. for this you specify which metaclustering you wish to modify (meta40), which table to use (meta40_merging_table) and the name of the new metaclustering (wiebke_40_merge)
 
 merged_sce <- mergeClusters(sce, k = "meta40", table = meta40_merging_table, id = "wiebke_40_merge")
-
 
 ```
