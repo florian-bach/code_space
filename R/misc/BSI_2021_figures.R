@@ -126,7 +126,7 @@ combo_data <- rbind(falci_legend, select(vivax_legend, colnames(falci_legend)))
 
 
 #interesting_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[c(1:3, 5:9)]
-interesting_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:12]
+interesting_analytes <- scan("~/PhD/plasma/vac69a/analytes_sorted_by_padj.txt", what="", skip = 1)[1:8]
 
 long_combo_data <- combo_data %>%
   filter(Timepoint %in% c("Baseline", "Diagnosis", "T6"))%>%
@@ -141,17 +141,20 @@ long_combo_data <- filter(long_combo_data, n_infection == "First")
 
 vivax_falci_plasma_comparison <- ggplot(long_combo_data, aes(x=Timepoint, y=Concentration))+
   geom_boxplot(aes(fill=Species), outlier.alpha = 1)+
-  facet_wrap(~Analyte, scales="free", ncol = 4)+
+  facet_wrap(~Analyte, scales='free_y', ncol = 4)+
   #geom_point(aes(color=Volunteer, group=Species, shape=Species), position = position_jitterdodge(jitter.width = 0, dodge.width = 0.75))+
   scale_fill_manual(values=rev(c("#fec200", "#db0085")))+
   scale_y_log10()+
-  ylab("plasma concentration (pg / mL)")+
+  ylab("Plasma Concentration (pg / mL)\n")+
   guides(color=guide_legend(title = "volunteer", direction = "horizontal", ncol = 11),
-         fill=guide_legend(title = "species", label.theme = element_text(face="italic"), ncol=1),
-         shape=guide_legend(title = "species", label.theme = element_text(face="italic")))+
+         fill=guide_legend(title = "NULL", label.theme = element_text(face="italic"), ncol=2),
+         shape=guide_legend(title = "NULL", label.theme = element_text(face="italic")))+
   #scale_colour_manual(values=vivax_falci_palette)+
   theme_minimal()+
   theme(axis.title.x = element_blank(),
+        axis.title.y = element_text(size=14),
+        axis.text.y = element_text(size=12),
+        strip.text = element_text(size=12),
         legend.position = "bottom",
         legend.title = element_blank(),
         legend.spacing.x = unit(1.5, "mm"),
@@ -403,22 +406,35 @@ n_infection_palette <- c(rgb(5,50,80, maxColorValue = 255),
                          rgb(40,210,250, maxColorValue = 255))
 
 
-group_lymph_vac63c_box <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=cell_counts*1000, fill=N_infection))+
-  geom_boxplot()+
+group_lymph_vac63c_box <- ggplot(vac63c_lymph, aes(x=factor(timepoint, levels=c("Baseline", "Diagnosis", "T6")), y=cell_counts))+
+  geom_boxplot(aes(fill=N_infection))+
   theme_minimal()+
-  ylab(expression(Lymphocytes~"/"~mu*L~blood))+
-  labs(fill="Infection")+
+  ylab("Lymphocytes / mL\n")+
   scale_y_continuous(label=scales::comma)+
-  #scale_color_manual(values=vol_pal)+
   scale_fill_manual(values=n_infection_palette)+
   guides(colour=guide_legend(title="Volunteer", override.aes = list(alpha=1)))+
   theme(axis.title.x = element_blank(),
-        axis.text.x = element_text(size=12, angle=45, hjust=1),
+        legend.text = element_text(size=12),
+        legend.title = element_blank(),
+        axis.title.y = element_text(size=16),
+        axis.text.x = element_text(size=14, angle=45, hjust=1),
+        axis.text.y = element_text(size=14),
         plot.margin = unit(c(2,2,2,2), "mm"))
 
 
-ggsave("~/postdoc/BSI2021/group_lymph_vac63c_box.png", group_lymph_vac63c_box, width=5, height=5, bg="white", dpi=444)
-ggsave("~/postdoc/BSI2021/group_lymph_vac63c_box.pdf", group_lymph_vac63c_box, width=5, height=5, bg="white")
+dat <- ggplot_build(group_lymph_vac63c_box)$data[[1]]
+dat <- subset(dat, fill=="#053250")
+
+
+group_lymph_vac63c_box <- group_lymph_vac63c_box+
+  geom_segment(data=dat, aes(x=xmin, xend=xmax, y=middle, yend=middle), colour="white", size=1)
+
+
+ggsave("~/postdoc/presentations/BSI2021/group_lymph_vac63c_box.png", group_lymph_vac63c_box, width=5, height=5, bg="white", dpi=444)
+
+
+
+ggsave("~/postdoc/presentations/BSI2021/group_lymph_vac63c_box.pdf", group_lymph_vac63c_box, width=5, height=5, bg="white")
 
 
 

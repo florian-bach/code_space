@@ -184,7 +184,7 @@ big_table$Cell <- gsub("lymphocytes", "Lymphocytes", big_table$Cell)
 big_lymph <- filter(big_table, Cell=="Lymphocytes")
 big_thromb <- filter(big_table, Cell=="Platelets")
 
-big_lymph <- filter(big_lymph, n_infection!="Third")
+big_lymph <- filter(big_lymph, n_infection!="Third", timepoint %in% c("Baseline",  "Diagnosis", "T6"))
 
 lymph_box_plot <- ggplot(big_lymph, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96")), y=Frequency*1e6))+
   #scale_color_manual(values=vac69_colours)+
@@ -192,19 +192,28 @@ lymph_box_plot <- ggplot(big_lymph, aes(x=factor(timepoint, levels=c("Baseline",
   scale_fill_manual(values=n_infection_palette)+
   scale_y_continuous(labels=scales::scientific_format())+
   #geom_line(aes(color=volunteer, group=volunteer), size=0.9)+
-  geom_point(aes(color=volunteer, group=n_infection), fill="white",  position = position_dodge(width = 0.75), stroke=1, shape=21, size=0.9)+
-  ggtitle("Lymphocytes VAC69abcd")+
+  #geom_point(aes(color=volunteer, group=n_infection), fill="white",  position = position_dodge(width = 0.75), stroke=1, shape=21, size=0.9)+
   theme_minimal()+
-  xlab("Timepoint")+
-  ylab("Cells / mL")+
-  guides(color=guide_legend(ncol=2))+
+  ylab("Lymphocytes / mL\n")+
+  guides(color=guide_none())+
   theme(plot.title = element_text(hjust=0.5),
-        axis.text.x = element_text(hjust=1, angle=45, size=8), 
+        axis.text.x = element_text(hjust=1, angle=45, size=14), 
+        axis.text.y = element_text(size=14), 
         axis.title.x = element_blank(),
+        legend.text = element_text(size=14),
         legend.title =element_blank(),
-        strip.text = element_text(size=10))
+        axis.title.y = element_text(size=16),
+)
 
-ggsave("~/PhD/clinical_data/vac69c/figures/abcd_lymph_box.png", lymph_box_plot, height=5, width=6, bg="white")
+dat <- ggplot_build(lymph_box_plot)$data[[1]]
+dat <- subset(dat, fill=="#053250")
+
+lymph_box_plot <- lymph_box_plot + geom_segment(data=dat, aes(x=xmin, xend=xmax, 
+                                                                    y=middle, yend=middle), colour="white", size=1)
+
+
+
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_lymph_box.png", lymph_box_plot, height=5, width=5.5, bg="white")
 
 
 big_thromb <- filter(big_thromb, n_infection!="Third")
@@ -407,6 +416,7 @@ summary(mixed_model_tests) # first vs. second at T6; p=0.166
 summary(model)
 
 combo_alt <- filter(combo_alt, n_infection != "Third")
+combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "Diagnosis", "T6"))
 
 (abc_alt_line_plot <- ggplot(combo_alt, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96")), y=alt))+
   #geom_hline(yintercept = 35, color="orange", linetype="dotted")+
@@ -415,14 +425,15 @@ combo_alt <- filter(combo_alt, n_infection != "Third")
   geom_hline(yintercept = 225, color="red", linetype="dashed")+
   scale_fill_manual(values=n_infection_palette)+
   #geom_line(aes(color=volunteer, group=sample_id), size=0.9)+
-  geom_boxplot(aes(fill=n_infection))+
-  geom_point(aes(color=volunteer, group=n_infection),  position = position_dodge(width = 0.75), fill="white", stroke=1, shape=21, size=0.9)+
+  geom_boxplot(aes(fill=n_infection), )+
+  #geom_point(aes(color=volunteer, group=n_infection),  position = position_dodge(width = 0.75), fill="white", stroke=1, shape=21, size=0.9)+
   theme_minimal()+
-  scale_y_log10()+
+  scale_y_log10(limits=c(7,1000))+
   #facet_wrap(~n_infection, ncol=5)+
   xlab("Timepoint")+
-  ylab("log(ALT)")+
-  ggtitle(expression(paste('abnormal liver enzymes in first ',italic("P. vivax"),' infections', sep='')))+
+  ylab("Alanine aminotransferase (ALT [IU/L])")+
+  #stat_summary(geom = "crossbar", width=0.65, fatten=0, color="white", fun.data = function(x){ return(c(y=median(x), ymin=median(x), ymax=median(x)))})+
+  #ggtitle(expression(paste('abnormal liver enzymes in first ',italic("P. vivax"),' infections', sep='')))+
   guides(color=guide_legend(ncol=2))+
   theme(plot.title = element_text(hjust=0.5, size=18),
         axis.text.x = element_text(hjust=1, angle=45, size=13), 
@@ -433,6 +444,14 @@ combo_alt <- filter(combo_alt, n_infection != "Third")
         axis.title.y = element_text(size=16),
         strip.text = element_text(size=10))
 )
+
+
+dat <- ggplot_build(abc_alt_line_plot)$data[[3]]
+dat <- subset(dat, fill=="#053250")
+
+abc_alt_line_plot <- abc_alt_line_plot + geom_segment(data=dat, aes(x=xmin, xend=xmax, 
+                               y=10^middle, yend=10^middle), colour="white", size=1)
+
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abcd_alt_line_plot.png", abc_alt_line_plot, height=5.5, width=6.5, bg="white")
 
@@ -617,19 +636,12 @@ fever_temp_combo <- filter(fever_temp_combo, n_infection != "Third")
 abc_fever_plot <- ggplot(fever_temp_combo, aes(x=n_infection,
                              y=max_temperature))+
   geom_boxplot(aes(fill=n_infection), outlier.alpha = 0)+
-  geom_dotplot(aes(fill=volunteer),
-               binaxis = "y",
-               colour="black",
-               stackdir = "center",
-               dotsize = 2,
-               binpositions = "all",
-               stackgroups = TRUE,
-               binwidth = 0.03)+
+ 
   #geom_point(aes(color=volunteer),fill="white", stroke=1, shape=21, size=3, position = position_dodge2(width=0.2))+
   #geom_line(aes(color=volunteer, group=volunteer), size=0.9)+
   geom_hline(yintercept = 37.5, linetype="dashed", color="black")+
   #ylab(expression(paste("Temperature (",degree,"C)",sep="")))+
-  ylab("Temperature")+
+  ylab("Maximum Body Temperature\n")+
   # ggtitle(expression(paste("reduced fevers in \n",
   #                          italic("P. vivax"), " reinfection", sep='')))+
   scale_y_continuous(labels = degrees_celsius, breaks = seq(36, 40, by=0.5))+
@@ -638,11 +650,30 @@ abc_fever_plot <- ggplot(fever_temp_combo, aes(x=n_infection,
   theme(legend.position = "none", 
     #plot.title = element_text(hjust=0.5, vjust = 0, size=13),
     #plot.caption = element_custom(),
-  
-        axis.text.x = element_text(hjust=1, angle=45, size=11),
-        axis.title.x = element_blank())
+    axis.title = element_text(size=16),
+    axis.text.x = element_text(hjust=1, angle=45, size=14),
+    axis.text.y = element_text(size=14),
+    axis.title.x = element_blank())
+
+dat <- ggplot_build(abc_fever_plot)$data[[1]]
+dat <- subset(dat, fill=="#053250")
+
+abc_fever_plot <- abc_fever_plot+
+  geom_segment(data=dat, aes(x=xmin, xend=xmax, y=middle, yend=middle), colour="white", size=1)+
+  geom_dotplot(aes(fill=volunteer),
+               binaxis = "y",
+               colour="black",
+               stackdir = "center",
+               dotsize = 2,
+               binpositions = "all",
+               stackgroups = TRUE,
+               binwidth = 0.03)
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abcd_fever.png", abc_fever_plot, height=5, width=4, bg="white")
+
+
+
+
 
 alt_theme <- theme(
       axis.text.x = element_text(hjust=1, angle=45, size=13), 
