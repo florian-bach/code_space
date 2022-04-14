@@ -15,7 +15,7 @@ proportional.downsample(fs, fraction)
 a flowCore flowset
 }
 \description{
-i.e. it randomly selects a wiebke-defined percentage from each fcs file in a flowset.
+It randomly selects a wiebke-defined percentage from each fcs file in a flowset.
 }
 \note{
 As the downsampling is performed randomly, running it multiple times will give slightly different results. To reproducibly have the same output include manually set the seed, as shown in the example below.

@@ -15,7 +15,7 @@ hard.downsample(fs, event_number)
 a (smaller) flowCore flowset
 }
 \description{
-i.e. it randomly selects a wiebke-defined number of cells from each fcs file in a flowset.
+It randomly selects a wiebke-defined number of cells from each fcs file in a flowset.
 }
 \note{
 As the downsampling is performed randomly, running it multiple times will give slightly different results. To reproducibly have the same output include manually set the seed, as shown in the example below.

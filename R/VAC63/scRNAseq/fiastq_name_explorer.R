@@ -25,6 +25,16 @@ sample_names <- gsub("[", "", sample_names, fixed = TRUE)
 sample_names <- gsub("]", "", sample_names, fixed = TRUE)
 sample_names <- gsub(",", "", sample_names)
 
+sample_names <- sample_names[!duplicated(sample_names)]
+
 new_name <- gsub(".txt", ".csv", text_file)
 
+
 write.csv(sample_names, new_name, row.names = FALSE, col.names = NULL)}
+
+
+# mkdir for each sample
+
+L003 <- read.csv("/home/flobuntu/postdoc/scRNAseq/metadata/L003_gex_sample_names.csv")
+print(L003$x, sep = " ", quote = FALSE)
+# 
