@@ -37,4 +37,60 @@ write.csv(sample_names, new_name, row.names = FALSE, col.names = NULL)}
 
 L003 <- read.csv("/home/flobuntu/postdoc/scRNAseq/metadata/L003_gex_sample_names.csv")
 print(L003$x, sep = " ", quote = FALSE)
-# 
+
+
+# account for hashing in cellranger multi config csv
+
+library(dplyr)
+
+config <- read.csv("~/postdoc/scRNAseq/all_sample_names.csv")
+
+config$sample <- ifelse(substr(config$fastq_id, 1,4) %in% c("GEX1", "GEX2", "VDJ1", "VDJ2"), "primary", "tertiary")
+
+primary_config <- config %>%
+  filter(sample=="primary") %>%
+  select(-sample)
+
+tertiary_config <- config %>%
+  filter(sample=="tertiary") %>%
+  select(-sample)
+
+
+write.csv(primary_config, "~/postdoc/scRNAseq/primary_config_scratch.csv", row.names = FALSE)
+write.csv(tertiary_config, "~/postdoc/scRNAseq/tertiary_config_scratch.csv", row.names=FALSE)
+
+
+# cell surface names
+
+# word_soup <- c("CS1-AK509_S43_L003_R1_001.fastq.gz,CS1-AK7617_S45_L003_R1_001.fastq.gz,CS1-X001_S47_L003_R1_001.fastq.gz,CS1-X042_S48_L003_R1_001.fastq.gz,CS2-AK14577_S25_L003_R1_001.fastq.gz,CS2-AK14578_S26_L003_R1_001.fastq.gz,CS2-AK14579_S27_L003_R1_001.fastq.gz,CS2-AK5796_S5_L003_R1_001.fastq.gz,CS3-AK13187_S2_L003_R1_001.fastq.gz,CS3-AK13188_S21_L003_R1_001.fastq.gz,CS3-AK7465_S44_L003_R1_001.fastq.gz,CS3-AK8767_S46_L003_R1_001.fastq.gz,CS4-AK12528_S6_L003_R1_001.fastq.gz,CS4-AK12529_S7_L003_R1_001.fastq.gz,CS4-AK12530_S8_L003_R1_001.fastq.gz,CS4-AK12531_S9_L003_R1_001.fastq.gz -R2 CS1-AK509_S43_L003_R2_001.fastq.gz,CS1-AK7617_S45_L003_R2_001.fastq.gz,CS1-X001_S47_L003_R2_001.fastq.gz,CS1-X042_S48_L003_R2_001.fastq.gz,CS2-AK14577_S25_L003_R2_001.fastq.gz,CS2-AK14578_S26_L003_R2_001.fastq.gz,CS2-AK14579_S27_L003_R2_001.fastq.gz,CS2-AK5796_S5_L003_R2_001.fastq.gz,CS3-AK13187_S2_L003_R2_001.fastq.gz,CS3-AK13188_S21_L003_R2_001.fastq.gz,CS3-AK7465_S44_L003_R2_001.fastq.gz,CS3-AK8767_S46_L003_R2_001.fastq.gz,CS4-AK12528_S6_L003_R2_001.fastq.gz,CS4-AK12529_S7_L003_R2_001.fastq.gz,CS4-AK12530_S8_L003_R2_001.fastq.gz,CS4-AK12531_S9_L003_R2_001.fastq.gz,CS1-AK509_S43_L004_R1_001.fastq.gz,CS1-AK7617_S45_L004_R1_001.fastq.gz,CS1-X001_S47_L004_R1_001.fastq.gz,CS1-X042_S48_L004_R1_001.fastq.gz,CS2-AK14577_S25_L004_R1_001.fastq.gz,CS2-AK14578_S26_L004_R1_001.fastq.gz,CS2-AK14579_S27_L004_R1_001.fastq.gz,CS2-AK5796_S5_L004_R1_001.fastq.gz,CS3-AK13187_S2_L004_R1_001.fastq.gz,CS3-AK13188_S21_L004_R1_001.fastq.gz,CS3-AK7465_S44_L004_R1_001.fastq.gz,CS3-AK8767_S46_L004_R1_001.fastq.gz,CS4-AK12528_S6_L004_R1_001.fastq.gz,CS4-AK12529_S7_L004_R1_001.fastq.gz,CS4-AK12530_S8_L004_R1_001.fastq.gz,CS4-AK12531_S9_L004_R1_001.fastq.gz -R2 CS1-AK509_S43_L004_R2_001.fastq.gz,CS1-AK7617_S45_L004_R2_001.fastq.gz,CS1-X001_S47_L004_R2_001.fastq.gz,CS1-X042_S48_L004_R2_001.fastq.gz,CS2-AK14577_S25_L004_R2_001.fastq.gz,CS2-AK14578_S26_L004_R2_001.fastq.gz,CS2-AK14579_S27_L004_R2_001.fastq.gz,CS2-AK5796_S5_L004_R2_001.fastq.gz,CS3-AK13187_S2_L004_R2_001.fastq.gz,CS3-AK13188_S21_L004_R2_001.fastq.gz,CS3-AK7465_S44_L004_R2_001.fastq.gz,CS3-AK8767_S46_L004_R2_001.fastq.gz,CS4-AK12528_S6_L004_R2_001.fastq.gz,CS4-AK12529_S7_L004_R2_001.fastq.gz,CS4-AK12530_S8_L004_R2_001.fastq.gz,CS4-AK12531_S9_L004_R2_001.fastq.gz")
+# word_soup2 <- gsub(",", "", "", word_soup)
+
+oligo_names <- t(read.csv("~/postdoc/scRNAseq/metadata/cs_names.csv", stringsAsFactors = FALSE, header = FALSE))
+oligo_names <- data.frame(oligo_names)
+
+oligo_names$sample <- ifelse(substr(oligo_names$oligo_names, 1,3) %in% c("CS1", "CS2"), "primary", "tertiary")
+oligo_names$read <- ifelse(grepl("R1", oligo_names$oligo_names), "R1", "R2")
+
+
+primary_oligo_R1 <- oligo_names %>%
+  filter(sample=="primary", read=="R1") %>%
+  select(oligo_names)
+
+primary_oligo_R2 <- oligo_names %>%
+  filter(sample=="primary", read=="R2") %>%
+  select(oligo_names)
+
+tertiary_oligo_R1 <- oligo_names %>%
+  filter(sample=="tertiary", read=="R1") %>%
+  select(oligo_names)
+
+tertiary_oligo_R2 <- oligo_names %>%
+  filter(sample=="tertiary", read=="R2") %>%
+  select(oligo_names)
+
+
+write.table(primary_oligo_R1, "~/postdoc/scRNAseq/primary_cs_R1_names.txt", row.names = FALSE, col.names = FALSE, sep = "\t", quote = FALSE)
+write.table(tertiary_oligo_R1, "~/postdoc/scRNAseq/tertiary_cs_R1_names.txt", row.names = FALSE, col.names = FALSE,  sep = "\t", quote = FALSE)
+
+write.table(primary_oligo_R2, "~/postdoc/scRNAseq/primary_cs_R2_names.txt", row.names = FALSE, col.names = FALSE, sep = "\t", quote = FALSE)
+write.table(tertiary_oligo_R2, "~/postdoc/scRNAseq/tertiary_cs_R2_names.txt", row.names = FALSE, col.names = FALSE,  sep = "\t", quote = FALSE)

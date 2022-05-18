@@ -1,11 +1,12 @@
 # preprocessing ####
-
 library(dplyr)
 library(Seurat)
 library(patchwork)
 
-test_data <- Read10X(data.dir = "~/postdoc/scRNAseq/cell_ranger_adventure_7/sample_feature_bc_matrix/")
+# test_data <- Read10X(data.dir = "~/postdoc/scRNAseq/cell_ranger_adventure_7/sample_feature_bc_matrix/")
+test_data <- Read10X(data.dir = "~/postdoc/scRNAseq/tertiary/sample_feature_bc_matrix/")
 vac63c <- CreateSeuratObject(counts = test_data, project = "vac63c_cd4_tcells", min.cells = 3, min.features = 200)
+# 
 
 # Quality Control ####
 # Sort out cells with high mitochondrial reads (they are dying); then get rid of cells with less than 200 or more than 2500 reads
@@ -65,7 +66,7 @@ pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
 # test the dimensionality of the dataset
 # pbmc <- JackStraw(pbmc, num.replicate = 100)
 # pbmc <- ScoreJackStraw(pbmc, dims = 1:20)
-# JackStrawPlot(pbmc, dims = 1:15)
+# JackStrawPlot(pbmc, dims = 1:20)
 
 
 # pbmc <- FindNeighbors(pbmc, dims = 1:20)
@@ -77,11 +78,11 @@ pbmc <- FindClusters(pbmc, resolution = 1, random.seed = 1234, algorithm = 1)
 # find markers distinguishing clusters
 pbmc.markers <- FindAllMarkers(pbmc, only.pos = FALSE, min.pct = 0.25, logfc.threshold = 0.25)
 
-top10_per_cluster <- data.frame(pbmc.markers %>%
+top20_per_cluster <- data.frame(pbmc.markers %>%
   group_by(cluster) %>%
   slice_min(n = 20, order_by = p_val_adj))
 
-View(top10_per_cluster)
+View(top20_per_cluster)
 
  
 # top20_per_cluster <- data.frame(pbmc.markers %>%
@@ -90,10 +91,10 @@ View(top10_per_cluster)
 
 
 # visualising markers across clusters ####
-cluster_7_markers <- pbmc.markers %>%
-  filter(cluster==7) %>%
-  slice_max(n = 20, order_by = avg_log2FC)
-  
+# cluster_7_markers <- pbmc.markers %>%
+#   filter(cluster==7) %>%
+#   slice_max(n = 20, order_by = avg_log2FC)
+#   
 #visualise individual gene expression across clusters
 # by cytof, the average of naive cells across baseline and T6 is ~54.5%
 VlnPlot(pbmc, features = c("RGS16", "EGR1", "EGR2", "EGR3"), stack = TRUE)
@@ -157,22 +158,31 @@ head(cluster5.markers, n = 30)
 
 
 # dimensionality reduction & pseudotime ####
+#pbmc <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/L003_hashed.h5Seurat")
+pbmc <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/20k_L003_hashed.h5Seurat")
 
-# pseudotime
+#smaller_pbmc <- pbmc[, sample(colnames(pbmc), size =20000, replace=F)]
+SeuratDisk::SaveH5Seurat(pbmc, "~/postdoc/scRNAseq/Seurat_Objects/vac63c_primary.h5Seurat", overwrite = TRUE)
 
-library(monocle3)
 
 pbmc <- RunUMAP(pbmc, dims = 1:30, seed.use = 1234)
 
+DimPlot(pbmc, reduction = "umap")
+
+FeaturePlot(pbmc, c("NKG7", "CCL5", "GZMB", "GZMK"))
+FeaturePlot(pbmc, c("SELL","CCR7", "JUNB", "LMNA"))
+
+# pseudotime
+library(monocle3)
 pbmc.cds <- SeuratWrappers::as.cell_data_set(pbmc)
 
-pbmc.cds <- cluster_cells(cds=pbmc.cds, reduction_method = "UMAP", k=10, random_seed = 1234)
-pbmc.cds <- learn_graph(pbmc.cds, use_partition = TRUE, verbose=TRUE)
+pbmc.cds <- monocle3::cluster_cells(cds=pbmc.cds, reduction_method = "UMAP", k=10, random_seed = 1234)
+pbmc.cds <- monocle3::learn_graph(pbmc.cds, use_partition = TRUE, verbose=TRUE)
 
-pbmc.cds <- order_cells(pbmc.cds, reduction_method = "UMAP")
+pbmc.cds <- monocle3::order_cells(pbmc.cds, reduction_method = "UMAP")
 
 
-plot_cells(
+monocle3::plot_cells(
   cds = pbmc.cds,
   color_cells_by = "pseudotime",
   show_trajectory_graph = TRUE
@@ -185,7 +195,10 @@ pbmc <- AddMetaData(
   col.name = "pseudotime"
 )
 
-FeaturePlot(pbmc, c("pseudotime", "IFNG"))&viridis::scale_color_viridis(option = "B")
+#SeuratDisk::SaveH5Seurat(pbmc, "~/postdoc/scRNAseq/Seurat_Objects/20k_L003_hashed.h5Seurat", overwrite = TRUE)
+
+
+FeaturePlot(pbmc, c("pseudotime", "SELL", "LMNA"))&viridis::scale_color_viridis(option = "B")
 
 
 # RNA velocity ####
@@ -219,8 +232,6 @@ show.velocity.on.embedding.cor(emb = Embeddings(object = bm, reduction = "umap")
 
 # UMAP
 pbmc <- RunUMAP(pbmc, dims = 1:30, seed.use = 1234)
-DimPlot(pbmc, reduction = "umap")
-
 
 FeaturePlot(pbmc, features = c("RGS16", "EGR1", "EGR2", "EGR3"))
 FeaturePlot(pbmc, features = c("PRDM1", "IKZF2", "XCL1", "TNFRSF9"))
@@ -244,8 +255,8 @@ test_vector <- c(paste("IL", seq(1,7), sep=''),
 
 
 all_interleukins <- grep('IL[0-9]', rownames(pbmc@assays$RNA), value = TRUE)
-all_interleukins_plot <- VlnPlot(pbmc, features = all_interleukins, ncol = 5)
-ggplot2::ggsave("~/postdoc/scRNAseq/exploratory_plots/all_interleukins_plot.png", all_interleukins_plot, width=12, height=24)
+all_interleukins_plot <- VlnPlot(pbmc, features = all_interleukins, ncol = 9)
+ggplot2::ggsave("~/postdoc/scRNAseq/exploratory_plots/all_interleukins_plot.png", all_interleukins_plot, width=20, height=20)
 
 all_chemokines <- c(grep('CCL[0-9]', rownames(pbmc@assays$RNA), value = TRUE),
                     grep('CXCL[0-9]', rownames(pbmc@assays$RNA), value = TRUE))

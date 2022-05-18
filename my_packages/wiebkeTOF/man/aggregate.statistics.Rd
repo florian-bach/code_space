@@ -25,8 +25,6 @@ This function splits a SingleCellExperiment along come conditions and computes s
 }
 \examples{
 
-ms <- aggregate_statistics(x=sce, markers=refined_markers, by = c("cluster_id", "timepoint"), fun="median", clustering="meta40")
-}
-\seealso{
+ms <- aggregate.statistics(x=sce, markers=refined_markers, by = c("cluster_id", "timepoint"), fun="median", clustering="meta40")
 
 }

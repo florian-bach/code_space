@@ -15,7 +15,6 @@
 #' @seealso
 #'
 #' \code{\link{aggregate.statistics}}
-#'
 #' @export
 
 
@@ -24,8 +23,8 @@ simplify.aggregate <- function(ms, fun){
 ms2 <- lapply(ms, function(x)data.frame(x))
 ms2 <- Map(cbind, ms2, cluster_id = names(ms))
 
-ms3 <- data.table::rbindlist(ms2)
-ms3[,Marker := unlist(lapply(ms2, rownames))]
+ms3 <- do.call(rbind, ms2)
+ms3$Marker <- unlist(lapply(ms2, rownames))
 
 summary <- apply(ms3[,1:unique(sapply(ms, ncol))], MARGIN = 1, fun)
 ms3 <- cbind(ms3, summary)
