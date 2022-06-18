@@ -185,8 +185,9 @@ cluster_counts <- cluster_counts %>%
   mutate("Percentage"=Count/sum(Count))
 
 
-baseline <- subset(cluster_counts, Timepoint=="Baseline" & N_Infection =="First")
-T6 <- subset(cluster_counts, Timepoint=="T6" & N_Infection =="First")
+keep <- "First"
+baseline <- subset(cluster_counts, Timepoint=="Baseline" & N_Infection == keep)
+T6 <- subset(cluster_counts, Timepoint=="T6" & N_Infection == keep)
 
 
 prim_lolli <- ggplot()+
@@ -233,7 +234,7 @@ combo_lolli <- cowplot::plot_grid(prim_lolli, ter_lolli)
 combo_lolli <- cowplot::plot_grid(combo_lolli, cluster_leg, ncol=1, rel_heights = c(5,1), rel_widths = c(1,1,2),align="v", axis = "tbrl")
 
 # title <- cowplot::ggdraw()+cowplot::draw_label("First Infection", hjust = 0.5) 
-title <- cowplot::ggdraw()+cowplot::draw_label("Third Infection", hjust = 0.5) 
+title <- cowplot::ggdraw()+cowplot::draw_label(paste(keep, "Infection"), hjust = 0.5) 
 combo_lolli <- cowplot::plot_grid(title, combo_lolli, ncol=1, rel_heights = c(0.1,1))
 
 #ggsave(filename = "~/postdoc/scRNAseq/combo_analysis_figures/first_freq_lollipop.png", combo_lolli, width = 8, height = 5, bg="white", dpi=444)
@@ -241,34 +242,38 @@ combo_lolli <- cowplot::plot_grid(title, combo_lolli, ncol=1, rel_heights = c(0.
 
 
 # pseudotime ####
-
+combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset.h5Seurat")
 library(monocle3)
 combo.cds <- SeuratWrappers::as.cell_data_set(combo)
-
-combo.cds <- monocle3::cluster_cells(cds=combo.cds, reduction_method = "UMAP", k=10, random_seed = 1234)
+#k=8 is nice
+combo.cds <- monocle3::cluster_cells(cds=combo.cds, reduction_method = "UMAP", k=8, random_seed = 1234)
 combo.cds <- monocle3::learn_graph(combo.cds, use_partition = TRUE, verbose=TRUE)
 
 combo.cds <- monocle3::order_cells(combo.cds, reduction_method = "UMAP")
 
 
-monocle3::plot_cells(
-  cds = combo.cds,
+monocle3::plot_cells(group_cells_by = "time_n_infection",
+  cds = combo.cds, 
   color_cells_by = "pseudotime",
   show_trajectory_graph = TRUE
 )
 
 # add pseudotime to seurat object
-combo <- AddMetaData(
+combo <- Seurat::AddMetaData(
   object = combo,
   metadata = combo.cds@principal_graph_aux@listData$UMAP$pseudotime,
   col.name = "pseudotime"
 )
 
-#SeuratDisk::SaveH5Seurat(combo, "~/postdoc/scRNAseq/Seurat_Objects/20k_L003_hashed.h5Seurat", overwrite = TRUE)
-
+#SeuratDisk::SaveH5Seurat(combo, "~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset_pseudotime.h5Seurat", overwrite = TRUE)
+#combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset_pseudotime.h5Seurat")
 #SeuratDisk::SaveH5Seurat(combo, "~/postdoc/scRNAseq/Seurat_Objects/pseudotime_dimred_processed_combo20k.H5Seurat")
 
-FeaturePlot(combo, c("pseudotime"), split.by = "n_infection")&viridis::scale_color_viridis(option = "B")
+pseudo_plot <- FeaturePlot(combo, c("pseudotime", "CD38", "GZMK", "NKG7"), pt.size = 1.5, order=TRUE, split.by = "n_infection")&viridis::scale_color_viridis(option = "A", direction=1)
+ggplot2::ggsave("~/postdoc/scRNAseq/final_analysis_and_figures/figures/pseudo_plot.png", pseudo_plot, height=12, width=12, bg="white")
+
+pseudo_plot2 <- FeaturePlot(combo, c("pseudotime", "STAT1", "TBX21", "MKI67"), pt.size = 1.5, order=TRUE, split.by = "n_infection")&viridis::scale_color_viridis(option = "A", direction=1)
+ggplot2::ggsave("~/postdoc/scRNAseq/final_analysis_and_figures/figures/pseudo_plot2.png", pseudo_plot2, height=12, width=12, bg="white")
 
 
 # jackstraw ####
@@ -284,3 +289,91 @@ combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/pseudotime_
 combo <- JackStraw(combo, num.replicate = 100)
 combo <- ScoreJackStraw(combo, dims = 1:20)
 JackStrawPlot(combo, dims = 1:20)
+
+# granular activated clustering ####
+
+activated_clusters <- Seurat::FindClusters(activated_clusters, resolution = 2.2)
+granular_cluster_umap <- Seurat::DimPlot(activated_clusters, label=TRUE)
+ggsave("~/postdoc/scRNAseq/final_analysis_and_figures/figures/granular_cluster_umap.png", granular_cluster_umap, height=4, width=6, dpi=444, bg="white")
+
+
+cluster_counts <- data.frame(table(activated_clusters@active.ident, activated_clusters@meta.data$sample_ID))
+colnames(cluster_counts) <- c("Cluster_ID", "Sample_ID", "Count")
+cluster_counts$Timepoint <- substr(cluster_counts$Sample_ID, 6, 14)
+cluster_counts$Volunteer <- substr(cluster_counts$Sample_ID, 1, 4)
+cluster_counts$N_Infection <- ifelse(cluster_counts$Volunteer %in% c("v313", "v315", "v320"), "First", "Third")
+
+
+cluster_counts <- cluster_counts %>%
+  group_by(Sample_ID) %>%
+  mutate("Percentage"=Count/sum(Count))
+
+
+write.csv(cluster_counts, "~/postdoc/scRNAseq/final_analysis_and_figures/granular_activated_cluster_counts.csv", row.names = FALSE)
+
+activated_cluster_percentages <- ggplot(cluster_counts, aes(x=factor(Cluster_ID), y=Percentage, fill=Timepoint))+
+  geom_boxplot()+
+  #geom_point(position = position_dodge(width = 0.75))+
+  scale_y_continuous(labels = scales::label_percent())+
+  scale_fill_manual(values=c("#AA3377", "#4477AA"))+
+  facet_wrap(~N_Infection)+
+  xlab("Cluster_ID")+
+  theme_minimal()
+
+ggsave("~/postdoc/scRNAseq/final_analysis_and_figures/figures/granular_cluster_percentages.png", activated_cluster_percentages, height=3, width=9.5, dpi=444, bg="white")
+
+
+
+
+signature_genes <- read.csv("~/postdoc/scRNAseq/final_analysis_and_figures/activated_subset_markers.csv")
+
+# granular pseudotime ####
+
+
+combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset_pseudotime.h5Seurat")
+
+#FeaturePlot(combo, "pseudotime", split.by="n_infection", pt.size = 2)&viridis::scale_color_viridis(option="A")
+
+combo.cds <- SeuratWrappers::as.cell_data_set(combo)
+
+combo.cds <- monocle3::cluster_cells(cds=combo.cds, reduction_method = "UMAP", k=15, random_seed = 1234)
+combo.cds <- monocle3::learn_graph(combo.cds, use_partition = TRUE, verbose=TRUE)
+
+combo.cds <- monocle3::order_cells(combo.cds, reduction_method = "UMAP")
+
+
+# based on these we'll select the right lobe, sans the northern coast (because of some cytotoxic gene expression)
+# FeaturePlot(combo, c("NKG7", "GZMK", "GNLY"), ncol=3)&viridis::scale_color_viridis(option="A", direction=-1)
+# FeaturePlot(combo, c("SELL", "CCR7", "LMNA"), ncol=3)&viridis::scale_color_viridis(option="A", direction=-1)
+
+
+monocle3::plot_cells(group_cells_by = "partition",
+                     cds = combo.cds, 
+                     color_cells_by = "pseudotime",
+                     show_trajectory_graph = TRUE
+)
+
+
+# differential gene expresion ####
+
+
+first <- subset(combo, subset = n_infection=="First")
+third <- subset(combo, subset = n_infection=="Third")
+
+
+library(Libra)
+
+first_DE <- run_de(first, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type = "LRT", min_cells=10)
+sig_first_DE <- subset(first_DE, p_val_adj<0.1)
+dim(sig_first_DE)
+#qlf: 94 genes, 99 gene-cluster_combos
+#lrt: 182 genes, 190 gene-cluster_combos
+
+
+`%notin%` <- Negate(`%in%`)
+third_DE <- run_de(third, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type="LRT")
+sig_third_DE <- subset(third_DE, p_val_adj<0.1)
+dim(sig_third_DE)
+
+#qlf: 11 genes, 13 9gene-cluster_combos
+#lrt: 27 genes, 30 gene-cluster_combos

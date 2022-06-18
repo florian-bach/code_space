@@ -179,3 +179,180 @@ da_nhood_markers <- findNhoodGroupMarkers(combo_milo, da_results, subset.row = S
 ## Warning: Zero sample variances detected, have been offset away from zero
 
 head(da_nhood_markers)
+
+
+#glms ####
+
+
+cluster_counts <- read.csv("~/postdoc/scRNAseq/final_analysis_and_figures/granular_activated_cluster_counts.csv")
+
+
+# granuluar first ####
+cluster_counts <- read.csv("~/postdoc/scRNAseq/final_analysis_and_figures/granular_activated_cluster_counts.csv")
+
+granular_first_cluster_counts <- subset(cluster_counts, N_Infection=="First")
+
+granular_first_n_cells <- granular_first_cluster_counts %>%
+  group_by(Sample_ID)%>%
+  summarise("sum"=sum(Count))
+
+granular_first_list_of_dfs_for_glm <- split(granular_first_cluster_counts, granular_first_cluster_counts$Cluster_ID)
+
+
+
+granular_first_list_of_models <- lapply(granular_first_list_of_dfs_for_glm, function(x) glm(Percentage~Timepoint+Volunteer, family = "binomial", weights = granular_first_n_cells$sum, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(concentration~timepoint+(1|Volunteer), data=x))
+
+t6_contrast <- t(matrix(c(0,1,0,0)))
+
+# c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
+##
+granular_first_list_of_tests <- lapply(granular_first_list_of_models, function(x) multcomp::glht(x, t6_contrast))
+granular_first_list_of_pvalues <- lapply(granular_first_list_of_tests, function(x) data.frame("p_raw"=summary(x)$test$pvalues, "coef"=summary(x)$test$coefficients))
+
+granular_first_df_first_ <- do.call(rbind, granular_first_list_of_pvalues)
+
+granular_first_df_first_$Cluster_ID <- names(granular_first_list_of_pvalues)
+#
+granular_first_df_first_$p_adj <- p.adjust(granular_first_df_first_$p_raw, method = "fdr")
+
+
+#log(2) = 0.6931472
+subset(granular_first_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+
+sig_granular_first <- subset(granular_first_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+sig_granular_first <- data.frame("cluster"=sig_granular_first$Cluster_ID, "raw_FC"=exp(sig_granular_first$coef), "p_adj"=sig_granular_first$p_adj)
+
+# granular third ####
+
+cluster_counts <- read.csv("~/postdoc/scRNAseq/final_analysis_and_figures/granular_activated_cluster_counts.csv")
+
+granular_third_cluster_counts <- subset(cluster_counts, N_Infection=="Third")
+
+granular_third_n_cells <- granular_third_cluster_counts %>%
+  group_by(Sample_ID)%>%
+  summarise("sum"=sum(Count))
+
+granular_third_list_of_dfs_for_glm <- split(granular_third_cluster_counts, granular_third_cluster_counts$Cluster_ID)
+
+
+
+granular_third_list_of_models <- lapply(granular_third_list_of_dfs_for_glm, function(x) glm(Percentage~Timepoint+Volunteer, family = "binomial", weights = granular_third_n_cells$sum, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(concentration~timepoint+(1|Volunteer), data=x))
+
+t6_contrast <- t(matrix(c(0,1,0,0)))
+
+# c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
+##
+granular_third_list_of_tests <- lapply(granular_third_list_of_models, function(x) multcomp::glht(x, t6_contrast))
+granular_third_list_of_pvalues <- lapply(granular_third_list_of_tests, function(x) data.frame("p_raw"=summary(x)$test$pvalues, "coef"=summary(x)$test$coefficients))
+
+granular_third_df_first_ <- do.call(rbind, granular_third_list_of_pvalues)
+
+granular_third_df_first_$Cluster_ID <- names(granular_third_list_of_pvalues)
+#
+granular_third_df_first_$p_adj <- p.adjust(granular_third_df_first_$p_raw, method = "fdr")
+
+
+#log(2) = 0.6931472
+subset(granular_third_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+
+sig_granular_third <- subset(granular_third_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+sig_granular_third <- data.frame("cluster"=sig_granular_third$Cluster_ID, "raw_FC"=exp(sig_granular_third$coef), "p_adj"=sig_granular_third$p_adj)
+
+# p_raw       coef Cluster_ID        p_adj
+# 4  0.000000e+00 -1.0135963          4 0.000000e+00
+# 8  4.764177e-09 -0.7272765          8 4.128954e-08
+# 10 1.068725e-07 -0.8859015         10 6.946711e-07
+# 23 2.580773e-05  1.1334626         23 8.387511e-05
+# 24 2.606005e-02  2.3119246         24 4.517075e-02
+
+# normal first ####
+
+cluster_counts <- read.csv("~/postdoc/scRNAseq/final_analysis_and_figures/final_activated_cluster_counts.csv")
+
+first_cluster_counts <- subset(cluster_counts, N_Infection=="First")
+
+first_n_cells <- first_cluster_counts %>%
+  group_by(Sample_ID)%>%
+  summarise("sum"=sum(Count))
+
+first_list_of_dfs_for_glm <- split(first_cluster_counts, first_cluster_counts$Cluster_ID)
+
+
+
+first_list_of_models <- lapply(first_list_of_dfs_for_glm, function(x) glm(Percentage~Timepoint+Volunteer, family = "binomial", weights = first_n_cells$sum, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(concentration~timepoint+(1|Volunteer), data=x))
+
+t6_contrast <- t(matrix(c(0,1,0,0)))
+
+# c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
+##
+first_list_of_tests <- lapply(first_list_of_models, function(x) multcomp::glht(x, t6_contrast))
+first_list_of_pvalues <- lapply(first_list_of_tests, function(x) data.frame("p_raw"=summary(x)$test$pvalues, "coef"=summary(x)$test$coefficients))
+
+first_df_first_ <- do.call(rbind, first_list_of_pvalues)
+
+first_df_first_$Cluster_ID <- names(first_list_of_pvalues)
+#
+first_df_first_$p_adj <- p.adjust(first_df_first_$p_raw, method = "fdr")
+
+
+#log(2) = 0.6931472
+subset(first_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+
+sig_first <- subset(first_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+sig_first <- data.frame("cluster"=sig_first$Cluster_ID, "raw_FC"=exp(sig_first$coef), "p_adj"=sig_first$p_adj)
+
+# p_raw       coef Cluster_ID        p_adj
+# 4 3.891074e-10 -0.8166622          4 1.426727e-09
+# 5 2.745214e-07 -0.9382784          5 7.549339e-07
+# 6 0.000000e+00 -2.2167921          6 0.000000e+00
+# 9 0.000000e+00  2.9567040          9 0.000000e+00
+
+
+# normal third ####
+
+cluster_counts <- read.csv("~/postdoc/scRNAseq/final_analysis_and_figures/final_activated_cluster_counts.csv")
+
+third_cluster_counts <- subset(cluster_counts, N_Infection=="Third")
+
+third_n_cells <- third_cluster_counts %>%
+  group_by(Sample_ID)%>%
+  summarise("sum"=sum(Count))
+
+third_list_of_dfs_for_glm <- split(third_cluster_counts, third_cluster_counts$Cluster_ID)
+
+
+
+third_list_of_models <- lapply(third_list_of_dfs_for_glm, function(x) glm(Percentage~Timepoint+Volunteer, family = "binomial", weights = third_n_cells$sum, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) nlme::lme(concentration~timepoint, random=~1|Volunteer, data=x))
+#list_of_models <- lapply(list_of_dfs_for_glm, function(x) lme4::lmer(concentration~timepoint+(1|Volunteer), data=x))
+
+t6_contrast <- t(matrix(c(0,1,0,0)))
+
+# c45_contrast <- t(diffcyt::createContrast(c(0,1,0,0,0,0,0,0)))
+##
+third_list_of_tests <- lapply(third_list_of_models, function(x) multcomp::glht(x, t6_contrast))
+third_list_of_pvalues <- lapply(third_list_of_tests, function(x) data.frame("p_raw"=summary(x)$test$pvalues, "coef"=summary(x)$test$coefficients))
+
+third_df_first_ <- do.call(rbind, third_list_of_pvalues)
+
+third_df_first_$Cluster_ID <- names(third_list_of_pvalues)
+#
+third_df_first_$p_adj <- p.adjust(third_df_first_$p_raw, method = "fdr")
+
+
+#log(2) = 0.6931472
+subset(third_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+
+sig_third <- subset(third_df_first_, p_adj<=0.05 & abs(coef)>0.6931472)
+sig_third <- data.frame("cluster"=sig_third$Cluster_ID, "raw_FC"=exp(sig_third$coef), "p_adj"=sig_third$p_adj)
+
+# p_raw       coef Cluster_ID        p_adj
+# 2 0.000000e+00 -0.9743647          2 0.000000e+00
+# 7 6.575629e-12  0.9002093          7 3.616596e-11
+# 9 1.056613e-03  0.7766124          9 2.324548e-03

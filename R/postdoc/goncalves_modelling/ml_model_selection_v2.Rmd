@@ -619,7 +619,7 @@ prd$uci <- err$fit + 1.96 * err$se.fit
 
 
 
-moderate_glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Modelled_Supp_Cases))+
+# moderate_glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Modelled_Supp_Cases))+
   ylab("\nRisk of Severe / Moderate Disease\n")+
   scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
   scale_x_continuous(limits=range(0, nrow(goncalves_plot_data)-1), breaks=seq(0, nrow(goncalves_plot_data)-1), expand = expansion(add = c(0.2,0.2)))+
@@ -654,7 +654,7 @@ severe_constant_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Seve
   scale_y_continuous(label=scales::percent, limits=c(0, 0.075))+
   scale_x_continuous(limits=range(0, nrow(goncalves_plot_data)-1), breaks=seq(0, nrow(goncalves_plot_data)-1), expand = expansion(add = c(0.2,0.2)))+
   geom_point(colour="darkred")+
-  ggtitle("Severe Disease  (constant decay)")+
+  ggtitle("Severe Disease")+
   theme_minimal()+
   geom_ribbon(data=prd2, aes(x=N_Infection, ymin = lci, ymax = uci),
               alpha = 0.2, inherit.aes = FALSE)+
@@ -678,7 +678,7 @@ severe_exponential_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=S
   scale_y_continuous(label=scales::percent, limits=c(0, 0.075))+
   scale_x_continuous(limits=range(0, nrow(goncalves_plot_data)-1), breaks=seq(0, nrow(goncalves_plot_data)-1), expand = expansion(add = c(0.2,0.2)))+
   geom_point(colour="darkred")+
-  ggtitle("Severe Disease  (exponential decay)")+
+  ggtitle("Severe Disease")+
   theme_minimal()+
   geom_ribbon(data=prd3, aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
@@ -693,6 +693,8 @@ severe_exponential_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=S
 plot(moderate_glm_model)
 plot(severe_constant_model)
 plot(severe_exponential_model)
+
+
 
 ```
 

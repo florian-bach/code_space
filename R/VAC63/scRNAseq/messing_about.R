@@ -161,6 +161,8 @@ head(cluster5.markers, n = 30)
 #pbmc <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/L003_hashed.h5Seurat")
 pbmc <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/20k_L003_hashed.h5Seurat")
 
+
+
 #smaller_pbmc <- pbmc[, sample(colnames(pbmc), size =20000, replace=F)]
 SeuratDisk::SaveH5Seurat(pbmc, "~/postdoc/scRNAseq/Seurat_Objects/vac63c_primary.h5Seurat", overwrite = TRUE)
 
@@ -174,6 +176,8 @@ FeaturePlot(pbmc, c("SELL","CCR7", "JUNB", "LMNA"))
 
 # pseudotime
 library(monocle3)
+pbmc <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset.h5Seurat")
+
 pbmc.cds <- SeuratWrappers::as.cell_data_set(pbmc)
 
 pbmc.cds <- monocle3::cluster_cells(cds=pbmc.cds, reduction_method = "UMAP", k=10, random_seed = 1234)

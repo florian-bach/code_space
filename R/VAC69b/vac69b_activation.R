@@ -470,6 +470,7 @@ combo_data <- rbind(select(vac69a_data, cluster_id, sample_id, volunteer, timepo
 
 all_data <- filter(combo_data, timepoint %in% c("Baseline", "Diagnosis", "T6"))
 
+#write.table(all_data, "~/PhD/manuscripts/vac63c/nature_immunology/vac69a_b_vac63c_cluster_frequencies.csv", sep=",", quote = FALSE, row.names = FALSE)
 naive_data <- subset(all_data, all_data$lineage=="CD4"&grepl("*_naive*", all_data$cluster_id))
 naive_data <- rbind(naive_data, subset(all_data, all_data$cluster_id=="naive CD4"))
 

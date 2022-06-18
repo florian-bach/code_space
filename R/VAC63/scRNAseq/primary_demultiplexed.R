@@ -42,7 +42,7 @@ pbmc.hashtag[["HTO"]] <- CreateAssayObject(counts = pbmc.htos)
 pbmc.hashtag <- NormalizeData(pbmc.hashtag, assay = "HTO", normalization.method = "CLR", margin = 2)
 
 
-pbmc.hashtag <- HTODemux(pbmc.hashtag, init = 7, assay = "HTO", positive.quantile = 0.999999999999, verbose = TRUE);table(pbmc.hashtag$HTO_classification.global)
+pbmc.hashtag <- HTODemux(pbmc.hashtag, init = 7, assay = "HTO", positive.quantile = 0.9999999999999, verbose = TRUE);table(pbmc.hashtag$HTO_classification.global)
 
 Idents(pbmc.hashtag) <- "HTO_maxID"
 Idents(pbmc.hashtag) <- "HTO_classification.global"

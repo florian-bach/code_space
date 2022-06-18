@@ -75,3 +75,10 @@ ggsave("~/PhD/manuscripts/vac63c/nature_immunology/pdf/alt_tcell_activation_corr
 ggsave("~/PhD/manuscripts/vac63c/nature_immunology/png/alt_tcell_activation_correlation_vac69ab_vac63c.png", all_lineages_alt_plot, height=4, width=6.5, dpi=444, bg="white")
 
 
+# more granular stuff ####
+
+# vivax data
+
+all_data <- read.table("~/PhD/manuscripts/vac63c/nature_immunology/vac69a_b_vac63c_cluster_frequencies.csv")
+all_cd4 <- subset(all_data, lineage=="CD4")
+all_cd4[grep("cytotoxic*", all_cd4$cluster_id),]

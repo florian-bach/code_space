@@ -155,24 +155,20 @@ sig_base_DE <- subset(base_DE, p_val_adj<0.1 & abs(avg_logFC)>log2(1.5))
 
 
 
-
-combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/pseudotime_dimred_processed_combo20k.H5Seurat")
-# combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/no_jackstraw_demulitplexerd_all_processed.h5Seurat")
+library(SingleCellExperiment)
+activated_clusters <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset.h5Seurat")
+# activated_clusters <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/no_jackstraw_demulitplexerd_all_processed.h5Seurat")
 # combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/activated_subset.h5Seurat")
 
-activated_clusters <- subset(combo,  seurat_clusters %in% c(6:9, 10:12))
+#activated_clusters <- subset(combo,  seurat_clusters %in% c(6:9, 10:12))
 
 all.genes <- rownames(activated_clusters)
 
-activated_clusters <- Seurat::ScaleData(activated_clusters, features=all.genes)
-
-combo <- NULL
-gc()
 
 combo.sce <- Seurat::as.SingleCellExperiment(activated_clusters)
 
 
-sum_by <- c("seurat_clusters", "sample_ID")
+sum_by <- c("sample_ID")
 
 
 summed <- scuttle::aggregateAcrossCells(combo.sce, id=SummarizedExperiment::colData(combo.sce)[,sum_by])
@@ -216,7 +212,7 @@ design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
 
 
 out <- scran::pseudoBulkDGE(summed, 
-                     label = summed$seurat_clusters,
+                     label = summed$cell_type,
                      # vector or factor of length equal to ncol(x), specifying the experimental condition for each column
                      col.data = metadata,
                      condition = summed$timepoint,
@@ -236,9 +232,10 @@ for(i in 1:length(unique(summed$seurat_clusters))){
   big_table <- rbind(big_table, new_entry)
 }
 
+big_table <- data.frame(out[[1]])
 big_table <- na.omit(big_table)
 
-sig_t6 <- subset(big_table, FDR<0.10 & abs(logFC))
+sig_t6 <- subset(big_table, FDR<0.10)
 
 
 big_plot <- Seurat::FeaturePlot(combo, unique(sig_t6[order(sig_t6$FDR),7])[1:16], split.by = "timepoint", order=TRUE, ncol = 4)&viridis::scale_color_viridis(option="B")
@@ -339,5 +336,94 @@ activated_clusters.markers <- FindAllMarkers(combo, only.pos = FALSE, min.pct = 
 top10_per_cluster <- data.frame(activated_clusters.markers %>%
                                   group_by(cluster) %>%
                                   slice_min(n = 10, order_by = p_val_adj))
+
+
+
+
+# pseudobulk on whole sample ####
+
+library(SingleCellExperiment)
+activated_clusters <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/final_activated_subset.h5Seurat")
+# activated_clusters <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/no_jackstraw_demulitplexerd_all_processed.h5Seurat")
+# combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/activated_subset.h5Seurat")
+
+#activated_clusters <- subset(combo,  seurat_clusters %in% c(6:9, 10:12))
+
+all.genes <- rownames(activated_clusters)
+
+
+combo.sce <- Seurat::as.SingleCellExperiment(activated_clusters)
+
+
+sum_by <- c("sample_ID")
+
+
+summed <- scuttle::aggregateAcrossCells(combo.sce, id=SummarizedExperiment::colData(combo.sce)[,sum_by])
+colnames(summed) <- apply(SummarizedExperiment::colData(summed)[,sum_by], 1, function(x)paste(x, collapse="_"))
+
+
+
+metadata <- read.csv("~/postdoc/scRNAseq/metadata/sce_metadata.csv", row.names = 1)
+
+design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
+
+summed$cell_type <- "CD4"
+
+first_summed <- CATALYST::filterSCE(summed, n_infection=="First")
+
+out <- scran::pseudoBulkDGE(first_summed, 
+                            label = first_summed$cell_type,
+                            # vector or factor of length equal to ncol(x), specifying the experimental condition for each column
+                            col.data = subset(metadata, n_infection=="First"),
+                            condition = first_summed$timepoint,
+                            # A formula to be used to construct a design matrix from variables in col.data
+                            design = ~timepoint+volunteer,
+                            # sig at t6 third infection
+                            contrast = matrix(c(0,1,0,0))
+)
+
+first_table <- data.frame(out[[1]])
+first_table <- na.omit(first_table)
+
+sig_first <- subset(first_table, FDR<0.1)
+
+sig_first_up <- subset(sig_first, logFC>0)
+sig_first_down <- subset(sig_first, logFC<0)
+
+
+write.table(rownames(sig_first_up), "~/postdoc/scRNAseq/final_analysis_and_figures/scran_de_first_up_genes.txt", sep = "\t", row.names = FALSE, col.names = FALSE, quote=FALSE)
+write.table(rownames(sig_first_down), "~/postdoc/scRNAseq/final_analysis_and_figures/scran_de_first_down_genes.txt", sep = "\t", row.names = FALSE, col.names = FALSE, quote=FALSE)
+
+
+
+third_summed <- CATALYST::filterSCE(summed, n_infection=="Third")
+
+
+out2 <- scran::pseudoBulkDGE(third_summed, 
+                            label = third_summed$cell_type,
+                            # vector or factor of length equal to ncol(x), specifying the experimental condition for each column
+                            col.data = subset(metadata, n_infection=="Third"),
+                            condition = third_summed$timepoint,
+                            # A formula to be used to construct a design matrix from variables in col.data
+                            design = ~timepoint+volunteer,
+                            # sig at t6 third infection
+                            contrast = matrix(c(0,1,0,0))
+                            #coef="timepointT6"
+)
+metadata(out2[[1]])$design
+
+third_table <- data.frame(out2[[1]])
+third_table <- na.omit(third_table)
+
+sig_third <- subset(third_table, FDR<0.20)
+
+# wiebke RNAseq
+
+first_memory_bulk <- data.table::fread("~/PhD/RNAseq/vac63c/04May2021_007_Memory_Post_Primary-Memory_Pre_Primary_genelist.csv")
+third_memory_bulk <- data.table::fread("~/PhD/RNAseq/vac63c/04May2021_009_Memory_Post_Tertiary-Memory_Pre_Tertiary_genelist.csv")
+
+
+sig_first_memory_bulk <- subset(first_memory_bulk, abs(log2FoldChange)>log2(2)&padj<0.1)
+sig_third_memory_bulk <- subset(third_memory_bulk, abs(log2FoldChange)>log2(2)&padj<0.1)
 
 

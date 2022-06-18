@@ -184,7 +184,9 @@ big_table$Cell <- gsub("lymphocytes", "Lymphocytes", big_table$Cell)
 big_lymph <- filter(big_table, Cell=="Lymphocytes")
 big_thromb <- filter(big_table, Cell=="Platelets")
 
-big_lymph <- filter(big_lymph, n_infection!="Third", timepoint %in% c("Baseline",  "Diagnosis", "T6"))
+#big_lymph <- filter(big_lymph, n_infection!="Third", timepoint %in% c("Baseline",  "Diagnosis", "T6"))
+
+big_lymph <- filter(big_lymph, n_infection!="Third")
 
 lymph_box_plot <- ggplot(big_lymph, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96")), y=Frequency*1e6))+
   #scale_color_manual(values=vac69_colours)+
@@ -213,7 +215,8 @@ lymph_box_plot <- lymph_box_plot + geom_segment(data=dat, aes(x=xmin, xend=xmax,
 
 
 
-ggsave("~/PhD/clinical_data/vac69c/figures/abcd_lymph_box.png", lymph_box_plot, height=5, width=5.5, bg="white")
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_lymph_box.png", lymph_box_plot, height=5.5, width=6.5, bg="white")
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_lymph_box.pdf", lymph_box_plot, height=5.5, width=6.5, bg="white")
 
 
 big_thromb <- filter(big_thromb, n_infection!="Third")
@@ -236,7 +239,9 @@ thromb_box_plot <- ggplot(big_thromb, aes(x=factor(timepoint, levels=c("Baseline
         strip.text = element_text(size=10))
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abcd_thromb_box.png", thromb_box_plot, height=5, width=6, bg="white")
-  
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_thromb_box.pdf", thromb_box_plot, height=5, width=6, bg="white")
+
+
 
 big_combo <- rbind(big_lymph, big_thromb)
 
@@ -386,7 +391,7 @@ vac69d_alt <- vac69d_quant_biochem %>%
 
 combo_alt <- rbind(vac69a_alt, vac69b_alt, vac69c_alt, vac69d_alt)
 
-combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "C7", "Diagnosis", "T1", "T3", "T6"))
+combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6"))
 
 combo_alt$sample_id <- paste(combo_alt$volunteer, combo_alt$n_infection, sep="_")
 
@@ -416,7 +421,7 @@ summary(mixed_model_tests) # first vs. second at T6; p=0.166
 summary(model)
 
 combo_alt <- filter(combo_alt, n_infection != "Third")
-combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "Diagnosis", "T6"))
+#combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "Diagnosis", "T6"))
 
 (abc_alt_line_plot <- ggplot(combo_alt, aes(x=factor(timepoint, levels=c("Baseline", "C7", "C14", "Diagnosis", "T1", "T3", "T6", "C56", "C96")), y=alt))+
   #geom_hline(yintercept = 35, color="orange", linetype="dotted")+
@@ -426,7 +431,9 @@ combo_alt <- filter(combo_alt, timepoint %in% c("Baseline", "Diagnosis", "T6"))
   scale_fill_manual(values=n_infection_palette)+
   #geom_line(aes(color=volunteer, group=sample_id), size=0.9)+
   geom_boxplot(aes(fill=n_infection), )+
-  #geom_point(aes(color=volunteer, group=n_infection),  position = position_dodge(width = 0.75), fill="white", stroke=1, shape=21, size=0.9)+
+  # geom_point(aes(color=volunteer, group=n_infection), 
+  #            #position = position_dodge(width = 0.75),
+  #            fill="white", stroke=1, shape=21, size=0.9)+
   theme_minimal()+
   scale_y_log10(limits=c(7,1000))+
   #facet_wrap(~n_infection, ncol=5)+
@@ -454,6 +461,7 @@ abc_alt_line_plot <- abc_alt_line_plot + geom_segment(data=dat, aes(x=xmin, xend
 
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abcd_alt_line_plot.png", abc_alt_line_plot, height=5.5, width=6.5, bg="white")
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_alt_line_plot.pdf", abc_alt_line_plot, height=5.5, width=6.5, bg="white")
 
 
 # longitudinal fever / symptoms ####
@@ -670,6 +678,7 @@ abc_fever_plot <- abc_fever_plot+
                binwidth = 0.03)
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abcd_fever.png", abc_fever_plot, height=5, width=4, bg="white")
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_fever.pdf", abc_fever_plot, height=5, width=4, bg="white")
 
 
 
@@ -808,7 +817,12 @@ pre_drug_parasitaemia$Timepoint <- gsub("am", "", pre_drug_parasitaemia$Timepoin
 parasitaemia_levels <- unique(gtools::mixedsort(pre_drug_parasitaemia$Timepoint))
 
 # bam
-vac69abcd_parasitaemia_plot <- ggplot(pre_drug_parasitaemia[!is.na(pre_drug_parasitaemia$Genomes),], aes(x=factor(Timepoint, levels=parasitaemia_levels), y=Genomes+1, group=sample_id))+
+
+# fix weird diagonal line by inventing a negative reading
+pre_drug_parasitaemia <-  rbind(pre_drug_parasitaemia, c("v07", "C6 pm", 0.1, "Second", "v07 Second", "12"))
+
+
+vac69abcd_parasitaemia_plot <- ggplot(pre_drug_parasitaemia[!is.na(pre_drug_parasitaemia$Genomes),], aes(x=factor(Timepoint, levels=parasitaemia_levels), y=as.numeric(Genomes)+1, group=sample_id))+
   geom_point(aes(color=n_infection))+
   geom_line(aes(color=n_infection))+
   scale_y_log10()+
@@ -825,4 +839,4 @@ vac69abcd_parasitaemia_plot <- ggplot(pre_drug_parasitaemia[!is.na(pre_drug_para
         axis.title = element_text(size=18))
 
 ggsave("~/PhD/clinical_data/vac69c/figures/abcd_parasitaemia.png", vac69abcd_parasitaemia_plot, height = 6, width = 8, bg="white", dpi=444)
-  
+ggsave("~/PhD/clinical_data/vac69c/figures/abcd_parasitaemia.pdf", vac69abcd_parasitaemia_plot, height = 6, width = 8, bg="white")
