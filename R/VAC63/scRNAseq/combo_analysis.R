@@ -149,10 +149,11 @@ cluster_phate <- DimPlot(combo, reduction = "phate")
 ggsave("~/postdoc/scRNAseq/combo_analysis_figures/cluster_phate.png", cluster_phate, height=3, width=5, bg="white")
 
 
-top20_per_cluster <- data.frame(combo.markers %>%
+top30_per_cluster <- data.frame(combo.markers %>%
                                   group_by(cluster) %>%
-                                  slice_min(n = 20, order_by = p_val_adj))
+                                  slice_min(n = 30, order_by = p_val_adj))
 
+write.csv(x = top30_per_cluster, file = "~/postdoc/scRNAseq/final_analysis_and_figures/top_30_genes_per_cluster.csv", quote = FALSE, row.names = FALSE)
 View(top20_per_cluster)
 
 
@@ -366,6 +367,8 @@ library(Libra)
 first_DE <- run_de(first, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type = "LRT", min_cells=10)
 sig_first_DE <- subset(first_DE, p_val_adj<0.1)
 dim(sig_first_DE)
+
+write.csv(sig_first_DE, "~/postdoc/scRNAseq/final_analysis_and_figures/sig_first_DE.csv", quote = FALSE, row.names = FALSE)
 #qlf: 94 genes, 99 gene-cluster_combos
 #lrt: 182 genes, 190 gene-cluster_combos
 
@@ -374,6 +377,7 @@ dim(sig_first_DE)
 third_DE <- run_de(third, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type="LRT")
 sig_third_DE <- subset(third_DE, p_val_adj<0.1)
 dim(sig_third_DE)
+write.csv(sig_third_DE, "~/postdoc/scRNAseq/final_analysis_and_figures/sig_third_DE.csv", quote = FALSE, row.names = FALSE)
 
-#qlf: 11 genes, 13 9gene-cluster_combos
+  #qlf: 11 genes, 13 9gene-cluster_combos
 #lrt: 27 genes, 30 gene-cluster_combos

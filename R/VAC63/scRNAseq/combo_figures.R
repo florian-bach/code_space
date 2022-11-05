@@ -1,7 +1,8 @@
 library(Seurat)
 
 
-combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/pseudotime_dimred_processed_combo20k.H5Seurat")
+#combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/pseudotime_dimred_processed_combo20k.H5Seurat")
+combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/final_analysis_and_figures/final_activated_subset.h5Seurat")
 
 # overview figures ####
 
@@ -127,6 +128,9 @@ combo <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/Seurat_Objects/pseudotime_
 # third <- subset(combo, subset = n_infection=="Third")
 
 
+activated_clusters <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/final_analysis_and_figures/final_activated_subset.h5Seurat")
+
+
 first <- subset(activated_clusters, subset = n_infection=="First")
 third <- subset(activated_clusters, subset = n_infection=="Third")
 
@@ -135,13 +139,19 @@ library(Libra)
 
 first_DE <- run_de(first, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type = "LRT")
 sig_first_DE <- subset(first_DE, p_val_adj<0.1)
+sig_first_DE$avg_logFC <- sig_first_DE$avg_logFC*-1
+write.csv(sig_first_DE, "~/postdoc/scRNAseq/final_analysis_and_figures/sig_first_DE.csv", quote = FALSE, row.names = FALSE)
+
 #qlf: 94 genes, 99 gene-cluster_combos
 #lrt: 182 genes, 190 gene-cluster_combos
 
 
 `%notin%` <- Negate(`%in%`)
-third_DE <- run_de(third, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type="QLF")
+third_DE <- run_de(third, cell_type_col = "seurat_clusters", label_col = c("timepoint"), replicate_col="volunteer", de_method = "edgeR", de_type="LRT")
 sig_third_DE <- subset(third_DE, p_val_adj<0.1)
+sig_third_DE$avg_logFC <- sig_third_DE$avg_logFC*-1
+write.csv(sig_third_DE, "~/postdoc/scRNAseq/final_analysis_and_figures/sig_third_DE.csv", quote = FALSE, row.names = FALSE)
+
 #qlf: 11 genes, 13 9gene-cluster_combos
 #lrt: 27 genes, 30 gene-cluster_combos
 
