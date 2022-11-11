@@ -1,0 +1,140 @@
+---
+title: "Phenotypic Heatmaps & Differential Abundance "
+author: "Florian Bach"
+date: "08/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE, results='hide',fig.keep='all'}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Phenotypic Heatmaps
+
+The CATALYST package comes with a function called `plotClusterHeatmap`. It's pretty good, but not the most beautiful and you can't easily customise it with info I wanted to add. So what I did is basically look at the source code of `plotClusterHeatmap`, grab what you need to make a heatmap and then you can manually add more layers as you please. The next couple chunks of code will look pretty dense but you don't really need to worry about that, there's just a couple of arguments you need to adapt to your needs based on what you've called your variables before. At first, we will define the functions we need, then we will run them.
+
+The first function I creatively (re)named `shplit_cells` basically splits your dataset into each cluster according to a user-defined clustering, so here you need to put "Meta40" or "Wiebke_merge3" or whatever it is you want.
+
+The second function was named after the sound you make when your code won't run for the 100th time, `ahgg`. This function take the output of `shplit_cells` and calculates summary statistics like median expression (the default) but it can also do mean and sum. It takes 3 arguments: the SCE you're working on, the attributes by which you want to aggregate cells to calculate medians, lastly the summary statistic, usually the median.
+
+```{r defining funs, echo=TRUE, message=FALSE,results='hide', warning=FALSE}
+
+library(CATALYST)
+library(purrr)
+library(data.table)
+library(reshape2)
+library(dplyr)
+library(ComplexHeatmap)
+
+
+shplit_cells <- function(x, by) {
+  stopifnot(is.character(by), by %in% colnames(colData(x)))
+  cd <- data.frame(colData(x))
+  cd$cluster_id <- cluster_ids(x, k="flo_merge")
+  dt <- data.table::data.table(cd, i = seq_len(ncol(x)))
+  dt_split <- split(dt, by = by, sorted = TRUE, flatten = FALSE)
+  purrr::map_depth(dt_split, length(by), "i")
+}
+
+
+ahgg <- function(x, by, fun = c("median", "mean", "sum")) {
+  fun <- switch(match.arg(fun),
+                median = rowMedians, mean = rowMeans, sum = rowSums)
+  cs <- shplit_cells(x, by)
+  pb <- purrr::map_depth(cs, -1, function(i) {
+    if (length(i) == 0) return(numeric(nrow(x)))
+    fun(assay(x, "exprs")[, i, drop = FALSE])
+  })
+  purrr::map_depth(pb, -2, function(u) as.matrix(data.frame(
+    u, row.names = rownames(x), check.names = FALSE)))
+}
+
+```
+
+Now that we've defined these functions and defined the clustering we want to use, we can calculate the matrix that will become the basis of our phenotypic heatmap. We will first subset our SCE to only include channels of interest that will be columns of our heatmap. What I do is I save the channels in a txt and then load that into my scripts, that way, if you ever change your mind about what channels you want to include, you can simply update that one file and all your scripts will automatically have the correct list, like magic.
+
+I would save the output of this chunk as a csv because it'll be much quicker to just load that file and change your heatmap code downstream, rather than caluclate everything again.
+
+```{r load shit, echo=FALSE}
+
+setwd("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+sce <- vac69a.cytof::read_full("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/")
+
+```
+
+
+```{r run funs, echo=TRUE}
+
+refined_markers <- read.csv("~/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/refined_markers.csv")$refined_markers
+
+ms <- ahgg(sce[refined_markers,], by = c("cluster_id", "timepoint"), fun="median")
+
+ms2 <- lapply(ms, function(x)data.frame(x))
+ms2 <- Map(cbind, ms2, cluster_id = names(ms))
+
+ms3 <- data.table::rbindlist(ms2)
+ms3[,Marker := unlist(lapply(ms2, rownames))]
+
+# here we pick the phenotype at T6 to display activated cells in all their glory
+ms3 <- select(ms3, T6, cluster_id, Marker)
+
+ms4 <- as.matrix(tidyr::spread(ms3, cluster_id, T6))
+
+rownames(ms4) <- ms4[,1]
+ms5 <- ms4[,2:ncol(ms4)]
+
+scaled_mat <- apply(apply(ms5, c(1,2), as.numeric), MARGIN = 1, function(x)scales::rescale(x, to=c(0, 1)))
+
+reordered_scaled_mat <- scaled_mat[,match(refined_markers, colnames(scaled_mat))]
+
+
+write.csv(scaled_mat, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped/T_cells_only/cluster_medians_prim_ter_T6.csv")
+
+
+
+
+```
+
+And here's how we make a basic but beautiful phenotypic heatmap. You can subset the matrix to only include specific channels or clusters, just like you would subset a dataframe.
+
+Adding annotations to the heatmap is not the most straightforward thing in the world- you kind of have to hard-code everything because it's all in base R. In a way that's better than ggplot because it's way more flexible and you can make some very bespoke heatmaps, but it's a bit rough if you're not familiar with it. There's lots of resources in the extensive documentation for ComplexHeatmap, so you can have a look there. If there's specific things you need I can help out, but writing up something better than the package mantainer has already provided would be quite a lot of work
+
+
+
+```{r pressure, echo=TRUE}
+
+
+# bussin color palette
+inferno <- colorspace::sequential_hcl("inferno", n=8)
+col_inferno <- circlize::colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)
+
+
+
+all_cluster_heatmap <- Heatmap(matrix = as.matrix(reordered_scaled_mat),
+                               #cluster_rows = FALSE,
+                               cluster_rows = TRUE,
+                               show_row_dend = TRUE,
+                               show_heatmap_legend = FALSE,
+                               name = "Median Marker Expression",
+                               cluster_columns = FALSE,
+                               row_names_side = "left",
+                               row_dend_side = "right",
+                               col = col_inferno,
+                               rect_gp = gpar(col = "white"),
+                               column_names_rot = 45
+)
+
+draw(all_cluster_heatmap)
+
+# to save a pdf
+# pdf("filepath/graphic_name.pdf", width=8, height=8)
+# draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
+# dev.off()
+
+
+# to save a png
+# png("filepath/graphic_name.png", width=8, height=8, units = "in", res=400)
+# draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
+# dev.off()
+```
+
