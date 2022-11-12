@@ -415,4 +415,4 @@ Heatmap(matrix = combo_matrix,
 
 ```
 
-<!-- Et voilà! Fancy heatmap achieved. -->
+Et voilà! Fancy heatmap achieved.
