@@ -2,7 +2,8 @@
 title: "Phenotypic Heatmaps & Differential Abundance "
 author: "Florian Bach"
 date: "08/11/2022"
-output: html_document
+fig_width: 11
+fig_height: 11
 ---
 
 ```{r setup, include=FALSE, results='hide',fig.keep='all'}
@@ -20,12 +21,19 @@ The second function was named after the sound you make when your code won't run 
 ```{r defining funs, echo=TRUE, message=FALSE,results='hide', warning=FALSE}
 
 library(CATALYST)
+library(diffcyt)
+library(SummarizedExperiment)
+
 library(purrr)
 library(data.table)
 library(reshape2)
 library(dplyr)
-library(ComplexHeatmap)
+library(tidyr)
+library(stringr)
 
+library(ComplexHeatmap)
+library(colorspace)
+library(ggplot2)
 
 shplit_cells <- function(x, by) {
   stopifnot(is.character(by), by %in% colnames(colData(x)))
@@ -97,15 +105,17 @@ write.csv(scaled_mat, "/home/flobuntu/PhD/cytof/vac63c/normalised_renamed_comped
 
 And here's how we make a basic but beautiful phenotypic heatmap. You can subset the matrix to only include specific channels or clusters, just like you would subset a dataframe.
 
-Adding annotations to the heatmap is not the most straightforward thing in the world- you kind of have to hard-code everything because it's all in base R. In a way that's better than ggplot because it's way more flexible and you can make some very bespoke heatmaps, but it's a bit rough if you're not familiar with it. There's lots of resources in the extensive documentation for ComplexHeatmap, so you can have a look there. If there's specific things you need I can help out, but writing up something better than the package mantainer has already provided would be quite a lot of work
+Adding annotations to the heatmap is not the most straightforward thing in the world- you kind of have to hard-code everything because it's all in base R. In a way that's better than ggplot because it's way more flexible and you can make some very bespoke heatmaps, but it's a bit rough if you're not familiar with it. There's lots of resources in the extensive documentation for ComplexHeatmap, so you can have a look there. If there's specific things you need I can help out, but writing up something better than the package mantainer has already provided would be quite a lot of work. That being said, in the differential heatmap section I've included code that I wrote in order to make the annotations, if you want to make exactly those (or very similar ones), it shouldn't be too hard to adapt.
 
 
 
 ```{r pressure, echo=TRUE}
 
 
-# bussin color palette
+# bussin color palette; ; you can play with the number of colors you choose here to change the palette slightly
 inferno <- colorspace::sequential_hcl("inferno", n=8)
+
+# ComplexHeatmap works best with colorpalettes made in the circlize package (written by the same guy); it basically makes a function that takes a numeric value as input and gives a colour hexcode as output
 col_inferno <- circlize::colorRamp2(seq(0,1, by=1/{length(inferno)-1}), inferno)
 
 
@@ -136,5 +146,273 @@ draw(all_cluster_heatmap)
 # png("filepath/graphic_name.png", width=8, height=8, units = "in", res=400)
 # draw(all_cluster_heatmap, padding = unit(c(2, 25, 2, 15), "mm"))
 # dev.off()
+
+```
+## Differential Abundance
+
+
+For differential abundance we are going to again rely on our trusty CATALYST package. They in term rely on diffcyt, a package developed in the same lab that incorporates a few flexible linear regression models with SingleCellExperiment. The syntax is a bit confusing if you're not used to using these, but for simple study designs they should be pretty straight forward. Stay away from the mixed effects model framework though, I reported a bug about this ages ago and they still haven' fixed it.
+
+First you need to make a dataframe that contains your experimental info, conditions, volunteers, timepoints, that kind of thing. From this we'll make a design matrix. Rows are samples, columns contain sample property levels. If a condition only has 2 levels (e.g. stim and no_stim) there will only be one column in your matrix. For every sample that's stimulated there will be a 1 and every sample that's not stimulated there will be a 0. For each additional level there will be one more column. This is what's called 'dummy coding'. To familiarise yourself with these tables, have a look at the design object. Here it may be useful to have manually set the levels of all relevant columns in your experimental info dataframe so that baseline comes before diagnosis and T6, for example. 
+
+To make a specific comparison (a contrast) we will communicate with diffcyt by giving it a vector of zeroes and ones that basically tell the algorithm which columns to consider. This approach can build linear models that can ask any question you want, provided you have the right samples. In a simple design like below, you basically set everything to 0 except the factor level you're interested in (in this case T6). Because I've ordered the levels of timepoint properly, this will create a comparison between T6 and baseline
+
+Then it's as simple as running diffcyt, giving it a couple more specifics and Bob's your uncle.
+
+
+```{r run diffcyt}
+
+# decide on what you'd consider significant
+FDR_cutoff <- 0.05
+
+# experimental info
+ei <- metadata(sce)$experiment_info
+
+# study design; include all columns that you are interested in as fixed effects
+design <- createDesignMatrix(ei, c("timepoint", "volunteer"))
+
+# have a look at the column names;
+colnames(design)
+
+# we see that T6 is the 4th column, and because we are interested in how frequencies change across all volunteers between baseline and T6 we'll set only that column to 1, everything else is 0
+pairwise_contrast_t6 <- createContrast(c(c(0, 0, 0, 1), rep(0,5)))
+
+da_t6 <- diffcyt(sce,
+                 design = design,
+                 contrast = pairwise_contrast_t6,
+                 analysis_type = "DA",
+                 method_DA = "diffcyt-DA-edgeR",
+                 clustering_to_use = "flo_merge",
+                 verbose = T)
+
+
+#extract results table
+da_t6_res <- data.frame(rowData(da_t6$res))
+
+#count number of significant clusters
+table(da_t6_res$p_adj < FDR_cutoff)
+
+# quick (ugly) heatmap to look at the results
+plotDiffHeatmap(x=sce, y=da_t6_res, fdr = FDR_cutoff, normalize = TRUE)
+
+# make a boxplot of diffcyt results
+# choose log2 fold change & FDR cutoff to choose which clusters to display (but for now I want to show all cluster frequencies)
+log_FC <- 0
+FDR_cutoff <- 1
+
+clusters_that_change <- da_t6_res %>%
+  filter(abs(logFC) > log_FC) %>%
+  filter(p_adj < FDR_cutoff) %>%
+  select(cluster_id)
+#pivot_longer(sig_results, cols=colnames(sig_results)[4:ncol(sig_results)], names_to = "sample_id", values_to = "count")
+
+
+# get table that contains cluster counts, subset so only significant clusters are in
+results_table <- data.frame(topTable(da_t6, all=TRUE, show_counts = TRUE))
+results_cut <- subset(results_table, results_table$cluster_id %in% clusters_that_change$cluster_id)
+  
+long_sig_results <- pivot_longer(results_cut, cols=colnames(results_cut)[4:ncol(results_cut)], names_to = "sample_id", values_to = "count")
+# for some reason that adds the word counts to the sample id, let's just get rid of that quickly
+long_sig_results$sample_id <- gsub("counts_", "", long_sig_results$sample_id)
+
+# in my data i can add volunteer and timepoint columns like this, depending on how you named them, your mileage may vary; i slice the sample name after the occurence of "v" followed by a number
+long_sig_results$volunteer <- str_match(long_sig_results$sample_id, "v[0-9]*")[, 1]
+# all volunteer names are 3 characters long plus an underscore so character 5 onwards contains the timepoint
+long_sig_results$timepoint <- substr(long_sig_results$sample_id, 5,nchar(long_sig_results$sample_id))
+  
+# get the overall cell counts to calculate percentages
+cell_counts <- n_cells(sce)
+long_sig_results$frequency <- long_sig_results$count / cell_counts[long_sig_results$sample_id] *100
+  
+  
+time_col <- sequential_hcl(5, palette = "Purple Yellow")
+  
+all_cluster_boxplot <- ggplot(long_sig_results, aes(x=factor(timepoint), y=frequency))+
+    geom_boxplot(aes(fill=timepoint), outlier.shape = NA)+
+    geom_point(aes(shape=volunteer))+
+    facet_wrap(~cluster_id, scales = "free", ncol=7, labeller=label_wrap_gen(width = 20))+
+    theme_minimal()+
+    scale_x_discrete(name = "Timepoint")+
+    scale_fill_manual(values = c("Baseline"=time_col[4], "C10"=time_col[3], "Diagnosis"=time_col[2], "T6"=time_col[1]))+
+    theme(axis.title = element_text(size=10),
+          legend.title = element_blank(),
+          axis.text.x = element_text(size=8, angle = 45, hjust = 1),
+          strip.text = element_text(size=9))
+  
+
+
+
+
+# save the file as a csv so we can edit the heatmap without running all this analysis again
+# write.csv(long_sig_results, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/all_t6_data.csv")
+
+# also save edgeR results table
+# write.csv(da_t6_res, "/home/flobuntu/PhD/cytof/vac69a/reprocessed/reprocessed_relabeled_comped/T_cells_only/da_t6_res.csv")
+
+```
+Lastly, to make beautiful differential abundance heatmaps we're taking a similar approach to earlier. So first we need to personally generate the data that goes into it. We're going to be displaying frequency z scores, so we'll have to transform the percentages we generated earlier. Then we convert that into a matrix, choose the clusters to display and could call it quits there for a simple z score heatmap. However, I've included a couple of sections for how to make different kinds of heatmap annotations to display fold change, p value, batch/timepoint information and all that. It's very wordy, but as far as I can see that's the way to make them, a lot of stuff is just hardcoded (and thus very flexible, but also very finicky).
+
+```{r making a heatmap}
+
+# make a transformer
+asinTransform <- function(x){asin(sqrt(x))}
+
+# apply transformer cluster-wise and then make z scores
+t6_map_data <- long_sig_results%>%
+  group_by(cluster_id) %>%
+  #group_by(volunteer) %>%
+  mutate(trans_freq=asin(sqrt(frequency/100))) %>%
+  mutate(max_freq=max(frequency)) %>%
+  mutate(trans_norm_freq=scale(trans_freq, center = TRUE, scale = TRUE)) %>%
+  ungroup()
+
+
+
+
+# construct matrix to be plotted in heatmap: order by timpoint all baseline samples, dod samples etc. are disaplyed next to each other later on; pivot wider so we have clusters along rows, samples along columns, values=trans_norm_freq
+hm_matrix <- as.data.frame(t6_map_data %>%
+                             arrange(timepoint)%>%
+                             select(cluster_id, sample_id, trans_norm_freq) %>%
+                             tidyr::pivot_wider(names_from = sample_id, values_from = trans_norm_freq))
+
+# add rownames (see why in next step)
+rownames(hm_matrix) <- hm_matrix$cluster_id
+
+# matrix can only contain numerical data
+hm_matrix <- select(hm_matrix, -cluster_id)
+
+# the diffcyt results table should be ordered by fold change, so we can grab its cluster ID column to sort our heatmap by fold change
+da_t6_res <- da_t6_res[order(da_t6_res$logFC, decreasing = TRUE),]
+cluster_levels <- da_t6_res$cluster_id
+hm_matrix <- as.matrix(hm_matrix[match(cluster_levels, rownames(hm_matrix)),])
+
+#truncate matrix values so that extreme values don't skew the colour palette to pale everything else
+hm_matrix <- ifelse(hm_matrix> 2.5, 2.5, hm_matrix)
+hm_matrix <- ifelse(hm_matrix < -2.5, -2.5, hm_matrix)
+extreme <- max(abs(range(hm_matrix)))
+
+# you have to do this, otherwise ComplexHeatmap will likely complain
+class(hm_matrix) <- "numeric"
+
+#bunch of some color palettes; the first is written so it interpolates between two colours for high and low fold changes and black around 0
+col_fun4 <- circlize::colorRamp2(c(min(hm_matrix), 0, max(hm_matrix)), c("#0859C6", "black", "#FFA500"))
+time_col <- colorspace::sequential_hcl(5, palette = "Purple Yellow")
+
+# slice matrix to display the 12 most up/down clusters or however many you want
+top_mat <- head(hm_matrix, n=12)
+bot_mat <- tail(hm_matrix, n=12)
+combo_matrix <- rbind(top_mat, bot_mat)
+
+# let's have a look at what we've made so far
+
+Heatmap(matrix = combo_matrix,
+        cluster_rows = FALSE,
+        name = "Normalised\nFrequency",
+        cluster_columns = FALSE,
+        row_names_side = "left",
+        column_names_gp = gpar(fontsize=10),
+        row_names_gp = gpar(fontsize=10),
+        col = col_fun4,
+        # this line splits the heatmap into up and down, uncomment if you want to
+        # row_split = factor(rep(c("up", "down"), each = 12), levels = c("up", "down")),
+        # if you dont want the labels on the side to indicate up and down, uncomment the next line also
+        # row_title = c("",""),
+        rect_gp = gpar(col = "white"),
+        show_heatmap_legend = TRUE,
+        column_names_rot = 45,
+        heatmap_legend_param = list(col = col_fun4, title = "Z-Score", title_position = "topleft")
+)
 ```
 
+So far so good! The heatmap looks nice and contains everything essential. If you want to add heatmap annotations, here's what I wrote to make the heatmap that we put into the vivax paper.
+
+```{r, heatmap anno, R.options = list(width=2000)}
+
+# make separate vectors for p_adj, significance, fold change etc for heatmap annotations
+
+# right annotation: display fold change between baseline and T6; grab highest and lowest values, exactly as often as we need
+p_adj <- c(head(da_t6_res$p_adj, n=nrow(top_mat)), tail(da_t6_res$p_adj, n=nrow(bot_mat)))
+log2_fc <- c(head(da_t6_res$logFC, n=nrow(top_mat)), tail(da_t6_res$logFC, n=nrow(bot_mat)))
+
+# left annotation: stats results
+significant <- ifelse((p_adj<0.05 & abs(log2_fc)>1), "<0.05", ">0.05")
+sig <- c("<0.05"="darkgreen", ">0.05"="lightgrey")
+
+#top annotation; hardcode volunteer colours as list
+Volunteer <- c("v02" = "#FB9A99","v03" = "#E31A1C","v05" = "#A6CEE3", "v06" = "#1F78B4", "v07" = "#F0E442", "v09" = "#E69F00")
+#hardcode timepoint colours as list
+Timepoint <- c("Baseline"=time_col[4], "C10"=time_col[3], "Diagnosis"=time_col[2], "T6"=time_col[1])
+#hardcode batch colours as list
+Batch <- c("batch_1"="lightgrey", "batch_2"="darkgrey")
+
+
+# make barplot annotation and include stylistic details
+combo_right_anno <-  rowAnnotation(gap = unit(2, "mm"),
+                                   "log2FC" = anno_barplot(log2_fc, which="row", axis = TRUE, ylim = c(-2, 6), axis_param = list(at=seq(-2, 6, by=2)),gp = gpar(fill = col_fun4(log2_fc))),
+                                   width = unit(3, "cm") # width of the line graph
+)
+
+# make left annotation and add stylistic details
+combo_left_anno_var <-  rowAnnotation(gap = unit(5, "mm"),
+                                      #annotation_name_gp = gpar(angle=45),
+                                      show_annotation_name = FALSE,
+                                      "FDR"=significant,
+                                      simple_anno_size = unit(2.5, "mm"), # width of the significance bar
+                                      col=list("FDR" = c("<0.05"="darkgreen", ">0.05"="lightgrey")),
+                                      annotation_legend_param = list(FDR = list(title ="FDR",
+                                                                                        at = rev(names(sig)),
+                                                                                        #title_gp=gpar(angle=45),
+                                                                                        legend_gp = gpar(fill = unname(sig)),
+                                                                                        title_position = "topleft")
+                                      )
+                                      
+)
+
+
+#annotation_name_gp = gpar(fontsize=10)
+# make top annotation which contains a bunch of info related to the samples, so there's a lot to be done manually
+combo_top_anno <- HeatmapAnnotation(gap = unit(2, "mm"), annotation_name_side = "left", annotation_name_gp = gpar(fontsize=10),
+                                    Volunteer = rep(levels(ei$volunteer), 4),
+                                    Timepoint = rep(levels(ei$timepoint), each=6),
+                                    Batch = rep(rep(levels(ei$batch), each=3), 4),
+                                    col=list(Batch = c("batch_1"="lightgrey", "batch_2"="darkgrey"),
+                                             Timepoint = c("Baseline"=time_col[4], "C10"=time_col[3], "Diagnosis"=time_col[2], "T6"=time_col[1]),
+                                             Volunteer = c("v02" = "#FB9A99","v03" = "#E31A1C","v05" = "#A6CEE3", "v06" = "#1F78B4", "v07" = "#F0E442", "v09" = "#E69F00")
+                                    ),
+                                    simple_anno_size = unit(2.5, "mm"),
+                                    annotation_legend_param = list(
+                                      Volunteer = list(title = "Volunteer", at = names(Volunteer), legend_gp = gpar(fill = unname(Volunteer)), title_position = "topleft"),
+                                      Timepoint = list(title ="Timepoint",at = names(Timepoint), legend_gp = gpar(fill = unname(Timepoint)), title_position = "topleft"),
+                                      Batch = list(title = "Batch", at = names(Batch), legend_gp = gpar(fill = unname(Batch)), title_position = "topleft")
+                                    )
+)
+
+
+# get rid of underscores in column names, change gamma delta cluster names
+colnames(combo_matrix) <- gsub("_", " ", colnames(combo_matrix))
+rownames(combo_matrix) <- gsub("gamma delta","gd", rownames(combo_matrix), fixed = T)  
+
+Heatmap(matrix = combo_matrix,
+                     cluster_rows = FALSE,
+                     name = "Normalised\nFrequency",
+                     cluster_columns = FALSE,
+                     row_names_side = "left",
+                     column_names_gp = gpar(fontsize=10),
+                     row_names_gp = gpar(fontsize=10),
+                     col = col_fun4,
+                     row_split = factor(rep(c("up", "down"), each = 12), levels = c("up", "down")),
+                     rect_gp = gpar(col = "white"),
+                     row_title = c("",""),
+                     top_annotation = combo_top_anno,
+                     right_annotation = combo_right_anno,
+                     left_annotation = combo_left_anno_var,
+                     show_heatmap_legend = TRUE,
+                     column_names_rot = 45,
+                     heatmap_legend_param = list(col = col_fun4, title = "Z-Score", title_position = "topleft")
+)
+
+
+
+```
+
+<!-- Et voilà! Fancy heatmap achieved. -->
