@@ -17,3 +17,9 @@
 *README.html
 *README_cache/
 #*README_files/
+# bad (large) file types
+*.html
+*.svg
+*.js
+*.css
+*.woff
