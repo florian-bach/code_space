@@ -6,7 +6,7 @@ library(patchwork)
 #counts NAs per column
 count_na <- function(x){table(is.na(x))}
 
-bc1<- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
+bc1 <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
 
 # make a dictionary of column names, their labels and codings
 data_labs <- lapply(bc1, function(x) attributes(x)$labels)
@@ -17,6 +17,7 @@ names(listy_data_labs) <- names(data_labs)
 ab_columns <- grep("log", colnames(bc1), value = TRUE)
 demo_columns <- c("id",
                   "wealthcat",
+                  "age",
                   "totalmalariapreg",
                   "anymalariapreg",
                   "gender",
@@ -28,7 +29,7 @@ demo_columns <- c("id",
                   "ChildFinalRx")
 
 slim_bc <- bc1 %>%
-  select(all_of(c(demo_columns, ab_columns)))
+  dplyr::select(c(demo_columns, ab_columns))
 
 
 # NAs are present. count them!
@@ -39,11 +40,11 @@ na_counts[,2] <- ifelse(na_counts[,1]==nrow(slim_bc), 0, na_counts[,2])
 
 # NAs mostly come from logGST(146) and logpd(448); get rid of those columns, NA.omit and let's roll
 slimmer_bc <- slim_bc %>%
-  select(-logpd, logGST) %>%
+  dplyr::select(-logpd, -logGST) %>%
   na.omit()
 
 big_pca <-  prcomp(slimmer_bc[,grep("log", colnames(slimmer_bc), value = TRUE)], center = T)
-pca_plot_data <- as.data.frame(cbind(slimmer_bc[, 1:length(demo_columns)], big_pca$x))
+pca_plot_data <- as.data.frame(cbind(slimmer_bc, big_pca$x))
 
 # pca loadings figure
 
@@ -99,11 +100,12 @@ wealthcat_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=factor(wealthcat
   ggtitle("Antibody Titre PCA")
 
   
-totalmalariapreg_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=factor(totalmalariapreg)))+
+totalmalariapreg_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=totalmalariapreg))+
     geom_point()+
     xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
     ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
     theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
     #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
     ggtitle("Antibody Titre PCA")
   
@@ -172,6 +174,16 @@ ChildFinalRx_plot <-  ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=factor(Child
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("Antibody Titre PCA")
+
+incident_malaria_plot <-  ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=incidentmalaria))+
+  geom_point()+
+  facet_wrap(~timepoint)+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B", direction = -1)+
   #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
   ggtitle("Antibody Titre PCA")
 
@@ -290,8 +302,142 @@ all_ab_plot3 <- ginormous_df %>%
 ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/all_ab_plot3.png", all_ab_plot3, height = 10, width=8, bg = "white")
 
 
-# plans ####
-# select rows where incident malaria episode occurred within ~30 days?
-# select rows where anyparasitaemia occurred within ~30 days
+# redo pca seperately for each timepoint ####
 
 
+
+list_of_dfs <- split(slimmer_bc, slimmer_bc$timepoint)
+
+list_of_pca <-  lapply(list_of_dfs, function(x) prcomp(x[,grep("log", colnames(x), value = TRUE)], center = T))
+
+list_of_plot_data <- lapply(1:3, function(y) as.data.frame(cbind(list_of_dfs[[y]], list_of_pca[[y]]$x)))
+
+
+t1 <- ggplot(list_of_plot_data[[1]], aes(x=PC1, y=PC2, color=logMSP1))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(list_of_pca[[1]])[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(list_of_pca[[1]])[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("T1")
+
+t2 <- ggplot(list_of_plot_data[[2]], aes(x=PC1, y=PC2, color=logMSP1))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(list_of_pca[[2]])[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(list_of_pca[[2]])[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("T2")
+
+t3 <- ggplot(list_of_plot_data[[3]], aes(x=PC1, y=PC2, color=logMSP1))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(list_of_pca[[3]])[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(list_of_pca[[3]])[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("T3")
+
+t1+t2+t3
+
+
+
+list_of_loadings_df <- lapply(list_of_pca, function(x) data.frame(x$rotation))
+
+list_of_pc123 <- lapply(1:3, function(x) cbind(rownames(list_of_loadings_df[[x]]),
+                                               list_of_loadings_df[[x]]$PC1,
+                                               list_of_loadings_df[[x]]$PC2,
+                                               list_of_loadings_df[[x]]$PC3,
+                                               rep(names(list_of_pca[x]), length(list_of_loadings_df[[x]]))))
+
+pc123 <- as.matrix(do.call(rbind, list_of_pc123))
+colnames(pc123) <- c("antibody", "PC1", "PC2", "PC3", "timepoint")
+
+class(pc123[,2:5]) <- "numeric"
+pc123 <- as.data.frame(pc123)
+
+
+pc123$PC1 <- as.numeric(pc123$PC1)
+pc123$PC2 <- as.numeric(pc123$PC2)
+pc123$PC3 <- as.numeric(pc123$PC3)
+
+ggplot(pc123, aes(x=tidytext::reorder_within(antibody, PC1, timepoint, mean), y=PC1, fill=antibody))+
+  geom_bar(stat = "identity")+
+  facet_wrap(~timepoint, scales = "free_x")+
+  scale_fill_manual(values = pc1_cols)+
+  theme_minimal()+
+  tidytext::scale_x_reordered()+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        legend.position = "none",
+        axis.text.y = element_blank())
+
+
+
+
+# recent malaria episodes ####
+
+bc1_all <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs all visit database.dta")
+
+#downsize df
+clinical_columns <- c("fever",
+                      "alt",
+                      "anymalaria",
+                      "parsdens",
+                      "fever",
+                      "febrile",
+                      "feverdur",
+                      "wbc",
+                      "wbcgrade",
+                      "neutro",
+                      "neutrograde",
+                      "plt",
+                      "pltgrade")
+demo_columns2 <- c("id",
+                  "date",
+                  "ageyrs")
+
+slim_bc1_all <- bc1_all %>%
+  select(all_of(c(demo_columns2, clinical_columns)))
+
+
+malaria_episodes <- slim_bc1_all %>%
+  filter(anymalaria==1) %>%
+  select(id, date, ageyrs)
+
+tp1 <- slimmer_bc %>%
+  filter(timepoint==1)%>%
+  select(id, date)
+
+tp2 <- slimmer_bc %>%
+  filter(timepoint==2)%>%
+  select(id, date)
+
+tp3 <- slimmer_bc %>%
+  filter(timepoint==3)%>%
+  select(id, date)
+
+malaria_episodes$time_to_tp1 <- malaria_episodes$date-tp1$date[match(malaria_episodes$id, tp1$id)]
+malaria_episodes$time_to_tp2 <- malaria_episodes$date-tp2$date[match(malaria_episodes$id, tp2$id)]
+malaria_episodes$time_to_tp3 <- malaria_episodes$date-tp3$date[match(malaria_episodes$id, tp3$id)]
+
+malaria_episodes_near_sample_dates <- malaria_episodes %>%
+  filter(between(as.numeric(time_to_tp3), -60, 0))
+
+# 
+# tp1_boolean <- as.numeric(malaria_episodes$time_to_tp1) < 0 & as.numeric(malaria_episodes$time_to_tp1) > -30
+# tp2_boolean <- as.numeric(malaria_episodes$time_to_tp2) < 0 & as.numeric(malaria_episodes$time_to_tp2) > -30
+# tp3_boolean <- as.numeric(malaria_episodes$time_to_tp3) < 0 & as.numeric(malaria_episodes$time_to_tp3) > -30
+# 
+# tp1_boolean <- ifelse(is.na(tp1_boolean), FALSE, tp1_boolean)
+# tp2_boolean <- ifelse(is.na(tp2_boolean), FALSE, tp2_boolean)
+# tp3_boolean <- ifelse(is.na(tp3_boolean), FALSE, tp3_boolean)
+# 
+#  malaria_episodes_near_sample_dates <- malaria_episodes %>%
+#                                         filter(between(as.numeric(time_to_tp3), -60, 0))
+
+                                        
+ # plans ####
+ # select rows where anyparasitaemia occurred within ~30 days

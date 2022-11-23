@@ -6,7 +6,7 @@ theme: robobook
 width: 10
 editor: visual
 wrap: auto
-fig-format: svg
+fig-format: png
 fig-align: "left"
 code-fold: true
 ---
@@ -71,9 +71,10 @@ kids_with_complicated_malaria <- unique(subset(promote_data, promote_data$compli
 # select relevant columns, recode disease columns to something human-readable
 smaller_data <- promote_data %>%
     select(id, date, dob, age, temp, hb, uniqueid, incidentmalaria, complicatedmalaria, severe, parsdens) %>%
-  mutate(complicatedmalaria=ifelse(is.na(complicatedmalaria), "mild", "complicated")) %>%
+  mutate(complicatedmalaria=ifelse(is.na(complicatedmalaria), "uncomplicated", "complicated")) %>%
   mutate(severe=ifelse(is.na(severe), "non_severe", "severe")) %>%
-  mutate(incidentmalaria=ifelse(is.na(incidentmalaria), "not_incident", "incident")) 
+  mutate(incidentmalaria=ifelse(is.na(incidentmalaria), "not_incident", "incident")) %>%
+  mutate(age_cat=ifelse(age>0.5, "under_six_months", "over_six_months"))
   
 # look at only incident episodes; split data by individual, make column indicating the total number of infections for each kid;
 # add column for order of infection, add single column for disease status
@@ -84,7 +85,7 @@ complicated_data <- smaller_data %>%
   arrange(age) %>%
   mutate(n_infection = seq(1, max(total_n_infection))) %>%
   mutate(disease=ifelse(severe=="severe", "severe",
-                        ifelse(complicatedmalaria=="complicated", "complicated", "mild")),
+                        ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")),
         comp_num=ifelse(complicatedmalaria=="complicated", 1, 0)
     )
 
@@ -97,7 +98,7 @@ total_infections <- complicated_data %>%
 complicated_df <- as.data.frame(table(complicated_data$n_infection, complicated_data$complicatedmalaria))
 colnames(complicated_df) <- c("n_infection", "disease", "complicated_episodes")
 
-# only include complicated (not mild) cases, inlcude more summary stats
+# only include complicated (not uncomplicated) cases, inlcude more summary stats
 complicated_df <- subset(complicated_df, complicated_df$disease=="complicated")
 complicated_df$total_infections <- total_infections$total_infections
 complicated_df$risk <- complicated_df$complicated_episodes/complicated_df$total_infections
@@ -107,7 +108,7 @@ complicated_df$n_infection <- as.numeric(complicated_df$n_infection)
 
 ## Model Selection
 
-As a start, I decided to use a binomial regression model.
+As a start, I decided to use a straight-forward binomial regression model.
 
 ```{r}
 #| label: binomial model
@@ -147,20 +148,21 @@ bino_model_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))+
 plot(bino_model_plot)
 ```
 
-The model doesn't fit very well, looks weird and has a huge range of error toward higher orders of infection. In hindsight this is not surprising because the relationship between order of infection and risk of complicated malaria is not very linear. Time to inspect model properties.
+The model doesn't fit very well, looks weird and has a huge range of error toward higher orders of infection. In hindsight this is not surprising because the relationship between order of infection and risk of complicated malaria is not very linear. Since the data looks vaguely quadratic, I decided to include a quadratic term for n_infection.
 
 ```{r}
 #| fig-cap: "Residuals vs. fitted values for binomial model"
 #| fig-width: 7
 #| fig-height: 7
 #| warning: false
+#| echo: false
+#| include: false
 # look at model fit
-plot(comp_model, which = 1)
+
+
+# The model doesn't fit very well, looks weird and has a huge range of error toward higher orders of infection. In hindsight this is not surprising because the relationship between order of infection and risk of complicated malaria is not very linear. Time to inspect model properties.
+# plot(comp_model, which = 1)
 ```
-
-The model also looks heteroskedastic, i.e. the variance around the fit is uneven across our independent variable, further explaining why it doesn't perform very well.
-
-Since the data looks vaguely quadratic, I decided to include a quadratic term for n_infection.
 
 ```{r}
 #| fig-cap: "Quadratic linear regression model for complicated malaria"
@@ -186,39 +188,87 @@ ggplot(complicated_df, aes(x=n_infection, y=risk))+
   xlab("Order of Infection")
 ```
 
-The shape of the data is much better approximated by this model, both the linear and quadratic coefficients for n_infection are significant. This model is also pretty homoskedastic, though model fit is worse at high order of infection, which makes sense, because we have relatively little data here.
+The shape of the data is much better approximated by this model, both the linear and quadratic coefficients for n_infection are significant. Model error is much wider at high orders of infection, which makes sense, because we have relatively little data here, as shown in the plots below.
+
+```{r}
+#| fig-cap: "Number of Complicated Episodes at nth Infection"
+#| layout-ncol: 2
+#| warning: false
+
+side_by_side_theme <- theme(axis.text = element_text(size = 20),
+        axis.title = element_text(size = 22))
+
+complicated_data %>%
+  group_by(n_infection)%>%
+  summarise(count = sum(comp_num)) %>%
+  ggplot(aes(x=n_infection, y=count))+
+  geom_bar(stat="identity", fill="darkred")+
+  theme_minimal()+
+  ylab("# of Complicated Episodes")+
+  scale_x_continuous(breaks = 1:10)+
+  side_by_side_theme+
+  xlab("Order of Infection")
+
+complicated_data %>%
+  group_by(n_infection)%>%
+  summarise(count = n()) %>%
+  ggplot(aes(x=n_infection, y=count))+
+  geom_bar(stat="identity", fill="darkblue")+
+  theme_minimal()+
+  ylab("# of Total Episodes")+
+  scale_x_continuous(breaks = 1:10)+
+  side_by_side_theme+
+  xlab("Order of Infection")
+
+
+# complicated_data %>%
+#     group_by(total_n_infection)%>%
+#     summarise(count = n()) %>%
+#     ggplot(aes(x=total_n_infection, y=count))+
+#     geom_bar(stat="identity", fill="darkblue")+
+#     theme_minimal()+
+#     ylab("Number of Children with N infections")+
+#     scale_x_continuous(breaks = 1:10)+
+#     xlab("Total # of Infections Recorded for Child")
+
+```
+
+```{r}
+#| fig-cap: "Number of uncomplicated / Complicated Episodes for each individual"
+#| fig-width: 7
+#| fig-height: 4.2
+#| warning: false
+
+
+complicated_data %>%
+  group_by(id, complicatedmalaria) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(color=factor(complicatedmalaria), x=id, y=count))+
+  geom_point()+
+  #geom_dotplot(binaxis = "y", stackdir = "centerwhole", dotsize = 0.1)+
+  facet_wrap(~complicatedmalaria)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  scale_color_manual(values = c("darkred", "#FC6A03"))+
+  scale_y_continuous(breaks = 1:10)
+
+```
+
+So 3 kids have complicated malaria twice, and 2 have it thrice. Lots of kids with multiple uncomplicated infections, up to 10!
 
 ```{r}
 #| fig-cap: "Residuals vs. fitted values for quadratic binomial model"
 #| fig-width: 7
 #| fig-height: 7
 #| warning: false
+#| include: false
 # look at model fit
 plot(comp_model2, which = 1)
 ```
 
-Next, I was curious to explore that relationship using individual level data. First, let's look at how many episodes were recorded for how many children.
-
-```{r}
-
-#| fig-cap: "Observations of N infections"
-#| fig-width: 7
-#| fig-height: 4.2
-#| warning: false
-
-complicated_data %>%
-  group_by(total_n_infection)%>%
-  summarise(count = n()) %>%
-  ggplot(aes(x=total_n_infection, y=count))+
-  geom_bar(stat="identity", fill="red")+
-  theme_minimal()+
-  ylab("Number of Children with N infections")+
-  scale_x_continuous(breaks = 1:10)+
-  xlab("Total # of Infections Recorded for Child")
-
-```
-
-There's actually a lot of kids with quite a few repeat measurements, so including a random effect for id seems appropriate.
+Next, I was curious to explore that relationship using individual level data. I included `id` as a random effect because there's a lot of variability in how many measurements are available for each kid.
 
 ```{r}
 #| fig-cap: "Logistic regression of complicated malaria risk"
@@ -232,9 +282,9 @@ indie_disease_model <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+(1|id), 
 
 indie_disease_model_fun <- function(x){
   exp(
-    (coef(indie_disease_model)$id[1,1])+
+    mean(coef(indie_disease_model)$id[,1])+
     (coef(indie_disease_model)$id[1,2])*x+
-    (coef(indie_disease_model)$id[1,3])*x^2
+    (coef(indie_disease_model)$id[1,3])*(x^2)
   )
   }
 
@@ -250,12 +300,11 @@ ggplot(complicated_df, aes(x=n_infection, y=risk))+
 
 ```
 
-Model looks good!
+Model looks good! The curve I'm plotting is showing the linear combination of coefficients with the mean intercept of `id`.
 
-Now we can see whether the relationship between order of infection and the risk of severe malaria holds up when we include important covariates such as age and parasitaemia.
+Now we can see whether the relationship between order of infection and the risk of severe malaria holds up when we include important covariates such as age (continuous or categorical, i.e. over and under six months of age) and parasitaemia.
 
 ```{r}
-#| fig-cap: "Logistic regression with common covariates"
 #| fig-width: 9
 #| fig-height: 4.2
 #| warning: false
@@ -264,44 +313,94 @@ indie_disease_model <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+(1|id), 
 
 indie_disease_model2 <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+age+(1|id), data=complicated_data, family = "binomial")
 
+indie_disease_model2a <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+age_cat+(1|id), data=complicated_data, family = "binomial")
+
+indie_disease_model2b <-lme4::glmer(comp_num~n_infection*age+I(n_infection^2)+(1|id), data=complicated_data, family = "binomial")
+
+indie_disease_model2c <-lme4::glmer(comp_num~n_infection*age_cat+I(n_infection^2)+(1|id), data=complicated_data, family = "binomial")
+
+
+
 indie_disease_model3 <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+log10(parsdens)+(1|id), data=complicated_data, family = "binomial")
 
-indie_disease_model4 <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+log10(parsdens)+age+(1|id), data=complicated_data, family = "binomial")
+indie_disease_model4<-lme4::glmer(comp_num~n_infection+I(n_infection^2)+age+log10(parsdens)+(1|id), data=complicated_data, family = "binomial")
 
-model_results_df <- data.frame("formula"=as.character(lapply(c(indie_disease_model, indie_disease_model2, indie_disease_model3, indie_disease_model4), function(x) x@call$formula)))
+indie_disease_model4a <-lme4::glmer(comp_num~n_infection+I(n_infection^2)+age_cat+log10(parsdens)+(1|id), data=complicated_data, family = "binomial")
 
-model_results_df <- cbind(model_results_df, AIC(indie_disease_model, indie_disease_model2, indie_disease_model3, indie_disease_model4))
+indie_disease_model4b <-lme4::glmer(comp_num~n_infection*age+I(n_infection^2)+log10(parsdens)+(1|id), data=complicated_data, family = "binomial")
+
+indie_disease_model4c <-lme4::glmer(comp_num~n_infection*age_cat+I(n_infection^2)+log10(parsdens)+(1|id), data=complicated_data, family = "binomial")
+
+list_of_models <- c(indie_disease_model, indie_disease_model2, indie_disease_model2a, indie_disease_model2b, indie_disease_model2c, indie_disease_model3, indie_disease_model4, indie_disease_model4a, indie_disease_model4b, indie_disease_model4c)
+
+model_results_df <- data.frame("formula"=as.character(lapply(list_of_models, function(x) x@call$formula)))
+
+model_results_df["coefs"] <- as.numeric(lapply(list_of_models, function(x) ncol(coef(x)$id)-1))
+
+model_results_df["AIC"] <- as.numeric(lapply(list_of_models, function(x) AIC(x)))
 
 knitr::kable(model_results_df, row.names = FALSE)%>%
   kableExtra::kable_styling(font_size = 16)
 
 ```
 
-A $\Delta$AIC of 4 is often used to "justify" the inclusion of a model parameter. In isolation neither age nor log10 parasitaemia improved model fit significantly. Both together provided a little more explanatory power, without overfitting too much. In all cases, n_infection remained a significant coefficient. The overall variance explained in the model increased from 29% to 32%, with about half of that driven by fixed effects. That in itself is quite an interesting observation I think, that individual identity remains a highly significant contributor to complicated malaria risk, even when incorporating age and parasitaemia.
+A $\Delta~AIC < -4$ is often used to "justify" the inclusion of a model parameter. In isolation neither age nor log10 parasitaemia improved model fit significantly, though higher parasitaemia and higher age were both significantly associated with complicated malaria. I'm not yet convinced the p value for age is trustworthy because there's an obvious correlation with n_infection, but this shouldn't matter for goodness of fit metrics like AIC.
+
+Adding age and parasitaemia together provided a little more explanatory power, without overfitting too much. Interestingly, including an interaction between n_infection and age did not significantly improve model fit. This suggests that age during infection does not impact the "shape" of the relationship between order of infection and complicated malaria risk. Instead, older age is associated with a higher risk generally, but we would predict a similar peak and rapid decline with increasing order of infection.
+
+In all cases, n_infection remained a significant coefficient. The overall variance explained in the model increased from 29% to 32%, with about half of that driven by fixed effects. That in itself is quite an interesting observation I think, that individual identity remains a highly significant contributor to complicated malaria risk, even when incorporating age and parasitaemia.
+
+```{r}
+#| fig-cap: "Age distributions of mild and complicated cases"
+#| fig-width: 7
+#| fig-height: 4.2
+#| warning: false
+
+ggplot(data=complicated_data, aes(y=age,
+                                  x=complicatedmalaria,
+                                  group=complicatedmalaria,
+                                  fill=complicatedmalaria))+
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  theme_minimal()+
+  scale_fill_manual(values = c("darkred", "#FC6A03"))+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+```
 
 ```{r}
 #| fig-cap: Number of otal malaria episodes at each order of infection (including quadratic regression line)
 #| fig-width: 7
 #| fig-height: 4.2
+#| include: false
 #| warning: false
 
 
+indie_disease_model_fun <- function(x){
+  exp(
+    (coef(indie_disease_model)$id[1,1])+
+    (coef(indie_disease_model)$id[1,2])*x+
+    (coef(indie_disease_model)$id[1,3])*x^2
+  )
+  }
+
 indie_disease_model4_fun <- function(x){
   exp(
-    (coef(indie_disease_model4)$id[1,1])+
-      (coef(indie_disease_model4)$id[1,2]*x)+
-      (coef(indie_disease_model4)$id[1,3]*(x^2))+
-      (coef(indie_disease_model4)$id[1,4]*log10(x)+
-      (coef(indie_disease_model4)$id[1,5]*x))
+      (coef(indie_disease_model4)$id[1,1])+
+      (coef(indie_disease_model4)$id[1,2])*x+
+      (coef(indie_disease_model4)$id[1,3])*(x^2)+
+      #(coef(indie_disease_model4)$id[1,4])*max(log10(complicated_data$parsdens))+
+      (coef(indie_disease_model4)$id[1,5])*max(complicated_data$age)
   )
 }
 
-indie_disease_model3_fun <- function(x){
+indie_disease_model4_fun2 <- function(x){
   exp(
-    (coef(indie_disease_model3)$id[1,1])+
-      (coef(indie_disease_model3)$id[1,2]*x)+
-      (coef(indie_disease_model3)$id[1,3]*(x^2))+
-      (coef(indie_disease_model3)$id[1,4]*log10(x))
+      (coef(indie_disease_model4)$id[1,1])+
+      (coef(indie_disease_model4)$id[1,2])*x+
+      (coef(indie_disease_model4)$id[1,3])*(x^2)+
+      #(coef(indie_disease_model4)$id[1,4])*min(log10(complicated_data$parsdens))+
+      (coef(indie_disease_model4)$id[1,5])*min(complicated_data$age)
   )
 }
 
@@ -311,10 +410,32 @@ ggplot()+
   geom_point(data=complicated_df, aes(x=n_infection, y=risk), color="red")+
   theme_minimal()+
   geom_function(fun = indie_disease_model_fun, color="black")+
-  geom_function(fun=indie_disease_model3_fun, color="blue")+
+  geom_function(fun = indie_disease_model4_fun, color="red")+
+  geom_function(fun = indie_disease_model4_fun2, color="blue")+
   scale_x_continuous(breaks = seq(1,10), limits = c(1,10))+
   ylab("Risk of Complicated Episodes")+
   xlab("Order of Infection")
 
 
+```
+
+```{r}
+#| include: false
+#| warning: false
+#| eval: false
+library(mediation)
+
+complicated_data$n_infection2 <- complicated_data$n_infection^2
+
+outcome_model <- lme4::glmer(comp_num~n_infection+n_infection2+age+(1|id), data=complicated_data, family = "binomial")
+
+age_mediator <- lme4::lmer(age~n_infection+n_infection2+(1|id), data=complicated_data)
+
+# 
+# outcome_model <- glm(comp_num~n_infection+n_infection2+age+id, data=complicated_data, family = "binomial")
+# 
+# age_mediator <- lm(age~n_infection+n_infection2+id, data=complicated_data)
+
+
+med_out <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = "n_infection")
 ```
