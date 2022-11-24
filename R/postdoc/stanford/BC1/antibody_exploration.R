@@ -2,6 +2,8 @@
 
 library(dplyr)
 library(patchwork)
+library(tidyr)
+library(ggplot2)
 
 #counts NAs per column
 count_na <- function(x){table(is.na(x))}
@@ -43,10 +45,12 @@ slimmer_bc <- slim_bc %>%
   dplyr::select(-logpd, -logGST) %>%
   na.omit()
 
+
+# all data PCA ####
+
 big_pca <-  prcomp(slimmer_bc[,grep("log", colnames(slimmer_bc), value = TRUE)], center = T)
 pca_plot_data <- as.data.frame(cbind(slimmer_bc, big_pca$x))
 
-# pca loadings figure
 
 loadings_df <- data.frame(big_pca$rotation)
 loadings_df$antibody <- rownames(loadings_df)
@@ -188,16 +192,121 @@ incident_malaria_plot <-  ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=incident
   ggtitle("Antibody Titre PCA")
 
 
+# redo pca seperately for each timepoint ####
 
-#long format baby
+
+
+list_of_dfs <- split(slimmer_bc, slimmer_bc$timepoint)
+
+list_of_pca <-  lapply(list_of_dfs, function(x) prcomp(x[,grep("log", colnames(x), value = TRUE)], center = T))
+
+list_of_plot_data <- lapply(1:3, function(y) as.data.frame(cbind(list_of_dfs[[y]], list_of_pca[[y]]$x)))
+
+
+t1 <- ggplot(list_of_plot_data[[1]], aes(x=PC1, y=PC2, color=logMSP1))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(list_of_pca[[1]])[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(list_of_pca[[1]])[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("T1")
+
+t2 <- ggplot(list_of_plot_data[[2]], aes(x=PC1, y=PC2, color=logMSP1))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(list_of_pca[[2]])[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(list_of_pca[[2]])[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("T2")
+
+t3 <- ggplot(list_of_plot_data[[3]], aes(x=PC1, y=PC2, color=logMSP1))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(list_of_pca[[3]])[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(list_of_pca[[3]])[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("T3")
+
+t1+t2+t3
+
+
+
+list_of_loadings_df <- lapply(list_of_pca, function(x) data.frame(x$rotation))
+
+list_of_pc123 <- lapply(1:3, function(x) cbind(rownames(list_of_loadings_df[[x]]),
+                                               list_of_loadings_df[[x]]$PC1,
+                                               list_of_loadings_df[[x]]$PC2,
+                                               list_of_loadings_df[[x]]$PC3,
+                                               rep(names(list_of_pca[x]), length(list_of_loadings_df[[x]]))))
+
+pc123 <- as.matrix(do.call(rbind, list_of_pc123))
+colnames(pc123) <- c("antibody", "PC1", "PC2", "PC3", "timepoint")
+
+class(pc123[,2:5]) <- "numeric"
+pc123 <- as.data.frame(pc123)
+
+
+pc123$PC1 <- as.numeric(pc123$PC1)
+pc123$PC2 <- as.numeric(pc123$PC2)
+pc123$PC3 <- as.numeric(pc123$PC3)
+
+ggplot(pc123, aes(x=tidytext::reorder_within(antibody, PC1, timepoint, mean), y=PC1, fill=antibody))+
+  geom_bar(stat = "identity")+
+  facet_wrap(~timepoint, scales = "free_x")+
+  scale_fill_manual(values = pc1_cols)+
+  theme_minimal()+
+  tidytext::scale_x_reordered()+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        legend.position = "none",
+        axis.text.y = element_blank())
+
+
+
+# data vis ####  
+
+# LOOK at the data
+
+# how many kids; 189
+# n_distinct(bc1$id)
+
+# how many timepoint sof each
+# 1   2   3 
+# 178 183 179 
+# table(bc1$timepoint)
+
+# how many full timecourses
+# 1   2   3 
+# 6 15 168 
+bc1 %>%
+  group_by(id)%>%
+  summarise("n_time"=n()) %>%
+  count(n_time)
+
+kids_with_complete_timecourses <- bc1 %>%
+  group_by(id)%>%
+  summarise("n_time"=n()) %>%
+  filter(n_time==3)%>%
+  select(id)
+
+# long format baby
 ginormous_df <- slimmer_bc %>%
   mutate(timepoint=ifelse(timepoint==1, "1st", ifelse(timepoint==2, "2nd", "3rd"))) %>%
   pivot_longer(cols = (length(demo_columns)+1):ncol(slimmer_bc), names_to = "antibody", values_to = "log_conc") %>%
   group_by(antibody)
 
-# data vis ####  
+# age at timepoint
 
-# LOOK at the data
+ggplot(slimmer_bc, aes(x=timepoint, y=age, group=factor(id), color=factor(id)))+
+  geom_point()+
+  geom_line()+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
 
 all_ab_plot <- ggplot(ginormous_df, aes(x=timepoint, y=10^(log_conc)))+
   facet_wrap(~antibody, scales = "free")+
@@ -237,6 +346,9 @@ ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/all_ab_p
 # longitudinal models ####
 
 # split big dataframe into 22 dataframes, one for each antibody
+
+ginormous_df <- subset(ginormous_df, ginormous_df$id %in% kids_with_complete_timecourses$id)
+
 list_of_dfs <- split(ginormous_df, ginormous_df$antibody)
 
 # run a model for each with id as random effect
@@ -394,7 +506,9 @@ clinical_columns <- c("fever",
                       "neutro",
                       "neutrograde",
                       "plt",
-                      "pltgrade")
+                      "pltgrade",
+                      "MSPinfectiondich",
+                      "MPinfectiondich")
 demo_columns2 <- c("id",
                   "date",
                   "ageyrs")

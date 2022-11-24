@@ -11,6 +11,7 @@ fig-align: "left"
 code-fold: true
 ---
 
+
 ## Intro
 
 Modelling the incidence of complicated and severe malaria using the 2014 Gonçalves *et al.* NEJM dataset revealed that the risk of both severe and complicated malaria decreased over time. The reduction of the risk of complicated malaria was best fit by an exponential decay, whereas for severe malaria exponential and linear decay were comparable. In contrast to the original authors, both risks decreased over time, suggesting the acquisition of protection of some kind. To test whether this relationship holds true in the Promote dataset I tested a couple of linear regression models.
@@ -18,6 +19,7 @@ Modelling the incidence of complicated and severe malaria using the 2014 Gonçal
 ## Data Generation
 
 Only look at only incident episodes; split data by individual, count number of episodes for each child. Once this is known, the order of infection can be calculated easily based on the child's age at each episode. The number of complicated episodes at first infections divided by the total number of first infections thus gives a probability we can model as the order infection increases. This is what worked best in the Gonçalves dataset.
+
 
 ```{r}
 #| label: load libraries & functions
@@ -106,9 +108,11 @@ complicated_df$n_infection <- as.numeric(complicated_df$n_infection)
 
 ```
 
+
 ## Model Selection
 
 As a start, I decided to use a straight-forward binomial regression model.
+
 
 ```{r}
 #| label: binomial model
@@ -148,7 +152,9 @@ bino_model_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))+
 plot(bino_model_plot)
 ```
 
+
 The model doesn't fit very well, looks weird and has a huge range of error toward higher orders of infection. In hindsight this is not surprising because the relationship between order of infection and risk of complicated malaria is not very linear. Since the data looks vaguely quadratic, I decided to include a quadratic term for n_infection.
+
 
 ```{r}
 #| fig-cap: "Residuals vs. fitted values for binomial model"
@@ -188,7 +194,9 @@ ggplot(complicated_df, aes(x=n_infection, y=risk))+
   xlab("Order of Infection")
 ```
 
+
 The shape of the data is much better approximated by this model, both the linear and quadratic coefficients for n_infection are significant. Model error is much wider at high orders of infection, which makes sense, because we have relatively little data here, as shown in the plots below.
+
 
 ```{r}
 #| fig-cap: "Number of Complicated Episodes at nth Infection"
@@ -256,7 +264,9 @@ complicated_data %>%
 
 ```
 
+
 So 3 kids have complicated malaria twice, and 2 have it thrice. Lots of kids with multiple uncomplicated infections, up to 10!
+
 
 ```{r}
 #| fig-cap: "Residuals vs. fitted values for quadratic binomial model"
@@ -268,7 +278,9 @@ So 3 kids have complicated malaria twice, and 2 have it thrice. Lots of kids wit
 plot(comp_model2, which = 1)
 ```
 
+
 Next, I was curious to explore that relationship using individual level data. I included `id` as a random effect because there's a lot of variability in how many measurements are available for each kid.
+
 
 ```{r}
 #| fig-cap: "Logistic regression of complicated malaria risk"
@@ -300,9 +312,11 @@ ggplot(complicated_df, aes(x=n_infection, y=risk))+
 
 ```
 
+
 Model looks good! The curve I'm plotting is showing the linear combination of coefficients with the mean intercept of `id`.
 
 Now we can see whether the relationship between order of infection and the risk of severe malaria holds up when we include important covariates such as age (continuous or categorical, i.e. over and under six months of age) and parasitaemia.
+
 
 ```{r}
 #| fig-width: 9
@@ -344,11 +358,13 @@ knitr::kable(model_results_df, row.names = FALSE)%>%
 
 ```
 
+
 A $\Delta~AIC < -4$ is often used to "justify" the inclusion of a model parameter. In isolation neither age nor log10 parasitaemia improved model fit significantly, though higher parasitaemia and higher age were both significantly associated with complicated malaria. I'm not yet convinced the p value for age is trustworthy because there's an obvious correlation with n_infection, but this shouldn't matter for goodness of fit metrics like AIC.
 
 Adding age and parasitaemia together provided a little more explanatory power, without overfitting too much. Interestingly, including an interaction between n_infection and age did not significantly improve model fit. This suggests that age during infection does not impact the "shape" of the relationship between order of infection and complicated malaria risk. Instead, older age is associated with a higher risk generally, but we would predict a similar peak and rapid decline with increasing order of infection.
 
 In all cases, n_infection remained a significant coefficient. The overall variance explained in the model increased from 29% to 32%, with about half of that driven by fixed effects. That in itself is quite an interesting observation I think, that individual identity remains a highly significant contributor to complicated malaria risk, even when incorporating age and parasitaemia.
+
 
 ```{r}
 #| fig-cap: "Age distributions of mild and complicated cases"
@@ -439,3 +455,4 @@ age_mediator <- lme4::lmer(age~n_infection+n_infection2+(1|id), data=complicated
 
 med_out <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = "n_infection")
 ```
+
