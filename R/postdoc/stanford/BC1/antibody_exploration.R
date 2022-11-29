@@ -1,14 +1,36 @@
 # preamble & read in data ###
 
+#palettes
+time_palette <- colorspace::sequential_hcl(n=4, "RdPu")[1:3]
+pc1_cols <- colorspace::sequential_hcl(21, palette = "Purple Yellow")
+
+#libraries 
 library(dplyr)
 library(patchwork)
 library(tidyr)
 library(ggplot2)
+library(purrr)
+
+# functions
 
 #counts NAs per column
 count_na <- function(x){table(is.na(x))}
+# mode finder
+mode_finder <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
 
+#data
 bc1 <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
+
+bc1$age <- bc1$date -bc1$dob
+
+kids_with_complete_timecourses <- bc1 %>%
+  group_by(id)%>%
+  summarise("n_time"=n()) %>%
+  filter(n_time==3)%>%
+  select(id)
 
 # make a dictionary of column names, their labels and codings
 data_labs <- lapply(bc1, function(x) attributes(x)$labels)
@@ -95,6 +117,17 @@ ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=factor(timepoint)))+
   ggtitle("Antibody Titre PCA")
 
 # other PCAs ####
+age_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=as.numeric(age)/365))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  viridis::scale_color_viridis(option="B")+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("Antibody Titre PCA")
+
+
+
 wealthcat_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=factor(wealthcat)))+
   geom_point()+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
@@ -345,40 +378,53 @@ ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/all_ab_p
 
 # longitudinal models ####
 
-# split big dataframe into 22 dataframes, one for each antibody
-
-ginormous_df <- subset(ginormous_df, ginormous_df$id %in% kids_with_complete_timecourses$id)
-
-list_of_dfs <- split(ginormous_df, ginormous_df$antibody)
-
-# run a model for each with id as random effect
-list_of_models <- lapply(list_of_dfs, function(x) lmer(log_conc~timepoint+(1|id), data=x))
+ginormous_df <- slimmer_bc %>%
+  mutate(timepoint=ifelse(timepoint==1, "1st", ifelse(timepoint==2, "2nd", "3rd"))) %>%
+  pivot_longer(cols = (length(demo_columns)+1):ncol(slimmer_bc), names_to = "antibody", values_to = "log_conc") %>%
+  group_by(antibody)
 
 # define conrtrasts
 sec_contrast <- t(matrix(c(0,1,0)))
 ter_contrast <- t(matrix(c(0,0,1)))
 sec_ter_contrast <- t(matrix(c(0,-1,1)))
 
-list_of_tests <- lapply(list_of_models, function(x) multcomp::glht(x, sec_ter_contrast))
-list_of_pvalues <- sapply(list_of_tests, function(x) summary(x)$test$pvalues)
-#
-#
-list_of_adj_pvalues <- sort(p.adjust(list_of_pvalues, method = "fdr"))
+# brave new world purrrlicious way of doing it:
+# make grouped df, nest into one, add column for model & summary, extract values from each to create even more new columns for p values and p_adj values
+purrrf <- ginormous_df %>%
+  group_by(antibody) %>%
+  nest() %>%
+  mutate(model=map(data, ~lmer(log_conc~timepoint+(1|id), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(t2_t1=map(model, ~multcomp::glht(., sec_contrast)),
+         t2_t1_p=map_dbl(t2_t1, ~summary(.)$test$pvalues),
+         t2_t1_p_adj=map_dbl(t2_t1_p, ~p.adjust(.))) %>%
+  mutate(t3_t1=map(model, ~multcomp::glht(., ter_contrast)),
+         t3_t1_p=map_dbl(t3_t1, ~summary(.)$test$pvalues),
+         t3_t1_p_adj=map_dbl(t3_t1_p, ~p.adjust(.))) %>%
+  mutate(t3_t2=map(model, ~multcomp::glht(., sec_ter_contrast)),
+         t3_t2_p=map_dbl(t3_t2, ~summary(.)$test$pvalues),
+         t3_t2_p_adj=map_dbl(t3_t2_p, ~p.adjust(.)))
 
-table(list_of_adj_pvalues<0.05) #all sic at 2nd and 3rd relative to first; 12/22 from 2nd to 3rd
-sig_2_3_abs <- subset(list_of_adj_pvalues, list_of_adj_pvalues<0.05)
+#make results table that includes the coef & p_adj values for the sec_ter_contrast
+results_table <- purrrf %>%
+  mutate(coef=map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
+  select(antibody, coef, t3_t2_p_adj) %>%
+  ungroup()
 
-# make results table
-list_of_coefficients <- lapply(list_of_models, function(x)coef(x)$id[1,])
-coefficient_df <- do.call(rbind,list_of_coefficients)
-coefficient_df$ab <- rownames(coefficient_df)
-coefficient_df$raw_p <- list_of_pvalues[coefficient_df$ab]
-coefficient_df$p_adj <- list_of_adj_pvalues[coefficient_df$ab]
+# more tidy content; doesn't have p values though
+# alternative_results_table <- purrrf %>%
+#   mutate(tidy = map(model, broom.mixed::tidy)) %>%
+#   select(antibody, tidy)%>%
+#   unnest(tidy)
+
+sig_2_3_abs <- results_table %>%
+  filter(t3_t2_p_adj<0.05) %>%
+  select(antibody)
 
 
 # vis modelling results
 sig_2_3_ab <- ginormous_df %>%
-  filter(antibody %in% names(sig_2_3_abs)) %>% 
+  filter(antibody %in% sig_2_3_abs$antibody) %>% 
   ggplot(., aes(x=timepoint, y=10^(log_conc)))+
   facet_wrap(~antibody, scales = "free")+
   geom_violin(aes(fill=antibody), draw_quantiles = c(0.25, 0.5, 0.75))+
@@ -487,7 +533,69 @@ ggplot(pc123, aes(x=tidytext::reorder_within(antibody, PC1, timepoint, mean), y=
         axis.text.y = element_blank())
 
 
+#predicting MSP1 Ab levels ####
+long_demo_df <- ginormous_df %>%
+  filter(antibody=="logMSP1")
 
+#nah
+wealth_mod <- lmer(log_conc~wealthcat+timepoint+(1|id), data=long_demo_df)
+gender_mod <- lmer(log_conc~gender+timepoint+(1|id), data=long_demo_df)
+totalmalariapreg_mod <- lmer(log_conc~totalmalariapreg+timepoint+(1|id), data=long_demo_df)
+anyparasitemia_mod <- lmer(log_conc~anyparasitemia+timepoint+(1|id), data=long_demo_df)
+nonmalariafebrile_mod <- lmer(log_conc~nonmalariafebrile+timepoint+(1|id), data=long_demo_df)
+
+#maybe 
+gestage_mod <- lmer(log_conc~gestage+timepoint+(1|id), data=long_demo_df)
+
+ggplot(long_demo_df, aes(x=gestage, y=log_conc, color=as.factor(timepoint)))+
+  geom_point()+
+  scale_color_manual(values=time_palette)+
+  theme_minimal()
+
+
+#  but wait there's a something fishy happening; plot histograms per antibody and timepoint
+ab_time_conc_histo <- ggplot(ginormous_df, aes(x=10^log_conc, fill=antibody))+
+  facet_grid(antibody~timepoint)+
+  geom_histogram(bins = 40)+
+  scale_fill_manual(values=pc1_cols)+
+  scale_x_continuous(trans="log10", breaks = 10^seq(-12, 3, by=3))+
+  theme_minimal()+
+  theme(legend.position = "none",
+        strip.text = element_text(size=16),
+        axis.text.x = element_text(angle=90, hjust=1),
+        axis.text = element_text(size=12),
+        strip.text.y = element_text(angle = 0)
+        )
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/ab_time_conc_histo.png",ab_time_conc_histo, bg="white", width=9, height=16)
+
+
+# make a table-ish heatmap of the mode for each antibody-timepoint combination
+ab_nest <- ginormous_df %>%
+  select(antibody, timepoint, log_conc) %>%
+  group_by(antibody, timepoint) %>%
+  nest() %>%
+  group_by(antibody, timepoint)%>%
+  summarise(mode= map_dbl(data, ~mode_finder(.$log_conc)),
+            min = map_dbl(data, ~min(.$log_conc)),
+            max = map_dbl(data, ~max(.$log_conc))) %>%
+  mutate(is_weird=ifelse(round(mode, digits = 6)==-2.892790, "yep", "nope"))
+#select(antibody, timepoint, mode) #%>%
+# pivot_wider(names_from = "timepoint", values_from = "mode", names_glue = "{timepoint}_{.value}")
+
+
+ab_mode_heatmap <- ggplot(ab_nest, aes(x=timepoint, y=antibody, label=round(mode, digits = 4)))+
+  geom_tile(fill="white")+
+  geom_text(aes(color=is_weird))+
+  scale_fill_viridis_c(option = "B")+
+  scale_color_manual(values=c("black", "red"))+
+  theme_minimal()+
+  scale_x_discrete(position = "top") +
+  theme(axis.title = element_blank(),
+        axis.text = element_text(size=12),
+        legend.position = "none")
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/ab_mode_heatmap.png", ab_mode_heatmap, width=4, height=8, bg="white")
 
 # recent malaria episodes ####
 
@@ -539,6 +647,35 @@ malaria_episodes$time_to_tp3 <- malaria_episodes$date-tp3$date[match(malaria_epi
 
 malaria_episodes_near_sample_dates <- malaria_episodes %>%
   filter(between(as.numeric(time_to_tp3), -60, 0))
+
+# garbage / sandbox
+
+
+# base r making of models, testing and results tables
+# split big dataframe into 22 dataframes, one for each antibody
+
+# ginormous_df <- subset(ginormous_df, ginormous_df$id %in% kids_with_complete_timecourses$id)
+
+# list_of_dfs <- split(ginormous_df, ginormous_df$antibody)
+
+# run a model for each with id as random effect
+# list_of_models <- lapply(list_of_dfs, function(x) lmer(log_conc~timepoint+(1|id), data=x))
+
+# list_of_tests <- lapply(list_of_models, function(x) multcomp::glht(x, sec_ter_contrast))
+# list_of_pvalues <- sapply(list_of_tests, function(x) summary(x)$test$pvalues)
+# #
+# #
+# list_of_adj_pvalues <- sort(p.adjust(list_of_pvalues, method = "fdr"))
+# 
+# table(list_of_adj_pvalues<0.05) #all sic at 2nd and 3rd relative to first; 12/22 from 2nd to 3rd
+# sig_2_3_abs <- subset(list_of_adj_pvalues, list_of_adj_pvalues<0.05)
+# 
+# # make results table
+# list_of_coefficients <- lapply(list_of_models, function(x)coef(x)$id[1,])
+# coefficient_df <- do.call(rbind,list_of_coefficients)
+# coefficient_df$ab <- rownames(coefficient_df)
+# coefficient_df$raw_p <- list_of_pvalues[coefficient_df$ab]
+# coefficient_df$p_adj <- list_of_adj_pvalues[coefficient_df$ab]
 
 # 
 # tp1_boolean <- as.numeric(malaria_episodes$time_to_tp1) < 0 & as.numeric(malaria_episodes$time_to_tp1) > -30
