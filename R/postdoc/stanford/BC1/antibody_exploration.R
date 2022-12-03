@@ -2,7 +2,7 @@
 
 #palettes
 time_palette <- colorspace::sequential_hcl(n=4, "RdPu")[1:3]
-pc1_cols <- colorspace::sequential_hcl(21, palette = "Purple Yellow")
+pc1_cols <- colorspace::sequential_hcl(23, palette = "Purple Yellow")
 
 #libraries 
 library(dplyr)
@@ -690,5 +690,46 @@ malaria_episodes_near_sample_dates <- malaria_episodes %>%
 #                                         filter(between(as.numeric(time_to_tp3), -60, 0))
 
                                         
- # plans ####
- # select rows where anyparasitaemia occurred within ~30 days
+# reducing data to be within reference range ####
+
+
+#subset data to include ID, timepoint, all antigens, flags and concentrations
+raw_data <- bc1[,c(1,67:132, 155)]
+
+#shove all antigens in their own column, same for flags and concentrations
+raw_conc_data <- raw_data %>%
+  pivot_longer(cols = colnames(raw_data)[seq(3, 66, by=3)], values_to = "conc")%>%
+  dplyr::select(conc)
+
+raw_flag_data <- raw_data%>%
+  pivot_longer(cols = colnames(raw_data)[seq(4, 67, by=3)], values_to = "flag")%>%
+  dplyr::select(flag)
+
+long_raw_df <- raw_data %>%
+  pivot_longer(cols = colnames(raw_data)[seq(2, 65, by=3)], values_to = "antigen") %>%
+  dplyr::select(id, timepoint, antigen)%>%
+  mutate(conc=raw_conc_data$conc, flag=raw_flag_data$flag)
+
+
+# AboveMaxStd        AboveUpperbound Above_fitted_asymptote            BelowMinStd 
+# 1                      2                      3                      4
+
+flag_dist <- long_raw_df %>%
+  count(antigen, flag) %>%
+  pivot_wider(names_from = flag, values_from = n, names_prefix = "F") %>%
+  group_by(antigen)%>%
+  mutate(any_flag = sum(F1,F2,F3,F4, na.rm = TRUE))%>%
+  mutate(any_flag_perc= any_flag/sum(any_flag, FNA))
+
+flag_dist$antigen <- factor(flag_dist$antigen, levels=c(flag_dist$antigen[order(flag_dist$any_flag_perc, decreasing = TRUE)]))
+ 
+ggplot(flag_dist, aes(x=antigen, y=any_flag_perc, fill=antigen))+
+  geom_bar(stat="identity")+
+  theme_minimal()+
+  ylab("% of readings with Flag")+
+  scale_fill_manual(values = pc1_cols)+
+  theme(axis.title.x = element_blank(),
+        axis.text = element_text(size=12),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        legend.position = "none")
+  

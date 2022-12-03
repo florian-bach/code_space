@@ -187,7 +187,9 @@ smaller_data <- promote_data %>%
   mutate(severe=ifelse(is.na(severe), "non_severe", "severe")) %>%
   mutate(incidentmalaria=ifelse(is.na(incidentmalaria), "not_incident", "incident")) %>%
   mutate(age_cat=ifelse(age>0.5, "under_six_months", "over_six_months"))%>%
+  mutate(age_cat_num=ifelse(age>0.5, 0, 1))%>%
   mutate(age_months= round(age*12, digits = 0))
+  
 
 # look at only incident episodes; split data by individual, make column indicating the total number of infections for each kid;
 # add column for order of infection, add single column for disease status
@@ -220,9 +222,16 @@ complicated_df$n_infection <- as.numeric(complicated_df$n_infection)
 
 complicated_data$n_infection2 <- complicated_data$n_infection^2
 
-outcome_model <- lme4::glmer(comp_num~n_infection+n_infection2+age+(1|id), data=complicated_data, family = "binomial")
+outcome_model <- lme4::glmer(comp_num~n_infection+n_infection2+age_cat_num+(1|id), data=complicated_data, family = "binomial")
+age_mediator <- lme4::glmer(age_cat_num~n_infection+n_infection2+(1|id), data=complicated_data, family = "binomial")
 
-age_mediator <- lme4::lmer(age~n_infection+n_infection2+(1|id), data=complicated_data)
+med_out <- mediate(age_mediator, outcome_model, treat="age_cat_num", mediator = "n_infection", robustSE = TRUE, sims = 1000, group.out = "age_cat_num")
+
+
+outcome_model <- lme4::glmer(comp_num~n_infection*+age_cat_num+(1|id), data=complicated_data, family = "binomial")
+age_mediator <- lme4::glmer(age_cat_num~n_infection+n_infection2+(1|id), data=complicated_data, family = "binomial")
+
+med_out <- mediate(age_mediator, outcome_model, treat="age_cat_num", mediator = "n_infection", sims = 1000, group.out = NULL)
 
 
 med_out2 <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = NULL, control.value = 1, treat.value = 2)
@@ -244,53 +253,56 @@ complicated_data %>%
   theme(legend.title = element_blank(),
         axis.text.x = element_blank())
 
-complicated_data %>%
-  facet_wrap(~age_months)+
-  ggplot(., aes(x=age, y=complicatedmalaria, group=factor(complicatedmalaria, levels = c("uncomplicated", "complicated")), fill=complicatedmalaria))+
-  geom_boxplot()+
-  scale_fill_manual(values = c("uncomplicated"="#FC6A03",
-                               "complicated"="darkred"))+
-  theme_minimal()+
-  theme(legend.title = element_blank(),
-        axis.text.x = element_blank())
-
-
-outcome_model <- lme4::glmer(comp_num~age_months+(1|id), data=complicated_data, family = "binomial")
-
-
-
-modelz <- complicated_data %>%
-  filter(n_infection<7)%>%
-  group_by(n_infection)%>%
-  nest()%>%
-  mutate(model=purrr::map(data, ~glm(comp_num~age, data=., family = "binomial")))%>%
-  mutate(summary=purrr::map(model, ~summary(.)))
-
-
-comp_ages <- complicated_data %>%
-  filter(n_infection %in% 1:3, comp_num==1)%>%
-  dplyr::select(age)
-
-mild_ages <- complicated_data %>%
-  filter(n_infection %in% 1:3, comp_num==0)%>%
-  dplyr::select(age)
-
-t.test(comp_ages$age, mild_ages$age)
-
-
-complicated_data %>%
+# calculate total number of observations for 1st, 2nd infection and so on
+total_infections_by_age <- complicated_data %>%
   group_by(age_months) %>%
-  mutate(risk_at_month = mean(comp_num))%>%
-  ungroup() %>%
-  ggplot(.,  aes(x=age_months, y=comp_num, group=age_months))+
-  geom_point()+
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), color="blue")+
-  theme_minimal()
+  count(name = "total_infections")
+
+
+complicated_df_age <- as.data.frame(table(complicated_data$age_months, complicated_data$complicatedmalaria))
+colnames(complicated_df_age) <- c("age_months", "disease", "complicated_episodes")
+
+# only include complicated (not uncomplicated) cases, inlcude more summary stats
+complicated_df_age <- subset(complicated_df_age, complicated_df_age$disease=="complicated")
+complicated_df_age$total_infections <- total_infections_by_age$total_infections
+complicated_df_age$risk <- complicated_df_age$complicated_episodes/complicated_df_age$total_infections
+
+
+
+ggplot(complicated_df_age, aes(x=as.numeric(age_months), y=risk))+
+  geom_point(color="red")+
+  theme_minimal()+
+  # geom_ribbon(data=prd, aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+  #             alpha = 0.2, inherit.aes = FALSE)+
+  # geom_function(fun = comp_model_fun, colour="black")+
+  ylab("Risk of Complicated Episodes")+
+  geom_smooth(method="glm", color="black")+
+  # scale_x_continuous(breaks = 1:10)+
+  #scale_y_continuous(limits = c(0,0.2))+
+  xlab("Age (months)")
 
 
 
 
-ggplot(complicated_data,  aes(x=age_months, y=comp_num, ))+
-  geom_point()+
-  geom_smooth(formula = y~x)+
-  theme_minimal()
+complicated_data$is_first <- ifelse(complicated_data$n_infection==1, 1, 0)
+
+age_at_fist_glm <- complicated_data%>%
+  lme4::glmer(comp_num ~ n_infection+I(n_infection^2)+age_cat+is_first+log(parsdens)+(1|id), family = "binomial", data=.)
+
+
+#Intercept) n_infection I(n_infection^2) age_catover_six_months log(parsdens)
+age_cat_contrast <- t(matrix(c(0,0,0,1,1,0)))
+age_cat_test <- multcomp::glht(age_at_fist_glm, linfct = age_cat_contrast)
+summary(age_cat_test)
+
+
+age_at_fist_glm2 <- complicated_data%>%
+  lme4::glmer(comp_num ~ age_cat+is_first+log(parsdens)+(1|id), family = "binomial", data=.)
+
+#(Intercept) age_catover_six_months   is_first log(parsdens)
+age_cat_contrast2 <- t(matrix(c(0,1,0,0)))
+age_cat_test2 <- multcomp::glht(age_at_fist_glm2, linfct = age_cat_contrast2)
+summary(age_cat_test2)
+
+
+visreg(age_at_fist_glm, xvar="n_infection", by="age_cat", trans=exp)
