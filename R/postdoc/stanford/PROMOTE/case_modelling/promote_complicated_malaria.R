@@ -19,6 +19,10 @@ model_visualiser <- function(model=NULL, xvar=NULL){
 }
 
 
+side_by_side_theme <- theme(axis.text = element_text(size = 20),
+                            axis.title = element_text(size = 22))
+
+
 # data generation ####
 promote_data <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL.dta")
 
@@ -70,15 +74,15 @@ complicated_df$n_infection <- as.numeric(complicated_df$n_infection)
 
 complicated_df$n_infection_squared <- complicated_df$n_infection^2
 # binomial regression
-comp_model <- glm(risk~n_infection, family = "binomial", weights = total_infections, data = complicated_df)
+comp_model <- glm(risk~n_infection+I(n_infection^2), family = "binomial", weights = total_infections, data = complicated_df)
 # weighted linear regression with quadratic term
-comp_model2 <- lm(risk~n_infection+I(n_infection^2), data = complicated_df, weights = total_infections)
-summary(comp_model2)
-
-visreg::visreg(comp_model2, ylab="risk")
 
 #save model as function for plotting
-comp_model_fun <- function(x){exp(comp_model$coefficients[1])*exp(comp_model$coefficients[2])^x}
+comp_model_fun2 <- function(x){
+  exp(comp_model2$coefficients[1])*
+    exp(comp_model2$coefficients[2])^x*
+    exp(comp_model2$coefficients[3])^x^2}
+
 
 
 #calculate SE for plotting
@@ -92,7 +96,7 @@ prd$uci <- err$fit + 1.96 * err$se.fit
 
 
 ggplot(complicated_df, aes(x=n_infection, y=risk))+
-  geom_point(color="red")+
+  geom_point(color="darkred")+
   theme_minimal()+
   geom_ribbon(data=prd, aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
@@ -120,7 +124,7 @@ severe_model <- glm(risk~n_infection, family = "binomial", weights = total_infec
 
 ggplot(complicated_data, aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
   geom_violin()+
-  geom_point(color="red", aes(alpha=complicatedmalaria))+
+  geom_point(color="darkred", aes(alpha=complicatedmalaria))+
   theme_minimal()+
   ylab("Parasites /  μL")+
   scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
@@ -158,7 +162,7 @@ disease_model <-glm(comp_num~age, data=complicated_data, family = "binomial")
 disease_model_fun <- function(x){exp(disease_model$coefficients[1])*exp(disease_model$coefficients[2])^x}
 
 ggplot(complicated_data, aes(x=age, y=comp_num))+
-  geom_point(color="red")+
+  geom_point(color="darkred")+
   theme_minimal()+
   geom_ribbon(data=model_visualiser(disease_model, "age"), aes(x=age, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
@@ -199,6 +203,7 @@ complicated_data <- smaller_data %>%
   add_count(name="total_n_infection") %>%
   arrange(age) %>%
   mutate(n_infection = seq(1, max(total_n_infection))) %>%
+  mutate(age_at_first=age[n_infection==1])%>%
   mutate(disease=ifelse(severe=="severe", "severe",
                         ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")),
          comp_num=ifelse(complicatedmalaria=="complicated", 1, 0)
@@ -220,25 +225,33 @@ complicated_df$risk <- complicated_df$complicated_episodes/complicated_df$total_
 complicated_df$n_infection <- as.numeric(complicated_df$n_infection)
 
 
-complicated_data$n_infection2 <- complicated_data$n_infection^2
+comp_model <- glm(risk~n_infection+I(n_infection^2), family = "binomial", weights = total_infections, data = complicated_df)
+# weighted linear regression with quadratic term
 
-outcome_model <- lme4::glmer(comp_num~n_infection+n_infection2+age_cat_num+(1|id), data=complicated_data, family = "binomial")
-age_mediator <- lme4::glmer(age_cat_num~n_infection+n_infection2+(1|id), data=complicated_data, family = "binomial")
-
-med_out <- mediate(age_mediator, outcome_model, treat="age_cat_num", mediator = "n_infection", robustSE = TRUE, sims = 1000, group.out = "age_cat_num")
-
-
-outcome_model <- lme4::glmer(comp_num~n_infection*+age_cat_num+(1|id), data=complicated_data, family = "binomial")
-age_mediator <- lme4::glmer(age_cat_num~n_infection+n_infection2+(1|id), data=complicated_data, family = "binomial")
-
-med_out <- mediate(age_mediator, outcome_model, treat="age_cat_num", mediator = "n_infection", sims = 1000, group.out = NULL)
+#save model as function for plotting
+comp_model_fun <- function(x){
+  exp(comp_model$coefficients[1])*
+    exp(comp_model$coefficients[2])^x*
+    exp(comp_model$coefficients[3])^x^2}
 
 
-med_out2 <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = NULL, control.value = 1, treat.value = 2)
-med_out3 <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = NULL, control.value = 1, treat.value = 3)
-med_out4 <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = NULL, control.value = 1, treat.value = 4)
-med_out5 <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = NULL, control.value = 1, treat.value = 5)
-med_out6 <- mediate(age_mediator, outcome_model, treat="n_infection", mediator = "age", robustSE = TRUE, sims = 1000, group.out = NULL, control.value = 1, treat.value = 6)
+
+#calculate SE for plotting
+
+comp_risk_n_infection_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  geom_ribbon(data=model_visualiser(comp_model, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_function(fun = comp_model_fun, colour="black")+
+  ylab("Risk of Complicated Malaria")+
+  geom_text(aes(y=0.19, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  scale_x_continuous(breaks = 1:10)+
+  scale_y_continuous(limits = c(0,0.2), labels = scales::label_percent())+
+  xlab("Order of Infection")
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/comp_risk_n_infection.png", comp_risk_n_infection_plot, height = 3, width=5, dpi=444, bg="white")
+
 
 
 
@@ -254,6 +267,7 @@ complicated_data %>%
         axis.text.x = element_blank())
 
 # calculate total number of observations for 1st, 2nd infection and so on
+
 total_infections_by_age <- complicated_data %>%
   group_by(age_months) %>%
   count(name = "total_infections")
@@ -270,7 +284,7 @@ complicated_df_age$risk <- complicated_df_age$complicated_episodes/complicated_d
 
 
 ggplot(complicated_df_age, aes(x=as.numeric(age_months), y=risk))+
-  geom_point(color="red")+
+  geom_point(color="darkred")+
   theme_minimal()+
   # geom_ribbon(data=prd, aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
   #             alpha = 0.2, inherit.aes = FALSE)+
@@ -281,6 +295,38 @@ ggplot(complicated_df_age, aes(x=as.numeric(age_months), y=risk))+
   #scale_y_continuous(limits = c(0,0.2))+
   xlab("Age (months)")
 
+
+
+complicated_data %>%
+  filter(id %in% kids_with_complicated_malaria$id)%>%
+  ggplot(., aes(x=n_infection, y=parsdens, group=n_infection))+
+  geom_boxplot(aes(fill=factor(complicatedmalaria)))+
+  scale_fill_manual(values = c("uncomplicated"="#FC6A03",
+                               "complicated"="darkred"))+
+  theme_minimal()+
+  theme(legend.title = element_blank())
+
+
+
+# comp_model2 <- glm(risk~n_infection+I(n_infection^2), data = complicated_df, weights = total_infections, family="binomial")
+# 
+# comp_model_fun2 <- function(x){
+#   exp(comp_model2$coefficients[1])*
+#     exp(comp_model2$coefficients[2])^x*
+#     exp(comp_model2$coefficients[3])^x^2}
+# 
+
+risk_by_n_infection_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  side_by_side_theme+
+  geom_ribbon(data=model_visualiser(comp_model2, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_text(aes(y=0.15, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust= -0.2, size=3.5)+
+  geom_function(fun = comp_model_fun2, colour="black")+
+  scale_x_continuous(breaks = seq(1, 10))+
+  ylab("Risk of Complicated Episodes")+
+  xlab("Order of Infection")
 
 
 
@@ -306,3 +352,221 @@ summary(age_cat_test2)
 
 
 visreg(age_at_fist_glm, xvar="n_infection", by="age_cat", trans=exp)
+
+
+# visualise risk~n_infection bucketed by an age cutoff ####
+# age_cutoff <- 2/3
+
+for(i in seq(2/12, 1, by=1/12)){
+
+age_cutoff <- i
+ 
+#looks the same 
+# old_complicated_data <- filter(complicated_data, age_at_first>age_cutoff)
+old_complicated_data <- filter(complicated_data, age>age_cutoff)
+old_complicated_df <- as.data.frame(table(old_complicated_data$n_infection, old_complicated_data$complicatedmalaria))
+colnames(old_complicated_df) <- c("n_infection", "disease", "complicated_episodes")
+
+total_old_infections <- old_complicated_data %>%
+  group_by(n_infection) %>%
+  count(name = "total_infections")
+
+# only include complicated (not uncomplicated) cases, inlcude more summary stats
+old_complicated_df <- subset(old_complicated_df, old_complicated_df$disease=="complicated")
+old_complicated_df$total_infections <- total_old_infections$total_infections
+old_complicated_df$risk <- old_complicated_df$complicated_episodes/old_complicated_df$total_infections
+old_complicated_df$n_infection <- as.numeric(old_complicated_df$n_infection)
+
+
+comp_model_old <- glm(risk~n_infection+I(n_infection^2), data = old_complicated_df, weights = total_old_infections$total_infections, family="binomial")
+
+comp_model_fun_old <- function(x){
+  exp(comp_model_old$coefficients[1])*
+    exp(comp_model_old$coefficients[2])^x*
+    exp(comp_model_old$coefficients[3])^x^2}
+
+
+old_complicated_n_infection <- ggplot(old_complicated_df, aes(x=n_infection, y=risk))+
+  geom_point(color="red")+
+  theme_minimal()+
+  side_by_side_theme+
+  geom_ribbon(data=model_visualiser(comp_model_old, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_function(fun = comp_model_fun_old, colour="black")+
+  scale_x_continuous(breaks = seq(1, 10))+
+  scale_y_continuous(limits=c(0, 0.225))+
+  geom_text(aes(y=0.2, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust=-0.2, size=3.5)+
+  ggtitle(paste("over", 12*age_cutoff, "months"))+
+  ylab("Risk of Complicated Episodes")+
+  xlab("Order of Infection")
+
+# looks the same
+# young_complicated_data <- filter(complicated_data, age_at_first<age_cutoff)
+young_complicated_data <- filter(complicated_data, age<age_cutoff)
+young_complicated_data <- filter(complicated_data, age<age_cutoff)
+young_complicated_df <- as.data.frame(table(young_complicated_data$n_infection, young_complicated_data$complicatedmalaria))
+colnames(young_complicated_df) <- c("n_infection", "disease", "complicated_episodes")
+
+total_young_infections <- young_complicated_data %>%
+  group_by(n_infection) %>%
+  count(name = "total_infections")
+
+# only include complicated (not uncomplicated) cases, inlcude more summary stats
+young_complicated_df <- subset(young_complicated_df, young_complicated_df$disease=="complicated")
+young_complicated_df <- young_complicated_df[1:nrow(total_young_infections),]
+young_complicated_df$total_infections <- total_young_infections$total_infections
+young_complicated_df$risk <- young_complicated_df$complicated_episodes/young_complicated_df$total_infections
+young_complicated_df$n_infection <- as.numeric(young_complicated_df$n_infection)
+
+
+comp_model_young <- glm(risk~n_infection+I(n_infection^2), data = young_complicated_df, weights = total_young_infections$total_infections, family="binomial")
+
+comp_model_fun_young <- function(x){
+  exp(comp_model_young$coefficients[1])*
+    exp(comp_model_young$coefficients[2])^x*
+    exp(comp_model_young$coefficients[3])^x^2}
+
+
+young_complicated_n_infection <- ggplot(young_complicated_df, aes(x=n_infection, y=risk))+
+  geom_point(color="red")+
+  theme_minimal()+
+  side_by_side_theme+
+  geom_ribbon(data=model_visualiser(comp_model_young, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_function(fun = comp_model_fun_young, colour="black")+
+  geom_text(aes(y=0.2, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust= -0.2, size=3.5)+
+  scale_x_continuous(breaks = seq(1, 10))+
+  scale_y_continuous(limits=c(0, 0.225))+
+  ggtitle(paste("under", 12*age_cutoff, "months"))+
+  # geom_smooth(formula = y~x+I(x^2))+
+  ylab("Risk of Complicated Episodes")+
+  xlab("Order of Infection")
+
+combo_plot <- young_complicated_n_infection+old_complicated_n_infection
+
+file_name <- paste("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_n_infection_split_", i*12, "_months.png", sep="")
+
+
+ggsave(filename = file_name, height=8, width=12, bg="white", dpi=500)
+
+}
+
+# sandbox / stuff that's cut out ####
+
+# restricting data to only kids that will eventually get complicated disease ##
+
+# restricted_complicated_data <- complicated_data %>%
+#   filter(id %in% kids_with_complicated_malaria$id)
+# 
+# restricted_total_infections <- restricted_complicated_data %>%
+#   group_by(n_infection) %>%
+#   count(name = "total_infections")
+# 
+# 
+# restricted_complicated_df <- as.data.frame(table(restricted_complicated_data$n_infection, restricted_complicated_data$complicatedmalaria))
+# colnames(restricted_complicated_df) <- c("n_infection", "disease", "complicated_episodes")
+# restricted_complicated_df <- subset(restricted_complicated_df, restricted_complicated_df$disease=="complicated")
+# restricted_complicated_df$total_infections <- restricted_total_infections$total_infections
+# restricted_complicated_df$risk <- restricted_complicated_df$complicated_episodes/restricted_complicated_df$total_infections
+# restricted_complicated_df$n_infection <- as.numeric(restricted_complicated_df$n_infection)
+# 
+# 
+# 
+# 
+# comp_model2a <- glm(risk~n_infection+I(n_infection^2), data = restricted_complicated_df, weights = restricted_complicated_df$total_infections, family="binomial", )
+# 
+# comp_model_fun2a <- function(x){
+#   exp(comp_model2a$coefficients[1])*
+#     exp(comp_model2a$coefficients[2])^x*
+#     exp(comp_model2a$coefficients[3])^x^2}
+# 
+# 
+# risk_by_n_infection_plot <- ggplot(restricted_complicated_df, aes(x=n_infection, y=risk))+
+#   geom_point(color="darkred")+
+#   geom_text(aes(y=0.15, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust= -0.2, size=3.5)+
+#   theme_minimal()+
+#   side_by_side_theme+
+#   geom_ribbon(data=model_visualiser(comp_model2a, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+#               alpha = 0.4, inherit.aes = FALSE)+
+#   geom_function(fun = comp_model_fun2a, colour="black")+
+#   scale_x_continuous(breaks = seq(1, 8))+
+#   ylab("Risk of Complicated Episodes")+
+#   xlab("Order of Infection")}
+
+
+# Goncalves=esque arrow plot of parasitaemia ####
+
+kids_with_exactly_one_complicated_episode <- complicated_data %>%
+  group_by(id) %>%
+  filter(complicatedmalaria=="complicated")%>%
+  count(name="number_of_complicated_episodes")%>%
+  filter(number_of_complicated_episodes==1)
+
+
+
+
+
+parsdens_arrow_data <- complicated_data %>%
+  filter(id %in% kids_with_exactly_one_complicated_episode$id)%>%
+  mutate(age_at_comp_episode=age[comp_num==1])%>%
+  filter(age_at_comp_episode<=age)%>%
+  group_by(id, complicatedmalaria) %>%
+  slice_max(parsdens, n=1)%>%
+  group_by(id)%>%
+  filter(n()==2)%>%
+  mutate(pars_dens_comp=parsdens[comp_num==1])%>%
+  group_by(id) %>%
+  mutate(up_down=if_else(max(parsdens)>pars_dens_comp, "up", "down"))
+
+
+
+
+
+parsdens_up_arrow <- parsdens_arrow_data %>%
+  filter(up_down=="up")%>%
+         ggplot(aes(x=age*52, y=parsdens, group=factor(id)))+
+  geom_point(aes(color=complicatedmalaria))+
+  geom_line(arrow = arrow(length=unit(0.10,"cm"), ends="last", type = "closed"))+
+  # geom_segment(aes(x=age_at_comp_episode, y=pars_dens_comp, xend=age, yend=parsdens),
+  #              arrow = arrow(length=unit(0.10,"cm"), ends="last", type = "open"),
+  #              lineend = "butt", # See available arrow types in example above
+  #              linejoin = "mitre")+
+  # facet_wrap(~up_down)+
+  scale_y_log10(limits=c(10^2, 10^6))+
+  annotation_logticks(sides = "l", color = "grey")+
+  side_by_side_theme+
+  ggtitle("n = 19")+
+  ylab("parasites /  μL")+
+  xlab("age (weeks)")+
+  scale_color_manual(values = c("uncomplicated"="#FC6A03",
+                               "complicated"="darkred"))+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/parsdens_up_arrow_plot.png", parsdens_up_arrow, height = 3, width=4, dpi=444, bg="white")
+
+
+parsdens_down_arrow <- parsdens_arrow_data %>%
+  filter(up_down=="down")%>%
+  ggplot(aes(x=age*52, y=parsdens, group=factor(id)))+
+  geom_point(aes(color=complicatedmalaria))+
+  geom_line(arrow = arrow(length=unit(0.10,"cm"), ends="last", type = "closed"))+
+  # geom_segment(aes(x=age_at_comp_episode, y=pars_dens_comp, xend=age, yend=parsdens),
+  #              arrow = arrow(length=unit(0.10,"cm"), ends="last", type = "open"),
+  #              lineend = "butt", # See available arrow types in example above
+  #              linejoin = "mitre")+
+  # facet_wrap(~up_down)+
+  scale_y_log10(limits=c(10^2, 10^6))+
+  annotation_logticks(sides = "l", color = "grey")+
+  side_by_side_theme+
+  ggtitle("n = 11")+
+  ylab("parasites /  μL")+
+  xlab("age (weeks)")+
+  scale_color_manual(values = c("uncomplicated"="#FC6A03",
+                                "complicated"="darkred"))+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/parsdens_down_arrow_plot.png", parsdens_down_arrow, height = 3, width=4, dpi=444, bg="white")

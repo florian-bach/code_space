@@ -7,15 +7,12 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir="~/postdoc/goncalves_modelling/markdown")
 
 
 library(dplyr, quietly=TRUE)
 library(ggplot2, quietly=TRUE)
 library(stats4, quietly = TRUE)
 ```
-
-
 ## Hypotheses
 
 To further characterise the the best model to describe the risk dynamics of severe disease we will use maximum likelihood estimation and AIC to test several models:
@@ -43,7 +40,7 @@ goncalves_data$Severe <- ifelse(is.na(goncalves_data$Severe), 0, goncalves_data$
 
 # goncalves_plot_data <- subset(goncalves_data, goncalves_data$N_Infection>0&goncalves_data$N_Infection<12)
 
-supp_infection_decay <- lm(log(Supp_Infections)~N_Infection, data=goncalves_data[2:15,], weights = Supp_Infections)
+supp_infection_decay <- glm(Supp_Infections~N_Infection+I(N_Infection^2), data=goncalves_data[2:15,])
 
 supp_prd <- data.frame(N_Infection = seq(from = 1, to = 14), length.out=1000)
 supp_err <- predict(supp_infection_decay, newdata = supp_prd, se.fit = TRUE)
@@ -57,7 +54,7 @@ goncalves_data$Supp_Imputed <- ifelse(is.na(goncalves_data$Supp_Infections), TRU
 
 
 
-main_infection_decay <- lm(log(Infections)~N_Infection, data=goncalves_data[2:15,], weights = Infections)
+main_infection_decay <- lm(log(Infections)~N_Infection, data=goncalves_data[2:15,], weights = log(Infections))
 
 main_prd <- data.frame(N_Infection = seq(from = 1, to = 14), length.out=100)
 main_err <- predict(main_infection_decay, newdata = main_prd, se.fit = TRUE)
@@ -601,6 +598,7 @@ For getting in touch with Bronner and/or Patrick I would say that the minimum in
 
 
 ```{r function plots, warning=FALSE, echo=FALSE, out.width="66.6%", fig.align='center'}
+
 severe_glm <- glm(Severe/Modelled_Main_Cases~N_Infection, weights = Modelled_Main_Cases, family="binomial", data=goncalves_plot_data)
 severe_exp_fun <- function(x){exp(severe_glm$coefficients[1])*exp(severe_glm$coefficients[2])^x}
 
@@ -619,7 +617,7 @@ prd$uci <- err$fit + 1.96 * err$se.fit
 
 
 
-# moderate_glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Modelled_Supp_Cases))+
+moderate_glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Modelled_Supp_Cases))+
   ylab("\nRisk of Severe / Moderate Disease\n")+
   scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
   scale_x_continuous(limits=range(0, nrow(goncalves_plot_data)-1), breaks=seq(0, nrow(goncalves_plot_data)-1), expand = expansion(add = c(0.2,0.2)))+

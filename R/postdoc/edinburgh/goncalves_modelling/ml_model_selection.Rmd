@@ -354,9 +354,9 @@ prd2$lci <- (pi-1.96*pi_se)*exp((-alpha-1.96*alpha_se)*prd2$N_Infection)
 glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
   ylab("\n\nRisk of Severe / Moderate Disease\n")+
   scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
-  scale_x_continuous(limits=range(0, nrow(goncalves_plot_data)), breaks=seq(0, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
+  scale_x_continuous(limits=range(1, nrow(goncalves_plot_data)), breaks=seq(0, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
   geom_point(colour="blue")+
-  ggtitle("Severe / Moderate Disease")+
+  ggtitle("Complicated Malaria")+
   theme_minimal()+
   geom_ribbon(data=prd, aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
@@ -375,9 +375,9 @@ glm_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/
 hand_model <- ggplot(goncalves_plot_data, aes(x = N_Infection, y=Severe_Moderate/Supp_Infections))+
   ylab("\n\nRisk of Severe / Moderate Disease\n")+
   scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
-  scale_x_continuous(limits=range(0, nrow(goncalves_plot_data)), breaks=seq(0, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
+  scale_x_continuous(limits=range(1, nrow(goncalves_plot_data)), breaks=seq(0, nrow(goncalves_plot_data)), expand = expansion(add = c(0.2,0)))+
   geom_point(colour="blue")+
-  ggtitle("Severe / Moderate Disease")+
+  ggtitle("Complicated Malaria")+
   theme_minimal()+
   geom_ribbon(data=prd2, aes(x=N_Infection, ymin = lci, ymax = uci),
               alpha = 0.2, inherit.aes = FALSE)+
