@@ -708,7 +708,18 @@ raw_flag_data <- raw_data%>%
 long_raw_df <- raw_data %>%
   pivot_longer(cols = colnames(raw_data)[seq(2, 65, by=3)], values_to = "antigen") %>%
   dplyr::select(id, timepoint, antigen)%>%
-  mutate(conc=raw_conc_data$conc, flag=raw_flag_data$flag)
+  mutate(timepoint=factor(timepoint))%>%
+  mutate(conc=raw_conc_data$conc, flag=raw_flag_data$flag)%>%
+  mutate(antigen=gsub(".", " ", antigen, fixed = TRUE))%>%
+  mutate(antigen=gsub("  ", " ", antigen, fixed = TRUE))%>%
+  mutate(id=factor(id))%>%
+  mutate(flag_type = case_when(flag==1 ~ "AboveMaxStd",
+                               flag==2 ~ "AboveUpperbound",
+                               flag==3 ~ "Above_fitted_asymptote",
+                               flag==4 ~ "BelowMinStd",
+                               is.na(flag) ~ "No Flag"))%>%
+  filter(antigen != "")
+
 
 
 # AboveMaxStd        AboveUpperbound Above_fitted_asymptote            BelowMinStd 
@@ -723,13 +734,223 @@ flag_dist <- long_raw_df %>%
 
 flag_dist$antigen <- factor(flag_dist$antigen, levels=c(flag_dist$antigen[order(flag_dist$any_flag_perc, decreasing = TRUE)]))
  
-ggplot(flag_dist, aes(x=antigen, y=any_flag_perc, fill=antigen))+
-  geom_bar(stat="identity")+
+
+flagless_df <- long_raw_df %>%
+  filter(is.na(flag))
+
+
+flag_dist_data <- long_raw_df %>%
+  group_by(antigen, timepoint, flag_type) %>%
+  summarise(flag_n=n())
+  
+  
+
+
+flag_dist_plot <- ggplot(flag_dist_data, aes(x=timepoint, y=flag_n, fill=flag_type))+
+  geom_bar(stat="identity", position = position_stack())+
   theme_minimal()+
-  ylab("% of readings with Flag")+
-  scale_fill_manual(values = pc1_cols)+
-  theme(axis.title.x = element_blank(),
+  facet_wrap(~antigen)+
+  # scale_fill_manual(values = pc1_cols)+
+  theme(axis.title = element_blank(),
+        strip.text = element_text(size=8),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/flag_distribution.png", flag_dist_plot, height=4, width=7.5, bg="white")
+
+
+
+
+
+conc_by_flag <- ggplot(long_raw_df, aes(x=timepoint, y=conc, color=flag_type, group=flag_type))+
+  geom_point(position = position_dodge(width=1))+
+  facet_wrap(~antigen)+
+  theme_minimal()+
+  scale_y_log10()+
+  theme(axis.title = element_blank(),
+        strip.text = element_text(size=8),
+        legend.title = element_blank())
+  
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/conc_by_flag.png", conc_by_flag, height=6, width=7.5, bg="white")
+
+
+
+flag_dist_plot <- ggplot(flag_dist_data, aes(x=timepoint, y=flag_n, fill=flag_type))+
+  geom_bar(stat="identity", position = position_stack())+
+  theme_minimal()+
+  facet_wrap(~antigen)+
+  # scale_fill_manual(values = pc1_cols)+
+  theme(axis.title = element_blank(),
+        strip.text = element_text(size=8),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/flag_distribution.png", flag_dist_plot, height=4, width=7.5, bg="white")
+
+
+
+
+
+
+flagless_ab_histogram <- ggplot(flagless_df, aes(x=conc, color=antigen, fill=antigen))+
+  geom_histogram()+
+  scale_x_log10()+
+  scale_color_manual(values=pc1_cols)+
+  scale_fill_manual(values=pc1_cols)+
+  facet_wrap(~antigen)+
+  theme_minimal()+
+  theme(legend.position="none",
+        axis.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/flagless_ab_histogram.png", flagless_ab_histogram, height=6, width=8, bg="white")
+
+
+number_of_observations_heatmap <- flagless_df %>%
+  filter(!is.na(conc))%>%
+  group_by(antigen, timepoint)%>%
+  summarise(number_of_observations=n())%>%
+  mutate(cols=if_else(number_of_observations>100, "black", "white"))%>%
+  ggplot(., aes(x=timepoint, y=antigen, label=number_of_observations))+
+  geom_tile(aes(fill=number_of_observations))+
+  geom_text(aes(color=cols))+
+  scale_fill_viridis_c(option = "B")+
+  scale_color_manual(values=c("black", "white"))+
+  theme_minimal()+
+  scale_x_discrete(position = "top") +
+  theme(axis.title = element_blank(),
         axis.text = element_text(size=12),
+        legend.position = "none",
+        panel.grid = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/number_of_observations_heatmap.png", number_of_observations_heatmap, height=8, width=4, bg="white")
+
+
+flagless_boxplot_timepoint <- ggplot(flagless_df, aes(x=timepoint, y=conc, color=antigen, fill=antigen))+
+  # geom_boxplot()+
+  geom_violin()+
+  scale_y_log10()+
+  scale_color_manual(values=pc1_cols)+
+  scale_fill_manual(values=pc1_cols)+
+  facet_wrap(~antigen)+
+  theme_minimal()+
+  theme(legend.position="none",
+        axis.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/flagless_ab_through_time.png", flagless_boxplot_timepoint, height=6, width=8, bg="white")
+
+
+
+
+modelable_antigens <- c("Tet Tox", "SBP1", "Rh5", "PfSEA", "PfAMA1", "Hyp2", "HSP40 Ag1", "GST", "GEXP", "CSP GENOVA")
+
+
+
+modelable_antigens_plot <- flagless_df%>%
+  filter(antigen %in% modelable_antigens)%>%
+  group_by(antigen, timepoint)%>%
+  add_count(name = "n_observations")%>%
+  ggplot(., aes(x=timepoint, y=conc, color=antigen, fill=antigen))+
+  #geom_boxplot()+
+  geom_violin()+
+  geom_text(aes(y=100, label=n_observations))+
+  scale_y_log10()+
+  scale_color_manual(values=pc1_cols)+
+  scale_fill_manual(values=pc1_cols)+
+  facet_wrap(~antigen)+
+  theme_minimal()+
+  theme(legend.position="none",
+        axis.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/modelable_antigens_through_time.png", modelable_antigens_plot, height=6, width=8, bg="white")
+
+
+
+
+# define conrtrasts
+sec_contrast <- t(matrix(c(0,1,0)))
+ter_contrast <- t(matrix(c(0,0,1)))
+sec_ter_contrast <- t(matrix(c(0,-1,1)))
+
+# brave new world purrrlicious way of doing it:
+# make grouped df, nest into one, add column for model & summary, extract values from each to create even more new columns for p values and p_adj values
+purrrf <- flagless_df %>%
+  filter(antigen %in% modelable_antigens)%>%
+  group_by(antigen) %>%
+  filter(!is.na(conc))%>%
+  nest() %>%
+  mutate(model=map(data, ~lmer(log10(conc)~timepoint+(1|id), data=., REML = FALSE)))%>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(t2_t1=map(model, ~multcomp::glht(., sec_contrast)),
+         t2_t1_p=map_dbl(t2_t1, ~summary(.)$test$pvalues),
+         t2_t1_p_adj=map_dbl(t2_t1_p, ~p.adjust(.))) %>%
+  mutate(t3_t1=map(model, ~multcomp::glht(., ter_contrast)),
+         t3_t1_p=map_dbl(t3_t1, ~summary(.)$test$pvalues),
+         t3_t1_p_adj=map_dbl(t3_t1_p, ~p.adjust(.))) %>%
+  mutate(t3_t2=map(model, ~multcomp::glht(., sec_ter_contrast)),
+         t3_t2_p=map_dbl(t3_t2, ~summary(.)$test$pvalues),
+         t3_t2_p_adj=map_dbl(t3_t2_p, ~p.adjust(.)))
+
+results_table <- purrrf %>%
+  mutate(coef=map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
+  select(antigen, coef, t3_t2_p_adj) %>%
+  ungroup()
+
+wide_flagless <- flagless_df %>%
+  filter(antigen %in% c("CSP GENOVA", "GEXP", "PfSEA", "Tet Tox ", "Rh5"))%>%
+  select(-flag)%>%
+  filter(!is.na(conc))%>%
+  pivot_wider(names_from = antigen, values_from = conc) %>%
+  filter(timepoint==1)
+
+no_na_flagless <- na.omit(wide_flagless)
+
+
+
+t1_pca <-  prcomp(no_na_flagless[,c("CSP GENOVA", "GEXP", "PfSEA", "Tet Tox ", "Rh5")], center = T)
+t1_pca_plot_data <- as.data.frame(cbind(no_na_flagless, t1_pca$x))
+
+
+loadings_df <- data.frame(t1_pca$rotation)
+loadings_df$antibody <- rownames(loadings_df)
+loadings_df$antibody <- factor(loadings_df$antibody, levels = loadings_df$antibody[order(loadings_df$PC1)])
+
+pc1_cols <- colorspace::sequential_hcl(nrow(loadings_df), palette = "Purple Yellow")
+names(pc1_cols) <- loadings_df$antibody[order(loadings_df$PC1)]
+
+PC1_plot <- ggplot(loadings_df, aes(x=factor(antibody, levels = antibody[order(loadings_df$PC1)]), y=PC1, fill=antibody))+
+  geom_bar(stat = "identity")+
+  scale_fill_manual(values = pc1_cols)+
+  theme_minimal()+
+  theme(axis.title.x = element_blank(),
         axis.text.x = element_text(angle = 90, hjust=1),
         legend.position = "none")
-  
+
+
+pc2_cols <- colorspace::sequential_hcl(nrow(loadings_df), palette = "Purple Yellow")
+names(pc2_cols) <- loadings_df$antibody[order(loadings_df$PC2)]
+
+loadings_df$antibody <- factor(loadings_df$antibody, levels = loadings_df$antibody[order(loadings_df$PC2)])
+PC2_plot <- ggplot(loadings_df, aes(x=factor(antibody, levels = antibody[order(loadings_df$PC2)]), y=PC2, fill=antibody))+
+  geom_bar(stat = "identity")+
+  scale_fill_manual(values = pc2_cols)+
+  theme_minimal()+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        legend.position = "none")
+
+
+combo_plot <- PC1_plot+PC2_plot
+
+t1_demo_data <- bc1 %>%
+  filter(timepoint==1 & id %in% t1_pca_plot_data$id)%>%
+  mutate(sample_id=paste(id, timepoint, sep="_"))%>%
+  select(c(colnames(bc1)[2:55]))
+
+t1_pca_plot_data <- cbind(t1_demo_data, t1_pca_plot_data)
+
+ggplot(t1_pca_plot_data, aes(x=PC1, y=PC2, color=nonmalariafebrile))+
+  geom_point()+
+  xlab(paste("PC1 ", data.frame(summary(t1_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(t1_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
+  ggtitle("Antibody Titre PCA")
+
