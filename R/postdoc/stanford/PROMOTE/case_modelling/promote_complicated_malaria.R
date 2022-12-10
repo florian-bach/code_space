@@ -4,7 +4,7 @@ library(tidyr)
 library(ggside)
 library(visreg)
 library(mediation)
-
+library(patchwork)
 
 model_visualiser <- function(model=NULL, xvar=NULL){
   model_data = model$data
@@ -387,14 +387,14 @@ comp_model_fun_old <- function(x){
 
 
 old_complicated_n_infection <- ggplot(old_complicated_df, aes(x=n_infection, y=risk))+
-  geom_point(color="red")+
+  geom_point(color="darkred")+
   theme_minimal()+
   side_by_side_theme+
   geom_ribbon(data=model_visualiser(comp_model_old, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = comp_model_fun_old, colour="black")+
   scale_x_continuous(breaks = seq(1, 10))+
-  scale_y_continuous(limits=c(0, 0.225))+
+  scale_y_continuous(limits=c(0, 0.225), labels=scales::label_percent())+
   geom_text(aes(y=0.2, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust=-0.2, size=3.5)+
   ggtitle(paste("over", 12*age_cutoff, "months"))+
   ylab("Risk of Complicated Episodes")+
@@ -428,7 +428,7 @@ comp_model_fun_young <- function(x){
 
 
 young_complicated_n_infection <- ggplot(young_complicated_df, aes(x=n_infection, y=risk))+
-  geom_point(color="red")+
+  geom_point(color="darkred")+
   theme_minimal()+
   side_by_side_theme+
   geom_ribbon(data=model_visualiser(comp_model_young, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
@@ -436,7 +436,7 @@ young_complicated_n_infection <- ggplot(young_complicated_df, aes(x=n_infection,
   geom_function(fun = comp_model_fun_young, colour="black")+
   geom_text(aes(y=0.2, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust= -0.2, size=3.5)+
   scale_x_continuous(breaks = seq(1, 10))+
-  scale_y_continuous(limits=c(0, 0.225))+
+  scale_y_continuous(limits=c(0, 0.225), labels=scales::label_percent())+
   ggtitle(paste("under", 12*age_cutoff, "months"))+
   # geom_smooth(formula = y~x+I(x^2))+
   ylab("Risk of Complicated Episodes")+

@@ -10,6 +10,8 @@ library(patchwork)
 library(tidyr)
 library(ggplot2)
 library(purrr)
+library(lme4)
+library(knitr)
 
 # functions
 
@@ -20,6 +22,9 @@ mode_finder <- function(x) {
   ux <- unique(x)
   ux[which.max(tabulate(match(x, ux)))]
 }
+
+modelable_antigens <- c("Tet Tox", "SBP1", "Rh5", "PfSEA", "PfAMA1", "Hyp2", "HSP40 Ag1", "GST", "GEXP", "CSP GENOVA")
+
 
 #data
 bc1 <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
@@ -39,6 +44,7 @@ names(listy_data_labs) <- names(data_labs)
 
 #downsize df
 ab_columns <- grep("log", colnames(bc1), value = TRUE)
+
 demo_columns <- c("id",
                   "wealthcat",
                   "age",
@@ -50,7 +56,13 @@ demo_columns <- c("id",
                   "timepoint",
                   "MomFinalRx",
                   "nonmalariafebrile",
-                  "ChildFinalRx")
+                  "ChildFinalRx",
+                  "malaria",
+                  "mal0to6",
+                  "febrile0to6",
+                  "incidentmalaria",
+                  "febrile6to12",
+                  "mal6to12")
 
 slim_bc <- bc1 %>%
   dplyr::select(c(demo_columns, ab_columns))
@@ -125,7 +137,6 @@ age_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=as.numeric(age)/365))+
   viridis::scale_color_viridis(option="B")+
   #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
   ggtitle("Antibody Titre PCA")
-
 
 
 wealthcat_plot <- ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=factor(wealthcat)))+
@@ -224,6 +235,9 @@ incident_malaria_plot <-  ggplot(pca_plot_data, aes(x=PC1, y=PC2, color=incident
   #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
   ggtitle("Antibody Titre PCA")
 
+
+
+#
 
 # redo pca seperately for each timepoint ####
 
@@ -839,7 +853,25 @@ ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/flagless
 
 
 
-modelable_antigens <- c("Tet Tox", "SBP1", "Rh5", "PfSEA", "PfAMA1", "Hyp2", "HSP40 Ag1", "GST", "GEXP", "CSP GENOVA")
+modelable_antigens_plot <- flagless_df%>%
+  filter(antigen %in% modelable_antigens)%>%
+  group_by(antigen, timepoint)%>%
+  add_count(name = "n_observations")%>%
+  ggplot(., aes(x=timepoint, y=conc, color=antigen, fill=antigen))+
+  #geom_boxplot()+
+  geom_violin()+
+  geom_text(aes(y=100, label=n_observations))+
+  scale_y_log10()+
+  scale_color_manual(values=pc1_cols)+
+  scale_fill_manual(values=pc1_cols)+
+  facet_wrap(~antigen)+
+  theme_minimal()+
+  theme(legend.position="none",
+        axis.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/modelable_antigens_through_time.png", modelable_antigens_plot, height=6, width=8, bg="white")
+
+
 
 
 
@@ -888,10 +920,30 @@ purrrf <- flagless_df %>%
          t3_t2_p=map_dbl(t3_t2, ~summary(.)$test$pvalues),
          t3_t2_p_adj=map_dbl(t3_t2_p, ~p.adjust(.)))
 
-results_table <- purrrf %>%
-  mutate(coef=map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
-  select(antigen, coef, t3_t2_p_adj) %>%
+results <- purrrf %>%
+  mutate(t3_t2_coef=10^(map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3])))%>%
+  mutate(t3_t2_coef=round(t3_t2_coef, digits = 2 ), t3_t2_p_adj=round(t3_t2_p_adj, digits = 2))%>%
+  select(antigen, t3_t2_coef, t3_t2_p_adj) %>%
   ungroup()
+
+
+kbl(results, booktabs = T, linesep = "", escape=FALSE) %>% 
+  kable_paper(full_width = F) %>%
+  column_spec(3, color = ifelse(results$t3_t2_p_adj < 0.05, "red", "black"))%>%
+  save_kable(file = "~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/regression_results.html", self_contained = T)
+
+
+
+results_table$t3_t2_p_adj <- ifelse(
+  results_table$t3_t2_p_adj < 0.05,
+    cell_spec(results_table$t3_t2_p_adj, color = "red"),
+    cell_spec(results_table$t3_t2_p_adj, color = "black")
+  )
+
+kbl(results_table) %>%
+  kable_paper() %>%
+  save_kable(file = "~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/regression_results.html", self_contained = T)
+
 
 wide_flagless <- flagless_df %>%
   filter(antigen %in% c("CSP GENOVA", "GEXP", "PfSEA", "Tet Tox ", "Rh5"))%>%
@@ -946,11 +998,63 @@ t1_demo_data <- bc1 %>%
 
 t1_pca_plot_data <- cbind(t1_demo_data, t1_pca_plot_data)
 
-ggplot(t1_pca_plot_data, aes(x=PC1, y=PC2, color=nonmalariafebrile))+
+#cont
+
+ggplot(t1_pca_plot_data, aes(x=PC1, y=PC2, color=covarate))+
   geom_point()+
   xlab(paste("PC1 ", data.frame(summary(t1_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(t1_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
   #ggrepel::geom_label_repel(aes_string(label = "id"), show.legend = FALSE)+ 
   ggtitle("Antibody Titre PCA")
+  
+
+
+# individual-level plots ####
+
+hi <-  bc1 %>%
+  mutate(sample_id=paste(id, timepoint, sep="_"))
+
+
+flagless_df <- long_raw_df %>%
+  filter(is.na(flag))
+
+
+flagless_df$sample_id <- paste(flagless_df$id, flagless_df$timepoint, sep="_")
+
+demo_columns2 <- c("malaria","mal0to6","febrile0to6", "incidentmalaria", "febrile6to12", "mal6to12", "mbloodLAMP")
+flagless_df[, demo_columns2] <- hi[match(flagless_df$sample_id, hi$sample_id), demo_columns2]
+
+mal0_6_plot <- flagless_df %>%
+  filter(antigen %in% modelable_antigens)%>%
+  arrange(mal0to6)%>%
+  ggplot(aes(x=id, y=conc, color=mal0to6, group=id))+
+  geom_point()+
+  scale_y_log10()+
+  # geom_line()+
+  facet_grid(timepoint~antigen)+
+  theme_minimal()+
+  theme(axis.text.x = element_blank())+
+  viridis::scale_color_viridis(option="B", direction = -1)
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/mal0_6_plot.png", mal0_6_plot, width = 10, height = 6, bg="white")
+
+mal6_12_plot <-flagless_df %>%
+  filter(antigen %in% modelable_antigens)%>%
+  arrange(mal6to12)%>%
+  ggplot(aes(x=id, y=conc, color=mal6to12, group=id))+
+  geom_point()+
+  scale_y_log10()+
+  # geom_line()+
+  facet_grid(timepoint~antigen)+
+  theme_minimal()+
+  theme(axis.text.x = element_blank(),
+        panel.grid.major.y = element_blank()
+  )+
+  viridis::scale_color_viridis(option="B", direction = -1)
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/mal6_12_plot.png", mal6_12_plot, width = 10, height = 6, bg="white")
+
+
+
 
