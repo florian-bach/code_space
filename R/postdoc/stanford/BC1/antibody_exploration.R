@@ -1,17 +1,18 @@
-# preamble & read in data ###
+# preamble & read in data ####
 
 #palettes
 time_palette <- colorspace::sequential_hcl(n=4, "RdPu")[1:3]
 pc1_cols <- colorspace::sequential_hcl(23, palette = "Purple Yellow")
 
 #libraries 
-library(dplyr)
 library(patchwork)
 library(tidyr)
 library(ggplot2)
 library(purrr)
 library(lme4)
 library(knitr)
+library(dplyr)
+
 
 # functions
 
@@ -35,7 +36,7 @@ kids_with_complete_timecourses <- bc1 %>%
   group_by(id)%>%
   summarise("n_time"=n()) %>%
   filter(n_time==3)%>%
-  select(id)
+  dplyr::select(id)
 
 # make a dictionary of column names, their labels and codings
 data_labs <- lapply(bc1, function(x) attributes(x)$labels)
@@ -394,6 +395,7 @@ ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/all_ab_p
 
 ginormous_df <- slimmer_bc %>%
   mutate(timepoint=ifelse(timepoint==1, "1st", ifelse(timepoint==2, "2nd", "3rd"))) %>%
+  mutate(timepoint=factor(timepoint, levels=c("1st", "2nd", "3rd")))%>%
   pivot_longer(cols = (length(demo_columns)+1):ncol(slimmer_bc), names_to = "antibody", values_to = "log_conc") %>%
   group_by(antibody)
 
@@ -417,13 +419,15 @@ purrrf <- ginormous_df %>%
          t3_t1_p_adj=map_dbl(t3_t1_p, ~p.adjust(.))) %>%
   mutate(t3_t2=map(model, ~multcomp::glht(., sec_ter_contrast)),
          t3_t2_p=map_dbl(t3_t2, ~summary(.)$test$pvalues),
-         t3_t2_p_adj=map_dbl(t3_t2_p, ~p.adjust(.)))
+         t3_t2_p_adj=p.adjust(t3_t2_p))
 
 #make results table that includes the coef & p_adj values for the sec_ter_contrast
 results_table <- purrrf %>%
   mutate(coef=map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
-  select(antibody, coef, t3_t2_p_adj) %>%
-  ungroup()
+  select(antibody, coef, t3_t2_p) %>%
+  ungroup()%>%
+  mutate(t3_t2_padj=p.adjust(t3_t2_p, method = "BH"))
+  
 
 # more tidy content; doesn't have p values though
 # alternative_results_table <- purrrf %>%
@@ -432,7 +436,7 @@ results_table <- purrrf %>%
 #   unnest(tidy)
 
 sig_2_3_abs <- results_table %>%
-  filter(t3_t2_p_adj<0.05) %>%
+  filter(t3_t2_padj<0.05) %>%
   select(antibody)
 
 
@@ -755,21 +759,42 @@ flagless_df <- long_raw_df %>%
 
 flag_dist_data <- long_raw_df %>%
   group_by(antigen, timepoint, flag_type) %>%
-  summarise(flag_n=n())
+  summarise("flag_n"=n()) %>%
+  group_by(antigen, timepoint)%>%
+  mutate("flag_perc"=flag_n/sum(flag_n))
   
   
 
 
-flag_dist_plot <- ggplot(flag_dist_data, aes(x=timepoint, y=flag_n, fill=flag_type))+
+flag_dist_plot <- ggplot(flag_dist_data, aes(x=timepoint, y=flag_perc, fill=flag_type))+
   geom_bar(stat="identity", position = position_stack())+
   theme_minimal()+
   facet_wrap(~antigen)+
-  # scale_fill_manual(values = pc1_cols)+
+  scale_y_continuous(breaks=c(0, 0.5, 1), labels = scales::label_percent())+
   theme(axis.title = element_blank(),
         strip.text = element_text(size=8),
         legend.title = element_blank())
 
 ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/flag_distribution.png", flag_dist_plot, height=4, width=7.5, bg="white")
+
+
+
+
+raw_conc_plot <- ggplot(long_raw_df, aes(x=timepoint, y=conc))+
+  geom_violin(aes(fill=timepoint))+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()+
+  scale_y_log10()+
+  scale_fill_manual(values=time_palette)+
+  theme(axis.title = element_blank(),
+        axis.text.y = element_text(size=6),
+        strip.text = element_text(size=8),
+        legend.position = "none",
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/raw_conc_plot.png", raw_conc_plot, height=6, width=8, bg="white")
+
+
 
 
 
@@ -860,6 +885,7 @@ modelable_antigens_plot <- flagless_df%>%
   ggplot(., aes(x=timepoint, y=conc, color=antigen, fill=antigen))+
   #geom_boxplot()+
   geom_violin()+
+  geom_point()+
   geom_text(aes(y=100, label=n_observations))+
   scale_y_log10()+
   scale_color_manual(values=pc1_cols)+
@@ -912,25 +938,26 @@ purrrf <- flagless_df %>%
   mutate(summary=map(model, ~summary(.))) %>%
   mutate(t2_t1=map(model, ~multcomp::glht(., sec_contrast)),
          t2_t1_p=map_dbl(t2_t1, ~summary(.)$test$pvalues),
-         t2_t1_p_adj=map_dbl(t2_t1_p, ~p.adjust(.))) %>%
+         t2_t1_p_adj=map_dbl(t2_t1_p, ~p.adjust(., method = "fdr"))) %>%
   mutate(t3_t1=map(model, ~multcomp::glht(., ter_contrast)),
          t3_t1_p=map_dbl(t3_t1, ~summary(.)$test$pvalues),
-         t3_t1_p_adj=map_dbl(t3_t1_p, ~p.adjust(.))) %>%
+         t3_t1_p_adj=map_dbl(t3_t1_p, ~p.adjust(., method = "fdr"))) %>%
   mutate(t3_t2=map(model, ~multcomp::glht(., sec_ter_contrast)),
          t3_t2_p=map_dbl(t3_t2, ~summary(.)$test$pvalues),
-         t3_t2_p_adj=map_dbl(t3_t2_p, ~p.adjust(.)))
+         t3_t2_p_adj=map_dbl(t3_t2_p, ~p.adjust(., method = "fdr")))
 
 results <- purrrf %>%
   mutate(t3_t2_coef=10^(map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3])))%>%
   mutate(t3_t2_coef=round(t3_t2_coef, digits = 2 ), t3_t2_p_adj=round(t3_t2_p_adj, digits = 2))%>%
-  select(antigen, t3_t2_coef, t3_t2_p_adj) %>%
+  dplyr::select(antigen, t3_t2_coef,t3_t2_p, t3_t2_p_adj) %>%
   ungroup()
 
 
-kbl(results, booktabs = T, linesep = "", escape=FALSE) %>% 
-  kable_paper(full_width = F) %>%
-  column_spec(3, color = ifelse(results$t3_t2_p_adj < 0.05, "red", "black"))%>%
-  save_kable(file = "~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/regression_results.html", self_contained = T)
+kableExtra::kbl(results, booktabs = T, linesep = "", escape=FALSE) %>% 
+  kableExtra::kable_paper(full_width = F) %>%
+  kableExtra::column_spec(3, color = ifelse(results$t3_t2_p < 0.05, "red", "black"))%>%
+  kableExtra::column_spec(4, color = ifelse(results$t3_t2_p_adj < 0.05, "red", "black"))%>%
+  kableExtra::save_kable(file = "~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/regression_results.html", self_contained = T)
 
 
 
@@ -947,7 +974,7 @@ kbl(results_table) %>%
 
 wide_flagless <- flagless_df %>%
   filter(antigen %in% c("CSP GENOVA", "GEXP", "PfSEA", "Tet Tox ", "Rh5"))%>%
-  select(-flag)%>%
+  dplyr::select(-flag)%>%
   filter(!is.na(conc))%>%
   pivot_wider(names_from = antigen, values_from = conc) %>%
   filter(timepoint==1)
@@ -1034,7 +1061,8 @@ mal0_6_plot <- flagless_df %>%
   # geom_line()+
   facet_grid(timepoint~antigen)+
   theme_minimal()+
-  theme(axis.text.x = element_blank())+
+  theme(axis.text.x = element_blank(),
+        panel.grid = element_blank())+
   viridis::scale_color_viridis(option="B", direction = -1)
 
 ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/mal0_6_plot.png", mal0_6_plot, width = 10, height = 6, bg="white")
@@ -1055,6 +1083,385 @@ mal6_12_plot <-flagless_df %>%
 
 ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/mal6_12_plot.png", mal6_12_plot, width = 10, height = 6, bg="white")
 
+
+kids_with_malaria_plot <- flagless_df %>%
+  filter(mal0to6!=0 | mal6to12!=0)%>%
+  # arrange(mal0to6)%>%
+  ggplot(aes(x=timepoint, y=conc))+
+  geom_line(aes(group=id, color=id))+
+  geom_point(aes(color=id))+
+  # geom_boxplot(aes(group=timepoint), outlier.alpha = 0)+
+  facet_wrap(~antigen)+
+  scale_y_log10()+
+  # geom_line()+
+  theme_minimal()+
+  theme(axis.text.x = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/kids_with_malaria_plot.png", kids_with_malaria_plot, width = 8, height = 8, bg="white")
+
+
+kids_with_malaria_plot <- flagless_df %>%
+  filter(mal0to6!=0 | mal6to12!=0)%>%
+  # arrange(mal0to6)%>%
+  ggplot(aes(x=timepoint, y=conc))+
+  geom_line(aes(group=id, color=id))+
+  geom_point(aes(color=id))+
+  # geom_boxplot(aes(group=timepoint), outlier.alpha = 0)+
+  facet_wrap(~antigen)+
+  scale_y_log10()+
+  # geom_line()+
+  theme_minimal()+
+  theme(axis.text.x = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/kids_with_malaria_plot.png", kids_with_malaria_plot, width = 8, height = 8, bg="white")
+
+
+# z scores and incorporating previous malaria episodes ####
+
+
+
+
+
+
+wide_flagless <- flagless_df %>%
+  # filter(antigen %in% c("CSP GENOVA", "GEXP", "PfSEA", "Tet Tox ", "Rh5"))%>%
+  dplyr::select(-flag)%>%
+  filter(!is.na(conc))%>%
+  pivot_wider(names_from = antigen, values_from = conc)
+
+# no_na_flagless <- na.omit(wide_flagless)
+
+trans_wide_flagless <- cbind(wide_flagless[,1:11], apply(log10(wide_flagless[,12:33]), 2, function(x) scale(x, center = TRUE, scale = TRUE)))
+
+long_trans_flagless <- trans_wide_flagless %>%
+  pivot_longer(colnames(trans_wide_flagless)[12:33], names_to = "antigen", values_to = "zscore")
+
+visits_with_positive_lamp <- bc1_all%>%
+  mutate("age_at_lamp"=date-dob)%>%
+  mutate("age_cat_at_lamp"=case_when(age_at_lamp<180 ~ "2",
+                                     age_at_lamp>180 & age_at_lamp<365 ~"3",
+                                     age_at_lamp > 365 ~ "4"
+  ))%>%
+  filter(age_cat_at_lamp %in% c("2", "3"))%>%
+  filter(lamp_result==1)%>%
+  mutate("sample_id"=paste(id, age_cat_at_lamp, sep="_"))%>%
+  group_by(sample_id)%>%
+  summarise("n_positives"=n())
+
+
+
+visits_with_positive_smear <- bc1_all%>%
+  mutate("age_at_smear"=date-dob)%>%
+  mutate("age_cat_at_smear"=case_when(age_at_smear<180 ~ "2",
+                                      age_at_smear>180 & age_at_smear<365 ~"3",
+                                      age_at_smear > 365 ~ "4"
+  ))%>%
+  filter(age_cat_at_smear %in% c("2", "3"))%>%
+  filter(MSPinfectiondich==1)%>%
+  mutate("sample_id"=paste(id, age_cat_at_smear, sep="_"))%>%
+  group_by(sample_id)%>%
+  summarise("n_positives"=n(), age_cat_at_smear)
+
+
+
+
+
+long_trans_flagless$n_lamp <- match(long_trans_flagless$sample_id, visits_with_positive_lamp$sample_id)
+long_trans_flagless$n_lamp <- ifelse(is.na(long_trans_flagless$n_lamp), 0, visits_with_positive_lamp$n_positives[long_trans_flagless$n_lamp])
+
+long_trans_flagless$n_smear <- match(long_trans_flagless$sample_id, visits_with_positive_smear$sample_id)
+long_trans_flagless$n_smear <- ifelse(is.na(long_trans_flagless$n_smear), 0, visits_with_positive_smear$n_positives[long_trans_flagless$n_smear])
+
+
+flagless_df$n_smear <- match(flagless_df$sample_id, visits_with_positive_smear$sample_id)
+flagless_df$n_smear <- ifelse(is.na(flagless_df$n_smear), 0, visits_with_positive_smear$n_positives[flagless_df$n_smear])
+
+flagless_df$n_lamp <- match(flagless_df$sample_id, visits_with_positive_lamp$sample_id)
+flagless_df$n_lamp <- ifelse(is.na(flagless_df$n_lamp), 0, visits_with_positive_lamp$n_positives[flagless_df$n_lamp])
+
+
+col_fun4 <- circlize::colorRamp2(c(-2.5, 0, 2.5), c("#0859C6", "black", "#FFA500"))
+
+long_trans_flagless %>%
+  arrange(timepoint)%>%
+  ggplot(., aes(x=sample_id, y=antigen))+
+  geom_tile(aes(fill=zscore))+
+  facet_wrap(~timepoint)+
+  scale_fill_gradient2(low = "#0859C6", mid="black", high="#FFA500")+
+  theme_minimal()+
+  theme(axis.text.x = element_blank())
+
+
+
+zero_six_zscore <- long_trans_flagless %>%
+  filter(timepoint==2)%>%
+  arrange(mal0to6)%>% 
+  ggplot(aes(x=sample_id, y=zscore, color=factor(mal0to6)))+
+  geom_point()+
+  scale_color_manual(values=c("grey", "#FC6A03", "darkred"))+
+  facet_wrap(~antigen, nrow = 1, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  guides(color=guide_legend(title="# of malaria episodes 0-6 months", title.position = "right", override.aes = list(size=3)))+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/06_months_zscore.png", zero_six_zscore, width=16, height=4, bg="white")
+
+
+six_twelve_zscore <- long_trans_flagless %>%
+  filter(timepoint==3)%>%
+  arrange(mal6to12)%>% 
+  ggplot(aes(x=sample_id, y=zscore, color=factor(mal6to12), group=id))+
+  geom_point()+
+  scale_color_manual(values=c("grey", "#FC6A03", "darkred"))+
+  facet_wrap(~antigen, nrow = 1, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  guides(color=guide_legend(title="# of malaria episodes 6-12 months", title.position = "right", override.aes = list(size=3)))+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/612_months_zscore.png", six_twelve_zscore, width=16, height=4, bg="white")
+
+
+
+
+
+z_score_by_nlamp <- long_trans_flagless %>%
+  ggplot(aes(x=n_lamp, y=zscore, group=n_lamp))+
+  geom_boxplot(aes(fill=n_lamp))+
+  scale_fill_viridis_c()+
+  facet_wrap(~antigen, ncol = 1, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/z_score_by_nlamp.png", z_score_by_nlamp, width=6, height=50, bg="white", limitsize = FALSE)
+
+
+conc_by_nlamp <- flagless_df %>%
+  ggplot(aes(x=n_lamp, y=conc, group=n_lamp))+
+  geom_boxplot(aes(fill=n_lamp))+
+  scale_y_log10()+
+  scale_fill_viridis_c()+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/conc_by_nlamp.png", conc_by_nlamp, width=32, height=6, bg="white", limitsize = FALSE)
+
+
+
+
+zscore_preceding_lamp <- long_trans_flagless %>%
+  arrange(n_lamp)%>%
+  ggplot(aes(x="", y=zscore, color=factor(n_lamp), shape=factor(mal0to6)))+
+  geom_point(aes(alpha=n_lamp), position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  scale_color_manual(values=c("grey", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of lamp+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         shape=guide_legend(title="# symptomatic malaria"),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/zscore_preceding_lamp.png", zscore_preceding_lamp, width=18, height=6, bg="white", limitsize = FALSE)
+
+
+
+
+
+zscore_preceding_lamp_06 <- long_trans_flagless %>%
+  filter(timepoint=="3", antigen %in% modelable_antigens)%>%
+  arrange(n_lamp)%>%
+  ggplot(aes(x="", y=zscore, color=factor(n_lamp), shape=factor(mal0to6)))+
+  geom_point(aes(alpha=n_lamp), position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  scale_color_manual(values=c("grey", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of lamp+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         shape=guide_legend(title="# symptomatic malaria in six months before timepoint",  title.position = "right", override.aes = list(size=3)),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+leggy <- cowplot::get_legend(zscore_preceding_lamp_06)
+zscore_preceding_lamp_06 <- zscore_preceding_lamp_06+theme(legend.position = "none")
+
+zscore_preceding_lamp_612 <- long_trans_flagless %>%
+  filter(timepoint=="3", antigen %in% modelable_antigens)%>%
+  arrange(n_lamp)%>%
+  ggplot(aes(x="", y=zscore, color=factor(n_lamp), shape=factor(mal6to12)))+
+  geom_point(aes(alpha=n_lamp), position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  scale_color_manual(values=c("darkgrey", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of lamp+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         shape=guide_legend(title="# symptomatic malaria 6-12 months",  title.position = "right", override.aes = list(size=3)),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+layout <- "
+AAAAC
+BBBBC
+"
+
+combo_plot <- zscore_preceding_lamp_06 + zscore_preceding_lamp_612 + leggy +
+  plot_layout(design = layout)
+
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/zscore_lamp_and_symptom.png", combo_plot, width=18, height=9.5, bg="white", limitsize = FALSE)
+
+
+
+
+
+conc_preceding_smear <- flagless_df %>%
+  filter(antigen %in% modelable_antigens)%>%
+  arrange(n_smear)%>%
+  ggplot(aes(x="", y=conc, color=factor(n_smear)))+
+  geom_point(position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  scale_y_log10()+
+  scale_color_manual(values=c("grey", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of smear+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         # shape=guide_legend(title="# symptomatic malaria"),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/conc_preceding_smear.png", conc_preceding_smear, width=18, height=6, bg="white", limitsize = FALSE)
+
+
+
+conc_preceding_lamp <- flagless_df %>%
+  filter(antigen %in% modelable_antigens)%>%
+  arrange(n_smear)%>%
+  ggplot(aes(x="", y=conc, color=factor(n_lamp)))+
+  geom_point(position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  scale_y_log10()+
+  scale_color_manual(values=c("grey", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of lamp+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         # shape=guide_legend(title="# symptomatic malaria"),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/conc_preceding_lamp.png", conc_preceding_lamp, width=18, height=6, bg="white", limitsize = FALSE)
+
+
+
+
+conc_preceding_smear_06 <- flagless_df %>%
+  filter(timepoint=="2", antigen %in% modelable_antigens)%>%
+  arrange(n_smear)%>%
+  ggplot(aes(x="", y=conc, color=factor(n_smear), shape=factor(mal0to6)))+
+  geom_point(aes(alpha=n_smear), position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  theme_minimal()+
+  scale_y_log10()+
+  scale_color_manual(values=c("black", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of smear+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         shape=guide_legend(title="# symptomatic malaria in six months before timepoint",  title.position = "right", override.aes = list(size=3)),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.key.height = unit(2.5, "cm"),
+        legend.title = element_text(size = 12, angle = 90),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+leggy <- cowplot::get_legend(conc_preceding_smear_06)
+conc_preceding_smear_06 <- conc_preceding_smear_06+theme(legend.position = "none")
+
+conc_preceding_smear_612 <- flagless_df %>%
+  filter(timepoint=="3", antigen %in% modelable_antigens)%>%
+  arrange(n_smear)%>%
+  ggplot(aes(x="", y=conc, color=factor(n_smear), shape=factor(mal6to12)))+
+  geom_point(aes(alpha=n_smear), position = position_jitter(width=0.5))+
+  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  scale_y_log10()+
+  theme_minimal()+
+  scale_color_manual(values=c("black", "#FFA500", "#FC6A03", "darkred"))+
+  guides(color=guide_legend(title="# of smear+ in six months before timepoint", title.position = "right", override.aes = list(size=3)),
+         shape=guide_legend(title="# symptomatic malaria 6-12 months",  title.position = "right", override.aes = list(size=3)),
+         size=guide_none(),
+         alpha=guide_none())+
+  theme(axis.text.x = element_blank(),
+        legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank()
+  )
+
+
+layout <- "
+AAAAC
+BBBBC
+"
+
+conc_combo_plot <- conc_preceding_smear_06 + conc_preceding_smear_612 + leggy +
+  plot_layout(design = layout)
+
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/conc_smear_and_symptom.png", conc_combo_plot, width=18, height=9.5, bg="white", limitsize = FALSE)
+
+
+
+  
 
 
 

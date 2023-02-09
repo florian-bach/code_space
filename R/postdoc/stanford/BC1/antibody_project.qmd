@@ -13,7 +13,7 @@ code-fold: true
 
 ## The dataset
 
-Plasma samples were taken from chord blood, at 6 months and 12 months to quantify antimalarial antibodies. Of the 189 children 168 full time courses are available, 15 kids miss one sample, 6 miss two. 21 antibodies were quantified, including two against vaccine antigens Tetanus toxoid and *Staphylococcus* enterotoxin A. The remaining antibodies are all against asexual parasite stages, except $\alpha$CSP.
+Plasma samples were taken from cord blood, at 6 months and 12 months to quantify antimalarial antibodies. Of the 189 children 168 full time-courses are available, 15 kids miss one sample, six miss two. 21 antibodies were quantified, including Tetanus toxoid. The remaining antibodies are all against asexual parasite stages, except $\alpha$CSP.
 
 ```{r}
 #| label: load libraries & data
