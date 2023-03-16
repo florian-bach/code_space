@@ -25,45 +25,14 @@ modelable_antigens <- c("Tet Tox", "SBP1", "Rh5", "PfSEA", "PfAMA1", "Hyp2", "HS
 # read in antibody data
 bc1 <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
 
-bc1$age <- bc1$date -bc1$dob
+ab_columns <- grep("log", colnames(bc1), value = TRUE)
 
 
-#subset data to include ID, timepoint, all antigens, flags and concentrations
-raw_data <- bc1[,c(1,67:132, 155)]
 
-#shove all antigens in their own column, same for flags and concentrations
-raw_conc_data <- raw_data %>%
-  pivot_longer(cols = colnames(raw_data)[seq(3, 66, by=3)], values_to = "conc")%>%
-  dplyr::select(conc)
-
-raw_flag_data <- raw_data%>%
-  pivot_longer(cols = colnames(raw_data)[seq(4, 67, by=3)], values_to = "flag")%>%
-  dplyr::select(flag)
-
-# make long data frame combining both conc and flag data
-long_raw_df <- raw_data %>%
-  pivot_longer(cols = colnames(raw_data)[seq(2, 65, by=3)], values_to = "antigen") %>%
-  dplyr::select(id, timepoint, antigen)%>%
-  mutate(timepoint=factor(timepoint))%>%
-  mutate(conc=raw_conc_data$conc, flag=raw_flag_data$flag)%>%
-  mutate(antigen=gsub(".", " ", antigen, fixed = TRUE))%>%
-  mutate(antigen=gsub("  ", " ", antigen, fixed = TRUE))%>%
-  mutate(id=factor(id))%>%
-  mutate(flag_type = case_when(flag==1 ~ "AboveMaxStd",
-                               flag==2 ~ "AboveUpperbound",
-                               flag==3 ~ "Above_fitted_asymptote",
-                               flag==4 ~ "BelowMinStd",
-                               is.na(flag) ~ "No Flag"))%>%
-  filter(antigen != "")
-  
-# remove all rows that have any flag
-flagless_df <- long_raw_df %>%
-  filter(is.na(flag))
-
-# make a df that has the sum of all antibodies
-long_raw_summary <- flagless_df %>%
-  group_by(id, timepoint)%>%
-  summarise("sum"=sum(conc, na.rm=TRUE))
+long_raw_dfff <- bc1 %>%
+  dplyr::select(all_of(c("id", "timepoint", ab_columns)))%>%
+  pivot_longer(cols=all_of(ab_columns), names_to = "antigen", values_to = "conc")%>%
+  filter(antigen %notin% c("logpd", "logGST"))
 
 
 # read in new visits database to look at correlations with malaria incidence
@@ -71,7 +40,7 @@ clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs r
 
 # it's a big table, so let's only include kids for whom we have any antibody measurements
 clin_data <- clin_data %>%
-  filter(id %in% raw_data$id)
+  filter(id %in% long_raw_dfff$id)
 
 # make a data frame where we add a bunch of columns that contain how many (symptomatic) infections were experienced by the child in the indicated time window
 
@@ -89,20 +58,66 @@ infs <- clin_data %>%
          symp_12_18 = sum(if_else(age>12 & age<18, sxifinfected, 0), na.rm = TRUE),
          symp_12_24 = sum(if_else(age>12 & age<24, sxifinfected, 0), na.rm = TRUE),
          symp_0_12  = sum(if_else(age<12, sxifinfected, 0), na.rm = TRUE),
-         symp_0_24  = sum(if_else(age<24, sxifinfected, 0), na.rm = TRUE)
-         ) %>%
+         symp_0_24  = sum(if_else(age<24, sxifinfected, 0), na.rm = TRUE),
+         any_inf_0_6 = ifelse(inf_0_6==0, 0, 1),
+         any_inf_6_12 = ifelse(inf_6_12==0, 0, 1),
+         any_inf_12_18 = ifelse(inf_12_18==0, 0, 1),
+         any_symp_0_6 = ifelse(symp_0_6==0, 0, 1),
+         any_symp_6_12 = ifelse(symp_6_12==0, 0, 1),
+         any_symp_12_18 = ifelse(symp_12_18==0, 0, 1)
+  ) %>%
   dplyr::select(-anyinfection, -sxifinfected, -age) %>%
   distinct()
-  
+
+long_raw_dfff <- bc1 %>%
+  dplyr::select(all_of(c("id", "timepoint", ab_columns)))%>%
+  pivot_longer(cols=all_of(ab_columns), names_to = "antigen", values_to = "conc")%>%
+  filter(antigen %notin% c("logpd", "logGST"))
+
+
+# read in new visits database to look at correlations with malaria incidence
+clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs routine visit database FINAL_ALL.dta")
+
+# it's a big table, so let's only include kids for whom we have any antibody measurements
+clin_data <- clin_data %>%
+  filter(id %in% long_raw_dfff$id)
+
+# make a data frame where we add a bunch of columns that contain how many (symptomatic) infections were experienced by the child in the indicated time window
+
+infs <- clin_data %>%
+  group_by(id) %>%
+  dplyr::select(id, age, anyinfection, sxifinfected) %>%
+  mutate(inf_0_6   = sum(if_else(age<6, anyinfection, 0), na.rm = TRUE),
+         inf_6_12  = sum(if_else(age>6  & age<12, anyinfection, 0), na.rm = TRUE),
+         inf_12_18 = sum(if_else(age>12 & age<18, anyinfection, 0), na.rm = TRUE),
+         inf_12_24 = sum(if_else(age>12 & age<24, anyinfection, 0), na.rm = TRUE),
+         inf_0_12  = sum(if_else(age<12, anyinfection, 0), na.rm = TRUE),
+         inf_0_24  = sum(if_else(age<24, anyinfection, 0), na.rm = TRUE),
+         symp_0_6   = sum(if_else(age<6, sxifinfected, 0), na.rm = TRUE),
+         symp_6_12  = sum(if_else(age>6  & age<12, sxifinfected, 0), na.rm = TRUE),
+         symp_12_18 = sum(if_else(age>12 & age<18, sxifinfected, 0), na.rm = TRUE),
+         symp_12_24 = sum(if_else(age>12 & age<24, sxifinfected, 0), na.rm = TRUE),
+         symp_0_12  = sum(if_else(age<12, sxifinfected, 0), na.rm = TRUE),
+         symp_0_24  = sum(if_else(age<24, sxifinfected, 0), na.rm = TRUE),
+         any_inf_0_6 = ifelse(inf_0_6==0, 0, 1),
+         any_inf_6_12 = ifelse(inf_6_12==0, 0, 1),
+         any_inf_12_18 = ifelse(inf_12_18==0, 0, 1),
+         any_symp_0_6 = ifelse(symp_0_6==0, 0, 1),
+         any_symp_6_12 = ifelse(symp_6_12==0, 0, 1),
+         any_symp_12_18 = ifelse(symp_12_18==0, 0, 1)
+  ) %>%
+  dplyr::select(-anyinfection, -sxifinfected, -age) %>%
+  distinct()
+
+
 # combine antibody data with malaria incidence data
 # the -1 removes the id column from the infs df, otherwise it's duplicated         
-combo_data <- cbind(flagless_df, infs[match(flagless_df$id, infs$id),-1])
-summary_combo_data <- cbind(long_raw_summary, infs[match(long_raw_summary$id, infs$id),-1])
+combo_data <- cbind(long_raw_dfff, infs[match(long_raw_dfff$id, infs$id),-1])
 
 # for these kids we only have antibody measurements at birth and they're not in the clinical database so we'll cut them her
 combo_data <- filter(combo_data, id %notin% c(11130, 11084, 11037))
 
-raw_combo_data <- cbind(long_raw_df, infs[match(long_raw_df$id, infs$id),-1])
+raw_combo_data <- cbind(long_raw_dfff, infs[match(long_raw_dfff$id, infs$id),-1])
 
 kids_with_complete_timecourses <- bc1 %>%
   group_by(id)%>%
@@ -112,35 +127,48 @@ kids_with_complete_timecourses <- bc1 %>%
 
 combo_data <- filter(combo_data, id %in% kids_with_complete_timecourses$id)
 
-#inspect data
-combo_data %>%
-  filter(antigen %in% modelable_antigens)%>%
-  ggplot(aes(x=inf_0_12, y=conc, fill=factor(inf_0_12)))+
-  geom_boxplot()+
-  facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
-  scale_y_log10(labels=scales::label_log())+
-  xlab("Number of Infections in First Year of Life")+
-  ylab("Concentration")+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none")+
-  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
-  
+birth <- combo_data %>%
+  filter(timepoint==1, !is.na(conc))
 
-summary_combo_data %>%
-  ggplot(aes(x=inf_0_12, y=sum, fill=factor(inf_0_12)))+
-  geom_boxplot()+
-  facet_grid(~timepoint)+
-  scale_y_log10(labels=scales::label_log())+
-  geom_smooth()+
-  xlab("Number of Infections in First Year of Life")+
-  ylab("Sum of all Measured IgG")+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none")+
-  viridis::scale_fill_viridis(option="A", direction = -1, discrete = TRUE)
+six_months <- combo_data %>%
+  filter(timepoint==2, !is.na(conc))
+
+twelve_months <- combo_data %>%
+  filter(timepoint==3, !is.na(conc))
 
 
+fdr_cutoff <- 0.1
+
+# 
+# #inspect data
+# combo_data %>%
+#   filter(antigen %in% modelable_antigens)%>%
+#   ggplot(aes(x=inf_0_12, y=conc, fill=factor(inf_0_12)))+
+#   geom_boxplot()+
+#   facet_grid(timepoint~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+#   scale_y_log10(labels=scales::label_log())+
+#   xlab("Number of Infections in First Year of Life")+
+#   ylab("Concentration")+
+#   theme_minimal()+
+#   theme(panel.grid = element_blank(),
+#         legend.position = "none")+
+#   viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
+# 
+# 
+# summary_combo_data %>%
+#   ggplot(aes(x=inf_0_12, y=sum, fill=factor(inf_0_12)))+
+#   geom_boxplot()+
+#   facet_grid(~timepoint)+
+#   scale_y_log10(labels=scales::label_log())+
+#   geom_smooth()+
+#   xlab("Number of Infections in First Year of Life")+
+#   ylab("Sum of all Measured IgG")+
+#   theme_minimal()+
+#   theme(panel.grid = element_blank(),
+#         legend.position = "none")+
+#   viridis::scale_fill_viridis(option="A", direction = -1, discrete = TRUE)
+# 
+# 
 
 # linear regression on general temporal dynamics ####
 
@@ -151,12 +179,9 @@ ter_contrast <- t(matrix(c(0,0,1)))
 sec_ter_contrast <- t(matrix(c(0,-1,1)))
 
 purrrf <- combo_data %>%
-  #filter(antigen %in% modelable_antigens)%>%
-  filter(antigen %notin% c("Rh4 2", "EBA181 VIII V"))%>%
   group_by(antigen) %>%
-  mutate(log_conc=log10(conc))%>%
   nest() %>%
-  mutate(model=map(data, ~lme4::lmer(log_conc~timepoint+(1|id), data=.))) %>%
+  mutate(model=map(data, ~lme4::lmer(conc~factor(timepoint)+(1|id), data=.))) %>%
   mutate(summary=map(model, ~summary(.))) %>%
   mutate(t2_t1=map(model, ~multcomp::glht(., sec_contrast)),
          t2_t1_p=map_dbl(t2_t1, ~summary(.)$test$pvalues)) %>%
@@ -168,7 +193,7 @@ purrrf <- combo_data %>%
   mutate(t2_t1_padj=p.adjust(t2_t1_p),
          t3_t1_padj=p.adjust(t3_t1_p),
          t3_t2_padj=p.adjust(t3_t2_p)
-         )
+  )
 
 #make results table that includes the coef & p_adj values for the sec_ter_contrast
 results_table <- purrrf %>%
@@ -188,11 +213,10 @@ sig_1_2_abs <- results_table %>%
 
 # vis modelling results
 combo_data %>%
-  filter(antigen %in% sig_2_3_abs$antigen & antigen %in% modelable_antigens) %>% 
-  ggplot(., aes(x=timepoint, y=conc))+
+  filter(antigen %in% sig_2_3_abs$antigen) %>% 
+  ggplot(., aes(x=factor(timepoint), y=conc))+
   facet_wrap(~antigen, scales = "free")+
   geom_violin(aes(fill=antigen), draw_quantiles = c(0.25, 0.5, 0.75))+
-  scale_y_log10(labels=scales::label_log())+
   theme_minimal()+
   scale_color_manual(values=pc1_cols)+
   scale_fill_manual(values=pc1_cols)+
@@ -212,19 +236,6 @@ combo_data %>%
 # We could also look in the past to see if antibodies are associated with exposure
 
 
-birth <- combo_data %>%
-  filter(timepoint==1)
-             
-six_months <- combo_data %>%
-  filter(timepoint==2)
-             
-twelve_months <- combo_data %>%
-  filter(timepoint==3)
-       
-
-fdr_cutoff <- 0.1
-      
-
 # check suitability for incidence data to be modelled by poisson.. doesn't look ideal so we go with negative binomial
 # mean_var_summary <- long_combo %>%
 #   dplyr::select(id, incidence_type, incidence_value)%>%
@@ -240,15 +251,16 @@ fdr_cutoff <- 0.1
 
 # 1 look at correlations between antibody levels at birth and anyinfection from birth to 12 months of age
 birth_purf <- birth %>%
-  group_by(antigen) %>%
-  mutate(log_conc=log10(conc))%>%
+  group_by(antigen)%>%
   nest() %>%
-  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ log_conc, data=.)))%>%
-  mutate(model_0_6=map(data, ~glm.nb(inf_0_6 ~ log_conc, data=.)))%>%
-  mutate(model_0_12_symp=map(data, ~glm.nb(symp_0_12 ~ log_conc, data=.)))%>%
-  mutate(model_0_6_symp=map(data, ~glm.nb(symp_0_12 ~ log_conc, data=.)))%>%
-  mutate(model_0_12_symp_prob=map(data, ~glm(symp_0_12/inf_0_12~log_conc, data=., family = "binomial", weights = inf_0_12)))%>%
-  mutate(model_0_6_symp_prob=map(data, ~glm(symp_0_6/inf_0_6~log_conc, data=., family = "binomial", weights = inf_0_6)))%>%
+  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ conc, data=.)))%>%
+  mutate(model_0_6=map(data, ~glm.nb(inf_0_6 ~ conc, data=.)))%>%
+  mutate(model_0_12_symp=map(data, ~glm.nb(symp_0_12 ~ conc, data=.)))%>%
+  mutate(model_0_6_symp=map(data, ~glm.nb(symp_0_12 ~ conc, data=.)))%>%
+  mutate(model_0_12_symp_prob=map(data, ~glm(symp_0_12/inf_0_12~conc, data=., family = "binomial", weights = inf_0_12)))%>%
+  mutate(model_0_6_symp_prob=map(data, ~glm(symp_0_6/inf_0_6~conc, data=., family = "binomial", weights = inf_0_6)))%>%
+  mutate(model_any_symp_06=map(data, ~glm(any_symp_0_6~conc, data=., family = "binomial")))%>%
+  mutate(model_any_0_6=map(data, ~glm(any_inf_0_6~conc, data=., family = "binomial")))%>%
   
   mutate(summary_0_12=map(model_0_12, ~summary(.))) %>%
   mutate(summary_0_6=map(model_0_6, ~summary(.))) %>%
@@ -256,6 +268,9 @@ birth_purf <- birth %>%
   mutate(summary_0_6_symp=map(model_0_6_symp, ~summary(.))) %>%
   mutate(summary_0_12_symp_prob=map(model_0_12_symp_prob, ~summary(.))) %>%
   mutate(summary_0_6_symp_prob=map(model_0_6_symp_prob, ~summary(.))) %>%
+  mutate(summary_any_symp_06=map(model_any_symp_06, ~summary(.))) %>%
+  mutate(summary_any_0_6=map(model_any_0_6, ~summary(.))) %>%
+  
   
   mutate(summary_0_12_p=map_dbl(summary_0_12, ~unlist(.$coefficients[8])))%>%
   mutate(summary_0_6_p=map_dbl(summary_0_6, ~unlist(.$coefficients[8])))%>%
@@ -263,13 +278,20 @@ birth_purf <- birth %>%
   mutate(summary_0_6_symp_p=map_dbl(summary_0_6_symp, ~unlist(.$coefficients[8])))%>%
   mutate(summary_0_12_symp_prob_p=map_dbl(summary_0_12_symp_prob, ~unlist(.$coefficients[8])))%>%
   mutate(summary_0_6_symp_prob_p=map_dbl(summary_0_6_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_06_p=map_dbl(summary_any_symp_06, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_0_6_p=map_dbl(summary_any_0_6, ~unlist(.$coefficients[8])))%>%
+  
+  
   ungroup()%>%
   mutate(summary_0_12_padj=p.adjust(summary_0_12_p))%>%
   mutate(summary_0_6_padj=p.adjust(summary_0_6_p))%>%
   mutate(summary_0_12_symp_padj=p.adjust(summary_0_12_symp_p))%>%
   mutate(summary_0_6_symp_padj=p.adjust(summary_0_6_symp_p))%>%
   mutate(summary_0_12_symp_padj=p.adjust(summary_0_12_symp_prob_p))%>%
-  mutate(summary_0_6_symp_padj=p.adjust(summary_0_6_symp_prob_p))
+  mutate(summary_0_6_symp_padj=p.adjust(summary_0_6_symp_prob_p))%>%
+  mutate(summary_any_symp_06_padj=p.adjust(summary_any_symp_06_p))%>%
+  mutate(summary_any_0_6_padj=p.adjust(summary_any_0_6_p))
+  
 
 zero_six_sig <- birth_purf %>%
   filter(summary_0_6_p<fdr_cutoff)%>%
@@ -298,21 +320,13 @@ zero_twelve_symp_prob_sig <- birth_purf %>%
   dplyr::select(antigen, summary_0_6_symp_padj)
 
 
+zero_six_any_sig <- birth_purf %>%
+  filter(summary_any_0_6_padj <fdr_cutoff)%>%
+  dplyr::select(antigen, summary_any_0_6_padj)
 
-
-birth %>%
-  filter(antigen %in% zero_twelve_sig$antigen)%>%
-  ggplot(aes(x=inf_0_12, y=conc, fill=factor(inf_0_12)))+
-  geom_boxplot()+
-  geom_point(alpha=0.2)+
-  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
-  scale_y_log10(labels=scales::label_log())+
-  xlab("Number of Infections in First Year of Life")+
-  ylab("Concentration in Cord Blood")+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none")+
-  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
+zero_six_any_symp_sig <- birth_purf %>%
+  filter(summary_any_symp_06_padj < fdr_cutoff)%>%
+  dplyr::select(antigen, summary_any_symp_06_padj)
 
 
 birth %>%
@@ -321,7 +335,6 @@ birth %>%
   geom_boxplot()+
   geom_point(alpha=0.2)+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
-  scale_y_log10(labels=scales::label_log())+
   xlab("Number of Infections in First Six Months of Life")+
   ylab("Concentration in Cord Blood")+
   theme_minimal()+
@@ -331,51 +344,43 @@ birth %>%
 
 
 
-birth %>%
-  filter(antigen %in% zero_six_symp_prob_sig$antigen)%>%
-  mutate(symp_prob_0_6=symp_0_6/inf_0_6)%>%
-  #mutate(symp_prob_0_6=if_else(is.na(symp_prob_0_6), -0.25, symp_prob_0_6))%>%
-  ggplot(aes(x=symp_prob_0_6, y=conc, color=factor(inf_0_6), shape=factor(symp_0_6)))+
-  #geom_point()+
-  geom_text(aes(y=conc, label= paste0("frac(",symp_0_6, ",", inf_0_6,")")),parse = TRUE, size=2.5)+
-  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
-  scale_y_log10(labels=scales::label_log())+
-  xlab("Fraction of Infections With Symptoms in First Six Months of Life")+
-  ylab("Concentration in Cord Blood")+
-  theme_minimal()+
-  theme(panel.grid = element_blank())+
-  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
-
-
-
-
 
 
 
 # 2 look at correlations between antibody levels at 6 months of age and anyinfection from 6 to 12 months of age
 six_purf <- six_months %>%
-  filter(antigen %in% modelable_antigens)%>%
   group_by(antigen) %>%
-  mutate(log_conc=log10(conc))%>%
   nest() %>%
-  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ log_conc, data=.)))%>%
-  mutate(model_6_12_symp=map(data, ~glm.nb(symp_6_12 ~ log_conc, data=.)))%>%
-  mutate(model_6_12_symp_prob=map(data, ~glm(symp_6_12/inf_6_12~log_conc, data=., family = "binomial", weights = inf_6_12)))%>%
-  mutate(model_0_6=map(data, ~glm.nb(inf_0_6 ~ log_conc, data=.)))%>%
+  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ conc, data=.)))%>%
+  mutate(model_6_12_symp=map(data, ~glm.nb(symp_6_12 ~ conc, data=.)))%>%
+  mutate(model_6_12_symp_prob=map(data, ~glm(symp_6_12/inf_6_12~conc, data=., family = "binomial", weights = inf_6_12)))%>%
+  mutate(model_0_6=map(data, ~glm.nb(inf_0_6 ~ conc, data=.)))%>%
+  mutate(model_any_symp_6_12=map(data, ~glm(any_symp_6_12~conc, data=., family = "binomial")))%>%
+  mutate(model_any_6_12=map(data, ~glm(any_inf_6_12~conc, data=., family = "binomial")))%>%
+
+
   mutate(summary_6_12=map(model_6_12, ~summary(.))) %>%
   mutate(summary_6_12_symp=map(model_6_12_symp, ~summary(.))) %>%
   mutate(summary_6_12_symp_prob=map(model_6_12_symp_prob, ~summary(.))) %>%
   mutate(summary_0_6=map(model_0_6, ~summary(.))) %>%
+  mutate(summary_any_symp_6_12=map(model_any_symp_6_12, ~summary(.))) %>%
+  mutate(summary_any_6_12=map(model_any_6_12, ~summary(.))) %>%
+  
   mutate(summary_6_12_p=map_dbl(summary_6_12, ~unlist(.$coefficients[8])))%>%
   mutate(summary_6_12_symp_p=map_dbl(summary_6_12_symp, ~unlist(.$coefficients[8])))%>%
   mutate(summary_6_12_symp_prob_p=map_dbl(summary_6_12_symp_prob, ~unlist(.$coefficients[8])))%>%
   mutate(summary_0_6_p=map_dbl(summary_0_6, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_6_12_p=map_dbl(summary_any_symp_6_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_6_12_p=map_dbl(summary_any_6_12, ~unlist(.$coefficients[8])))%>%
+
   ungroup()%>%
   mutate(summary_6_12_padj=p.adjust(summary_6_12_p))%>%
   mutate(summary_6_12_symp_padj=p.adjust(summary_6_12_symp_p))%>%
   mutate(summary_6_12_symp_prob_padj=p.adjust(summary_6_12_symp_prob_p))%>%   
-  mutate(summary_0_6_padj=p.adjust(summary_0_6_p))
-  
+  mutate(summary_0_6_padj=p.adjust(summary_0_6_p))%>%
+  mutate(summary_any_symp_6_12_padj=p.adjust(summary_any_symp_6_12_p))%>%
+  mutate(summary_any_6_12_padj=p.adjust(summary_any_6_12_p))
+
 
 six_12_sig <- six_purf %>%
   filter(summary_6_12_padj<fdr_cutoff)%>%
@@ -393,36 +398,13 @@ six_0_6_sig <- six_purf %>%
   filter(summary_0_6_padj<fdr_cutoff)%>%
   dplyr::select(antigen, summary_0_6_padj)
 
+six_any_12_symp_sig <- six_purf %>%
+  filter(summary_any_symp_6_12_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_0_6_padj)
 
-six_months %>%
-  filter(antigen %in% six_12_sig$antigen)%>%
-  ggplot(aes(x=inf_6_12, y=conc, fill=factor(inf_6_12)))+
-  geom_boxplot()+
-  geom_point(alpha=0.2)+
-  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
-  scale_y_log10(labels=scales::label_log())+
-  xlab("Number of Infections in Months 6-12")+
-  ylab("Concentration at 6 Months")+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none")+
-  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
-
-
-six_months %>%
-  filter(antigen %in% six_12_symp_sig$antigen)%>%
-  ggplot(aes(x=symp_6_12, y=conc, fill=factor(symp_6_12)))+
-  geom_boxplot()+
-  geom_point(alpha=0.2)+
-  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
-  scale_y_log10(labels=scales::label_log())+
-  xlab("Number of Symptomatic Infections in Months 6-12")+
-  ylab("Concentration at 6 Months")+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none")+
-  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
-
+six_any_12_sig <- six_purf %>%
+  filter(summary_any_6_12_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_0_6_padj)
 
 
 six_months %>%
@@ -431,7 +413,6 @@ six_months %>%
   geom_boxplot()+
   geom_point(alpha=0.2)+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
-  scale_y_log10(labels=scales::label_log())+
   xlab("Number of Infections in Months 0-6")+
   ylab("Concentration at 6 Months")+
   theme_minimal()+
@@ -446,30 +427,36 @@ six_months %>%
 
 
 twelve_purf <- twelve_months %>%
+  filter(inf_12_18!=0)%>%
   group_by(antigen) %>%
-  mutate(log_conc=log10(conc))%>%
   nest() %>%
-  mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ log_conc, data=.)))%>%
-  mutate(model_12_18_symp=map(data, ~glm.nb(symp_12_18 ~ log_conc, data=.)))%>%
-  mutate(model_12_18_symp_prob=map(data, ~glm(symp_12_18/inf_12_18~log_conc, data=., family = "binomial", weights = inf_12_18)))%>%
-  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ log_conc, data=.)))%>%
-  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ log_conc, data=.)))%>%
+  mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ conc, data=.)))%>%
+  mutate(model_12_18_symp=map(data, ~glm.nb(symp_12_18 ~ conc, data=.)))%>%
+  mutate(model_12_18_symp_prob=map(data, ~glm(symp_12_18/inf_12_18~conc, data=., family = "binomial", weights = inf_12_18)))%>%
+  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ conc, data=.)))%>%
+  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ conc, data=.)))%>%
+  mutate(model_any_symp_12_18=map(data, ~glm(any_symp_12_18~conc, data=., family = "binomial")))%>%
+  mutate(model_any_12_18=map(data, ~glm(any_inf_12_18~conc, data=., family = "binomial")))%>%
   
   mutate(summary_12_18=map(model_12_18, ~summary(.))) %>%
   mutate(summary_12_18_symp=map(model_12_18_symp, ~summary(.))) %>%
   mutate(summary_12_18_symp_prob=map(model_12_18_symp_prob, ~summary(.))) %>%
   mutate(summary_6_12=map(model_6_12, ~summary(.))) %>%
   mutate(summary_0_12=map(model_0_12, ~summary(.))) %>%
+  mutate(summary_any_symp_12_18=map(model_any_symp_12_18, ~summary(.))) %>%
+  mutate(summary_any_12_18=map(model_any_12_18, ~summary(.))) %>%
   
   mutate(summary_12_18_p=map_dbl(summary_12_18, ~unlist(.$coefficients[8])))%>%
   mutate(summary_12_18_symp_p=map_dbl(summary_12_18_symp, ~unlist(.$coefficients[8])))%>%
   mutate(summary_12_18_symp_prob_p=map_dbl(summary_12_18_symp_prob, ~unlist(.$coefficients[8])))%>%
   mutate(summary_6_12_p=map_dbl(summary_6_12, ~unlist(.$coefficients[8])))%>%
   mutate(summary_0_12_p=map_dbl(summary_0_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_12_18_p=map_dbl(summary_any_symp_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_12_18_p=map_dbl(summary_any_12_18, ~unlist(.$coefficients[8])))%>%
   
-  mutate(model_12_24=map(data, ~glm.nb(inf_12_24 ~ log_conc, data=.)))%>%
-  mutate(model_12_24_symp=map(data, ~glm.nb(symp_12_24 ~ log_conc, data=.)))%>%
-  mutate(model_12_24_symp_prob=map(data, ~glm(symp_12_24/inf_12_24~log_conc, data=., family = "binomial", weights = inf_12_24)))%>%
+  mutate(model_12_24=map(data, ~glm.nb(inf_12_24 ~ conc, data=.)))%>%
+  mutate(model_12_24_symp=map(data, ~glm.nb(symp_12_24 ~ conc, data=.)))%>%
+  mutate(model_12_24_symp_prob=map(data, ~glm(symp_12_24/inf_12_24~conc, data=., family = "binomial", weights = inf_12_24)))%>%
   
   mutate(summary_12_24=map(model_12_24, ~summary(.))) %>%
   mutate(summary_12_24_symp=map(model_12_24_symp, ~summary(.))) %>%
@@ -486,10 +473,13 @@ twelve_purf <- twelve_months %>%
   mutate(summary_12_24_padj=p.adjust(summary_12_24_p))%>%
   mutate(summary_12_24_symp_padj=p.adjust(summary_12_24_symp_p))%>%
   mutate(summary_12_24_symp_prob_padj=p.adjust(summary_12_24_symp_prob_p))%>%
-  mutate(summary_0_12_padj=p.adjust(summary_0_12_p))
+  mutate(summary_0_12_padj=p.adjust(summary_0_12_p))%>%
+  mutate(summary_any_symp_12_18_padj=p.adjust(summary_any_symp_12_18_p))%>%
+  mutate(summary_any_12_18_padj=p.adjust(summary_any_12_18_p))
+  
 
 
-   
+
 
 
 twelve_18_sig <- twelve_purf %>%
@@ -526,15 +516,24 @@ twelve_0_12_sig <- twelve_purf %>%
   filter(summary_0_12_padj<fdr_cutoff)%>%
   dplyr::select(antigen, summary_0_12_padj)
 
+twelve_18_any_sig <- twelve_purf %>%
+  filter(summary_any_12_18_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_any_12_18_padj)
+
+twelve_18_any_symp_sig <- twelve_purf %>%
+  filter(summary_any_symp_12_18_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_any_symp_12_18_padj)
+
 
 
 twelve_months %>%
-  filter(antigen %in% twelve_18_sig$antigen)%>%
-  ggplot(aes(x=inf_12_18, y=conc, fill=factor(inf_12_18)))+
-  geom_boxplot()+
-  geom_point(alpha=0.2)+
+  # filter(antigen %in% twelve_18_sig$antigen)%>%
+  filter(antigen %in% c("logSEA", "logCSP"))%>%
+  ggplot(aes(x=any_inf_12_18, y=conc, fill=factor(any_inf_12_18)))+
+  geom_violin()
+  # geom_boxplot()+
+  # geom_point(alpha=0.2)+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
-  scale_y_log10(labels=scales::label_log())+
   xlab("Number of Infections in Months 12-18")+
   ylab("Concentration at 12 Months")+
   ggpubr::stat_cor(method = "pearson", label.x = 1.5, label.y = 1)+
@@ -636,9 +635,9 @@ ggs_vs_exsure6_12 <- combo_data %>%
         legend.position = "none")+
   viridis::scale_fill_viridis(option="B", direction = 1, discrete = TRUE)
 
-  
+
 ggs_vs_exsure_symp_6_12 <- combo_data %>%
-   filter(antigen %in% c("GEXP", "PfSEA", "GST"))%>%
+  filter(antigen %in% c("GEXP", "PfSEA", "GST"))%>%
   ggplot(aes(x=symp_6_12, y=conc, fill=factor(symp_6_12)))+
   geom_boxplot(outlier.shape = NA)+
   geom_point(alpha=0.2)+
@@ -648,9 +647,9 @@ ggs_vs_exsure_symp_6_12 <- combo_data %>%
   theme_minimal()+
   xlab("number of symptomatic infections in months 6-12")+
   theme(panel.grid = element_blank(),
-      legend.position = "none")+
+        legend.position = "none")+
   viridis::scale_fill_viridis(option="B", direction = 1, discrete = TRUE)
-  
+
 ggs_combo_plot <- cowplot::plot_grid(ggs_through_time, ggs_vs_exsure6_12, ggs_vs_exsure_symp_6_12, ncol = 1)
 # 
 # birth %>%
@@ -682,25 +681,25 @@ ggs_combo_plot <- cowplot::plot_grid(ggs_through_time, ggs_vs_exsure6_12, ggs_vs
 #         legend.position = "none")+
 #   viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
 
-  birth %>%
-    ggplot(aes(x=inf_0_12, y=inf_12_24))+
-    geom_point()+
-    xlab("Number of Infections in Months 0-12")+
-    ylab("Number of Infections in Months 12-24")+
-    geom_smooth(formula = y~x, method = "lm")+
-    ggpubr::stat_cor(method = "pearson")+
-    theme_minimal()+
-    theme(panel.grid = element_blank(),
-          legend.position = "none")+
-    viridis::scale_color_viridis(option="B", direction = -1, discrete = TRUE)
-  
-  
+birth %>%
+  ggplot(aes(x=inf_0_12, y=inf_12_24))+
+  geom_point()+
+  xlab("Number of Infections in Months 0-12")+
+  ylab("Number of Infections in Months 12-24")+
+  geom_smooth(formula = y~x, method = "lm")+
+  ggpubr::stat_cor(method = "pearson")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  viridis::scale_color_viridis(option="B", direction = -1, discrete = TRUE)
+
+
 
 # We could also look in the past to see if antibodies are associated with exposure
 # also make a column for the fraction of symp episodes to model those
-  
-  
-  
+
+
+
 try <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
 
 
@@ -731,3 +730,149 @@ long_slim_bc <- try %>%
   filter(antigen %notin% c("logpd", "logGST"))
 
 
+# geeeeee ####
+
+
+gee_inf_purf <- twelve_months %>%
+  filter(inf_12_18>0)%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee=map(data, ~geepack::geeglm(inf_12_18 ~ conc,
+                                            data = ., 
+                                            id = id, 
+                                            family = "poisson",
+                                            corstr = "independence")))%>%
+  mutate(inf_gee_summary = map(inf_gee, ~summary(.)))%>%
+  mutate(inf_gee_p = map(inf_gee_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_padj = p.adjust(inf_gee_p))
+
+#logGEXP, logHSP40
+gee_twelve_18_sig <- gee_purf %>%
+  filter(inf_gee_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_padj)
+
+
+
+
+gee_symp_purf <- twelve_months %>%
+  filter(symp_12_18>0)%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee_symp=map(data, ~geepack::geeglm(symp_12_18 ~ conc,
+                                                 data = ., 
+                                                 id = id, 
+                                                 family = "poisson",
+                                                 corstr = "independence")))%>%
+  mutate(inf_gee_symp_summary = map(inf_gee_symp, ~summary(.)))%>%
+  mutate(inf_gee_symp_p = map(inf_gee_symp_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_symp_padj = p.adjust(inf_gee_symp_p))
+
+
+#logH103, logHSP40
+gee_symp_twelve_18_sig <- gee_symp_purf %>%
+  filter(inf_gee_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_symp_padj)
+
+
+
+gee_any_symp_purf <- twelve_months %>%
+  #filter(symp_12_18>0)%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee_any_symp=map(data, ~geepack::geeglm(any_symp_12_18 ~ conc,
+                                                 data = ., 
+                                                 id = id, 
+                                                 family = "binomial",
+                                                 corstr = "independence")))%>%
+  mutate(inf_gee_any_symp_summary = map(inf_gee_any_symp, ~summary(.)))%>%
+  mutate(inf_gee_any_symp_p = map(inf_gee_any_symp_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_any_symp_padj = p.adjust(inf_gee_any_symp_p))
+
+#logMSP2_CH150
+gee_any_symp_twelve_18_sig <- gee_any_symp_purf %>%
+  filter(inf_gee_any_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_any_symp_padj)
+
+
+
+gee_any_inf_purf <- twelve_months %>%
+  #filter(inf_12_18>0)%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee_any_inf=map(data, ~geepack::geeglm(any_inf_12_18 ~ conc,
+                                                     data = ., 
+                                                     id = id, 
+                                                     family = "binomial",
+                                                     corstr = "independence")))%>%
+  mutate(inf_gee_any_inf_summary = map(inf_gee_any_inf, ~summary(.)))%>%
+  mutate(inf_gee_any_inf_p = map(inf_gee_any_inf_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_any_inf_padj = p.adjust(inf_gee_any_inf_p))
+
+#logMSP2_CH150
+gee_any_inf_twelve_18_sig <- gee_any_inf_purf %>%
+  filter(inf_gee_any_inf_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_any_inf_padj)
+
+
+
+twelve_months %>%
+  filter(inf_12_18>0)%>%
+  filter(antigen %in% c("logHSP40", "logH103", "logMSP2_CH150", "logSEA", "logGEXP"))%>%
+  ggplot(aes(x=inf_12_18, y=conc, fill=factor(inf_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Number of Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
+
+
+
+twelve_months %>%
+  filter(symp_12_18>0)%>%
+  filter(antigen %in% c("logHSP40", "logH103", "logMSP2_CH150", "logSEA", "logGEXP"))%>%
+  ggplot(aes(x=symp_12_18, y=conc, fill=factor(symp_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Number of Symptomatic Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
+
+
+
+twelve_months %>%
+  # filter(antigen %in% twelve_18_sig$antigen)%>%
+  filter(antigen %in% c("logHSP40", "logH103", "logMSP2_CH150", "logSEA", "logGEXP"))%>%
+  ggplot(aes(x=any_symp_12_18, y=conc, fill=factor(any_symp_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Any Symptomatic Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
+
+
+
+
+twelve_months %>%
+  filter(antigen %in% c("logHSP40", "logH103", "logMSP2_CH150", "logSEA", "logGEXP"))%>%
+  ggplot(aes(x=any_inf_12_18, y=conc, fill=factor(any_inf_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Any Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)

@@ -66,7 +66,7 @@ demo_columns <- c("id",
                   "mal6to12")
 
 slim_bc <- bc1 %>%
-  dplyr::select(c(demo_columns, ab_columns))
+  dplyr::select(all_of(c(demo_columns, ab_columns)))
 
 
 # NAs are present. count them!
@@ -407,6 +407,7 @@ sec_ter_contrast <- t(matrix(c(0,-1,1)))
 # brave new world purrrlicious way of doing it:
 # make grouped df, nest into one, add column for model & summary, extract values from each to create even more new columns for p values and p_adj values
 purrrf <- ginormous_df %>%
+  #filter(antibody %in% modelable_antigens)%>%
   group_by(antibody) %>%
   nest() %>%
   mutate(model=map(data, ~lmer(log_conc~timepoint+(1|id), data=.))) %>%

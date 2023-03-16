@@ -1,0 +1,874 @@
+---
+title: "BC1 Antibody Study"
+format: html
+page-layout: article
+theme: robobook
+width: 10
+editor: visual
+wrap: auto
+# include-in-header: 
+#   text: |
+#     \usepackage{fvextra}
+#     \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+fig-format: png
+fig-align: "center"
+fig-dpi: 444
+self-contained: true
+code-fold: true
+---
+
+```{r}
+#| label: load libraries & data
+#| warning: false
+#| 
+
+#palettes
+time_palette <- colorspace::sequential_hcl(n=4, "RdPu")[1:3]
+pc1_cols <- colorspace::sequential_hcl(23, palette = "Purple Yellow")
+incidence_cols <- colorspace::sequential_hcl(11, palette = "Purple Yellow")
+n_infection_cols <- c("white", colorspace::sequential_hcl(n=5, palette = "Lajolla")[-1])
+#libraries 
+library(patchwork)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+library(MASS)
+library(knitr)
+library(dplyr)
+
+`%notin%` <- Negate(`%in%`)
+
+fdr_cutoff <- 0.1
+
+# from looking at the frequencies of observations only these antibodies can be modelled longitudinally; NB some drop off at timepoint 3 so only 1 and 2 can be compared properly
+modelable_antigens <- c("Tet Tox", "SBP1", "Rh5", "PfSEA", "PfAMA1", "Hyp2", "HSP40 Ag1", "GST", "GEXP", "CSP GENOVA")
+
+
+# read in antibody data
+bc1 <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/MergedAntibodyData_ChildClinical.dta")
+
+ab_columns <- grep("log", colnames(bc1), value = TRUE)
+
+
+long_raw_dfff <- bc1 %>%
+  dplyr::select(all_of(c("id", "timepoint", ab_columns, "MomFinalRx", "anyHPfinal")))%>%
+  pivot_longer(cols=all_of(ab_columns), names_to = "antigen", values_to = "conc")%>%
+  filter(antigen %notin% c("logpd", "logGST"))%>%
+  mutate(antigen=gsub("log", "", antigen, fixed = TRUE))%>%
+  mutate(antigen=gsub("_", " ", antigen, fixed = TRUE))%>%
+  mutate(MomFinalRxx=if_else(MomFinalRx==1, "3 Dose SP",
+                            ifelse(MomFinalRx==2, "3 Dose DP",
+                                   if_else(MomFinalRx==3, "Monthly DP", "NA")))
+                            
+                            )%>%
+  mutate(MomFinalRxx=factor(MomFinalRxx, levels = c("3 Dose SP", "3 Dose DP", "Monthly DP")))%>%
+  mutate(anyHPfinalx=if_else(anyHPfinal==1, "Placental Malaria",
+                            if_else(anyHPfinal==0, "No Pathology", "Results missing")))
+      
+
+
+# read in new visits database to look at correlations with malaria incidence
+# clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs routine visit database FINAL_ALL.dta")
+clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs routine visit database FINAL_REV.dta")
+
+# it's a big table, so let's only include kids for whom we have any antibody measurements
+clin_data <- clin_data %>%
+  filter(id %in% long_raw_dfff$id)
+
+# make a data frame where we add a bunch of columns that contain how many (symptomatic) infections were experienced by the child in the indicated time window
+
+infs <- clin_data %>%
+  group_by(id) %>%
+  dplyr::select(id, age, anyinfection, sxifinfected) %>%
+  mutate(inf_0_6   = sum(if_else(age<6, anyinfection, 0), na.rm = TRUE),
+         inf_6_12  = sum(if_else(age>6  & age<12, anyinfection, 0), na.rm = TRUE),
+         inf_12_18 = sum(if_else(age>12 & age<18, anyinfection, 0), na.rm = TRUE),
+         inf_12_24 = sum(if_else(age>12 & age<24, anyinfection, 0), na.rm = TRUE),
+         inf_0_12  = sum(if_else(age<12, anyinfection, 0), na.rm = TRUE),
+         inf_0_24  = sum(if_else(age<24, anyinfection, 0), na.rm = TRUE),
+         symp_0_6   = sum(if_else(age<6, sxifinfected, 0), na.rm = TRUE),
+         symp_6_12  = sum(if_else(age>6  & age<12, sxifinfected, 0), na.rm = TRUE),
+         symp_12_18 = sum(if_else(age>12 & age<18, sxifinfected, 0), na.rm = TRUE),
+         symp_12_24 = sum(if_else(age>12 & age<24, sxifinfected, 0), na.rm = TRUE),
+         symp_0_12  = sum(if_else(age<12, sxifinfected, 0), na.rm = TRUE),
+         symp_0_24  = sum(if_else(age<24, sxifinfected, 0), na.rm = TRUE),
+         any_inf_0_6 = ifelse(inf_0_6==0, 0, 1),
+         any_inf_6_12 = ifelse(inf_6_12==0, 0, 1),
+         any_inf_12_18 = ifelse(inf_12_18==0, 0, 1),
+         any_symp_0_6 = ifelse(symp_0_6==0, 0, 1),
+         any_symp_6_12 = ifelse(symp_6_12==0, 0, 1),
+         any_symp_12_18 = ifelse(symp_12_18==0, 0, 1)
+         ) %>%
+  dplyr::select(-anyinfection, -sxifinfected, -age) %>%
+  distinct()
+  
+  
+# combine antibody data with malaria incidence data
+# the -1 removes the id column from the infs df, otherwise it's duplicated         
+combo_data <- cbind(long_raw_dfff, infs[match(long_raw_dfff$id, infs$id),-1])
+
+# for these kids we only have antibody measurements at birth and they're not in the clinical database so we'll cut them her
+combo_data <- filter(combo_data, id %notin% c(11130, 11084, 11037))
+
+raw_combo_data <- cbind(long_raw_dfff, infs[match(long_raw_dfff$id, infs$id),-1])
+
+kids_with_complete_timecourses <- bc1 %>%
+  group_by(id)%>%
+  summarise("n_time"=n()) %>%
+  filter(n_time==3)%>%
+  dplyr::select(id)
+
+combo_data <- filter(combo_data, id %in% kids_with_complete_timecourses$id)
+
+
+```
+
+## The Dataset
+
+Plasma samples were taken from cord blood, at 6 months and 12 months (timepoints 1, 2 and 3, respectively) to quantify antimalarial antibodies. Of the 189 children 168 full time-courses are available, 15 kids miss one sample, six miss two. 21 antibodies were quantified, including against Tetanus toxoid. The remaining antibodies are all against asexual parasite stages, except $\alpha$CSP.
+
+Previously I was working with absolute concentrations which was problematic as a large portion of measurements were below the limit of quantification, particularly for timepoints 2 and 3. Instead, we can use the fluorescence intensity measured in the Luminex assay to get obtain full timecourses for each antibody, akin to the use of arbitrary units in ELISAs.
+
+Here's the log-transformed flurorescence intensity data for each antibody.
+
+```{r}
+#| fig-width: 10
+#| fig-height: 7
+#| fig-cap: Antibody Dynamics Through Time
+#| warning: false
+#| 
+suppressWarnings(ggplot(combo_data, aes(x=factor(timepoint), y=conc, fill=antigen))+
+  #geom_violin(draw_quantiles = seq(0,1,0.25), scale = TRUE, )+
+  geom_point(alpha=0.1, shape=21)+
+  geom_line(aes(group=id), alpha=0.1)+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", width = 0.5, color="darkred")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), nrow = 3, scales = "free")+
+  xlab("Timepoint")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+)
+
+```
+
+We can see all antibody concentrations decrease significantly from timepoint 1 to 2 (i.e. birth to six months) and appear to increase from timepoint 2 to 3 (i.e. from six months to twelve months). To get a more detailed view I decided to do linear regression on each antibody through time. For this I fitted linear mixed effects models to predict log-intensities by categorical timepoint, including individual identity as a random effect to account for repeated measures. Regression coefficients are tested using z tests and p-values are adjusted with Benjamini-Hochberg, using an FDR cutoff of 0.1.
+
+With the increased power from more usable measurements we're able to detect 15 antibodies changing from timepoint 2 to 3, all increase except AMA1, TT and CSP which decrease.
+
+```{r}
+#| label: making mixed effects models
+#| warning: false
+#| fig-cap: Temporal Trends
+#| fig-width: 10
+#| fig-height: 7
+#| fig-align: center
+#| 
+sec_contrast <- t(matrix(c(0,1,0)))
+ter_contrast <- t(matrix(c(0,0,1)))
+sec_ter_contrast <- t(matrix(c(0,-1,1)))
+
+suppressWarnings(purrrf <- combo_data %>%
+ group_by(antigen) %>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(conc~factor(timepoint)+(1|id), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(t2_t1=map(model, ~multcomp::glht(., sec_contrast)),
+         t2_t1_p=map_dbl(t2_t1, ~summary(.)$test$pvalues)) %>%
+  mutate(t3_t1=map(model, ~multcomp::glht(., ter_contrast)),
+         t3_t1_p=map_dbl(t3_t1, ~summary(.)$test$pvalues)) %>%
+  mutate(t3_t2=map(model, ~multcomp::glht(., sec_ter_contrast)),
+         t3_t2_p=map_dbl(t3_t2, ~summary(.)$test$pvalues))%>%
+  ungroup()%>%
+  mutate(t2_t1_padj=p.adjust(t2_t1_p),
+         t3_t1_padj=p.adjust(t3_t1_p),
+         t3_t2_padj=p.adjust(t3_t2_p)
+         ))
+
+#make results table that includes the coef & p_adj values for the sec_ter_contrast
+results_table <- purrrf %>%
+  mutate(coef_2_3=map_dbl(model, ~-coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
+  mutate(coef_1_2=map_dbl(model, ~-coef(.)$id[1,1]+coef(.)$id[1,2]))%>%
+  dplyr::select(antigen, coef_2_3, coef_1_2, t2_t1_padj, t3_t1_padj, t3_t2_padj) %>%
+  ungroup()
+
+
+sig_2_3_abs <- results_table %>%
+  filter(t3_t2_padj<fdr_cutoff) %>%
+  dplyr::select(antigen)
+
+sig_1_2_abs <- results_table %>%
+  filter(t2_t1_padj<fdr_cutoff) %>%
+  dplyr::select(antigen)
+
+
+# vis modelling results
+combo_data %>%
+  filter(antigen %in% sig_2_3_abs$antigen) %>% 
+  ggplot(., aes(x=factor(timepoint), y=conc, fill=antigen))+
+  geom_point(alpha=0.1, shape=21)+
+  geom_line(aes(group=id), alpha=0.1)+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", width = 0.5, color="darkred")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), nrow = 3, scales = "free")+
+  xlab("Timepoint")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+
+```
+
+To see whether there might be combinatorial trends in the data I decided to run some principal component analyses on the data.
+
+```{r}
+#| label: all sample PCAs
+#| fig-width: 7
+#| fig-height: 4
+#| fig-align: center
+#| 
+# all data PCA ####
+# make wide data frame and log transform data for pca, get rid of GST (lots of missing readings)
+wide_combo <- raw_combo_data %>%
+  filter(conc!=0)%>%
+  mutate(sample_id=paste(id, timepoint, sep="_"))%>%
+  pivot_wider(names_from = antigen, values_from = conc, id_cols = colnames(raw_combo_data)[c(1,2,7:18)])%>%
+  na.omit()
+
+
+big_pca <-  prcomp(wide_combo[,15:ncol(wide_combo)], center = T)
+
+pca_plot_data <- as.data.frame(cbind(wide_combo, big_pca$x))
+
+pca_theme <- theme(legend.title = element_text(size=15),
+                   legend.text = element_text(size=13),
+                   axis.title = element_text(size=15),
+                   axis.text = element_text(size=12))
+
+ggplot(pca_plot_data, aes(x=PC1, y=PC2, fill=factor(timepoint)))+
+  geom_point(shape=21, size=2)+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  pca_theme+
+  guides(fill=guide_legend(title = "Timepoint"))+
+  scale_fill_manual(values=time_palette)
+
+
+
+pca_plot_data%>%
+  arrange(inf_0_6)%>%
+  ggplot(., aes(x=PC1, y=PC2, fill=factor(inf_0_6)))+
+  geom_point(shape=21, size=2)+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  pca_theme+
+  guides(fill=guide_legend(title = "Number of Infections\nMonths 0-6"))+
+  scale_fill_manual(values=n_infection_cols)
+
+
+pca_plot_data %>%
+  arrange(inf_6_12)%>%
+  ggplot(., aes(x=PC1, y=PC2, fill=factor(inf_6_12)))+
+  geom_point(shape=21, size=2)+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  pca_theme+
+  guides(fill=guide_legend(title = "Number of Infections\nMonths 6-12"))+
+  scale_fill_manual(values=n_infection_cols)
+
+pca_plot_data %>%
+  arrange(inf_12_18)%>%
+  ggplot(., aes(x=PC1, y=PC2, fill=factor(inf_12_18)))+
+  geom_point(shape=21, size=2)+
+  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
+  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  theme_minimal()+
+  pca_theme+
+  guides(fill=guide_legend(title = "Number of Infections\nMonths 12-18"))+
+  scale_fill_manual(values=n_infection_cols)
+```
+
+There doesn't seem to be any obvious clustering of individuals based on malaria incidence, but let's a have a more detailed look at each individual antibody. Based on the concentrations data in cord blood I modelled the incidence of any malaria, symptomatic malaria, and the conditional probability of symptoms in the first 6 and 12 months of life, separately for each antibody. Incidences were modelled as counts using a negative binomial distribution, conditional probabilities were fit using binomial distributions. I also included logistic regression models for whether any non-zero frequency of infection or symptoms correlated with antibody concentrations. After multiple testing correction, three antibodies were predictive of a lower incidence of malaria (presence of parasites) in the first six months of life: EBA181, HSP40 and SEA.
+
+```{r}
+#| fig-width: 9
+#| fig-height: 6
+#| label: per-antibody glms setup; birth
+#| fig-align: center
+#| warning: false
+#| 
+
+birth <- combo_data %>%
+  filter(timepoint==1)
+             
+six_months <- combo_data %>%
+  filter(timepoint==2)
+             
+twelve_months <- combo_data %>%
+  filter(timepoint==3)
+
+
+# 1 look at correlations between antibody levels at birth and anyinfection from birth to 12 months of age
+suppressWarnings(birth_purf <- birth %>%
+  group_by(antigen)%>%
+  nest() %>%
+  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ conc, data=.)))%>%
+  mutate(model_0_6=map(data, ~glm.nb(inf_0_6 ~ conc, data=.)))%>%
+  mutate(model_0_12_symp=map(data, ~glm.nb(symp_0_12 ~ conc, data=.)))%>%
+  mutate(model_0_6_symp=map(data, ~glm.nb(symp_0_12 ~ conc, data=.)))%>%
+  mutate(model_0_12_symp_prob=map(data, ~glm(symp_0_12/inf_0_12~conc, data=., family = "binomial", weights = inf_0_12)))%>%
+  mutate(model_0_6_symp_prob=map(data, ~glm(symp_0_6/inf_0_6~conc, data=., family = "binomial", weights = inf_0_6)))%>%
+  mutate(model_any_symp_06=map(data, ~glm(any_symp_0_6~conc, data=., family = "binomial")))%>%
+  mutate(model_any_0_6=map(data, ~glm(any_inf_0_6~conc, data=., family = "binomial")))%>%
+  
+  mutate(summary_0_12=map(model_0_12, ~summary(.))) %>%
+  mutate(summary_0_6=map(model_0_6, ~summary(.))) %>%
+  mutate(summary_0_12_symp=map(model_0_12_symp, ~summary(.))) %>%
+  mutate(summary_0_6_symp=map(model_0_6_symp, ~summary(.))) %>%
+  mutate(summary_0_12_symp_prob=map(model_0_12_symp_prob, ~summary(.))) %>%
+  mutate(summary_0_6_symp_prob=map(model_0_6_symp_prob, ~summary(.))) %>%
+  mutate(summary_any_symp_06=map(model_any_symp_06, ~summary(.))) %>%
+  mutate(summary_any_0_6=map(model_any_0_6, ~summary(.))) %>%
+  
+  
+  mutate(summary_0_12_p=map_dbl(summary_0_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_6_p=map_dbl(summary_0_6, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_12_symp_p=map_dbl(summary_0_12_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_6_symp_p=map_dbl(summary_0_6_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_12_symp_prob_p=map_dbl(summary_0_12_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_6_symp_prob_p=map_dbl(summary_0_6_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_06_p=map_dbl(summary_any_symp_06, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_0_6_p=map_dbl(summary_any_0_6, ~unlist(.$coefficients[8])))%>%
+  
+  
+  ungroup()%>%
+  mutate(summary_0_12_padj=p.adjust(summary_0_12_p))%>%
+  mutate(summary_0_6_padj=p.adjust(summary_0_6_p))%>%
+  mutate(summary_0_12_symp_padj=p.adjust(summary_0_12_symp_p))%>%
+  mutate(summary_0_6_symp_padj=p.adjust(summary_0_6_symp_p))%>%
+  mutate(summary_0_12_symp_padj=p.adjust(summary_0_12_symp_prob_p))%>%
+  mutate(summary_0_6_symp_padj=p.adjust(summary_0_6_symp_prob_p))%>%
+  mutate(summary_any_symp_06_padj=p.adjust(summary_any_symp_06_p))%>%
+  mutate(summary_any_0_6_padj=p.adjust(summary_any_0_6_p))
+)
+
+zero_six_sig <- birth_purf %>%
+  filter(summary_0_6_p<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_0_6_p)
+
+birth %>%
+  filter(antigen %in% zero_six_sig$antigen)%>%
+  ggplot(aes(x=inf_0_6, y=conc, fill=factor(inf_0_6)))+
+  geom_boxplot()+
+  geom_point(alpha=0.2)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Number of Infections in First Six Months of Life")+
+  ylab("Concentration in Cord Blood")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        strip.text = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size=16))+
+  scale_fill_manual(values=n_infection_cols)
+
+
+```
+
+Based on the antibody concentrations at six months I modelled the incidence of any malaria, symptomatic malaria and the conditional probability of symptoms in months 6-12. I also tested whether the incidence of infection in months 0-6 predicted antibody concentrations at 6 months. Indeed, the latter was the only significant result, with Etramp5, GLURP, HYP2 and SBP1 emerging as markers of exposure.
+
+```{r}
+#| label: per-antibody glms six months
+#| fig-width: 7
+#| fig-height: 7
+#| fig-align: center
+#| warning: false
+# 2 look at correlations between antibody levels at 6 months of age and anyinfection from 6 to 12 months of age
+#| echo: false
+suppressWarnings(six_purf <- six_months %>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ conc, data=.)))%>%
+  mutate(model_6_12_symp=map(data, ~glm.nb(symp_6_12 ~ conc, data=.)))%>%
+  mutate(model_6_12_symp_prob=map(data, ~glm(symp_6_12/inf_6_12~conc, data=., family = "binomial", weights = inf_6_12)))%>%
+  mutate(model_0_6=map(data, ~glm.nb(inf_0_6 ~ conc, data=.)))%>%
+  mutate(model_any_symp_6_12=map(data, ~glm(any_symp_6_12~conc, data=., family = "binomial")))%>%
+  mutate(model_any_6_12=map(data, ~glm(any_inf_6_12~conc, data=., family = "binomial")))%>%
+
+
+  mutate(summary_6_12=map(model_6_12, ~summary(.))) %>%
+  mutate(summary_6_12_symp=map(model_6_12_symp, ~summary(.))) %>%
+  mutate(summary_6_12_symp_prob=map(model_6_12_symp_prob, ~summary(.))) %>%
+  mutate(summary_0_6=map(model_0_6, ~summary(.))) %>%
+  mutate(summary_any_symp_6_12=map(model_any_symp_6_12, ~summary(.))) %>%
+  mutate(summary_any_6_12=map(model_any_6_12, ~summary(.))) %>%
+  
+  mutate(summary_6_12_p=map_dbl(summary_6_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_6_12_symp_p=map_dbl(summary_6_12_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_6_12_symp_prob_p=map_dbl(summary_6_12_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_6_p=map_dbl(summary_0_6, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_6_12_p=map_dbl(summary_any_symp_6_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_6_12_p=map_dbl(summary_any_6_12, ~unlist(.$coefficients[8])))%>%
+
+  ungroup()%>%
+  mutate(summary_6_12_padj=p.adjust(summary_6_12_p))%>%
+  mutate(summary_6_12_symp_padj=p.adjust(summary_6_12_symp_p))%>%
+  mutate(summary_6_12_symp_prob_padj=p.adjust(summary_6_12_symp_prob_p))%>%   
+  mutate(summary_0_6_padj=p.adjust(summary_0_6_p))%>%
+  mutate(summary_any_symp_6_12_padj=p.adjust(summary_any_symp_6_12_p))%>%
+  mutate(summary_any_6_12_padj=p.adjust(summary_any_6_12_p))
+)
+  
+
+six_0_6_sig <- six_purf %>%
+  filter(summary_0_6_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_0_6_padj)
+
+six_months %>%
+  filter(antigen %in% six_0_6_sig$antigen)%>%
+  ggplot(aes(x=inf_0_6, y=conc, fill=factor(inf_0_6)))+
+  geom_boxplot()+
+  geom_point(alpha=0.2)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  xlab("Number of Infections in Months 0-6")+
+  ylab("Concentration at 6 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        strip.text = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size=16))+
+  scale_fill_manual(values=n_infection_cols)
+
+
+
+```
+
+Lastly, based on the antibody concentrations at 12 months of life, I modelled the incidence of any malaria, symptomatic malaria and the conditional probability of symptoms in the months 12-18 and 12-24 as well as any malaria in the months 0-12 and 6-12. Surprisingly, no interaction with malaria incidence and antibody levels remained significant after multiple testing correction. This may be because the overall incidence of malaria was fairly low in this cohort (e.g. 46 episodes in 186 children aged 12-18), or because there are other factors driving antibody levels, that are not malaria infections. We're currently exploring other methods of analysing these data including generalised estimating equations which suggest that some markers appear to be protective post 12 months of age, though the effect may be subtle.
+
+I did rerun all the regression models, excluding individuals with 0 malaria episodes to see if any more signatures would come out, but no significant interaction remained after multiple testing correction.
+
+```{r}
+#| label: per-antibody glms 12 months
+#| fig-width: 5
+#| fig-height: 5
+#| fig-align: center
+#| warning: false
+# 3 look at correlations between antibody levels at 12 months of age and anyinfection from 12-24 months of age
+# 4 look at correlations between antibody levels at 12 months of age and sxifinfected from 12-24 months of age
+#| 
+
+suppressWarnings(twelve_purf <- twelve_months %>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ conc, data=.)))%>%
+  mutate(model_12_18_symp=map(data, ~glm.nb(symp_12_18 ~ conc, data=.)))%>%
+  mutate(model_12_18_symp_prob=map(data, ~glm(symp_12_18/inf_12_18~conc, data=., family = "binomial", weights = inf_12_18)))%>%
+  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ conc, data=.)))%>%
+  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ conc, data=.)))%>%
+  mutate(model_any_symp_12_18=map(data, ~glm(any_symp_12_18~conc, data=., family = "binomial")))%>%
+  mutate(model_any_12_18=map(data, ~glm(any_inf_12_18~conc, data=., family = "binomial")))%>%
+  
+  mutate(summary_12_18=map(model_12_18, ~summary(.))) %>%
+  mutate(summary_12_18_symp=map(model_12_18_symp, ~summary(.))) %>%
+  mutate(summary_12_18_symp_prob=map(model_12_18_symp_prob, ~summary(.))) %>%
+  mutate(summary_6_12=map(model_6_12, ~summary(.))) %>%
+  mutate(summary_0_12=map(model_0_12, ~summary(.))) %>%
+  mutate(summary_any_symp_12_18=map(model_any_symp_12_18, ~summary(.))) %>%
+  mutate(summary_any_12_18=map(model_any_12_18, ~summary(.))) %>%
+  
+  mutate(summary_12_18_p=map_dbl(summary_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_18_symp_p=map_dbl(summary_12_18_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_18_symp_prob_p=map_dbl(summary_12_18_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_6_12_p=map_dbl(summary_6_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_12_p=map_dbl(summary_0_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_12_18_p=map_dbl(summary_any_symp_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_12_18_p=map_dbl(summary_any_12_18, ~unlist(.$coefficients[8])))%>%
+  
+  mutate(model_12_24=map(data, ~glm.nb(inf_12_24 ~ conc, data=.)))%>%
+  mutate(model_12_24_symp=map(data, ~glm.nb(symp_12_24 ~ conc, data=.)))%>%
+  mutate(model_12_24_symp_prob=map(data, ~glm(symp_12_24/inf_12_24~conc, data=., family = "binomial", weights = inf_12_24)))%>%
+  
+  mutate(summary_12_24=map(model_12_24, ~summary(.))) %>%
+  mutate(summary_12_24_symp=map(model_12_24_symp, ~summary(.))) %>%
+  mutate(summary_12_24_symp_prob=map(model_12_24_symp_prob, ~summary(.))) %>%
+  
+  mutate(summary_12_24_p=map_dbl(summary_12_24, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_24_symp_p=map_dbl(summary_12_24_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_24_symp_prob_p=map_dbl(summary_12_24_symp_prob, ~unlist(.$coefficients[8])))%>%
+  ungroup()%>%
+  mutate(summary_12_18_padj= p.adjust(summary_12_18_p))%>%
+  mutate(summary_12_18_symp_padj=p.adjust(summary_12_18_symp_p))%>%
+  mutate(summary_12_18_symp_prob_padj=p.adjust(summary_12_18_symp_prob_p))%>%
+  mutate(summary_6_12_padj=p.adjust(summary_6_12_p))%>%
+  mutate(summary_12_24_padj=p.adjust(summary_12_24_p))%>%
+  mutate(summary_12_24_symp_padj=p.adjust(summary_12_24_symp_p))%>%
+  mutate(summary_12_24_symp_prob_padj=p.adjust(summary_12_24_symp_prob_p))%>%
+  mutate(summary_0_12_padj=p.adjust(summary_0_12_p))%>%
+  mutate(summary_any_symp_12_18_padj=p.adjust(summary_any_symp_12_18_p))%>%
+  mutate(summary_any_12_18_padj=p.adjust(summary_any_12_18_p))
+)
+  
+twelve_18_symp_sig <- twelve_purf %>%
+  filter(summary_12_18_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_18_symp_padj)
+
+# 
+# twelve_months %>%
+#   # filter(antigen %in% twelve_18_sig$antigen)%>%
+#   filter(antigen %in% c("SEA", "CSP", "GEXP"))%>%
+#   ggplot(aes(x=factor(any_inf_12_18), y=conc, fill=factor(any_inf_12_18)))+
+#   geom_boxplot()+
+#   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+#   xlab("Number of Infections in Months 12-18")+
+#   ylab("Concentration at 12 Months")+
+#   theme_minimal()+
+#   theme(panel.grid = element_blank(),
+#         legend.position = "none")+
+#   scale_fill_manual(values=n_infection_cols)
+
+```
+
+```{r}
+#| label: correlating incidences of first and second year
+#| include: false
+#| fig-width: 7
+#| fig-height: 7
+#| fig-align: center 
+# I was also curious whether high incidence in one time window predicted high incidence in another and indeed there was a significant correlation (r~0.4) between the incidences of months 0-12 and 12-24.
+  birth %>%
+    ggplot(aes(y=inf_0_12, x=inf_12_24))+
+    geom_point(alpha=0.5, position = position_jitter(width=0.27, height = 0.27))+
+    ylab("Number of Infections in Months 0-12")+
+    xlab("Number of Infections in Months 12-24")+
+    geom_smooth(formula = y~x, method = "lm", color="darkred")+
+    ggpubr::stat_cor(method = "pearson", label.x = 2, label.y = 4.5, size=5)+
+    scale_y_continuous(breaks = seq(0, 6, by=1))+
+    scale_x_continuous(breaks = seq(0, 6, by=1))+
+    theme_minimal()+
+    theme(panel.grid = element_blank(),
+          legend.position = "none",
+          axis.text = element_text(size = 13),
+          axis.title = element_text(size=14))+
+    viridis::scale_color_viridis(option="B", direction = -1, discrete = TRUE)+
+    coord_cartesian(xlim = c(0,6), ylim = c(0,6))
+    
+  
+```
+
+```{r}
+#| label: gexp, sea and gst through time and incidence
+#| fig-width: 7
+#| fig-height: 7
+#| fig-align: center
+#| warning: false
+#| 
+
+# ggs_through_time <- combo_data %>%
+#   filter(antigen %in% c("GEXP", "SEA","CSP"))%>%
+#   ggplot(aes(x=factor(timepoint), y=conc, fill=factor(timepoint)))+
+#   geom_boxplot(outlier.shape = NA)+
+#   geom_point(alpha=0.2)+
+#   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+#   theme_minimal()+
+#   xlab("\nTimepoint")+
+#   ylab("Concentration")+
+#   theme(panel.grid = element_blank(),
+#         legend.position = "none")+
+#   scale_fill_manual(values=time_palette)
+
+ggs_vs_exsure_12_18 <- combo_data %>%
+  filter(antigen %in% c("GEXP", "SEA", "CSP"))%>%
+  ggplot(aes(x=factor(inf_12_18), y=conc, fill=factor(inf_12_18)))+
+  geom_boxplot(outlier.shape = NA)+
+  geom_point(alpha=0.2)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  theme_minimal()+
+  xlab("Number of Infections\nin Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  scale_fill_manual(values=n_infection_cols)
+
+  
+ggs_vs_exsure_symp_12_18 <- combo_data %>%
+   filter(antigen %in% c("GEXP", "SEA", "CSP"))%>%
+  ggplot(aes(x=factor(symp_12_18), y=conc, fill=factor(symp_12_18)))+
+  geom_boxplot(outlier.shape = NA)+
+  geom_point(alpha=0.2)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  theme_minimal()+
+  xlab("Number of Symptomatic Infections\nin months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme(panel.grid = element_blank(),
+      legend.position = "none")+
+  scale_fill_manual(values=n_infection_cols)
+
+cowplot::plot_grid(ggs_vs_exsure_12_18, ggs_vs_exsure_symp_12_18, ncol = 1)
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 7
+#| fig-align: center
+#| warning: false
+#| include: false
+
+
+
+
+
+
+# 
+# Generalised Estimating Equations
+# 
+# As an alternative to regression, and to test whether I would get the same results as Pras, I then used generalised estimating equations. I modelled
+# 
+# the non-zero incidences (poisson) of
+# 
+# infection (excluding uninfected individuals)
+# 
+# symptomatic infection (excluding uninfected individuals)
+# 
+# and the presence/absence (binomial) of
+# 
+# any infection
+# 
+# any symptomatic infection
+# 
+# in age range 12-18 months based on the antibody measurements at month 12.
+# 
+# High levels of antibodies to GEXP and HSP40 at month 12 were predictive of a higher incidence of infection in the following six months. Similarly, high levels of antibodies HSP40 were predictive of a higher number of symptomatic episodes, whereas high levels of antibodies to H103 were protective. High levels of MSP2 were predictive of any infection and any symptomatic infection. Strangely, anti-tetanus antibodies were higher in kids that experience any symptomatic malaria, though the median was not different, just the range of values was reduced.
+
+gee_inf_purf <- twelve_months %>%
+  filter(inf_12_18>0, !is.na(conc)) %>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee=map(data, ~geepack::geeglm(inf_12_18 ~ conc,
+                                            data = ., 
+                                            id = id, 
+                                            family = "poisson",
+                                            corstr = "independence")))%>%
+  mutate(inf_gee_summary = map(inf_gee, ~summary(.)))%>%
+  mutate(inf_gee_p = map(inf_gee_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_padj = p.adjust(inf_gee_p))
+
+#logGEXP, logHSP40
+
+gee_twelve_18_sig <- gee_inf_purf %>%
+  filter(inf_gee_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_padj)
+
+
+
+gee_symp_purf <- twelve_months %>%
+  filter(symp_12_18>0, !is.na(conc))%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee_symp=map(data, ~geepack::geeglm(symp_12_18 ~ conc,
+                                                 data = ., 
+                                                 id = id, 
+                                                 family = "poisson",
+                                                 corstr = "independence")))%>%
+  mutate(inf_gee_symp_summary = map(inf_gee_symp, ~summary(.)))%>%
+  mutate(inf_gee_symp_p = map(inf_gee_symp_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_symp_padj = p.adjust(inf_gee_symp_p))
+
+
+#logH103, logHSP40
+gee_symp_twelve_18_sig <- gee_symp_purf %>%
+  filter(inf_gee_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_symp_padj)
+
+
+
+gee_any_symp_purf <- twelve_months %>%
+  filter(!is.na(conc))%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee_any_symp=map(data, ~geepack::geeglm(any_symp_12_18 ~ conc,
+                                                 data = ., 
+                                                 id = id, 
+                                                 family = "binomial",
+                                                 corstr = "independence")))%>%
+  mutate(inf_gee_any_symp_summary = map(inf_gee_any_symp, ~summary(.)))%>%
+  mutate(inf_gee_any_symp_p = map(inf_gee_any_symp_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_any_symp_padj = p.adjust(inf_gee_any_symp_p))
+
+#logMSP2_CH150
+gee_any_symp_twelve_18_sig <- gee_any_symp_purf %>%
+  filter(inf_gee_any_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_any_symp_padj)
+
+
+
+gee_any_inf_purf <- twelve_months %>%
+  filter(!is.na(conc))%>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(inf_gee_any_inf=map(data, ~geepack::geeglm(any_inf_12_18 ~ conc,
+                                                     data = ., 
+                                                     id = id, 
+                                                     family = "binomial",
+                                                     corstr = "independence")))%>%
+  mutate(inf_gee_any_inf_summary = map(inf_gee_any_inf, ~summary(.)))%>%
+  mutate(inf_gee_any_inf_p = map(inf_gee_any_inf_summary, ~.$coefficients[2,4]))%>%
+  mutate(inf_gee_any_inf_padj = p.adjust(inf_gee_any_inf_p))
+
+#logMSP2_CH150
+gee_any_inf_twelve_18_sig <- gee_any_inf_purf %>%
+  filter(inf_gee_any_inf_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, inf_gee_any_inf_padj)
+
+
+
+
+twelve_months %>%
+  filter(inf_12_18>0)%>%
+  filter(antigen %in% c("HSP40", "H103", "MSP2 CH150", "SEA", "GEXP", "TT"))%>%
+  ggplot(aes(x=inf_12_18, y=conc, fill=factor(inf_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Number of Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  scale_fill_manual(values=n_infection_cols[-1])
+
+
+
+twelve_months %>%
+  filter(symp_12_18>0)%>%
+  filter(antigen %in% c("HSP40", "H103", "MSP2 CH150", "SEA", "GEXP", "TT"))%>%
+  ggplot(aes(x=symp_12_18, y=conc, fill=factor(symp_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Number of Symptomatic Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  scale_fill_manual(values=n_infection_cols[-1])
+
+
+
+twelve_months %>%
+  # filter(antigen %in% twelve_18_sig$antigen)%>%
+  filter(antigen %in% c("HSP40", "H103", "MSP2 CH150", "SEA", "GEXP", "TT"))%>%
+  ggplot(aes(x=factor(any_symp_12_18), y=conc, fill=factor(any_symp_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Any Symptomatic Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  scale_fill_manual(values=n_infection_cols)
+
+
+
+
+twelve_months %>%
+  filter(antigen %in% c("HSP40", "H103", "MSP2 CH150", "SEA", "GEXP", "TT", "TT"))%>%
+  ggplot(aes(x=factor(any_inf_12_18), y=conc, fill=factor(any_inf_12_18)))+
+  geom_boxplot()+
+  geom_point(color="lightgrey")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  xlab("Any Infections in Months 12-18")+
+  ylab("Concentration at 12 Months")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")+
+  scale_fill_manual(values=n_infection_cols)
+
+```
+
+I wanted to know why the antibodies protective in the first 6 months of life (EBA181, HSP40, SEA) were not protective after 12 months of life. While it's possibly that there are qualitative differences in maternal antibodies compared to infant antibodies (IgG subclass, post-translational modifications), the difference in concentration is significantly different in cord blood relative to the amounts generated at six months and 12 months of life, which to me seems like the simplest explanation.
+
+```{r}
+
+#| fig-width: 9
+#| fig-height: 6
+#| warning: false
+#| label: eba181, hsp40, sea through first year of life
+
+combo_data%>%
+  select(id, timepoint, antigen, conc, inf_0_6, inf_12_18)%>%
+  filter(antigen %in% c("EBA181", "HSP40", "SEA"), timepoint!=2)%>%
+  mutate(timepoint_word=ifelse(timepoint==1, "Cord Blood", "Plasma at 12 Months"))%>%
+  pivot_longer(cols=c(inf_0_6, inf_12_18), names_to = "interval", values_to = "incidence")%>%
+  filter(timepoint_word=="Plasma at 12 Months" & interval == "inf_12_18" | timepoint_word=="Cord Blood" & interval == "inf_0_6")%>%
+  ggplot(., aes(x=factor(incidence), y=conc, fill=factor(timepoint_word)))+
+  #geom_violin()+
+  geom_boxplot(position = "dodge2", outlier.alpha = 0)+
+  geom_point(aes(shape=factor(timepoint_word)), alpha=0.2, position=position_dodge(width = 0.75))+
+  # facet_wrap(antigen~timepoint, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales="free")+
+  facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)))+
+  xlab("Number of Infections in 6 Months post antibody measurement")+
+  ylab("Concentration in (Cord) Blood")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank(),
+        strip.text = element_text(size = 14),
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size=16))+
+  scale_fill_manual(values=n_infection_cols)
+
+
+```
+
+Lastly, I wanted to see whether there were other variables that may explain antibody concentrations, including drug treatment and/or malaria during pregnancy. To do this I went back to the first set of regression models that described antibody dynamics through time and tested the addition of maternal treatment and placental histopathology at birth as independent variables and as interaction effects. The hypotheses that can be tested using this approach are whether there are differences in cord blood antibody concentrations due to treatment or histopathology that are maintained in the first year of life OR whether antibody dynamics through time vary in children dependent on the treatment / pathology of their mothers during pregnancy. For model selection I used the Akaike information criterion (AIC), a measure of model fit that penalises overfitting.
+
+Maternal drug treatment (DPSP / DP) was not associated lasting changes in antibody concentrations. Histopathology was associated with higher antibody levels against AMA1 and Rh2, and lower levels against tetanus toxoid (when were vaccinations?); though I would argue that this may well be spurious since there was no significant trend in the other 19 antibodies, but the stats are the stats.
+
+Lastly, I wanted to apply a more restricted analysis to see whether maternal treatment or placental histopathology were associated with antibody levels solely in cord blood. Tetanus levels were indeed associated with maternal drug treatment, with participants receiving either 3 dose and monthly DP having slightly higher antibody levels. Histopathology was actually associated with lower antibody levels against a range of antigens, including TT, GEXP, GLURP, SEA, Hyp2, SBP1, while anti-AMA1 antibodies where higher.
+
+```{r}
+#| fig-width: 9
+#| fig-height: 9
+#| label: associations between antibodies and hp / tx
+#| warning: false
+#| 
+combo_data %>%
+  filter(!is.na(anyHPfinal))%>%
+  filter(antigen %in% c("AMA1", "TT", "Rh2", "GEXP", "GLURP", "SEA", "Hyp2", "SBP1"))%>%
+  ggplot(., aes(x=factor(timepoint), y=conc, fill=factor(anyHPfinalx)))+
+  geom_boxplot(position = "dodge2", outlier.alpha = 0, na.rm = TRUE)+
+  geom_point(alpha=0.2, position=position_dodge(width = 0.75), shape=21, na.rm = TRUE)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), nrow = 2, scales = "free")+
+  xlab("Timepoint")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank(),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=n_infection_cols[-c(2,3)])
+
+combo_data %>%
+  filter(!is.na(MomFinalRx))%>%
+  arrange(MomFinalRxx)%>%
+  filter(antigen %in% c("AMA1", "TT", "Rh2", "GEXP", "GLURP", "SEA", "Hyp2", "SBP1"))%>%
+  ggplot(., aes(x=factor(timepoint), y=conc, fill=factor(MomFinalRxx)))+
+  geom_boxplot(position = "dodge2", outlier.alpha = 0, na.rm = TRUE)+
+  geom_point(alpha=0.2, position=position_dodge(width = 0.75), shape=21, na.rm = TRUE)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), nrow = 2, scales = "free")+
+  xlab("Timepoint")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.title = element_blank(),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=n_infection_cols[-1])
+```

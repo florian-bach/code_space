@@ -48,7 +48,7 @@ results_df <- results_df[-1,]
   theme_minimal()+
   scale_y_continuous(breaks=c(seq(0,30, by=5)))+
   scale_x_continuous(labels = scales::label_percent(accuracy = 1))+
-#  scale_color_manual(values=hcl.colors(7, palette = "Sunset"))+
+  scale_color_manual(values=hcl.colors(7, palette = "Sunset"))+
   ylab("Sample Size")+
   xlab("Percentage Shift in Parasitaemia")+
   guides(colour=guide_legend(title="Power", reverse = TRUE))+
