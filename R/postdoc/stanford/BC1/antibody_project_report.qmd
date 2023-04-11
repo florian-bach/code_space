@@ -799,11 +799,11 @@ I wanted to know why the antibodies protective in the first 6 months of life (EB
 
 ```{r}
 
-#| fig-width: 9
+#| fig-width: 10
 #| fig-height: 6
 #| warning: false
 #| label: eba181, hsp40, sea through first year of life
-
+suppressWarnings(
 combo_data%>%
   select(id, timepoint, antigen, conc, inf_0_6, inf_12_18)%>%
   filter(antigen %in% c("EBA181", "HSP40", "SEA"), timepoint!=2)%>%
@@ -826,7 +826,7 @@ combo_data%>%
         axis.title = element_text(size=16))+
   scale_fill_manual(values=n_infection_cols)
 
-
+)
 ```
 
 Lastly, I wanted to see whether there were other variables that may explain antibody concentrations, including drug treatment and/or malaria during pregnancy. To do this I went back to the first set of regression models that described antibody dynamics through time and tested the addition of maternal treatment and placental histopathology at birth as independent variables and as interaction effects. The hypotheses that can be tested using this approach are whether there are differences in cord blood antibody concentrations due to treatment or histopathology that are maintained in the first year of life OR whether antibody dynamics through time vary in children dependent on the treatment / pathology of their mothers during pregnancy. For model selection I used the Akaike information criterion (AIC), a measure of model fit that penalises overfitting.

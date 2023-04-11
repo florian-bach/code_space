@@ -1,6 +1,6 @@
+library(tidyr)
 library(dplyr)
 library(ggplot2)
-library(tidyr)
 library(ggside)
 library(visreg)
 library(mediation)
@@ -23,6 +23,11 @@ side_by_side_theme <- theme(axis.text = element_text(size = 20),
                             axis.title = element_text(size = 22))
 
 
+age_cat_palette <- c(rgb(5,50,80, maxColorValue = 255),
+                     rgb(250, 100, 0, maxColorValue = 255))
+
+
+
 # data generation ####
 promote_data <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL.dta")
 
@@ -35,7 +40,7 @@ kids_with_complicated_malaria <- unique(subset(promote_data, promote_data$compli
 # select relevant columns, recode disease columns to something understandable
 smaller_data <- promote_data %>%
   # filter(id %in% kids_with_complicated_malaria$id ) %>%
-  select(id, date, dob, age, temp, hb, uniqueid, incidentmalaria, complicatedmalaria, severe, parsdens) %>%
+  dplyr::select(id, date, dob, age, temp, hb, uniqueid, incidentmalaria, complicatedmalaria, severe, parsdens) %>%
   mutate(complicatedmalaria=ifelse(is.na(complicatedmalaria), "mild", "complicated")) %>%
   mutate(severe=ifelse(is.na(severe), "non_severe", "severe")) %>%
   mutate(incidentmalaria=ifelse(is.na(incidentmalaria), "not_incident", "incident")) 
@@ -207,7 +212,10 @@ complicated_data <- smaller_data %>%
   mutate(disease=ifelse(severe=="severe", "severe",
                         ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")),
          comp_num=ifelse(complicatedmalaria=="complicated", 1, 0)
-  )
+  )%>%
+  mutate(first_inf_before_four = if_else(age_at_first<4/12, "before 4 months", "after 4 months"))%>%
+  mutate(first_inf_before_six = if_else(age_at_first<0.5, "before 6 months", "after 6 months"))
+  
 
 # calculate total number of observations for 1st, 2nd infection and so on
 total_infections <- complicated_data %>%
@@ -244,8 +252,8 @@ comp_risk_n_infection_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))
   geom_ribbon(data=model_visualiser(comp_model, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = comp_model_fun, colour="black")+
-  ylab("Risk of Complicated Malaria")+
-  geom_text(aes(y=0.19, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  ylab("Risk of Complicated Malaria,\n Given an Infection\n")+
+  #geom_text(aes(y=0.19, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, size=2.5)+
   scale_x_continuous(breaks = 1:10)+
   scale_y_continuous(limits = c(0,0.2), labels = scales::label_percent())+
   xlab("Order of Infection")
@@ -363,9 +371,12 @@ age_cutoff <- i
  
 #looks the same 
 # old_complicated_data <- filter(complicated_data, age_at_first>age_cutoff)
-old_complicated_data <- filter(complicated_data, age>age_cutoff)
-old_complicated_df <- as.data.frame(table(old_complicated_data$n_infection, old_complicated_data$complicatedmalaria))
-colnames(old_complicated_df) <- c("n_infection", "disease", "complicated_episodes")
+old_complicated_data <- filter(complicated_data, age_at_first>age_cutoff)
+
+old_complicated_df <- complicated_data %>%
+  group_by(n_infection, complicatedmalaria)%>%
+  summarise("count"=n())
+  
 
 total_old_infections <- old_complicated_data %>%
   group_by(n_infection) %>%
@@ -396,16 +407,17 @@ old_complicated_n_infection <- ggplot(old_complicated_df, aes(x=n_infection, y=r
   scale_x_continuous(breaks = seq(1, 10))+
   scale_y_continuous(limits=c(0, 0.225), labels=scales::label_percent())+
   geom_text(aes(y=0.2, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust=-0.2, size=3.5)+
-  ggtitle(paste("over", 12*age_cutoff, "months"))+
+  ggtitle(paste("first infection over", 12*age_cutoff, "months"))+
   ylab("Risk of Complicated Episodes")+
   xlab("Order of Infection")
 
 # looks the same
 # young_complicated_data <- filter(complicated_data, age_at_first<age_cutoff)
 young_complicated_data <- filter(complicated_data, age<age_cutoff)
-young_complicated_data <- filter(complicated_data, age<age_cutoff)
-young_complicated_df <- as.data.frame(table(young_complicated_data$n_infection, young_complicated_data$complicatedmalaria))
-colnames(young_complicated_df) <- c("n_infection", "disease", "complicated_episodes")
+
+young_complicated_df <- complicated_data %>%
+  group_by(n_infection, complicatedmalaria)%>%
+  summarise("count"=n())
 
 total_young_infections <- young_complicated_data %>%
   group_by(n_infection) %>%
@@ -437,14 +449,15 @@ young_complicated_n_infection <- ggplot(young_complicated_df, aes(x=n_infection,
   geom_text(aes(y=0.2, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, vjust= -0.2, size=3.5)+
   scale_x_continuous(breaks = seq(1, 10))+
   scale_y_continuous(limits=c(0, 0.225), labels=scales::label_percent())+
-  ggtitle(paste("under", 12*age_cutoff, "months"))+
+  ggtitle(paste("first infection under", 12*age_cutoff, "months"))+
   # geom_smooth(formula = y~x+I(x^2))+
   ylab("Risk of Complicated Episodes")+
   xlab("Order of Infection")
 
 combo_plot <- young_complicated_n_infection+old_complicated_n_infection
 
-file_name <- paste("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_n_infection_split_", i*12, "_months.png", sep="")
+# file_name <- paste("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_n_infection_split_", i*12, "_months.png", sep="")
+file_name <- paste("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_n_infection_first_infection_split_", i*12, "_months.png", sep="")
 
 
 ggsave(filename = file_name, height=8, width=12, bg="white", dpi=500)
@@ -570,3 +583,137 @@ parsdens_down_arrow <- parsdens_arrow_data %>%
 
 
 ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/parsdens_down_arrow_plot.png", parsdens_down_arrow, height = 3, width=4, dpi=444, bg="white")
+
+
+
+
+# calculate confidence interval for complicated malaria risk based on whether first infections happen before or after 4
+# months
+
+age_first_nest4 <- complicated_data %>%
+  group_by(first_inf_before_four) %>%
+  nest() %>%
+  mutate(confy_model=purrr::map(data, ~glm(comp_num~1, data=., family="binomial")),
+         coef=purrr::map(confy_model, ~exp(coef(.))),
+         upper=purrr::map(confy_model, ~exp(confint(.))[2]),
+         lower=purrr::map(confy_model, ~exp(confint(.))[1]))%>%
+  unnest(data)%>%
+  dplyr::select(n_infection, age_at_first, coef, upper, lower, first_inf_before_four)%>%
+  unnest()
+
+
+# first_inf_model <- lme4::glmer(comp_num~first_inf_before_four+(1|id), data=complicated_data, family = "binomial")
+# first_inf_model <- glm(comp_num~first_inf_before_four, data=complicated_data, family = "binomial")
+
+
+overall_risk_age_at_first_confint4<- ggplot(age_first_nest4, aes(x = first_inf_before_four, y = coef, color=first_inf_before_four))+
+  geom_point(aes(x = first_inf_before_four, y = coef)) + 
+  geom_linerange(aes(x = first_inf_before_four,  ymin = lower, ymax = upper), linewidth = 1)+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0, 0.25), labels = scales::label_percent())+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated Malaria")+
+  scale_color_manual(values=age_cat_palette)+
+  theme(axis.text.x = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/overall_risk_age_4_at_first_confint.png", overall_risk_age_at_first_confint4, height = 3, width=6, dpi=444, bg="white")
+
+
+
+
+
+
+
+age_n_inf_nest4 <- complicated_data %>%
+  filter(n_infection<7)%>%
+  group_by(n_infection, first_inf_before_four) %>%
+  nest() %>%
+  mutate(confy_model=purrr::map(data, ~glm(comp_num~1, data=., family="binomial")),
+         coef=purrr::map(confy_model, ~exp(coef(.))),
+         upper=purrr::map(confy_model, ~exp(confint(.))[2]),
+         lower=purrr::map(confy_model, ~exp(confint(.))[1]))%>%
+  unnest(data)%>%
+  dplyr::select(n_infection, age_at_first, coef, upper, lower, first_inf_before_four)%>%
+  unnest()
+
+
+risk_age_at_first_confint4 <- ggplot(age_n_inf_nest4, aes(x = n_infection, y = coef, color=first_inf_before_four))+
+  geom_point(position = position_dodge(width=1)) + 
+  geom_linerange(aes(x = n_infection,  ymin = lower, ymax = upper), linewidth = 1, position = position_dodge(width=1))+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0, 0.42), labels = scales::label_percent())+
+  scale_x_continuous(breaks = seq(1, 6))+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated Malaria")+
+  scale_color_manual(values=age_cat_palette)+
+  theme(legend.title = element_blank())
+
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_age_4_at_first_confint.png", risk_age_at_first_confint4, height = 3, width=6, dpi=444, bg="white")
+
+
+
+# do it again but split data at first infection by 6 month mark
+
+
+
+age_first_nest6 <- complicated_data %>%
+  group_by(first_inf_before_six) %>%
+  nest() %>%
+  mutate(confy_model=purrr::map(data, ~glm(comp_num~1, data=., family="binomial")),
+         coef=purrr::map(confy_model, ~exp(coef(.))),
+         upper=purrr::map(confy_model, ~exp(confint(.))[2]),
+         lower=purrr::map(confy_model, ~exp(confint(.))[1]))%>%
+  unnest(data)%>%
+  dplyr::select(n_infection, age_at_first, coef, upper, lower, first_inf_before_six)%>%
+  unnest()
+
+
+# first_inf_model <- lme4::glmer(comp_num~first_inf_before_six+(1|id), data=complicated_data, family = "binomial")
+# first_inf_model <- glm(comp_num~first_inf_before_six, data=complicated_data, family = "binomial")
+
+
+overall_risk_age_at_first_confint6 <- ggplot(age_first_nest6, aes(x = first_inf_before_six, y = coef, color=first_inf_before_six))+
+  geom_point(aes(x = first_inf_before_six, y = coef)) + 
+  geom_linerange(aes(x = first_inf_before_six,  ymin = lower, ymax = upper), linewidth = 1)+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0, 0.25), labels = scales::label_percent())+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated Malaria")+
+  scale_color_manual(values=age_cat_palette)+
+  theme(axis.text.x = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/overall_risk_age_6_at_first_confint.png", overall_risk_age_at_first_confint6, height = 3, width=4, dpi=444, bg="white")
+
+
+
+age_n_inf_nest6 <- complicated_data %>%
+  filter(n_infection<7)%>%
+  mutate(first_inf_before_six = if_else(age_at_first<0.5, "before 6 months", "after 6 months"))%>%
+  group_by(n_infection, first_inf_before_six) %>%
+  nest() %>%
+  mutate(confy_model=purrr::map(data, ~glm(comp_num~1, data=., family="binomial")),
+         coef=purrr::map(confy_model, ~exp(coef(.))),
+         upper=purrr::map(confy_model, ~exp(confint(.))[2]),
+         lower=purrr::map(confy_model, ~exp(confint(.))[1]))%>%
+  unnest(data)%>%
+  dplyr::select(n_infection, age_at_first, coef, upper, lower, first_inf_before_six)%>%
+  unnest()
+
+
+risk_age_at_first_confint6 <- ggplot(age_n_inf_nest6, aes(x = n_infection, y = coef, color=first_inf_before_six))+
+  geom_point(position = position_dodge(width=1)) + 
+  geom_linerange(aes(x = n_infection,  ymin = lower, ymax = upper), linewidth = 1, position = position_dodge(width=1))+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0, 0.42), labels = scales::label_percent())+
+  scale_x_continuous(breaks = seq(1, 6))+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated Malaria")+
+  scale_color_manual(values=age_cat_palette)+
+  theme(legend.title = element_blank())
+
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_age_6_at_first_confint.png", risk_age_at_first_confint6, height = 3, width=6, dpi=444, bg="white")
+
