@@ -292,7 +292,7 @@ birth_purf <- birth %>%
   
   mutate(hp_model=map(data, ~lm(conc~factor(anyHPfinal), data=.)))%>%
   mutate(tx_model=map(data, ~lm(conc~factor(MomFinalRx), data=.)))%>%
-  mutae(tx_inf=map(data, ~glm.nb(inf_0_6~factor(MomFinalRx), data=.)))%>%
+  mutate(tx_inf=map(data, ~glm.nb(inf_0_6~factor(MomFinalRx), data=.)))%>%
   mutate(hp_inf=map(data, ~glm.nb(inf_0_6~factor(anyHPfinal), data=.)))%>%
   
   
@@ -467,6 +467,7 @@ six_months %>%
 
 twelve_purf <- twelve_months %>%
   filter(inf_12_18!=0)%>%
+  filter(antigen %in% c("logTT", "logSBP1", "logRh5", "logSEA", "logAMA1", "logCSP", "logGEXP", "logHSP40", "logHyp2"))%>%
   group_by(antigen) %>%
   nest() %>%
   mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ conc, data=.)))%>%

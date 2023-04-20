@@ -96,3 +96,28 @@ combo_plot <- cowplot::plot_grid(kaplan_meyer_esque, kaplan_meyer_esque2, nrow=1
 
 
 ggsave("~/postdoc/goncalves_modelling/png/combo_kaplan_meyer.png", combo_plot, height=5, width=8, bg="white", dpi=444)
+
+
+
+
+
+
+library(dplyr)
+
+
+data <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/mic_drop_enrolment_march23.csv", header = TRUE, stringsAsFactors = FALSE)
+data <- data %>%
+  mutate(cumulative=cumsum(enrolled))
+
+ggplot(data, aes(x=Week, y=cumulative))+
+  geom_point(shape=21, fill="darkred")+
+  geom_line()+
+  ylab("Cumulative Enrollment")+
+  theme_minimal()
+
+data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDropSpecimensJan2023_withClinical.dta")
+
+summary <- data %>%
+  filter(immunol==1)%>%
+  group_by(id)%>%
+  summarise("n_immuno"=n())

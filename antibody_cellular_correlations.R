@@ -189,29 +189,43 @@ pearson_heatmap <- Heatmap(matrix = cor_mat,
 
 
 cleaned_broom_data <- twelve_cor_combo %>%
-  filter(tfh_drop=="No", abc_drop=="No") %>%
+  #filter(tfh_drop=="No", abc_drop=="No") %>%
   dplyr::select(-tfh_drop, -abc_drop) %>%
   pivot_longer(cols = contains("_"), names_to = "cell_pop", values_to = "cell_freq")%>%
   pivot_longer(cols = colnames(.)[4:24], names_to = "antigen", values_to = "ab_conc")
 
 
+
+
+
+
+
 cleaned_broomer <- cleaned_broom_data %>%
   group_by(cell_pop, antigen)%>%
   do(broom::tidy(cor.test(.$cell_freq, .$ab_conc, method="spearman")))%>%
+  group_by(cell_pop)%>%
   mutate("p_adj"=p.adjust(p.value))%>%
   ungroup()
 
-sig_cleaned_broomer <- filter(cleaned_broomer, p_adj<0.1)
+sig_cleaned_broomer <- filter(cleaned_broomer, p.value<0.05)
 
 
 
-cleaned_broom_data %>%
-  filter(cell_pop=="cd10_neg_b", antigen %in% sig_cleaned_broomer$antigen)%>%
-  ggplot(., aes(x=cell_freq, y=ab_conc))+
+corr_figure <- cleaned_broom_data %>%
+  filter(cell_pop=="cd10_neg_b", antigen %in% sig_cleaned_broomer$antigen)%>% 
+  mutate("immature_bcell"=100-cell_freq)%>%
+  ggplot(., aes(x=immature_bcell, y=ab_conc))+
+  ggtitle("almost significant correlations (Rho~0.33, p_adj=0.138)")+
   geom_point(aes(color=antigen))+
+  xlab("percentage of immature B cells")+
+  ylab("antibody intensity")+
+  viridis::scale_color_viridis(discrete = TRUE)+
   geom_smooth(method="lm")+
   facet_wrap(~antigen, scales="free")+
   theme_minimal()
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/bcell_ab_correlations.png", corr_figure, height=4, width=8, dpi=444, bg="white")
+
 
 #best hit
 cleaned_broom_data %>%
@@ -224,3 +238,283 @@ cleaned_broom_data %>%
 
 
 # homework: do proper models, not just correlations; redo purr models of incidence using cellular frequencies
+
+
+combo_combo_purrrf <- long_combo_combo%>%
+  filter(timepoint==3)%>%
+  #filter(tfh_drop=="No", abc_drop=="No") %>%
+  dplyr::select(-antigen, -conc, -tfh_drop, -abc_drop) %>%
+  distinct(id, timepoint, .keep_all = TRUE)%>%
+  pivot_longer(cols = matches('tfh|abc'), names_to = "cell_pop", values_to = "cell_freq")%>%
+  group_by(cell_pop) %>%
+  nest() %>%
+  mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ cell_freq, data=.)))%>%
+  mutate(model_12_18_symp=map(data, ~glm.nb(symp_12_18 ~ cell_freq, data=.)))%>%
+  mutate(model_12_18_symp_prob=map(data, ~glm(symp_12_18/inf_12_18~cell_freq, data=., family = "binomial", weights = inf_12_18)))%>%
+  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ cell_freq, data=.)))%>%
+  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ cell_freq, data=.)))%>%
+  mutate(model_any_symp_12_18=map(data, ~glm(any_symp_12_18~cell_freq, data=., family = "binomial")))%>%
+  mutate(model_any_12_18=map(data, ~glm(any_inf_12_18~cell_freq, data=., family = "binomial")))%>%
+  
+  mutate(summary_12_18=map(model_12_18, ~summary(.))) %>%
+  mutate(summary_12_18_symp=map(model_12_18_symp, ~summary(.))) %>%
+  mutate(summary_12_18_symp_prob=map(model_12_18_symp_prob, ~summary(.))) %>%
+  mutate(summary_6_12=map(model_6_12, ~summary(.))) %>%
+  mutate(summary_0_12=map(model_0_12, ~summary(.))) %>%
+  mutate(summary_any_symp_12_18=map(model_any_symp_12_18, ~summary(.))) %>%
+  mutate(summary_any_12_18=map(model_any_12_18, ~summary(.))) %>%
+  
+  mutate(summary_12_18_p=map_dbl(summary_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_18_symp_p=map_dbl(summary_12_18_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_18_symp_prob_p=map_dbl(summary_12_18_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_6_12_p=map_dbl(summary_6_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_12_p=map_dbl(summary_0_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_12_18_p=map_dbl(summary_any_symp_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_12_18_p=map_dbl(summary_any_12_18, ~unlist(.$coefficients[8])))%>%
+  
+  mutate(model_12_24=map(data, ~glm.nb(inf_12_24 ~ cell_freq, data=.)))%>%
+  mutate(model_12_24_symp=map(data, ~glm.nb(symp_12_24 ~ cell_freq, data=.)))%>%
+  mutate(model_12_24_symp_prob=map(data, ~glm(symp_12_24/inf_12_24~cell_freq, data=., family = "binomial", weights = inf_12_24)))%>%
+  
+  mutate(summary_12_24=map(model_12_24, ~summary(.))) %>%
+  mutate(summary_12_24_symp=map(model_12_24_symp, ~summary(.))) %>%
+  mutate(summary_12_24_symp_prob=map(model_12_24_symp_prob, ~summary(.))) %>%
+  
+  mutate(summary_12_24_p=map_dbl(summary_12_24, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_24_symp_p=map_dbl(summary_12_24_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_24_symp_prob_p=map_dbl(summary_12_24_symp_prob, ~unlist(.$coefficients[8])))%>%
+  ungroup()%>%
+  mutate(summary_12_18_padj= p.adjust(summary_12_18_p))%>%
+  mutate(summary_12_18_symp_padj=p.adjust(summary_12_18_symp_p))%>%
+  mutate(summary_12_18_symp_prob_padj=p.adjust(summary_12_18_symp_prob_p))%>%
+  mutate(summary_6_12_padj=p.adjust(summary_6_12_p))%>%
+  mutate(summary_12_24_padj=p.adjust(summary_12_24_p))%>%
+  mutate(summary_12_24_symp_padj=p.adjust(summary_12_24_symp_p))%>%
+  mutate(summary_12_24_symp_prob_padj=p.adjust(summary_12_24_symp_prob_p))%>%
+  mutate(summary_0_12_padj=p.adjust(summary_0_12_p))%>%
+  mutate(summary_any_symp_12_18_padj=p.adjust(summary_any_symp_12_18_p))%>%
+  mutate(summary_any_12_18_padj=p.adjust(summary_any_12_18_p))
+
+
+
+fdr_cutoff <- 0.1
+
+
+twelve_18_sig <- combo_combo_purrrf %>%
+  filter(summary_12_18_padj<fdr_cutoff)%>%
+  dplyr::select(cell_pop, summary_12_18_padj)
+
+twelve_18_symp_sig <- combo_combo_purrrf %>%
+  filter(summary_12_18_symp_padj<fdr_cutoff)%>%
+  dplyr::select(cell_pop, summary_12_18_symp_padj)
+
+twelve_18_symp_prob_sig <- combo_combo_purrrf %>%
+  filter(summary_12_18_symp_prob_padj<fdr_cutoff)%>%
+  dplyr::select(cell_pop, summary_12_18_symp_prob_padj)
+
+twelve_6_12_sig <- combo_combo_purrrf %>%
+  filter(summary_6_12_padj<fdr_cutoff)%>%
+  dplyr::select(cell_pop, summary_6_12_padj)
+
+
+padj_combo_combo_purrrf <-  combo_combo_purrrf %>%
+  pivot_longer(cols = ends_with('_p'), names_to = "model", values_to = "padj")%>%
+  filter(padj<0.1)
+
+
+
+long_combo_combo%>%
+  filter(timepoint==3)%>%
+  filter(tfh_drop=="No", abc_drop=="No") %>%
+  dplyr::select(-antigen, -conc, -tfh_drop, -abc_drop) %>%
+  distinct(id, timepoint, .keep_all = TRUE)%>%
+  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq")%>%
+  ggplot(aes(x=inf_6_12, y=cell_freq))+
+  #geom_violin(aes(fill=factor(inf_6_12)))+
+  geom_point(alpha=0.2)+
+  facet_wrap(~cell_pop, scales="free")+
+  xlab("Number of Infections in Months 12-18")+
+  ylab("Cell Frequency at 12 Months")+
+  #ggpubr::stat_cor(method = "spearman", label.x = 1.5, label.y = 1)+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none")#+
+  viridis::scale_fill_viridis(option="B", direction = -1, discrete = TRUE)
+
+try <- long_combo_combo%>%
+  filter(timepoint==3)%>%
+  filter(tfh_drop=="No", abc_drop=="No") %>%
+  dplyr::select(-antigen, -conc, -tfh_drop, -abc_drop) %>%
+  distinct(id, timepoint, .keep_all = TRUE)%>%
+  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq")
+
+
+
+
+# summary level correlations
+all_ab_broom_data <- cleaned_broom_data%>%
+  group_by(id)%>%
+  summarise("all_abs"=log10(sum(10^ab_conc)), cell_pop, cell_freq)%>%
+  distinct()%>%
+  ungroup()
+
+all_ab_broomer <- all_ab_broom_data%>%
+  group_by(cell_pop)%>%
+  do(broom::tidy(cor.test(.$cell_freq, .$all_abs, method="spearman")))%>%
+  ungroup()%>%
+  mutate("p_adj"=p.adjust(p.value, method="fdr" ))
+
+
+sig_all_ab_cleaned_broomer <- filter(all_ab_broomer, p_adj<0.1)
+
+
+all_ab_broom_data %>%
+  filter(cell_pop %in% "cd10_neg_b")%>% 
+  ggplot(., aes(x=cell_freq, y=all_abs))+
+  geom_point(aes(color=cell_pop))+
+  geom_smooth(method="lm")+
+  facet_wrap(~cell_pop, scales="free")+
+  theme_minimal()
+
+
+
+all_ab_broom_data <- cleaned_broom_data%>%
+  group_by(id)%>%
+  summarise("all_abs"=log10(sum(10^ab_conc)), cell_pop, cell_freq)%>%
+  distinct()%>%
+  ungroup()
+
+
+
+
+all_ab_inf_purf <- combo_data %>%
+  filter(inf_12_18!=0, timepoint==3)%>%
+  group_by(id)%>%
+  mutate("all_abs"=log10(sum(10^conc, na.rm = TRUE)))%>%
+  dplyr::select(-antigen, -conc)%>%
+  distinct()%>%
+  ungroup()%>%
+  nest(data=everything()) %>%
+  mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ all_abs, data=.)))%>%
+  mutate(model_12_18_symp=map(data, ~glm.nb(symp_12_18 ~ all_abs, data=.)))%>%
+  mutate(model_12_18_symp_prob=map(data, ~glm(symp_12_18/inf_12_18~all_abs, data=., family = "binomial", weights = inf_12_18)))%>%
+  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ all_abs, data=.)))%>%
+  mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ all_abs, data=.)))%>%
+  mutate(model_any_symp_12_18=map(data, ~glm(any_symp_12_18~all_abs, data=., family = "binomial")))%>%
+  mutate(model_any_12_18=map(data, ~glm(any_inf_12_18~all_abs, data=., family = "binomial")))%>%
+  
+  mutate(summary_12_18=map(model_12_18, ~summary(.))) %>%
+  mutate(summary_12_18_symp=map(model_12_18_symp, ~summary(.))) %>%
+  mutate(summary_12_18_symp_prob=map(model_12_18_symp_prob, ~summary(.))) %>%
+  mutate(summary_6_12=map(model_6_12, ~summary(.))) %>%
+  mutate(summary_0_12=map(model_0_12, ~summary(.))) %>%
+  mutate(summary_any_symp_12_18=map(model_any_symp_12_18, ~summary(.))) %>%
+  mutate(summary_any_12_18=map(model_any_12_18, ~summary(.))) %>%
+  
+  mutate(summary_12_18_p=map_dbl(summary_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_18_symp_p=map_dbl(summary_12_18_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_18_symp_prob_p=map_dbl(summary_12_18_symp_prob, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_6_12_p=map_dbl(summary_6_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_0_12_p=map_dbl(summary_0_12, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_symp_12_18_p=map_dbl(summary_any_symp_12_18, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_any_12_18_p=map_dbl(summary_any_12_18, ~unlist(.$coefficients[8])))%>%
+  
+  mutate(model_12_24=map(data, ~glm.nb(inf_12_24 ~ all_abs, data=.)))%>%
+  mutate(model_12_24_symp=map(data, ~glm.nb(symp_12_24 ~ all_abs, data=.)))%>%
+  mutate(model_12_24_symp_prob=map(data, ~glm(symp_12_24/inf_12_24~all_abs, data=., family = "binomial", weights = inf_12_24)))%>%
+  
+  mutate(summary_12_24=map(model_12_24, ~summary(.))) %>%
+  mutate(summary_12_24_symp=map(model_12_24_symp, ~summary(.))) %>%
+  mutate(summary_12_24_symp_prob=map(model_12_24_symp_prob, ~summary(.))) %>%
+  
+  mutate(summary_12_24_p=map_dbl(summary_12_24, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_24_symp_p=map_dbl(summary_12_24_symp, ~unlist(.$coefficients[8])))%>%
+  mutate(summary_12_24_symp_prob_p=map_dbl(summary_12_24_symp_prob, ~unlist(.$coefficients[8])))%>%
+  ungroup()%>%
+  mutate(summary_12_18_padj= p.adjust(summary_12_18_p))%>%
+  mutate(summary_12_18_symp_padj=p.adjust(summary_12_18_symp_p))%>%
+  mutate(summary_12_18_symp_prob_padj=p.adjust(summary_12_18_symp_prob_p))%>%
+  mutate(summary_6_12_padj=p.adjust(summary_6_12_p))%>%
+  mutate(summary_12_24_padj=p.adjust(summary_12_24_p))%>%
+  mutate(summary_12_24_symp_padj=p.adjust(summary_12_24_symp_p))%>%
+  mutate(summary_12_24_symp_prob_padj=p.adjust(summary_12_24_symp_prob_p))%>%
+  mutate(summary_0_12_padj=p.adjust(summary_0_12_p))%>%
+  mutate(summary_any_symp_12_18_padj=p.adjust(summary_any_symp_12_18_p))%>%
+  mutate(summary_any_12_18_padj=p.adjust(summary_any_12_18_p))
+
+
+
+
+
+
+twelve_18_sig <- twelve_purf %>%
+  filter(summary_12_18_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_18_padj)
+
+twelve_18_symp_sig <- twelve_purf %>%
+  filter(summary_12_18_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_18_symp_padj)
+
+twelve_18_symp_prob_sig <- twelve_purf %>%
+  filter(summary_12_18_symp_prob_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_18_symp_prob_padj)
+
+twelve_6_12_sig <- twelve_purf %>%
+  filter(summary_6_12_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_6_12_padj)
+
+
+twelve_24_sig <- twelve_purf %>%
+  filter(summary_12_24_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_24_padj)
+
+twelve_24_symp_sig <- twelve_purf %>%
+  filter(summary_12_24_symp_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_24_symp_padj)
+
+twelve_24_symp_prob_sig <- twelve_purf %>%
+  filter(summary_12_24_symp_prob_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_12_24_symp_prob_padj)
+
+
+twelve_0_12_sig <- twelve_purf %>%
+  filter(summary_0_12_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_0_12_padj)
+
+twelve_18_any_sig <- twelve_purf %>%
+  filter(summary_any_12_18_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_any_12_18_padj)
+
+twelve_18_any_symp_sig <- twelve_purf %>%
+  filter(summary_any_symp_12_18_padj<fdr_cutoff)%>%
+  dplyr::select(antigen, summary_any_symp_12_18_padj)
+
+
+# make complex figure with all significant associations before multiple testing correction
+
+# x_and_ys <- cbind(sig_cleaned_broomer$cell_pop, paste("log", gsub(" ", "_", sig_cleaned_broomer$antigen), sep=""))
+
+list_of_plots <- list(matrix(nrow = 14))
+
+qual_palette <- viridis::inferno(14)
+
+x_and_ys <- cbind(sig_cleaned_broomer$cell_pop, sig_cleaned_broomer$antigen)
+
+for(i in 1:14){
+  
+  plot <- cleaned_broom_data %>%
+    filter(cell_pop==x_and_ys[i,1], antigen==x_and_ys[i,2])%>%
+    ggplot(., aes(x=cell_freq, y=ab_conc))+
+    geom_point(color=pc1_cols[i])+
+    geom_smooth(method="lm")+
+    xlab(x_and_ys[i,1])+
+    ylab(x_and_ys[i,2])+
+    theme_minimal()
+
+list_of_plots[[i]] <- plot
+
+}
+
+big_plot <- cowplot::plot_grid(plotlist = list_of_plots, nrow = 3)
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/big_indie_ab_cell_correlation_plot.png", big_plot, height = 5.5, width=8, bg="white")
