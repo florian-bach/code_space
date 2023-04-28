@@ -51,8 +51,8 @@ long_raw_dfff <- bc1 %>%
 clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs routine visit database FINAL_REV.dta")
 
 # it's a big table, so let's only include kids for whom we have any antibody measurements
-clin_data <- clin_data %>%
-  filter(id %in% long_raw_dfff$id)
+# clin_data <- clin_data %>%
+#   filter(id %in% long_raw_dfff$id)
 
 # make a data frame where we add a bunch of columns that contain how many (symptomatic) infections were experienced by the child in the indicated time window
 
@@ -86,7 +86,7 @@ infs <- clin_data %>%
 # the -1 removes the id column from the infs df, otherwise it's duplicated         
 combo_data <- cbind(long_raw_dfff, infs[match(long_raw_dfff$id, infs$id),-1])
 
-# for these kids we only have antibody measurements at birth and they're not in the clinical database so we'll cut them her
+# for these kids we only have antibody measurements at birth and they're not in the clinical database so we'll cut them here
 combo_data <- filter(combo_data, id %notin% c(11130, 11084, 11037))
 
 raw_combo_data <- cbind(long_raw_dfff, infs[match(long_raw_dfff$id, infs$id),-1])
@@ -175,15 +175,19 @@ pearson_heatmap <- Heatmap(matrix = cor_mat,
                            name = "Spearmon rho",
                            #name = "Pearson r",
                            #cluster_columns = FALSE,
-                           column_names_gp = gpar(fontsize = 6),
-                           row_names_gp = gpar(fontsize = 6),
+                           column_names_gp = gpar(fontsize = 9),
+                           row_names_gp = gpar(fontsize = 9),
                            row_names_side = "left",
                            col = col_fun_pearson,
                            column_names_rot = 45,
                            cell_fun = function(j, i, x, y, width, height, fill) {
-                             grid.text(sprintf("%.2f", cor_mat[i, j]), x, y, gp = gpar(fontsize = 10))
+                             grid.text(sprintf("%.2f", cor_mat[i, j]), x, y, gp = gpar(fontsize = 5))
                            })
 
+
+png("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/big_correlation_heatmap.png", width = 8, height=8, units="in", res=700)
+draw(pearson_heatmap)
+dev.off()
 
 # statsy correlations
 
@@ -240,18 +244,23 @@ cleaned_broom_data %>%
 # homework: do proper models, not just correlations; redo purr models of incidence using cellular frequencies
 
 
-combo_combo_purrrf <- long_combo_combo%>%
-  filter(timepoint==3)%>%
+# only 
+inf_cell_combo <- left_join(combo_cells_data, infs, by="id")
+
+long_inf_cell_combo <- inf_cell_combo%>%
+  dplyr::select(-tfh_drop, -abc_drop) %>%
   #filter(tfh_drop=="No", abc_drop=="No") %>%
-  dplyr::select(-antigen, -conc, -tfh_drop, -abc_drop) %>%
-  distinct(id, timepoint, .keep_all = TRUE)%>%
-  pivot_longer(cols = matches('tfh|abc'), names_to = "cell_pop", values_to = "cell_freq")%>%
+  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq")
+
+combo_combo_purrrf <- long_inf_cell_combo%>%
+  na.omit()%>%
   group_by(cell_pop) %>%
   nest() %>%
   mutate(model_12_18=map(data, ~glm.nb(inf_12_18 ~ cell_freq, data=.)))%>%
   mutate(model_12_18_symp=map(data, ~glm.nb(symp_12_18 ~ cell_freq, data=.)))%>%
   mutate(model_12_18_symp_prob=map(data, ~glm(symp_12_18/inf_12_18~cell_freq, data=., family = "binomial", weights = inf_12_18)))%>%
-  mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ cell_freq, data=.)))%>%
+  #mutate(model_6_12=map(data, ~glm.nb(inf_6_12 ~ cell_freq, data=.)))%>%
+  mutate(model_6_12 =map(data, ~glm(any_symp_12_18~cell_freq, data=., family = "poisson")))%>%
   mutate(model_0_12=map(data, ~glm.nb(inf_0_12 ~ cell_freq, data=.)))%>%
   mutate(model_any_symp_12_18=map(data, ~glm(any_symp_12_18~cell_freq, data=., family = "binomial")))%>%
   mutate(model_any_12_18=map(data, ~glm(any_inf_12_18~cell_freq, data=., family = "binomial")))%>%
@@ -318,24 +327,21 @@ twelve_6_12_sig <- combo_combo_purrrf %>%
 
 
 padj_combo_combo_purrrf <-  combo_combo_purrrf %>%
-  pivot_longer(cols = ends_with('_p'), names_to = "model", values_to = "padj")%>%
-  filter(padj<0.1)
+  pivot_longer(cols = ends_with('_p'), names_to = "model", values_to = "raw_p")%>%
+  dplyr::select(cell_pop, model, raw_p)%>%
+  mutate("padj"=p.adjust(raw_p))%>%
+  filter(raw_p<0.1)
 
 
 
-long_combo_combo%>%
-  filter(timepoint==3)%>%
-  filter(tfh_drop=="No", abc_drop=="No") %>%
-  dplyr::select(-antigen, -conc, -tfh_drop, -abc_drop) %>%
-  distinct(id, timepoint, .keep_all = TRUE)%>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq")%>%
-  ggplot(aes(x=inf_6_12, y=cell_freq))+
-  #geom_violin(aes(fill=factor(inf_6_12)))+
-  geom_point(alpha=0.2)+
-  facet_wrap(~cell_pop, scales="free")+
-  xlab("Number of Infections in Months 12-18")+
-  ylab("Cell Frequency at 12 Months")+
-  #ggpubr::stat_cor(method = "spearman", label.x = 1.5, label.y = 1)+
+long_inf_cell_combo%>%
+  filter(cell_pop=="tfh_q3")%>%
+  na.omit()%>%
+  ggplot(., aes(x=any_symp_12_18, y=cell_freq))+
+  geom_point(alpha=0.2, na.rm = TRUE)+
+  # xlab("Number of Infections in Months 12-18")+
+  # ylab("Cell Frequency at 12 Months")+
+  ggpubr::stat_cor(method = "spearman", label.x = 1.5, label.y = 1, na.rm = TRUE)+
   theme_minimal()+
   theme(panel.grid = element_blank(),
         legend.position = "none")#+

@@ -383,7 +383,7 @@ total_old_infections <- old_complicated_data %>%
   count(name = "total_infections")
 
 # only include complicated (not uncomplicated) cases, inlcude more summary stats
-old_complicated_df <- subset(old_complicated_df, old_complicated_df$disease=="complicated")
+old_complicated_df <- subset(old_complicated_df, old_complicated_df$complicatedmalaria=="complicated")
 old_complicated_df$total_infections <- total_old_infections$total_infections
 old_complicated_df$risk <- old_complicated_df$complicated_episodes/old_complicated_df$total_infections
 old_complicated_df$n_infection <- as.numeric(old_complicated_df$n_infection)
@@ -424,7 +424,7 @@ total_young_infections <- young_complicated_data %>%
   count(name = "total_infections")
 
 # only include complicated (not uncomplicated) cases, inlcude more summary stats
-young_complicated_df <- subset(young_complicated_df, young_complicated_df$disease=="complicated")
+young_complicated_df <- subset(young_complicated_df, young_complicated_df$complicatedmalaria=="complicated")
 young_complicated_df <- young_complicated_df[1:nrow(total_young_infections),]
 young_complicated_df$total_infections <- total_young_infections$total_infections
 young_complicated_df$risk <- young_complicated_df$complicated_episodes/young_complicated_df$total_infections
