@@ -643,3 +643,30 @@ momrx_cells <- long_combo_combo %>%
   scale_fill_manual(values=rev(n_infection_cols))
 
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/momrx_cells.png", momrx_cells, height = 8, width=12, bg="white", limitsize = FALSE)
+
+# gestational age, histopathology malaria incidence
+
+gestages_incidence <- combo_data %>%
+  filter(!is.na(gestage))%>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
+  # mutate(gestagef=factor(if_else(gestage<28, "<28 weeks", 
+                                 # if_else(gestage>=28 & gestage<32, "28-32 weeks", 
+                                 #         if_else(gestage>=32 & gestage<37, "32-37 weeks", 
+                                 #                 if_else(gestage>=37, ">37 weeks", "whoops")))), levels=c("<28 weeks", "28-32 weeks", "32-37 weeks", ">37 weeks")))%>%
+  ggplot(., aes(x=Incidence_Value, y=gestage, fill=factor(Incidence_Value)))+
+  geom_violin()+
+  # geom_boxplot(aes(fill=factor(Incidence_Value), group=Incidence_Value))+
+  # geom_point(aes(fill=factor(Incidence_Value)), alpha=0.1, shape=21)+
+  facet_wrap(~Incidence_Type, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  ggtitle("Gestational Age")+
+  xlab("Number of Infections")+
+  ylab("Gestational Age (Weeks)")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        strip.text = element_text(size=13.5))
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/gestages_incidence.png", gestages_incidence, height = 10, width=22, bg="white", limitsize = FALSE)
+

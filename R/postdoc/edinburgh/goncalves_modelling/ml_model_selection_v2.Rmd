@@ -40,7 +40,9 @@ goncalves_data$Severe <- ifelse(is.na(goncalves_data$Severe), 0, goncalves_data$
 
 # goncalves_plot_data <- subset(goncalves_data, goncalves_data$N_Infection>0&goncalves_data$N_Infection<12)
 
-supp_infection_decay <- glm(Supp_Infections~N_Infection+I(N_Infection^2), data=goncalves_data[2:15,])
+# supp_infection_decay <- glm(Supp_Infections~N_Infection+I(N_Infection^2), data=goncalves_data[2:15,])
+
+supp_infection_decay <- lm(log(Supp_Infections)~N_Infection, data=goncalves_data[2:15,], weights = log(Supp_Infections))
 
 supp_prd <- data.frame(N_Infection = seq(from = 1, to = 14), length.out=1000)
 supp_err <- predict(supp_infection_decay, newdata = supp_prd, se.fit = TRUE)
