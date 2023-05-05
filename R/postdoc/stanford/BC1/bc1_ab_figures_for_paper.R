@@ -119,6 +119,7 @@ cleaned_tfh$idt <- paste("1", substr(cleaned_tfh$idt, 15, 18), sep='')
 #fix & harmonise colnames, add id column that matches rest of data
 cleaned_abc <- abc
 colnames(cleaned_abc) <- c("idb", "abc_q4", "abc_q3","abc_q2","abc_q1","cd10_neg_b", "parent2b", "abc_drop")
+cleaned_abc$cd10_pos_b <- 100-cleaned_abc$cd10_neg_b
 cleaned_abc$idb <- paste("1", substr(cleaned_abc$idb, 17, 20), sep='')
 # fcs filename has a typo need to fix this
 cleaned_abc$idb <- gsub("11108", "11083", cleaned_abc$idb)
@@ -133,12 +134,36 @@ combo_cells_data <- combo_cells_data %>%
 
 long_combo_combo <- full_join(combo_data, combo_cells_data, by="id")
 
-wide_combo_12months <- combo_data |> 
-  dplyr::select(id, timepoint, anyHPfinal, antigen, conc)|>
-  filter(timepoint==3)|>
-  pivot_wider(names_from = antigen, values_from = conc)
+very_long_combo_combo <- long_combo_combo %>%
+  filter(tfh_drop=="No", abc_drop=="No")%>%
+  dplyr::select(-tfh_drop, -abc_drop) %>%
+  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
+  mutate(cell_pop = recode(cell_pop, 
+                           "abc_q1"="Activated B Cells",
+                           "abc_q2"="Memory B Cells",
+                           "abc_q3"="Naive B Cells",
+                           "abc_q4"="Atypical B Cells",
+                           #"cd10_neg_b"="Mature B Cells",
+                           "cd10_pos_b"="Immature B Cells",
+                           "tfh_q1"="Th17",
+                           "tfh_q2"="Th1_17",
+                           "tfh_q3"="Th1",
+                           "tfh_q4"="Th2",
+                           "tfh_of_cd4"="Tfh of CD4 T Cells"))%>%
+  filter(cell_pop != "cd10_neg_b")
 
-twelve_cor_combo <- inner_join(wide_combo_12months, combo_cells_data, by="id")
+# wide_combo_12months <- combo_data |> 
+#   dplyr::select(id, timepoint, anyHPfinal, antigen, conc)|>
+#   filter(timepoint==3)|>
+#   pivot_wider(names_from = antigen, values_from = conc)
+# 
+# twelve_cor_combo <- inner_join(wide_combo_12months, combo_cells_data, by="id")
+
+twelve_cor_combo <- very_long_combo_combo %>%
+  filter(timepoint==3)%>%
+  select(id, timepoint, anyHPfinal, antigen, conc, cell_pop, cell_freq)%>%
+  pivot_wider(names_from = cell_pop, values_from = cell_freq)%>%
+  pivot_wider(names_from = antigen, values_from = conc)
 
 # antibody temporal trends ####
 
@@ -154,11 +179,11 @@ antibodies_during_first_year_of_life <- ggplot(combo_data, aes(x=timepointf, y=c
   theme(panel.grid = element_blank(),
         legend.position = "none",
         axis.title.x = element_blank(),
-        axis.text.x = element_text(angle = 0, hjust=1),
+        axis.text.x = element_text(angle = 90, hjust=1),
         strip.text = element_text(size=13.5))+
   scale_fill_manual(values=pc1_cols)
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/antibodies_during_first_year_of_life.png", antibodies_during_first_year_of_life, height = 8, width=8, bg="white")
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/antibodies_during_first_year_of_life.png", antibodies_during_first_year_of_life, height = 12, width=12, bg="white")
 
 
 # antibody~incidence figures ####
@@ -374,7 +399,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/gestag
 
 # antibodies ~ cell frequencies ####
 cor_data <- twelve_cor_combo |>
-  dplyr::select(-id, -timepoint, -anyHPfinal, -tfh_drop, -abc_drop)%>%
+  dplyr::select(-id, -timepoint, -anyHPfinal)%>%
   na.omit()
 
 spearman <- cor(cor_data, method = "spearman")
@@ -437,16 +462,65 @@ png("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/ab_cell_correlation_
 draw(spearment_heatmap_no_lab)
 dev.off()
 
+
+
+cleaned_broomer <- very_long_combo_combo %>%
+  filter(!is.na(antigen), !is.na(cell_pop), timepoint==3)%>%
+  group_by(cell_pop, antigen)%>%
+  do(broom::tidy(cor.test(.$cell_freq, .$conc, method="spearman")))%>%
+  group_by(cell_pop)%>%
+  mutate("p_adj"=p.adjust(p.value))%>%
+  ungroup()
+
+
+fdr_cutoff <- 0.05
+sig_cleaned_broomer <- filter(cleaned_broomer, p.value<fdr_cutoff)
+
+
+list_of_plots <- list(matrix(nrow = nrow(sig_cleaned_broomer)))
+
+qual_palette <- viridis::inferno(nrow(sig_cleaned_broomer))
+
+x_and_ys <- cbind(sig_cleaned_broomer$cell_pop, sig_cleaned_broomer$antigen)
+
+for(i in 1:nrow(sig_cleaned_broomer)){
+  
+  plot <- very_long_combo_combo %>%
+    filter(!is.na(antigen), timepoint==3) %>%
+    filter(cell_pop==x_and_ys[i,1], antigen==x_and_ys[i,2])%>%
+    ggplot(., aes(x=cell_freq, y=conc))+
+    geom_point(fill=pc1_cols[i], alpha=1, shape=21)+
+    geom_smooth(method="lm")+
+    ggpubr::stat_cor(method = "spearman", label.y = -1.5, na.rm = TRUE, size=2)+
+    xlab(x_and_ys[i,1])+
+    ylab(x_and_ys[i,2])+
+    theme_minimal()
+  
+  list_of_plots[[i]] <- plot
+  
+}
+
+big_plot <- cowplot::plot_grid(plotlist = list_of_plots, nrow =  round(nrow(sig_cleaned_broomer)/5))
+
+ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/big_indie_ab_cell_correlation_plot", fdr_cutoff, "raw_p.png", sep="_"), big_plot, height = 8, width=8, bg="white")
+
+
+# big plots of all cells vs all antibodies
+
+very_long_combo_combo%>%
+  filter(cell_pop=="Th2", timepoint==3)%>%
+  ggplot(., aes(x=cell_freq, y=conc))+
+  geom_point(aes(fill=cell_pop), alpha=1, shape=21)+
+  scale_fill_manual(values = pc1_cols)+
+  geom_smooth(method="lm")+
+  ggpubr::stat_cor(method = "spearman", label.y = -1.5, na.rm = TRUE, size=2)+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()
+
+
 # cell frequencies at 1 year of age ####
 
-all_cells <- long_combo_combo %>% 
-  dplyr::select(-tfh_drop, -abc_drop) %>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells",))%>%
+all_cells <- very_long_combo_combo %>%
   ggplot(., aes(x="", y=cell_freq, fill=cell_pop))+
   geom_violin(draw_quantiles = seq(0,1,0.25), scale = TRUE, )+
   facet_wrap(~cell_pop, labeller = labeller(cell_pop = label_wrap_gen(width = 8)), nrow = 2, scales = "free")+
@@ -464,15 +538,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/all_ce
 
 
 
-all_cells_no_drop <- long_combo_combo %>% 
-  filter(tfh_drop=="No", abc_drop=="No")%>%
-  dplyr::select(-tfh_drop, -abc_drop) %>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells",))%>%
+all_cells_no_drop <- very_long_combo_combo %>%
   ggplot(., aes(x="", y=cell_freq, fill=cell_pop))+
   geom_violin(draw_quantiles = seq(0,1,0.25), scale = TRUE, )+
   facet_wrap(~cell_pop, labeller = labeller(cell_pop = label_wrap_gen(width = 8)), nrow = 2, scales = "free")+
@@ -491,14 +557,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/all_ce
 
 # cell frequencies and malaria incidence ####
 
-cells_incidence <- long_combo_combo %>%
-  dplyr::select(-tfh_drop, -abc_drop) %>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells",))%>%
+cells_incidence <- very_long_combo_combo %>%
   pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
   filter(timepoint==1, Incidence_Type %in% c("inf_6_12", "symp_6_12", "inf_12_18", "symp_12_18"))%>%
   ggplot(., aes(x=Incidence_Value, y=cell_freq))+
@@ -523,15 +582,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/cells_
 
 
   
-cells_incidence_no_drop <- long_combo_combo %>%
-  filter(tfh_drop=="No", abc_drop=="No")%>%
-  dplyr::select(-tfh_drop, -abc_drop) %>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells",))%>%
+cells_incidence_no_drop <- very_long_combo_combo%>%
   pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
   filter(timepoint==1, Incidence_Type %in% c("inf_6_12", "symp_6_12", "inf_12_18", "symp_12_18"))%>%
   ggplot(., aes(x=Incidence_Value, y=cell_freq))+
@@ -555,17 +606,16 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/cells_
 
 # cells~placental malaria, pretern birth, maternal chemoprevention
 
-histopathology_cells <- long_combo_combo %>%
-  #filter(tfh_drop=="No", abc_drop=="No", timepoint==3)%>%
-  filter(timepoint==3) %>%
-  dplyr::select(-tfh_drop, -abc_drop, -antigen, -conc) %>%
+histopathology_cells <- very_long_combo_combo %>%
+  dplyr::select(-antigen, -conc) %>%
+  filter(timepoint==3)%>%
   filter(!duplicated(id), !is.na(anyHPfinal))%>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells"))%>%
+  # pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
+  # mutate(cell_pop = recode(cell_pop, 
+  #                          "abc_q1"="Activated B Cells",
+  #                          "abc_q2"="Memory B Cells",
+  #                          "abc_q3"="Naive B Cells",
+  #                          "abc_q4"="Atypical B Cells"))%>%
   ggplot(., aes(x=anyHPfinalx, y=cell_freq))+
   geom_point(aes(fill=anyHPfinalx), alpha=0.1, shape=21)+
   geom_boxplot(aes(fill=anyHPfinalx))+
@@ -585,16 +635,11 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/histop
 
 
 
-gestages_cont_cells <- long_combo_combo %>%
-  filter(tfh_drop=="No", abc_drop=="No", timepoint==3)%>%
-  dplyr::select(-tfh_drop, -abc_drop, -antigen, -conc) %>%
-  filter(!duplicated(id))%>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells"))%>%
+gestages_cont_cells <- very_long_combo_combo %>%
+  filter(timepoint==3)%>%
+  dplyr::select(-antigen, -conc)%>%
+  group_by(id)%>%
+  filter(!duplicated(cell_pop))%>%
   ggplot(., aes(x=gestage, y=cell_freq))+
   geom_smooth(method="lm")+
   ggpubr::stat_cor(method = "spearman", na.rm = TRUE)+
@@ -615,17 +660,9 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/gestag
 
 
 
-momrx_cells <- long_combo_combo %>%
-  #filter(tfh_drop=="No", abc_drop=="No", timepoint==3)%>%
-  filter(timepoint==3) %>%
-  dplyr::select(-tfh_drop, -abc_drop, -antigen, -conc) %>%
-  filter(!duplicated(id))%>%
-  pivot_longer(cols = matches('tfh|abc|cd10'), names_to = "cell_pop", values_to = "cell_freq") %>%
-  mutate(cell_pop = recode(cell_pop, 
-                           "abc_q1"="Activated B Cells",
-                           "abc_q2"="Memory B Cells",
-                           "abc_q3"="Naive B Cells",
-                           "abc_q4"="Atypical B Cells",))%>%
+momrx_cells <- very_long_combo_combo %>%
+  filter(timepoint==3)%>%
+  dplyr::select(-antigen, -conc)%>%
   ggplot(., aes(x=MomFinalRx, y=cell_freq))+
   # geom_smooth(method="lm")+
   # ggpubr::stat_cor(method = "spearman", na.rm = TRUE)+
@@ -654,14 +691,15 @@ gestages_incidence <- combo_data %>%
                                  #         if_else(gestage>=32 & gestage<37, "32-37 weeks", 
                                  #                 if_else(gestage>=37, ">37 weeks", "whoops")))), levels=c("<28 weeks", "28-32 weeks", "32-37 weeks", ">37 weeks")))%>%
   ggplot(., aes(x=Incidence_Value, y=gestage, fill=factor(Incidence_Value)))+
-  geom_violin()+
-  # geom_boxplot(aes(fill=factor(Incidence_Value), group=Incidence_Value))+
-  # geom_point(aes(fill=factor(Incidence_Value)), alpha=0.1, shape=21)+
+  #geom_violin()+
+  geom_boxplot(aes(fill=factor(Incidence_Value), group=Incidence_Value))+
+  geom_point(aes(fill=factor(Incidence_Value)), alpha=0.1, shape=21)+
   facet_wrap(~Incidence_Type, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
   ggtitle("Gestational Age")+
   xlab("Number of Infections")+
   ylab("Gestational Age (Weeks)")+
   theme_minimal()+
+  scale_fill_manual(values = pc1_cols)+
   theme(panel.grid = element_blank(),
         legend.position = "none",
         axis.title.x = element_blank(),
