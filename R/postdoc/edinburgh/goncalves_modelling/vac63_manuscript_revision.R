@@ -132,10 +132,10 @@ moderate_exp_fun <- function(x){exp(moderate_glm$coefficients[1])*exp(moderate_g
     geom_ribbon(data= model_visualiser(moderate_glm, "N_Infection"), aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
                 alpha = 0.2, inherit.aes = FALSE)+
     geom_function(fun = moderate_exp_fun, colour="black", linetype="dashed")+
-    geom_text(aes(y=0.14, label= paste0("frac(",Severe_Moderate, ",", Modelled_Supp_Cases,")")),parse = TRUE, size=2.5)+
+    #geom_text(aes(y=0.14, label= paste0("frac(",Severe_Moderate, ",", Modelled_Supp_Cases,")")),parse = TRUE, size=2.5)+
     ylab("\nRisk of Complicated Malaria\n")+
     xlab("\nOrder of Infection")+
-    scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
+    scale_y_continuous(label=scales::percent)+
     scale_x_continuous(limits=range(1, nrow(goncalves_data)-1), breaks=seq(0, nrow(goncalves_data)-1))+
     theme_minimal()+
     theme(plot.title = element_text(size=15, hjust = 0.5),
@@ -157,11 +157,11 @@ main_severe_exp_fun <- function(x){exp(main_severe_glm$coefficients[1])*exp(main
     geom_ribbon(data= model_visualiser(main_severe_glm, "N_Infection"), aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
                 alpha = 0.2, inherit.aes = FALSE)+
     geom_function(fun = main_severe_exp_fun, colour="black", linetype="dashed")+
-    geom_text(aes(y=0.14, label= paste0("frac(",Severe, ",", Modelled_Main_Cases,")")),parse = TRUE, size=2.5)+
+    #geom_text(aes(y=0.14, label= paste0("frac(",Severe, ",", Modelled_Main_Cases,")")),parse = TRUE, size=2.5)+
     ylab("\nRisk of Severe Malaria\n")+
     xlab("\nOrder of Infection")+
     ggtitle("Case Numbers Main Paper")+
-    scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
+    scale_y_continuous(label=scales::percent)+
     scale_x_continuous(limits=range(1, nrow(goncalves_data)-1), breaks=seq(0, nrow(goncalves_data)-1))+
     theme_minimal()+
     theme(plot.title = element_text(size=15, hjust = 0.5),
@@ -185,11 +185,11 @@ Supp_severe_exp_fun <- function(x){exp(Supp_severe_glm$coefficients[1])*exp(Supp
     geom_ribbon(data= model_visualiser(Supp_severe_glm, "N_Infection"), aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
                 alpha = 0.2, inherit.aes = FALSE)+
     geom_function(fun = Supp_severe_exp_fun, colour="black", linetype="dashed")+
-    geom_text(aes(y=0.14, label= paste0("frac(",Severe, ",", Modelled_Supp_Cases,")")),parse = TRUE, size=2.5)+
+    #geom_text(aes(y=0.14, label= paste0("frac(",Severe, ",", Modelled_Supp_Cases,")")),parse = TRUE, size=2.5)+
     ylab("\nRisk of Severe Malaria\n")+
     xlab("\nOrder of Infection")+
     ggtitle("Case Numbers Supplementary")+
-    scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
+    scale_y_continuous(label=scales::percent)+
     scale_x_continuous(limits=range(1, nrow(goncalves_data)-1), breaks=seq(0, nrow(goncalves_data)-1))+
     theme_minimal()+
     theme(plot.title = element_text(size=15, hjust = 0.5),

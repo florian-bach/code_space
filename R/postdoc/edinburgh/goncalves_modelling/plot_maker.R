@@ -23,8 +23,8 @@ goncalves_data$Severe_Moderate <- ifelse(is.na(goncalves_data$Severe_Moderate), 
 
 goncalves_data$Severe <- ifelse(is.na(goncalves_data$Severe), 0, goncalves_data$Severe)
 
-# goncalves_plot_data <- subset(goncalves_data, goncalves_data$N_Infection>0&goncalves_data$N_Infection<12)
-
+#goncalves_plot_data <- subset(goncalves_data, goncalves_data$N_Infection>0&goncalves_data$N_Infection<12)
+goncalves_plot_data <- goncalves_data
 supp_infection_decay <- lm(log(Supp_Infections)~N_Infection, data=goncalves_data[2:15,], weights = Supp_Infections)
 
 supp_prd <- data.frame(N_Infection = seq(from = 1, to = 14), length.out=1000)
@@ -67,11 +67,11 @@ comp_glm_model <- ggplot(goncalves_data, aes(x = N_Infection, y=Severe_Moderate/
   geom_ribbon(data= model_visualiser(moderate_glm, "N_Infection"), aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = moderate_exp_fun, colour="black")+
-  geom_text(aes(y=0.14, label= paste0("frac(",Severe_Moderate, ",", Modelled_Supp_Cases,")")),parse = TRUE, size=2.5)+
+  #geom_text(aes(y=0.14, label= paste0("frac(",Severe_Moderate, ",", Modelled_Supp_Cases,")")),parse = TRUE, size=2.5)+
   ylab("Risk of Complicated Malaria")+
   xlab("Order of Infection")+
   scale_y_continuous(label=scales::percent, limits=c(0, 0.15))+
-  scale_x_continuous(limits=range(1, nrow(goncalves_data)), breaks=seq(0, nrow(goncalves_data)))+
+  scale_x_continuous(limits=range(1, nrow(goncalves_data)-1), breaks=seq(0, nrow(goncalves_data)-1))+
   theme_minimal()+
   theme(plot.title = element_text(size=15, hjust = 0.5),
         axis.text = element_text(size=12),
@@ -86,18 +86,17 @@ ggsave("~/postdoc/edinburgh/goncalves_modelling/complicated_malaria.pdf", comp_g
 severe_glm <- glm(Severe/Modelled_Main_Cases~N_Infection, weights = Modelled_Main_Cases, family="binomial", data=goncalves_data)
 severe_exp_fun <- function(x){exp(severe_glm$coefficients[1])*exp(severe_glm$coefficients[2])^x}
 
-
 (
 severe_glm_model <- ggplot(goncalves_data, aes(x = N_Infection, y=Severe/Modelled_Main_Cases))+
   geom_point(colour="darkred")+
   geom_ribbon(data= model_visualiser(severe_glm, "N_Infection"), aes(x=N_Infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = severe_exp_fun, colour="black")+
-  geom_text(aes(y=0.07, label= paste0("frac(",Severe, ",", Modelled_Main_Cases,")")),parse = TRUE, size=2.5)+
-  ylab("Risk of Complicated Malaria")+
+  #geom_text(aes(y=0.07, label= paste0("frac(",Severe, ",", Modelled_Main_Cases,")")),parse = TRUE, size=2.5)+
+  ylab("Risk of Severe Malaria")+
   xlab("Order of Infection")+
   scale_y_continuous(label=scales::percent, limits=c(0, 0.075))+
-  scale_x_continuous(limits=range(1, nrow(goncalves_plot_data)), breaks=seq(0, nrow(goncalves_plot_data)))+
+  scale_x_continuous(limits=range(1, nrow(goncalves_plot_data)-1), breaks=seq(0, nrow(goncalves_plot_data)-1))+
   theme_minimal()+
   theme(plot.title = element_text(size=15, hjust = 0.5),
         axis.text = element_text(size=12),

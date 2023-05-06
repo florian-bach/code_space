@@ -518,6 +518,12 @@ very_long_combo_combo%>%
   theme_minimal()
 
 
+# bootstrapping spearman correlations
+
+bla <- RVAideMemoire::spearman.cor.multcomp(very_long_combo_combo$cell_freq, very_long_combo_combo$conc, fact=interaction(very_long_combo_combo$cell_pop, very_long_combo_combo$antigen), alpha = 0.05, nrep = 1000)
+
+bootstrap <- bla$tab
+
 # cell frequencies at 1 year of age ####
 
 all_cells <- very_long_combo_combo %>%
