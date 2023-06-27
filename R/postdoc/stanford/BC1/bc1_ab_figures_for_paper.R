@@ -30,7 +30,7 @@ ab_columns <- grep("log", colnames(bc1), value = TRUE)
 
 
 long_raw_dfff <- bc1 %>%
-  dplyr::select(all_of(c("id", "timepoint", ab_columns, "MomFinalRx", "anyHPfinal", "gestage")))%>%
+  dplyr::select(all_of(c("id", "timepoint", ab_columns, "MomFinalRx", "anyHPfinal", "gestage", "gender")))%>%
   pivot_longer(cols=all_of(ab_columns), names_to = "antigen", values_to = "conc")%>%
   filter(antigen %notin% c("logpd", "logGST"))%>%
   mutate(antigen=gsub("log", "", antigen, fixed = TRUE))%>%

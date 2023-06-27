@@ -92,7 +92,7 @@ granular_first_df_first_$p_adj <- p.adjust(granular_first_df_first_$p_raw, metho
 # milo stuff ####
 
 
-activated_subset <- SeuratDisk::LoadH5Seurat("~/postdoc/scRNAseq/final_analysis_and_figures/final_activated_subset.h5Seurat")
+activated_subset <- SeuratDisk::LoadH5Seurat("~/postdoc/edinburgh/scRNAseq/seurat_objecitons/final_activated_subset.h5Seurat")
 
 library(miloR)
 library(patchwork)
@@ -108,7 +108,7 @@ combo_milo <- makeNhoods(combo_milo, prop = 0.1, k = 30, d=30, refined = TRUE, r
 # need this for colData & owData
 
 #metadata <- read.csv("~/Documents/vac63c_scrna_seq/sce_metadata.csv", row.names = 1)
-metadata <- read.csv("~/postdoc/scRNAseq/metadata/sce_metadata.csv", row.names = 1)
+metadata <- read.csv("~/postdoc/edinburgh/scRNAseq/sce_metadata.csv", row.names = 1)
 
 combo_milo <- countCells(combo_milo, meta.data = as.data.frame(colData(combo_milo)), sample="sample_ID")
 
@@ -127,8 +127,8 @@ umap_pl <- scater::plotReducedDim(combo_milo, dimred = "UMAP", colour_by="n_infe
 ## Plot neighbourhood graph
 nh_graph_pl <- plotNhoodGraphDA(combo_milo, da_results, layout="UMAP",alpha=0.1)
 
-milo_umap <- umap_pl + nh_graph_pl +
-  plot_layout(guides="collect")
+(milo_umap <- umap_pl + nh_graph_pl +
+  plot_layout(guides="collect"))
 
 ggsave("~/postdoc/scRNAseq/figures/n_infection_only_milo_umap.png", milo_umap, height=8, width=12, bg="white", dpi=444)
 
