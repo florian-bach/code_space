@@ -126,6 +126,7 @@ combo_cells_data <- combo_cells_data %>%
   dplyr::select(-idt, -idb, -parent2t, -parent2b)
 
 long_combo_combo <- full_join(combo_data, combo_cells_data, by="id")
+write.csv(long_combo_combo, "~/postdoc/stanford/clinical_data/BC1/cell_inf_ab_database.csv", quote=FALSE, row.names=FALSE)
 
 wide_combo_12months <- combo_data |> 
   dplyr::select(id, timepoint, anyHPfinal, antigen, conc)|>

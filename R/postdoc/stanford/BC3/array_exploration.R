@@ -28,13 +28,13 @@ data_summary <- long_data %>%
 long_data$scaled_concentration <- (long_data$concentration-data_summary$mean[match(long_data$antigen,data_summary$antigen)])/
   data_summary$sd[match(long_data$antigen,data_summary$antigen)]
 
-# long_scaled_data_summary <- long_data %>%
-#   group_by(antigen)%>%
-#   summarise("min"=min(scaled_concentration),
-#             "max"=max(scaled_concentration),
-#             "median"=median(scaled_concentration),
-#             "mean"=mean(scaled_concentration),
-#             "sd"=sd(scaled_concentration))
+long_scaled_data_summary <- long_data %>%
+  group_by(antigen)%>%
+  summarise("min"=min(scaled_concentration),
+            "max"=max(scaled_concentration),
+            "median"=median(scaled_concentration),
+            "mean"=mean(scaled_concentration),
+            "sd"=sd(scaled_concentration))
 
 
 ggplot(long_scaled_data_summary, aes(x=median, y=sd))+
@@ -60,7 +60,7 @@ pca_theme <- theme(legend.title = element_text(size=15),
                    axis.title = element_text(size=15),
                    axis.text = element_text(size=12))
 
-ggplot(pca_plot_data, aes(x=PC1, y=PC2, fill=factor(motherid)))+
+ggplot(pca_plot_data, aes(x=PC1, y=PC2, fill=factor(gender)))+
   geom_point(shape=21, size=2)+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+

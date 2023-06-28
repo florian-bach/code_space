@@ -1,5 +1,7 @@
 library(dplyr)
 library(tidyr)
+library(xlsx)
+
 `%notin%` <- Negate(`%in%`)
 
 
@@ -34,7 +36,7 @@ long_specimen_data <- raw_data %>%
 #check for individuals who came at more than one visit / have more than one routine
 routine_ish_visits <- long_specimen_data %>%
   filter(flo_age_in_wks %in% sample_ranges) %>%
-  mutate("timepoint"=if_else(
+  mutate("Timepoint_in_weeks"=if_else(
     flo_age_in_wks %in% sample_ages, flo_age_in_wks, ifelse(
       flo_age_in_wks %in% sample_ages_minus, flo_age_in_wks+1, if_else(
         flo_age_in_wks %in% sample_ages_plus, flo_age_in_wks-1, 999)
@@ -48,13 +50,13 @@ routine_visits <- routine_ish_visits %>%
 
 # how many individuals have attended each planned visit
 participant_summary <- routine_ish_visits %>%
-  group_by(timepoint) %>%
+  group_by(Timepoint_in_weeks) %>%
   summarise("Number_of_Individuals"=n_distinct(id))
 
 
 # how many people had more than one visit around the time of a planned visit
 routine_ish_visits %>% 
-  group_by(id, timepoint)%>%
+  group_by(id, Timepoint_in_weeks)%>%
   summarise("number_of_visits"=n_distinct(visit_id))%>%
   group_by(number_of_visits)%>%
   summarise("how_often"=n())
@@ -62,23 +64,23 @@ routine_ish_visits %>%
 
 # one individual had PBMCs taken at the enrolment visit at 8 weeks
 # routine_ish_visits %>%
-#   filter(timepoint %in% sample_ages)%>%
-#   group_by(Specimen_Type, timepoint) %>%
+#   filter(Timepoint_in_weeks %in% sample_ages)%>%
+#   group_by(Specimen_Type, Timepoint_in_weeks) %>%
 #   summarise("Number_of_Samples"=n_distinct(Specimen_ID_ID))
 
 # number of samples of each type at each timepoint, including collection rate
 sample_summary <- routine_visits %>%
-  filter(timepoint %in% sample_ages)%>%
-  group_by(Specimen_Type, timepoint) %>%
+  filter(Timepoint_in_weeks %in% sample_ages)%>%
+  group_by(Specimen_Type, Timepoint_in_weeks) %>%
   summarise("Number_of_Samples"=n_distinct(Specimen_ID_ID))%>%
   ungroup()%>%
-  mutate("Collection_Rate"=.$Number_of_Samples/participant_summary$Number_of_Individuals[match(.$timepoint, participant_summary$timepoint)],
+  mutate("Collection_Rate"=.$Number_of_Samples/participant_summary$Number_of_Individuals[match(.$Timepoint_in_weeks, participant_summary$Timepoint_in_weeks)],
          "Collection_Failure_Rate"=1-Collection_Rate,
-         "Missed_Samples"=participant_summary$Number_of_Individuals[match(timepoint, participant_summary$timepoint)]-Number_of_Samples)
+         "Missed_Samples"=participant_summary$Number_of_Individuals[match(Timepoint_in_weeks, participant_summary$Timepoint_in_weeks)]-Number_of_Samples)
 
 
 
-# who has three cell stabiliser samples and why
+
 # subset visit database to be only "duplicate" visits and send IDRC
 
 
@@ -89,7 +91,44 @@ n_sample_summary <- long_specimen_data %>%
   group_by(Specimen_Type,  Number_of_Samples) %>%
   summarise("Number_of_Individuals_with_n_Samples"=n())
 
+# save summary-level info as exel sheet ####
+wb = createWorkbook()
 
+n_sample_summary_sheet = createSheet(wb, "N Sample Summary")
+sample_summary_sheet = createSheet(wb, "Collection Summary")
+participant_summary_sheet = createSheet(wb, "Participant Summary")
+
+addDataFrame(as.data.frame(n_sample_summary), sheet=n_sample_summary_sheet, startColumn=1, row.names=FALSE)
+addDataFrame(as.data.frame(sample_summary), sheet=sample_summary_sheet, startColumn=1, row.names=FALSE)
+addDataFrame(as.data.frame(participant_summary), sheet=participant_summary_sheet, startColumn=1, row.names=FALSE)
+
+saveWorkbook(wb, "/Users/fbach/Box Sync/MIC_DroP IPTc Study/Florian_Specimen_QC/2023_05/Specimen_Summary.xlsx")
+
+
+
+# handling of QC errors / conflicts ####
+
+# who has three cell stabiliser samples and why
+the_threes <- long_specimen_data %>%
+  group_by(Specimen_Type, id) %>%
+  summarise("Number_of_Samples" = n()) %>%
+  filter(Number_of_Samples==3,  Specimen_Type %in% c("PBMC", "Paxgene", "CellStabiliser"))
+
+# visits with erroneous? samples taken
+err_visits <- long_specimen_data %>%
+  filter(id %in% the_threes$id, Specimen_Type %in% c("PBMC", "Paxgene", "CellStabiliser"), flo_age_in_wks %notin% sample_ranges)
+
+write.csv(err_visits, "/Users/fbach/Box Sync/MIC_DroP IPTc Study/Florian_Specimen_QC/2023_05/third_sample_visits.csv")
+
+# broken birthdays
+
+broken_bb_visits <-long_specimen_data %>%
+  filter(is.na(dob))
+write.csv(broken_bb_visits, "/Users/fbach/Box Sync/MIC_DroP IPTc Study/Florian_Specimen_QC/2023_05/visits_with_missing_birthdays.csv")
+
+
+broken_bb_individuals <- distinct(broken_bb_visits,id)
+write.csv(broken_bb_individuals, "/Users/fbach/Box Sync/MIC_DroP IPTc Study/Florian_Specimen_QC/2023_05/individuals_with_missing_birthdays.csv")
 # turn into pdf table ####
 
 
