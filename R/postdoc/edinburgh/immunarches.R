@@ -278,7 +278,7 @@ line_plot <- imm_gu_df%>%
   theme(legend.position="none",
         axis.text.x = element_blank())
 
-ggsave("~/postdoc/edinburgh/scRNAseq/final_revision/v_alpha_cluster_line_plot.png", line_plot, height = 16, width=8, bg="white")
+ggsave("~/postdoc/edinburgh/scRNAseq/final_revision/v_alpha_cluster_line_plot.pdf", line_plot, height = 16, width=8, bg="white")
 
 
 
