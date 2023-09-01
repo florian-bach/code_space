@@ -114,10 +114,14 @@ complicated_data <- smaller_data %>%
   arrange(age) %>%
   mutate(n_infection = seq(1, max(total_n_infection))) %>%
   #mutate(n_infection = factor(n_infection_num)) %>%
+  mutate(age_at_first=age[n_infection==1])%>%
+
   mutate(disease=ifelse(severe=="severe", "severe",
                         ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")),
         comp_num=ifelse(complicatedmalaria=="complicated", 1, 0)
-    )
+    )%>%
+  mutate(first_inf_before_four = if_else(age_at_first<4/12, "before 4 months", "after 4 months"))%>%
+  mutate(first_inf_before_six = if_else(age_at_first<0.5, "before 6 months", "after 6 months"))
 
 # calculate total number of observations for 1st, 2nd infection and so on
 total_infections <- complicated_data %>%

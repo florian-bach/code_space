@@ -502,7 +502,7 @@ for(i in 1:nrow(sig_cleaned_broomer)){
 
 big_plot <- cowplot::plot_grid(plotlist = list_of_plots, nrow =  round(nrow(sig_cleaned_broomer)/5))
 
-ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/big_indie_ab_cell_correlation_plot", fdr_cutoff, "raw_p.png", sep="_"), big_plot, height = 8, width=8, bg="white")
+ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/old_gating_big_indie_ab_cell_correlation_plot", fdr_cutoff, "raw_p.png", sep="_"), big_plot, height = 6, width=15, bg="white")
 
 
 # big plots of all cells vs all antibodies

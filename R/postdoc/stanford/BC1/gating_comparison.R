@@ -31,7 +31,7 @@ combo_cells_data <- combo_cells_data %>%
 
 # new data ####
 
-files <- list.files("~/Downloads/drive-download-20230620T190355Z-001", full.names = TRUE)
+files <- list.files("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating", full.names = TRUE, pattern = "csv")
 
 tfh_df <- data.frame()
 
@@ -289,6 +289,12 @@ combo_data <- filter(combo_data, id %in% kids_with_complete_timecourses$id)
 
 #read in tfh data 
 tfh_df$id <- as.numeric(tfh_df$id)
+
+wide_combo_12months <- combo_data |>
+  dplyr::select(id, timepoint, anyHPfinal, antigen, conc)|>
+  filter(timepoint==3)|>
+  pivot_wider(names_from = antigen, values_from = conc)
+
 twelve_cor_combo <- inner_join(wide_combo_12months, tfh_df, by="id")
 
 
@@ -317,6 +323,7 @@ cleaned_broomer <- long_twelve %>%
   group_by(recode_cell_pop, antigen)%>%
   do(broom::tidy(cor.test(.$freq, .$ab_conc, method="spearman")))%>%
   ungroup()%>%
+  group_by(antigen)%>%
   mutate("p_adj"=p.adjust(p.value))%>%
   ungroup()
 
@@ -324,3 +331,69 @@ sig_cleaned_broomer <- filter(cleaned_broomer, p.value<0.1)
 
 
 
+
+
+list_of_plots <- list()
+x_and_ys <- cbind(sig_cleaned_broomer$recode_cell_pop, sig_cleaned_broomer$antigen)
+
+for(i in 1:nrow(sig_cleaned_broomer)){
+  
+  plot_data <- long_twelve %>%
+    filter(!is.na(antigen), timepoint==3) %>%
+    filter(recode_cell_pop==x_and_ys[i,1])%>%
+    filter(antigen==x_and_ys[i,2])
+    
+    plot <- ggplot(plot_data, aes(x=freq, y=10^ab_conc))+
+    geom_point(fill=pc1_cols[i], alpha=1, shape=21)+
+    geom_smooth(method="lm")+
+    scale_y_log10()+
+    ggpubr::stat_cor(method = "spearman", label.y = -1.5, na.rm = TRUE, size=2)+
+    xlab(x_and_ys[i,1])+
+    ylab(x_and_ys[i,2])+
+    theme_minimal()
+  
+  list_of_plots[[i]] <- plot
+  
+}
+
+big_plot <- cowplot::plot_grid(plotlist = list_of_plots, nrow =  round(nrow(sig_cleaned_broomer)/5))
+
+ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/new_gating_big_indie_ab_cell_correlation_plot", fdr_cutoff, "raw_p.png", sep="_"), big_plot, height = 6, width=15, bg="white")
+
+
+
+
+
+ggplot(cleaned_broomer, aes(x=p.value))+
+  geom_histogram(aes(fill=recode_cell_pop))+
+  scale_x_continuous(breaks = seq(0,1,by=0.05))+
+  facet_wrap(~recode_cell_pop)+
+  scale_fill_manual(values = pop_palette)+
+  theme(axis.text.x = element_text(angle = 270))+
+  theme_minimal()
+
+
+
+
+# stuff ####
+
+big_plot <- better_combo %>%
+  filter(cell_pop.x!="tfh_of_cd4")%>%
+  ggplot(., aes(x=factor(recode_cell_pop), y=freq.x, fill=recode_cell_pop))+
+  geom_bar(stat="identity")+
+  facet_wrap(~id, scales = "fixed")+
+  #geom_hline(yintercept = 0.0222, color=pop_palette[1])+
+  geom_hline(yintercept = 0.290, color=pop_palette[2])+
+  geom_hline(yintercept = 0.221, color=pop_palette[3])+
+  geom_hline(yintercept = 0.122, color=pop_palette[4])+
+  geom_hline(yintercept = 0.366, color=pop_palette[5])+
+  scale_fill_manual(values = pop_palette[-1])+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 90))
+
+ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/big_plot.png", big_plot, height=24, width=12, bg="white")
+
+
+better_combo %>%
+  group_by(recode_cell_pop)%>%
+  summarise("mean"=mean(new_freq))
