@@ -17,7 +17,7 @@ sample_ranges <- sort(c(sample_ages, sample_ages_minus, sample_ages_plus))
 
 long_specimen_data <- raw_data %>%
   mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
-  select(id, dob, date, flo_age_in_wks, ageinwks, SampleDate, PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, visittype) %>%
+  select(id, dob, date, flo_age_in_wks, mstatus, qPCRparsdens, ageinwks, SampleDate, PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, visittype) %>%
   mutate("visit_id"=paste(id, date, sep="_"))%>%
   pivot_longer(cols = c(PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
   mutate(subject_id=id)%>%

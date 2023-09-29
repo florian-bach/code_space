@@ -227,7 +227,7 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures
   ylab("qPCR Parasite Density")+
   xlab("Age (weeks)")+
   scale_y_log10()+
-  scale_x_continuous(breaks=seq(0,72,by=8),
+  scale_x_continuous(breaks=seq(0,72,by=4),
                      # labels = seq(0,72,by=8)
                      )+
   theme_minimal()+
@@ -283,7 +283,8 @@ treatment_failure_plot <- more_than_one %>%
     # scale_shape_manual(values=c(16,15))+
     scale_fill_manual(values=n_infection_cols[-1])+
     scale_color_manual(values=comp_pal)+
-    guides(color=guide_legend(title="disease"))
+    guides(color=guide_legend(title="disease"))+
+    theme(axis.text.x = element_text(size=5))
 
 
 ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/treatment_failures.png", treatment_failure_plot, width = 16, height=8, bg="white")
