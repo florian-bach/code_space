@@ -1,4 +1,4 @@
-#libraries 
+# libraries & preamble ####
 library(patchwork)
 library(tidyr)
 library(ggplot2)
@@ -19,6 +19,7 @@ n_infection_cols <- c("white", colorspace::sequential_hcl(n=5, palette = "Lajoll
 
 fdr_cutoff <- 0.1
 
+# antibody stuff ####
 # from looking at the frequencies of observations only these antibodies can be modelled longitudinally; NB some drop off at timepoint 3 so only 1 and 2 can be compared properly
 modelable_antigens <- c("Tet Tox", "SBP1", "Rh5", "PfSEA", "PfAMA1", "Hyp2", "HSP40 Ag1", "GST", "GEXP", "CSP GENOVA")
 
@@ -46,6 +47,7 @@ long_raw_dfff <- bc1 %>%
 
 
 
+#clinical data ####
 # read in new visits database to look at correlations with malaria incidence
 # clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs routine visit database FINAL_ALL.dta")
 clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs routine visit database FINAL_REV.dta")
@@ -105,22 +107,23 @@ combo_data <- filter(combo_data, id %in% kids_with_complete_timecourses$id)
 # no correlations between CXCR3+ memory CD4 T cells and infections (at least batch3 and batch4)
 # no correlations between  CCR6+ memory CD4 T cells and infections (at least batch3 and batch4)
 
+# import tfh data ####
 # import final tfh data
-tfh_batch1 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/12,2f,02,2f,16 tfh/batch1_stats.csv")
-tfh_batch2 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/14,2f,01,2f,16 tfh/batch2_stats.csv")
-tfh_batch3 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/16,2f,03,2f,16 tfh/flo_batch3_table.csv")
-tfh_batch4 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/15,2f,12,2f,15/batch4_better_stats.csv")
+tfh_batch1 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/12,2f,02,2f,16 tfh/batch1_stats_with_memory.csv")
+tfh_batch2 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/14,2f,01,2f,16 tfh/batch2_stats_with_memory.csv")
+tfh_batch3 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/16,2f,03,2f,16 tfh/flo_batch3_table_with_memory.csv")
+tfh_batch4 <- read.csv("~/postdoc/stanford/clinical_data/BC1/tfh_data/kareena_gating/15,2f,12,2f,15/batch4_stats_with_memory.csv")
 
-colnames(tfh_batch1) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "X.1")
-colnames(tfh_batch2) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "X.1")
-colnames(tfh_batch3) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "CD4_Th1", "CD4_Th17", "X.1")
-colnames(tfh_batch4) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "CD4_Th1", "CD4_Th17", "X.1")
+colnames(tfh_batch1) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "Th_memory", "Th_naive", "X.1")
+colnames(tfh_batch2) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "Th_memory", "Th_naive","X.1")
+colnames(tfh_batch3) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "CD4_Th1", "CD4_Th17", "Th_memory", "Th_naive", "X.1")
+colnames(tfh_batch4) <- c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "CD4_Th1", "CD4_Th17", "Th_memory", "Th_naive", "X.1")
 
 
-tfh_combo_batch <- rbind(tfh_batch1[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2")],
-                     tfh_batch2[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2")],
-                     tfh_batch3[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2")],
-                     tfh_batch4[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2")])
+tfh_combo_batch <- rbind(tfh_batch1[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "Th_memory", "Th_naive")],
+                     tfh_batch2[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "Th_memory", "Th_naive")],
+                     tfh_batch3[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "Th_memory", "Th_naive")],
+                     tfh_batch4[,c("X", "Tfh_count", "Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "Th_memory", "Th_naive")])
 
 tfh_combo_batch <- tfh_combo_batch %>%
   filter(X!="SD", X!="Mean", !grepl("Control.fcs", tfh_combo_batch$X))%>%
@@ -130,7 +133,7 @@ tfh_combo_batch <- tfh_combo_batch %>%
 
 
 
-# import final abc data
+# import abc data ####
 abc_batch1 <- read.csv("~/postdoc/stanford/clinical_data/BC1/b_cell_data/box/11,2f,02,2f,16 AtMBC/batch1_stats.csv")
 abc_batch2 <- read.csv("~/postdoc/stanford/clinical_data/BC1/b_cell_data/box/14,2f,01,2f,16 AtMBC/batch2_stats.csv")
 abc_batch3 <- read.csv("~/postdoc/stanford/clinical_data/BC1/b_cell_data/box/17,2f,03,2f,16 AtMBC/batch3_stats.csv")
@@ -150,6 +153,9 @@ abc_combo_batch <- abc_combo_batch %>%
   mutate(file_name=X, .keep = "unused")%>%
   mutate(id=as.numeric(paste(1, substr(.$file_name, 17, 20), sep="")))
 
+
+
+# combine tfh and abc data ####
 half_combo <- inner_join(combo_data, tfh_combo_batch, by="id")
 true_combo <- inner_join(half_combo, abc_combo_batch, by="id")
 
@@ -157,7 +163,7 @@ true_combo <- inner_join(half_combo, abc_combo_batch, by="id")
 long_true_combo <- true_combo %>%
   mutate("immature_b_perc"=1-(mature_b_count/b_count), "any_0_12"=if_else(inf_0_12>0, "yes", "no"))%>%
   #filter(Tfh_count>500)%>%
-  pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "activated_b", "memory_b", "naive_b", "atypical_b"), names_to = "cell_pop", values_to = "cell_freq")
+  pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2", "activated_b", "memory_b", "naive_b", "atypical_b", "Th_memory", "Th_naive"), names_to = "cell_pop", values_to = "cell_freq")
 
 # all_ab_broomer <- long_true_combo%>%
 #   group_by(cell_pop)%>%
@@ -167,7 +173,7 @@ long_true_combo <- true_combo %>%
 
 
 big_plot_12_24 <- long_true_combo %>%
-  filter(cell_pop %in% c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2",
+  filter(cell_pop %in% c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive",
                          "immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"))%>%
   ggplot(., aes(x=factor(inf_12_24), y=cell_freq/100, fill=factor(inf_12_24)))+
   geom_boxplot()+
@@ -179,7 +185,7 @@ big_plot_12_24 <- long_true_combo %>%
 
 
 big_plot_0_12 <- long_true_combo %>%
-  filter(cell_pop %in% c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2",
+  filter(cell_pop %in% c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive",
                          "immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"))%>%
   ggplot(., aes(x=factor(inf_0_12), y=cell_freq/100, fill=factor(inf_0_12)))+
   geom_boxplot()+
@@ -216,7 +222,7 @@ big_plot <- long_true_combo %>%
 
 ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/spot_check_plot.png", big_plot, height = 24, width=16, bg="white")
 
-
+#needs attention
 tfh_pop_ab_purf <- long_true_combo %>%
   filter(cell_pop %in% c("Tfh_Th1", "Tfh_Th1_Th17",  "Tfh_Th17", "Tfh_Th2"), Tfh_count>80, timepoint==3)%>%
   group_by(cell_pop, antigen)%>%
@@ -335,3 +341,172 @@ ggsave("~/postdoc/stanford/clinical_data/BC1/antibody_modelling/figures/tfh_abc_
 # big_plot <- cowplot::plot_grid(plotlist = list_of_plots, nrow =  round(nrow(sig_cleaned_broomer)/5))
 # 
 # ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/new_gating_big_indie_ab_cell_correlation_plot", fdr_cutoff, "raw_p.png", sep="_"), big_plot, height = 6, width=15, bg="white")
+
+
+
+flipped_cell_pop_incidence_purf <- long_true_combo %>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
+  filter(Incidence_Type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"), timepoint==3)%>%
+  group_by(cell_pop, Incidence_Type)%>%
+  filter(!duplicated(id))%>%
+  nest() %>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value ~ cell_freq, random = ~1 | id, family=poisson)))%>%
+  # mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., Incidence_Value ~ cell_freq + (1 | id), family="poisson")))%>%
+  mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+  group_by(Incidence_Type)%>%
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+
+sigs <- flipped_cell_pop_incidence_purf %>%
+  dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
+  filter(cell_incidence_model_summary_padj<0.1)
+
+sigs
+
+longer_true_combo <- long_true_combo %>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")
+
+list_of_plots <- list()
+
+for(i in 1:nrow(sigs)){
+  
+  plot_data <- longer_true_combo %>%
+    # filter(!is.na(antigen), timepoint==3) %>%
+    filter(timepoint==3)%>%
+    filter(cell_pop==paste(sigs[i,1]) & Incidence_Type==paste(sigs[i,2]))%>%
+    filter(!duplicated(id))
+  
+  plot <- ggplot(plot_data, aes(x=Incidence_Value, y=cell_freq, fill=factor(Incidence_Value)))+
+    geom_boxplot()+
+    geom_point(shape=21)+
+    # ggtitle(paste(unique(sigs[i,2])))+
+    scale_fill_manual(values=incidence_cols)+
+    # geom_point(fill=pc1_cols[i], alpha=1, shape=21)+
+    # geom_smooth(method="lm")+
+    # scale_y_log10()+
+    # ggpubr::stat_cor(method = "spearman", label.y = -1.5, na.rm = TRUE, size=2)+
+    ylab(sigs[i,1])+
+    xlab(sigs[i,2])+
+    theme_minimal()+
+    theme(legend.position = "none")
+  list_of_plots[[i]] <- plot
+}
+
+big_plot <- cowplot::plot_grid(plotlist = list_of_plots, nrow =  round(nrow(sigs)/5))
+
+ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/new_gating_big_indie_cell_incidence_plot.png"), big_plot, height = 6, width=6, bg="white")
+
+
+
+# solo tfh ####
+
+
+tfh_clinab <- right_join(combo_data, tfh_combo_batch, by="id")
+
+long_tfh_clinab <- tfh_clinab %>%
+  pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive"), names_to = "cell_pop", values_to = "cell_freq")
+
+tfh_0_12 <- long_tfh_clinab %>%
+  filter(!is.na(inf_0_12))%>%
+  # filter(cell_pop %in% c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive",
+  #                        "immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"))%>%
+  ggplot(., aes(x=factor(inf_0_12), y=cell_freq/100, fill=factor(inf_0_12)))+
+  geom_boxplot()+
+  geom_point()+
+  scale_y_continuous(labels = scales::label_percent())+
+  #geom_smooth(method="lm")+
+  #ggpubr::stat_cor(method = "spearman", na.rm = TRUE)+
+  facet_wrap(~cell_pop, scales = "free", ncol=4)+
+  scale_fill_manual(values = n_infection_cols)+
+  theme_minimal()
+
+
+
+tfh_incidence_purf <- long_tfh_clinab %>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
+  filter(Incidence_Type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"), timepoint==3)%>%
+  group_by(cell_pop, Incidence_Type)%>%
+  filter(!duplicated(id))%>%
+  nest() %>%
+  
+  # mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value ~ cell_freq, random = ~1 | id, family=poisson)))%>%
+  
+  mutate(cell_incidence_model=map(data, ~MASS::glm.nb(Incidence_Value ~ cell_freq + id, data=.)))%>%
+  mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
+  
+  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
+  group_by(Incidence_Type)%>%
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+
+tfh_incidence_sigs <- tfh_incidence_purf %>%
+  dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
+  filter(cell_incidence_model_summary_padj<0.1)
+
+
+tfh_ab_purf <- long_tfh_clinab %>%
+  filter(timepoint==3)%>%
+  group_by(cell_pop, antigen)%>%
+  mutate(subset_count=round(cell_freq/100*Tfh_count), id=factor(id))%>%
+  mutate(cell_freq_estimate=subset_count/Tfh_count)%>%
+  nest() %>%
+  mutate(cell_ab_model=map(data, ~MASS::glmmPQL(data=., cell_freq_estimate ~ conc, random = ~1 | id, family=binomial, weights = Tfh_count)))%>%
+  mutate(cell_ab_model_summary=map(cell_ab_model, ~summary(.)))%>%
+  mutate(cell_ab_model_summary_p=map_dbl(cell_ab_model_summary, ~.$tTable[10]))%>%
+  group_by(cell_pop)%>%
+  mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p))
+# solo abc ####
+
+abc_combo_batch
+
+
+abc_clinab <- right_join(combo_data, abc_combo_batch, by="id")
+
+long_abc_clinab <- abc_clinab %>%
+  mutate("immature_b_perc"=(1-(mature_b_count/b_count))*100)%>%
+  pivot_longer(cols = c("immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"), names_to = "cell_pop", values_to = "cell_freq")
+
+
+
+abc_incidence_purf <- long_abc_clinab %>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
+  filter(Incidence_Type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"), timepoint==3)%>%
+  group_by(cell_pop, Incidence_Type)%>%
+  filter(!duplicated(id))%>%
+  nest() %>%
+  # negative binomial model
+  mutate(cell_incidence_model=map(data, ~MASS::glm.nb(Incidence_Value ~ cell_freq + id, data=.)))%>%
+  # poisson model
+  # mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value ~ cell_freq, random = ~1 | id, family=poisson)))%>%
+  mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
+  #negative binomial p
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
+  #poisson p
+  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+  
+  group_by(Incidence_Type)%>%
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+
+sigs <- abc_incidence_purf %>%
+  dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
+  filter(cell_incidence_model_summary_padj<0.1)
+
+# cell_pop        Incidence_Type cell_incidence_model_summary_p cell_incidence_model_summary_padj
+# <chr>           <chr>                                   <dbl>                             <dbl>
+#   1 immature_b_perc inf_0_12                             9.73e-18                          4.86e-17
+# 2 immature_b_perc symp_0_12                            5.19e-19                          2.60e-18
+# 3 memory_b        inf_0_12                             5.63e-10                          2.25e- 9
+
+abc_0_12 <- long_abc_clinab %>%
+  filter(!is.na(inf_0_12))%>%
+  # filter(cell_pop %in% c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive",
+  #                        "immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"))%>%
+  ggplot(., aes(x=factor(inf_0_12), y=cell_freq/100, fill=factor(inf_0_12)))+
+  geom_boxplot()+
+  geom_point()+
+  scale_y_continuous(labels = scales::label_percent())+
+  #geom_smooth(method="lm")+
+  #ggpubr::stat_cor(method = "spearman", na.rm = TRUE)+
+  facet_wrap(~cell_pop, scales = "free", ncol=4)+
+  scale_fill_manual(values = n_infection_cols)+
+  theme_minimal()

@@ -717,3 +717,40 @@ risk_age_at_first_confint6 <- ggplot(age_n_inf_nest6, aes(x = n_infection, y = c
 
 ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/risk_age_6_at_first_confint.png", risk_age_at_first_confint6, height = 3, width=6, dpi=444, bg="white")
 
+
+
+p1 <- promote_data%>%
+  filter(complicatedmalaria==1)%>%
+  ggplot(., aes(x=temp, y=parsdens))+
+  geom_point(color="red")+
+  scale_y_log10()+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+p1m <- ggExtra::ggMarginal(p1)
+
+
+p2 <- promote_data%>%
+  filter(is.na(complicatedmalaria))%>%
+  ggplot(., aes(x=temp, y=parsdens))+
+  geom_point(color="darkgrey")+
+  scale_y_log10()+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+p2m <- ggExtra::ggMarginal(p2, type = "densigram", groupColour = )
+
+cowplot::plot_grid(p1m, p2m)
+
+
+
+p <- promote_data%>%
+  #filter(complicatedmalaria==1)%>%
+  ggplot(., aes(x=temp, y=parsdens, color=factor(complicatedmalaria)))+
+  geom_point()+
+  scale_y_log10()+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+ggExtra::ggMarginal(p, groupColour = TRUE, type = "boxplot", )
+

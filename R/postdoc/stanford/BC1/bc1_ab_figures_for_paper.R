@@ -307,7 +307,23 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/antibo
 
 # antibody~placental malaria, preterm birth, maternal chemoprevention ####
 
+no_path <- combo_data %>%
+  filter(!is.na(anyHPfinalx), timepoint==1)%>%
+  filter(anyHPfinalx=="No Pathology")%>%
+  group_by(antigen)%>%
+  summarise("no_path"=mean(conc, na.rm = TRUE))
 
+histo_path <- combo_data %>%
+  filter(!is.na(anyHPfinalx), timepoint==1)%>%
+  filter(anyHPfinalx=="Placental Malaria")%>%
+  group_by(antigen)%>%
+  summarise("histo_path"=mean(conc, na.rm = TRUE))
+
+combo_path <- left_join(no_path, histo_path)
+combo_path$fc <- combo_path$histo_path/combo_path$no_path
+most_variable_abs <- combo_path$antigen[order(combo_path$fc)]
+# most_variable_abs <- most_variable_abs[c(1:3, (length(most_variable_abs)-2):length(most_variable_abs))]
+most_variable_abs <- subset(combo_path, fc>1.2 | fc<0.8, select = antigen)
 
 histopathology <- combo_data %>%
   filter(!is.na(anyHPfinalx))%>%
@@ -326,6 +342,26 @@ histopathology <- combo_data %>%
   scale_fill_manual(values=pc1_cols)
 
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/histopathology.png", histopathology, height = 8, width=20, bg="white", limitsize = FALSE)
+
+
+
+small_histo <- combo_data %>%
+  filter(!is.na(anyHPfinalx), antigen %in% most_variable_abs$antigen, timepoint==1)%>%
+  ggplot(., aes(x=anyHPfinalx, y=conc))+
+  geom_point(aes(fill=antigen), alpha=0.1, shape=21)+
+  geom_boxplot(aes(fill=antigen, group=anyHPfinalx))+
+  facet_wrap(timepointf~factor(antigen, levels=most_variable_abs$antigen), labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow = 1)+
+  ggtitle("Histopathology")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/small_histopathology.png", small_histo, height = 4, width=8, bg="white", limitsize = FALSE)
 
 
 
@@ -350,9 +386,28 @@ MomFinalRx <- combo_data %>%
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/MomFinalRx.png", MomFinalRx, height = 8, width=20, bg="white", limitsize = FALSE)
 
 
+small_MomFinalRx <- combo_data %>%
+  filter(antigen %in% most_variable_abs$antigen)%>%
+  ggplot(., aes(x=MomFinalRx, y=conc))+
+  geom_point(aes(fill=antigen), alpha=0.1, shape=21)+
+  geom_boxplot(aes(fill=antigen, group=MomFinalRx))+
+  facet_grid(timepointf~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  ggtitle("Maternal Chemoprevention")+
+  xlab("Number of Infections")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/small_MomFinalRx.png", small_MomFinalRx, height = 8, width=8, bg="white", limitsize = FALSE)
 
 
 
+ 
 gestages_bins <- combo_data %>%
   filter(!is.na(gestage))%>%
   mutate(gestagef=factor(if_else(gestage<28, "<28 weeks", 
@@ -378,6 +433,32 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/gestag
 
 
 
+small_gestages_bins <- combo_data %>%
+  filter(!is.na(gestage), antigen %in% most_variable_abs$antigen)%>%
+  mutate(gestagef=factor(if_else(gestage<28, "<28 weeks", 
+                                 if_else(gestage>=28 & gestage<32, "28-32 weeks", 
+                                         if_else(gestage>=32 & gestage<37, "32-37 weeks", 
+                                                 if_else(gestage>=37, ">37 weeks", "whoops")))), levels=c("<28 weeks", "28-32 weeks", "32-37 weeks", ">37 weeks")))%>%
+  ggplot(., aes(x=gestagef, y=conc))+
+  geom_point(aes(fill=antigen), alpha=0.1, shape=21)+
+  geom_boxplot(aes(fill=antigen, group=gestagef))+
+  facet_grid(timepointf~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  ggtitle("Gestational Age")+
+  xlab("Number of Infections")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/small_gestages_bins.png", small_gestages_bins, height = 8, width=8, bg="white", limitsize = FALSE)
+
+
+
+
 gestages_cont <- combo_data %>%
   filter(!is.na(gestage))%>%
   ggplot(., aes(x=gestage, y=conc))+
@@ -395,6 +476,9 @@ gestages_cont <- combo_data %>%
   scale_fill_manual(values=pc1_cols)
 
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/gestages_cont.png", gestages_cont, height = 8, width=20, bg="white", limitsize = FALSE)
+
+
+
 
 
 # antibodies ~ cell frequencies ####
