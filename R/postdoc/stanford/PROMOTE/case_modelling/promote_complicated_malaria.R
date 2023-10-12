@@ -6,6 +6,7 @@ library(visreg)
 library(mediation)
 library(patchwork)
 
+
 model_visualiser <- function(model=NULL, xvar=NULL){
   model_data = model$data
   xvar_range = range(model_data[[xvar]])
@@ -53,7 +54,7 @@ smaller_data <- promote_data %>%
 #   slice_min(n = 1, order_by = age)
 
 # look at only incident episodes; split data by individual, make column indicating the total number of infections for each kid;
-# add column for order of infection, add single column for disease status
+# add column for order of infection, add single column for disease status (comp and severe into one)
 complicated_data <- smaller_data %>%
   filter(incidentmalaria=="incident")%>%
   mutate(id=factor(id))%>%
@@ -61,8 +62,8 @@ complicated_data <- smaller_data %>%
   add_count(name="total_n_infection") %>%
   arrange(age) %>%
   mutate(n_infection = seq(1, max(total_n_infection))) %>%
-  mutate(disease=ifelse(severe=="severe", "severe",
-                        ifelse(complicatedmalaria=="complicated", "complicated", "mild")
+  mutate(disease=ifelse(severe=="severe", "complicated",
+                        ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")
     ))
   
 
@@ -128,20 +129,28 @@ severe_model <- glm(risk~n_infection, family = "binomial", weights = total_infec
 # individual level data ####
 
 ggplot(complicated_data, aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
-  geom_violin()+
-  geom_point(color="darkred", aes(alpha=complicatedmalaria))+
+  # geom_violin()+
+  geom_point(color="darkred", aes(alpha=factor(disease)))+
   theme_minimal()+
   ylab("Parasites /  μL")+
   scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
-  scale_alpha_manual(values = c("mild"=0, "complicated"=1))+
+  scale_alpha_manual(values = c("uncomplicated"=0.1, "complicated"=1))+
   scale_y_log10()+
   theme(legend.position = "none")
   xlab("Order of Infection")
   
   
+  
+comp_counts <- complicated_data%>%
+  group_by(disease, n_infection)%>%
+  count()
+
 ggplot(complicated_data, aes(x=factor(n_infection), y=parsdens, fill=complicatedmalaria))+
     geom_boxplot()+
     theme_minimal()+
+    geom_text(data = comp_counts, aes(x=factor(n_infection), y=5*10^5, label=n), inherit.aes = FALSE,
+              #position = position_dodge(width = 0.75)
+              )+
     ylab("Parasites /  μL")+
     scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
     scale_y_log10()+

@@ -85,6 +85,7 @@ long_raw_dfff <- bc1 %>%
   filter(antigen %notin% c("logpd", "logGST"))%>%
   mutate(antigen=gsub("log", "", antigen, fixed = TRUE))%>%
   mutate(antigen=gsub("_", " ", antigen, fixed = TRUE))%>%
+  mutate(id=factor(id))%>%
   mutate(MomFinalRxx=if_else(MomFinalRx==1, "3 Dose SP",
                              ifelse(MomFinalRx==2, "3 Dose DP",
                                     if_else(MomFinalRx==3, "Monthly DP", "NA")))
@@ -93,6 +94,84 @@ long_raw_dfff <- bc1 %>%
   mutate(MomFinalRxx=factor(MomFinalRxx, levels = c("3 Dose SP", "3 Dose DP", "Monthly DP")))%>%
   mutate(anyHPfinalx=if_else(anyHPfinal==1, "Placental Malaria",
                              if_else(anyHPfinal==0, "No Pathology", "Results missing")))
+
+long_raw_dfff %>%
+  filter(!is.na(anyHPfinal), timepoint==1)%>%
+ggplot(aes(x=factor(anyHPfinal),
+                          y=conc,
+                          fill=factor(anyHPfinal)
+                          ))+
+  geom_boxplot()+
+  geom_point(shape=21)+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()
+
+# ab histopathology ?????
+# 
+# histo_purf <- long_raw_dfff %>%
+#   filter(!is.na(anyHPfinalx), !is.na(conc))%>%
+#   group_by(antigen, timepoint)%>%
+#   nest() %>%
+#   mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., conc ~ timepoint + anyHPfinalx, random = ~1 | id, family=gaussian)))%>%
+#   # mutate(cell_incidence_model=map(data, ~lme4::lmer(data=., conc ~ anyHPfinalx + (1 | id), REML=FALSE)))%>%
+# 
+#   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
+#   mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+#   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[4]))
+#   ungroup()%>%
+#   mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+# 
+# 
+# histo_purf <- long_raw_dfff %>%
+#   filter(!is.na(anyHPfinalx), !is.na(conc))%>%
+#   group_by(antigen, timepoint)%>%
+#   nest() %>%
+#   mutate(cell_incidence_model=map(data, ~lm(conc ~ timepoint + anyHPfinalx, data=.)))%>%
+#   # mutate(cell_incidence_model=map(data, ~lme4::lmer(data=., conc ~ anyHPfinalx + (1 | id), REML=FALSE)))%>%
+# 
+#   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
+#   mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
+#   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[4]))
+#   ungroup()%>%
+#   group_by(timepoint)%>%
+#   mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+# 
+# abc_incidence_sigs <- abc_incidence_purf %>%
+#   dplyr::select(cell_pop, incidence_type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
+#   filter(cell_incidence_model_summary_padj<0.05)
+# 
+
+histopath_wilcox <- long_raw_dfff %>%
+  filter(!is.na(anyHPfinalx), !is.na(conc), timepoint==1)%>%
+  group_by(antigen)%>%
+  pivot_wider(names_from = anyHPfinalx, values_from = conc)%>%
+  nest()%>%
+  mutate(wilcox=map(data, ~wilcox.test(.$`No Pathology`, .$`Placental Malaria`)))%>%
+  mutate(raw_p=map_dbl(wilcox, ~.$p.value))%>%
+  ungroup()%>%
+  mutate(padj=p.adjust(raw_p))
+
+sig_histopath <- filter(histopath_wilcox, raw_p<0.05)
+
+histopathology <- long_raw_dfff %>%
+  filter(!is.na(anyHPfinalx), !is.na(conc), timepoint==1, antigen %in% sig_histopath$antigen)%>%
+  ggplot(., aes(x=anyHPfinalx, y=conc))+
+  geom_point(aes(fill=antigen), alpha=0.1, shape=21)+
+  geom_boxplot(aes(fill=antigen, group=anyHPfinalx))+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow = 1)+
+  # ggtitle("Histopathology")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/histopathology_wilcox.png", histopathology, height = 4, width=8, bg="white", limitsize = FALSE)
+
+
 
 # import clinical data ####
 # read in new visits database to look at correlations with malaria incidence
@@ -107,7 +186,7 @@ clin_data <- haven::read_dta("~/postdoc/stanford/clinical_data/BC1/BC-1 childs r
 
 infs <- clin_data %>%
   group_by(id) %>%
-  dplyr::select(id, age, anyinfection, sxifinfected) %>%
+  dplyr::select(id, age, anyinfection, sxifinfected, ChildFinalRx) %>%
   mutate(inf_0_6   = sum(if_else(age<6, anyinfection, 0), na.rm = TRUE),
          inf_6_12  = sum(if_else(age>6  & age<12, anyinfection, 0), na.rm = TRUE),
          inf_12_18 = sum(if_else(age>12 & age<18, anyinfection, 0), na.rm = TRUE),
@@ -127,6 +206,7 @@ infs <- clin_data %>%
          any_symp_6_12 = ifelse(symp_6_12==0, 0, 1),
          any_symp_12_18 = ifelse(symp_12_18==0, 0, 1)
   ) %>%
+  mutate(ChildFinalRx = case_match(ChildFinalRx, 1~"trimonthly", 2~"monthly"))%>%
   dplyr::select(-anyinfection, -sxifinfected, -age) %>%
   distinct()
 
@@ -140,13 +220,15 @@ abc_clin <- inner_join(infs, abc_combo_batch, by="id")%>%
 
 
 abc_clin%>%
-filter(incidence_type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"))%>%
-ggplot(aes(x=factor(incidence_type), y=cell_freq, fill=factor(incidence_value)))+
-  geom_boxplot()+
-  facet_wrap(incidence_type~cell_pop, scales="free")+
-  scale_fill_manual(values=incidence_cols)+
+filter(incidence_type %in% c("inf_0_12", "inf_12_18","inf_12_24", "symp_12_18"))%>%
+  arrange(cell_pop)%>%
+ggplot(aes(x=factor(incidence_value), y=cell_freq))+
+  geom_point(aes(fill=factor(ChildFinalRx)), position = position_dodge(width=0.75), shape=23)+
+  geom_boxplot(aes(fill=factor(ChildFinalRx)))+
+  facet_wrap(incidence_type~cell_pop, scales="free", ncol=5)+
+  # scale_fill_manual(values=incidence_cols)+
   theme_minimal()+
-  theme(legend.position = "none")
+  theme(legend.position = "right")
 
 abc_clin %>%
   group_by(incidence_type, incidence_value)%>%
@@ -157,7 +239,8 @@ abc_clin %>%
 
 
 abc_incidence_purf <- abc_clin %>%
-  # filter(incidence_type %notin% c("symp_0_6", "inf_6_12", "symp_6_12", "symp_0_12", "inf_0_24"))%>%
+  # there is very little transmission in the b cell cohort so it's hard to evaulate stuff
+  filter(incidence_type %notin% c("symp_0_6", "symp_6_12", "inf_6_12", "symp_0_12"))%>%
   group_by(cell_pop, incidence_type)%>%
   filter(!duplicated(id))%>%
   nest() %>%
@@ -165,16 +248,16 @@ abc_incidence_purf <- abc_clin %>%
   # mutate(cell_incidence_model=map(data, ~MASS::glm.nb(incidence_value ~ cell_freq + id, data=.)))%>%
   
   # MASS poisson model
-  # mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ cell_freq, random = ~1 | id, family=poisson, control= nlme::lmeControl(opt="optim"))))%>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ cell_freq * ChildFinalRx, random = ~1 | id, family=poisson)))%>%
   # lme4 possoin model
-  mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., incidence_value ~ cell_freq + (1 | id), family="poisson")))%>%
+  # mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., incidence_value ~ cell_freq * ChildFinalRx + (1 | id), family="poisson")))%>%
   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
   #negative binomial p
   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
   # MASS poisson p
-  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[20]))%>%
   # lme4 poisson p
-  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
+  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
   
   # group_by(incidence_type)%>%
   ungroup()%>%
@@ -222,13 +305,14 @@ tfh_clin <- inner_join(infs, tfh_combo_batch, by="id")%>%
 
 
 tfh_clin%>%
-  filter(incidence_type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"))%>%
-  ggplot(aes(x=factor(incidence_type), y=cell_freq, fill=factor(incidence_value)))+
-  geom_boxplot()+
+  filter(incidence_type %in% c("symp_12_24"))%>%
+  ggplot(aes(x=factor(incidence_value), y=cell_freq,))+
+  geom_boxplot(aes(fill=ChildFinalRx))+
+  geom_point(aes(fill=ChildFinalRx), shape=21, position=position_dodge(width = 0.75))+
   facet_wrap(incidence_type~cell_pop, scales="free")+
-  scale_fill_manual(values=incidence_cols)+
+  scale_fill_manual(values=incidence_cols[c(1,5)])+
   theme_minimal()+
-  theme(legend.position = "none")
+  theme(legend.position = "right")
 
 tfh_clin %>%
   group_by(incidence_type, incidence_value)%>%
@@ -241,7 +325,7 @@ tfh_clin %>%
 tfh_incidence_purf <- tfh_clin %>%
   filter(incidence_type %in% c("inf_0_12", "inf_12_24", "inf_12_18", "symp_0_12", "symp_12_24", "symp_12_18"))%>%
   group_by(cell_pop, incidence_type)%>%
-  filter(!duplicated(id))%>%
+  filter(!duplicated(id), ChildFinalRx=="trimonthly")%>%
   nest() %>%
   # negative binomial model
   # mutate(cell_incidence_model=map(data, ~MASS::glm.nb(incidence_value ~ cell_freq + id, data=.)))%>%
@@ -259,7 +343,7 @@ tfh_incidence_purf <- tfh_clin %>%
 
 tfh_incidence_sigs <- tfh_incidence_purf %>%
   dplyr::select(cell_pop, incidence_type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
-  filter(cell_incidence_model_summary_padj<0.05)
+  filter(cell_incidence_model_summary_padj<0.1)
 
 # visualise modelling results
 
@@ -293,6 +377,9 @@ sig_tfh_plot <- cowplot::plot_grid(plotlist = list_of_tfh_plots, nrow = 2)
 ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/new_gating_tfh_only_sig_incidence_plot.png"), sig_tfh_plot, height = 6, width=6, bg="white")
 
 # antibody tfh correlations ####
+
+tfh_clin$id <- factor(tfh_clin$id)
+
 thf_ab <- long_raw_dfff%>%
   filter(timepoint==3)%>%
   inner_join(., tfh_clin, by="id")
@@ -306,13 +393,13 @@ tfh_ab_broomer <- thf_ab%>%
   mutate("p_adj"=p.adjust(p.value, method="fdr" ))
 
 tfh_ab_sigs <- tfh_ab_broomer%>%
-  filter(p_adj<0.05)
+  filter(p.value<0.05, cell_pop=="Th_memory")
 
 
 
 list_of_tfh_ab_plots <- list()
 
-for(i in 1:nrow(tfh_ab_sigs)){
+for(i in 1:8){
   
   plot_data <- thf_ab %>%
     # filter(!is.na(antigen), timepoint==3) %>%
@@ -324,20 +411,24 @@ for(i in 1:nrow(tfh_ab_sigs)){
     geom_smooth(method="lm")+
     # ggtitle(paste(unique(sigs[i,2])))+
     scale_fill_manual(values=pc1_cols)+
+    xlab("")+
+    ylab("")+
     # geom_point(fill=pc1_cols[i], alpha=1, shape=21)+
     # geom_smooth(method="lm")+
     # scale_y_log10()+
     # ggpubr::stat_cor(method = "spearman", label.y = -1.5, na.rm = TRUE, size=2, )+
-    xlab(tfh_ab_sigs[i,1])+
-    ylab(tfh_ab_sigs[i,2])+
+    # xlab(tfh_ab_sigs[i,1])+
+    ggtitle(tfh_ab_sigs[i,2])+
     theme_minimal()+
-    theme(legend.position = "none")
+    theme(legend.position = "none",
+          plot.title = element_text(hjust=0.5))
   list_of_tfh_ab_plots[[i]] <- plot
 }
 
-tfh_ab_plot <- cowplot::plot_grid(plotlist = list_of_tfh_ab_plots, nrow = 3)
+tfh_ab_plot <- cowplot::plot_grid(plotlist = list_of_tfh_ab_plots, nrow = 2)
 
-ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/new_gating_tfh_ab_sig_plot.png"), tfh_ab_plot, height = 6, width=4, bg="white")
+# ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/new_gating_tfh_ab_sig_plot.png"), tfh_ab_plot, height = 6, width=4, bg="white")
+ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/tfh_ab_raw_p_memory_sig_plot.png"), tfh_ab_plot, height = 5, width=8, bg="white")
 
 # antibody bcell correlations ####
 abc_ab <- long_raw_dfff%>%
@@ -401,14 +492,14 @@ ab_clin <- long_raw_dfff%>%
 
 
 
-# ab_clin%>%
-#   # filter(incidence_type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"))%>%
-#   ggplot(aes(x=factor(incidence_value), y=conc, fill=factor(incidence_value)))+
-#   geom_point()+
-#   facet_wrap(incidence_type~antigen, scales="free")+
-#   scale_fill_manual(values=incidence_cols)+
-#   theme_minimal()+
-#   theme(legend.position = "none")
+ab_clin%>%
+  # filter(incidence_type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"))%>%
+  ggplot(aes(x=factor(incidence_value), y=conc, fill=factor(incidence_value)))+
+  geom_point()+
+  facet_wrap(incidence_type~antigen, scales="free")+
+  scale_fill_manual(values=incidence_cols)+
+  theme_minimal()+
+  theme(legend.position = "none")
 
 # ab_clin %>%
 #   group_by(incidence_type, incidence_value)%>%
@@ -426,15 +517,15 @@ ab_incidence_purf <- ab_clin %>%
   # mutate(nb_cell_incidence_model_summary_p=map_dbl(nb_cell_incidence_model_summary, ~coef(.)[11]))%>%
   
   # MASS poisson model
-  # mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ conc, random = ~1 | id, family=poisson)))%>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ conc, random = ~1 | id, family=poisson)))%>%
   # lme4 poisson model
-  mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., incidence_value ~ conc + (1 | id), family="poisson")))%>%
+  # mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., incidence_value ~ conc + (1 | id), family="poisson")))%>%
   
   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
   #MASS poisson p
-  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
   #lme4 poisson p
-  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
+  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
   
   group_by(timepoint)%>%
   # ungroup()%>%

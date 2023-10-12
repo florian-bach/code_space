@@ -312,14 +312,286 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures
 # label_df$age_in_days <- label_df$date-label_df$dob
 # 
 
+# treatment failures ####
+
+tf <- c(10680, 10731, 10839, 10748, 11058, 11069, 11414)
 
 
 
+actual_treatment_failure_plot <- more_than_one %>%
+  filter(id %in% tf)%>%
+  # mutate(id_dob=paste(id, dob))
+  ggplot(., aes(x=AGE, y=as.numeric(any_parsdens)+0.001))+
+  geom_point(aes(shape=parasitaemia_method,
+                 color=factor(mstatus, levels=c("asymptomatic",
+                                                "uncomplicated",
+                                                "complicated",
+                                                "severe"))))+
+  geom_line(alpha=0.3, aes(group=id))+
+  # ggrepel::geom_text_repel(data=label_df, aes(x=AGE, y=as.numeric(any_parsdens), label=age_in_days))+
+  facet_wrap(~ id,nrow = 4)+
+  ylab("qPCR Parasite Density")+
+  xlab("Age (weeks)")+
+  scale_y_log10()+
+  scale_x_continuous(breaks=seq(0,72,by=2),
+                     # labels = seq(0,72,by=8)
+  )+
+  theme_minimal()+
+  # scale_shape_manual(values=c(16,15))+
+  scale_fill_manual(values=n_infection_cols[-1])+
+  scale_color_manual(values=comp_pal)+
+  guides(color=guide_legend(title="disease"))+
+  theme(axis.text.x = element_text(size=5))
 
 
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/actual_treatment_failures.png", actual_treatment_failure_plot, width = 8, height=8, bg="white")
+
+
+kids_with_tf <- data.frame("id"=c(rep(10680, 2), 10731, 10748, 10839, 11058, 11069, rep(11414, 2)),
+                           "age_in_wk_at_tf"=c(16, 36, 55, 62, 46, 39, 46, 28, 30))
+
+kids_with_tf$dob <- more_than_one$dob[match(kids_with_tf$id, more_than_one$id)]
+
+tfs <- more_than_one %>%
+  filter(id %in% kids_with_tf$id &AGE %in% kids_with_tf$age_in_wk_at_tf & mstatus!="asymptomatic")%>%
+  select(date)
+
+#there's a stray one
+tfs <- tfs[-4,]
+
+kids_with_tf$dotf <- tfs$date
+
+actual_treatment_failure_timeline <- more_than_one %>%
+  filter(id %in% tf)%>%
+  # mutate(id_dob=paste(id, dob))
+  ggplot(., aes(x=date, y=as.numeric(any_parsdens)+0.001))+
+  geom_point(aes(shape=parasitaemia_method,
+                 color=factor(mstatus, levels=c("asymptomatic",
+                                                "uncomplicated",
+                                                "complicated",
+                                                "severe"))))+
+  geom_line(alpha=0.3, aes(group=id))+
+  geom_vline(xintercept = kids_with_tf$dotf, linetype="dotted")+
+  # ggrepel::geom_text_repel(data=label_df, aes(x=AGE, y=as.numeric(any_parsdens), label=age_in_days))+
+  ylab("qPCR Parasite Density")+
+  scale_x_date(date_breaks="2 months")+
+  scale_y_log10()+
+  theme_minimal()+
+  scale_fill_manual(values=n_infection_cols[-1])+
+  scale_color_manual(values=comp_pal)+
+  guides(color=guide_legend(title=""),
+         shape=guide_legend(title=""))+
+  theme(axis.text.x = element_text(size=10),
+        axis.title.x = element_blank(),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        legend.box="vertical",
+        legend.margin=margin())
+
+
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/actual_treatment_failure_timeline.png", actual_treatment_failure_timeline, width = 8, height=4, bg="white")
 # complicated syndromes ####
+
 long_comp_cases <- comp_cases %>%
   select(id, date, AGE, mstatus, any_parsdens, conv, sitstand, vomit, lethargy, smal, unbreast, cmal, mseiz, rdist, othcriteria, hosp, fever, hb, plt, wbc, neutro, lymph, mono, eosino,hbgrade, pltgrade, wbcgrade, neutrograde, lymphgrade, monograde, eosinograde)%>%
   pivot_longer(cols=c(conv, sitstand, vomit, lethargy, smal, unbreast, cmal, mseiz, rdist, othcriteria), names_to = "symptom", values_to = "symptom_value", values_transform = as.character)%>%
   pivot_longer(cols=c(hb, plt, wbc, neutro, lymph, mono, eosino), names_to = "cell", values_to = "count")%>%
   pivot_longer(cols=c(hbgrade, pltgrade, wbcgrade, neutrograde, lymphgrade, monograde, eosinograde),values_to = "haematology_grade")
+# more plots to be organised ####
+
+
+big_plot <- mic_drop %>%
+  # filter(!is.na(parasitaemia_method), !is.na(mstatus), any_parsdens != 0)%>%
+  filter(!is.na(parasitaemia_method), !is.na(mstatus))%>%
+  # filter(mstatus=="asymptomatic")%>%
+  ggplot(aes(x=AGE, y=as.numeric(any_parsdens)+0.001))+
+  geom_point(aes(shape=parasitaemia_method,
+                 fill=factor(mstatus, levels=c("asymptomatic",
+                                               "uncomplicated",
+                                               "complicated",
+                                               "severe"))))+
+  geom_line(alpha=0.3, aes(group=id))+
+  ylab("Microscopic Parasite Density")+
+  xlab("order of parasitaemic event")+
+  scale_y_log10(limits=c(0.001, NA))+
+  facet_wrap(~id)+
+  #scale_x_continuous(breaks=seq(0,15,by=3))+
+  theme_minimal()+
+  scale_shape_manual(values=c(21,22,24))+
+  scale_fill_manual(values=comp_pal)+
+  guides(fill=guide_legend(title="disease"))
+
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/big_parsdens.png", big_plot, width = 40, height = 25, bg="white")
+
+
+
+
+
+#plot the evolution of complicated malaria risk as a function of the order of infection
+
+comp_model <- glm(comp_severe/uncomplicated~n_infection, weights = uncomplicated+comp_severe, family="binomial", data=clinical_summary_df)
+comp_model_fun <- function(x){exp(comp_model$coefficients[1])*exp(comp_model$coefficients[2])^x}
+
+
+# clinical_summary_df <- all_kids_with_clinical_episodes %>%
+#   group_by(n_infection, mstatus)%>%
+#   count()%>%
+#   pivot_wider(names_from = mstatus, values_from = n)%>%
+#   mutate(comp_severe=sum(complicated, severe, na.rm = TRUE))%>%
+#   mutate(comp_severe=if_else(is.na(comp_severe), 0, comp_severe))
+
+clinical_summary_df <- all_kids_with_clinical_episodes %>%
+  mutate("age_in_months"=round(AGE/4.33))%>%
+  group_by(age_in_months, mstatus)%>%
+  count()%>%
+  pivot_wider(names_from = mstatus, values_from = n)%>%
+  mutate(comp_severe=sum(complicated, severe, na.rm = TRUE))%>%
+  mutate(comp_severe=if_else(is.na(comp_severe), 0, comp_severe))
+
+
+ggplot(clinical_summary_df, aes(x=age_in_months, y=comp_severe/uncomplicated))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  # geom_ribbon(data= model_visualiser(comp_model, "n_infection"), aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
+  #             alpha = 0.2, inherit.aes = FALSE)+
+  # geom_function(fun=comp_model_fun, colour="black")+
+  scale_y_continuous(limits=c(0,0.1), labels=scales::label_percent())+
+  scale_x_continuous(limits=c(0,19), breaks = seq(1,10,1))+
+  ylab("fraction of complicated cases")+
+  theme(legend.position = "none")
+
+# plot parasitaemia patterns by binning parasitaemic months ####
+binne_parasite_densities <- mic_drop %>%
+  mutate("age_in_months"=round(AGE/4.33))%>%
+  mutate("binned_age_months"=round(age_in_months/3))%>%
+  filter(!is.na(pardens))%>%
+  group_by(id, binned_age_months)%>%
+  summarise("geo_parasites"=exp(mean(log(pardens+0.0001))))%>%
+  pivot_wider(names_from = binned_age_months, values_from = geo_parasites)
+
+log_binned_parasite_densities <- log10(binne_parasite_densities)
+log_binned_parasite_densities <- replace(log_binned_parasite_densities, is.na(log_binned_parasite_densities), 0)
+
+
+no_zero <- as.matrix(log10(binned_parasite_densities[,2:7]+0.00001))
+baseline_dist <- dist(no_zero, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
+baseline_hclust <- hclust(baseline_dist, method = "complete")
+
+# cut_tree <- cutree(baseline_hclust, k=6) 
+colnames(no_zero) <- c("1-3 months", "4-6 months", "7-9 months", "10-12 months", "13-15 months", "16-18 months")
+
+inferno <- colorspace::sequential_hcl("inferno", n=9)
+col_inferno <- circlize::colorRamp2(c(-5, -1.5, -1, -0.5, 0, 1, 2, 3, 4), inferno)
+
+internal_split_plot <- Heatmap(matrix = no_zero,
+                               cluster_rows = baseline_hclust,
+                               # cluster_rows=FALSE,
+                               cluster_columns=FALSE,
+                               show_row_dend = TRUE,
+                               cluster_row_slices = FALSE,
+                               show_heatmap_legend = TRUE,
+                               # name = "Pearson r",
+                               #cluster_columns = FALSE,
+                               row_split=8,
+                               column_names_gp = gpar(fontsize = 6),
+                               column_names_centered=TRUE,
+                               row_names_gp = gpar(fontsize = 6),
+                               row_names_side = "left",
+                               col = col_inferno,
+                               column_names_rot = 0
+)
+
+png("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/internal_split_plot.png", width = 6, height=12, units = "in", res = 444)
+draw(internal_split_plot)
+dev.off()
+
+
+# sandbox ####
+# 
+# asymp <- mic_drop %>%
+#   filter(!is.na(parasitaemia_method), !is.na(mstatus), any_parsdens != 0)%>%
+#   filter(mstatus=="asymptomatic")%>%
+#   ggplot(aes(x=date, y=as.numeric(any_parsdens)+0.001))+
+#   geom_point(aes(shape=parasitaemia_method,
+#                  fill=factor(mstatus, levels=c("asymptomatic",
+#                                                "uncomplicated",
+#                                                "complicated",
+#                                                "severe"))))+
+#   # geom_line(alpha=0.3, aes(group=id))+
+#   ylab("Microscopic Parasite Density")+
+#   xlab("order of parasitaemic event")+
+#   scale_y_log10(limits=c(0.001, NA))+
+#   # facet_wrap(~mstatus)+
+#   #scale_x_continuous(breaks=seq(0,15,by=3))+
+#   theme_minimal()+
+#   scale_shape_manual(values=c(21,22,24))+
+#   scale_fill_manual(values=comp_pal)+
+#   guides(fill=guide_legend(title="disease"))
+# 
+# uncomp <- mic_drop %>%
+#   filter(!is.na(parasitaemia_method), !is.na(mstatus), any_parsdens != 0)%>%
+#   filter(mstatus=="uncomplicated")%>%
+#   ggplot(aes(x=date, y=as.numeric(any_parsdens)+0.001))+
+#   geom_point(aes(shape=parasitaemia_method,
+#                  fill=factor(mstatus, levels=c("asymptomatic",
+#                                                "uncomplicated",
+#                                                "complicated",
+#                                                "severe"))))+
+#   # geom_line(alpha=0.3, aes(group=id))+
+#   ylab("Microscopic Parasite Density")+
+#   xlab("order of parasitaemic event")+
+#   scale_y_log10(limits=c(0.001, NA))+
+#   # facet_wrap(~mstatus)+
+#   #scale_x_continuous(breaks=seq(0,15,by=3))+
+#   theme_minimal()+
+#   scale_shape_manual(values=c(21,22,24))+
+#   scale_fill_manual(values=comp_pal)+
+#   guides(fill=guide_legend(title="disease"))
+# 
+# comp <- mic_drop %>%
+#   filter(!is.na(parasitaemia_method), !is.na(mstatus), any_parsdens != 0)%>%
+#   filter(mstatus=="complicated")%>%
+#   ggplot(aes(x=date, y=as.numeric(any_parsdens)+0.001))+
+#   geom_point(aes(shape=parasitaemia_method,
+#                  fill=factor(mstatus, levels=c("asymptomatic",
+#                                                "uncomplicated",
+#                                                "complicated",
+#                                                "severe"))))+
+#   # geom_line(alpha=0.3, aes(group=id))+
+#   ylab("Microscopic Parasite Density")+
+#   xlab("order of parasitaemic event")+
+#   scale_y_log10(limits=c(0.001, NA))+
+#   # facet_wrap(~mstatus)+
+#   #scale_x_continuous(breaks=seq(0,15,by=3))+
+#   theme_minimal()+
+#   scale_shape_manual(values=c(21,22,24))+
+#   scale_fill_manual(values=comp_pal)+
+#   guides(fill=guide_legend(title="disease"))
+# 
+# 
+# 
+# severe <- mic_drop %>%
+#   filter(!is.na(parasitaemia_method), !is.na(mstatus), any_parsdens != 0)%>%
+#   filter(mstatus=="severe")%>%
+#   ggplot(aes(x=date, y=as.numeric(any_parsdens)+0.001))+
+#   geom_point(aes(shape=parasitaemia_method,
+#                  fill=factor(mstatus, levels=c("asymptomatic",
+#                                                "uncomplicated",
+#                                                "complicated",
+#                                                "severe"))))+
+#   # geom_line(alpha=0.3, aes(group=id))+
+#   ylab("Microscopic Parasite Density")+
+#   xlab("order of parasitaemic event")+
+#   scale_y_log10(limits=c(0.001, NA))+
+#   # facet_wrap(~mstatus)+
+#   #scale_x_continuous(breaks=seq(0,15,by=3))+
+#   theme_minimal()+
+#   scale_shape_manual(values=c(21,22,24))+
+#   scale_fill_manual(values=comp_pal)+
+#   guides(fill=guide_legend(title="disease"))
+# 
+# 
+# ggExtra::ggMarginal(asymp, type = "histogram", groupFill = TRUE)
+# ggExtra::ggMarginal(uncomp, type = "histogram", groupFill = TRUE)
+# ggExtra::ggMarginal(comp, type = "histogram", groupFill = TRUE)
+# ggExtra::ggMarginal(severe, type = "histogram", groupFill = TRUE)
