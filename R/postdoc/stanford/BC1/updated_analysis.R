@@ -155,18 +155,23 @@ sig_histopath <- filter(histopath_wilcox, raw_p<0.05)
 
 histopathology <- long_raw_dfff %>%
   filter(!is.na(anyHPfinalx), !is.na(conc), timepoint==1, antigen %in% sig_histopath$antigen)%>%
+  mutate(anyHPfinalx=case_match(anyHPfinalx,
+                                 "No Pathology" ~ "Absent",
+                                 "Placental Malaria"~ "Present"))%>%
   ggplot(., aes(x=anyHPfinalx, y=conc))+
   geom_point(aes(fill=antigen), alpha=0.1, shape=21)+
   geom_boxplot(aes(fill=antigen, group=anyHPfinalx))+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow = 1)+
   # ggtitle("Histopathology")+
+  xlab("\nPlacental Malaria")+
   ylab("Concentration")+
   theme_minimal()+
   theme(panel.grid = element_blank(),
         legend.position = "none",
-        axis.title.x = element_blank(),
-        axis.text.x = element_text(angle = 90, hjust=1),
-        strip.text = element_text(size=13.5))+
+        axis.title = element_text(color = "black"),
+        axis.text.y = element_text(color = "black"),
+        axis.text.x = element_text(color = "black", hjust=0.5),
+        strip.text = element_text(size=13.5, color = "black"))+
   scale_fill_manual(values=pc1_cols)
 
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/histopathology_wilcox.png", histopathology, height = 4, width=8, bg="white", limitsize = FALSE)

@@ -179,11 +179,32 @@ antibodies_during_first_year_of_life <- ggplot(combo_data, aes(x=timepointf, y=c
   theme(panel.grid = element_blank(),
         legend.position = "none",
         axis.title.x = element_blank(),
-        axis.text.x = element_text(angle = 90, hjust=1),
+        axis.text.x = element_text(angle = 90, hjust=1, color = "black"),
         strip.text = element_text(size=13.5))+
   scale_fill_manual(values=pc1_cols)
 
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/antibodies_during_first_year_of_life.png", antibodies_during_first_year_of_life, height = 12, width=12, bg="white")
+
+
+small_antibodies_during_first_year_of_life <- combo_data %>%
+  filter(antigen %in% unique(combo_data$antigen)[seq(3, 21, by=2)])%>%
+  ggplot(., aes(x=timepointf, y=conc, fill=antigen))+
+  #geom_violin(draw_quantiles = seq(0,1,0.25), scale = TRUE, )+
+  geom_point(alpha=0.1, shape=21)+
+  geom_line(aes(group=id), alpha=0.1)+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", width = 0.5, color="darkred")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), nrow = 2, scales = "free")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1, color = "black"),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=pc1_cols)
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/small_antibodies_during_first_year_of_life.png", small_antibodies_during_first_year_of_life, height = 6, width=8, bg="white")
 
 
 # antibody~incidence figures ####

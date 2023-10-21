@@ -129,7 +129,7 @@ severe_model <- glm(risk~n_infection, family = "binomial", weights = total_infec
 # individual level data ####
 
 ggplot(complicated_data, aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
-  # geom_violin()+
+  geom_boxplot()+
   geom_point(color="darkred", aes(alpha=factor(disease)))+
   theme_minimal()+
   ylab("Parasites /  μL")+
@@ -763,3 +763,64 @@ p <- promote_data%>%
 
 ggExtra::ggMarginal(p, groupColour = TRUE, type = "boxplot", )
 
+
+
+
+#sandbox ####
+
+# complicated_data%>%
+#   arrange(desc(disease))%>%
+#   ggplot(aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
+#   geom_boxplot()+
+#   # geom_point(color="darkred", aes(alpha=factor(disease)))+
+#   geom_point(aes(color=factor(disease)))+
+#   theme_minimal()+
+#   ylab("Parasites /  μL")+
+#   scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
+#   scale_color_manual(values = c("darkred", "orange"))+
+#   scale_alpha_manual(values = c("uncomplicated"=0.1, "complicated"=1))+
+#   scale_y_log10()+
+#   theme(legend.position = "none")
+# xlab("Order of Infection")
+# 
+# complicated_data %>%
+#   group_by(id)%>%
+#   mutate("high_before_six"=if_else(any(parsdens>10000) & age>=0.5, "yes", "no"))%>%
+#   arrange(desc(disease))%>%
+#   ggplot(aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
+#   geom_boxplot()+
+#   # geom_point(color="darkred", aes(alpha=factor(disease)))+
+#   geom_point(aes(color=factor(disease)))+
+#   facet_wrap(~high_before_six)+
+#   theme_minimal()+
+#   ylab("Parasites /  μL")+
+#   scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
+#   scale_color_manual(values = c("darkred", "orange"))+
+#   scale_alpha_manual(values = c("uncomplicated"=0.1, "complicated"=1))+
+#   scale_y_log10()+
+#   theme(legend.position = "none")
+# xlab("Order of Infection")
+# 
+# 
+# complicated_data <- complicated_data %>%
+#   group_by(id)%>%
+#   mutate("high_before_six"=if_else(any(parsdens>10000) & age <= 0.5, "yes", "no"))
+# 
+# df <- complicated_data %>%
+#   group_by(high_before_six, n_infection)%>%
+#   count(disease)%>%
+#   pivot_wider(values_from = n, names_from = disease)%>%
+#   mutate(complicated=replace_na(complicated, 0))%>%
+#   mutate(risk=complicated/(uncomplicated+complicated))
+# 
+# 
+# 
+# ggplot(df, aes(x=n_infection, y=risk, fill=high_before_six))+
+#   geom_bar(stat="identity")+
+#   geom_text(aes(label= paste0("frac(",complicated, ",", uncomplicated+complicated,")")),parse = TRUE, vjust= -0.2, size=3.5)+
+#   facet_wrap(~high_before_six)+
+#   scale_x_continuous(breaks = seq(1, 7), limits=c(0, 7))+
+#   scale_y_continuous(labels=scales::label_percent(), limits = c(0,0.15))+
+#   scale_fill_manual(values=c("magenta4", "darkred"))+
+#   theme_minimal()
+# 

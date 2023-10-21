@@ -1,7 +1,7 @@
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-
+library(ComplexHeatmap)
 comp_pal <- c("asymptomatic"="lightgrey", "uncomplicated"="black", "complicated"="orange", "severe"="darkred")
 
 mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/MICDROP all visit database through June 30th 2023.dta")
@@ -461,47 +461,108 @@ ggplot(clinical_summary_df, aes(x=age_in_months, y=comp_severe/uncomplicated))+
   theme(legend.position = "none")
 
 # plot parasitaemia patterns by binning parasitaemic months ####
-binne_parasite_densities <- mic_drop %>%
-  mutate("age_in_months"=round(AGE/4.33))%>%
-  mutate("binned_age_months"=round(age_in_months/3))%>%
-  filter(!is.na(pardens))%>%
-  group_by(id, binned_age_months)%>%
-  summarise("geo_parasites"=exp(mean(log(pardens+0.0001))))%>%
-  pivot_wider(names_from = binned_age_months, values_from = geo_parasites)
+binned_parasite_densities <- mic_drop %>%
+  # mutate("age_in_months"=round(AGE/4.33))%>%
+  filter(!is.na(pardens), dob < "2022-04-30", AGE<=52, AGE>=8)%>%
+  mutate("binned_age"=case_when(AGE <= 18 ~ "8-18 weeks",
+                                AGE > 18 & AGE <= 28 ~ "19-29 weeks",
+                                AGE > 28 & AGE <= 40 ~ "30-40 weeks",
+                                AGE > 40 & AGE <= 52 ~ "41-52 weeks"))%>%
+  group_by(id, binned_age)%>%
+  # summarise("geo_parasites"=exp(mean(log(pardens+0.0001))))%>%
+  summarise("geo_parasites"=exp(mean(log(pardens+1))))%>%
+  pivot_wider(names_from = binned_age, values_from = geo_parasites)%>%
+  select(id, "8-18 weeks", "19-29 weeks","30-40 weeks", "41-52 weeks")
 
-log_binned_parasite_densities <- log10(binne_parasite_densities)
-log_binned_parasite_densities <- replace(log_binned_parasite_densities, is.na(log_binned_parasite_densities), 0)
+
+binned_parasite_densities <- replace(binned_parasite_densities, is.na(binned_parasite_densities), 0)
+log_binned_parasite_densities <- binned_parasite_densities
+# log_binned_parasite_densities[,2:5] <- log10(binned_parasite_densities[,2:5]+0.00001)
+log_binned_parasite_densities[,2:5] <- log10(binned_parasite_densities[,2:5]+1)
 
 
-no_zero <- as.matrix(log10(binned_parasite_densities[,2:7]+0.00001))
-baseline_dist <- dist(no_zero, method = "euclidean", diag = FALSE, upper = FALSE, p = 2)
-baseline_hclust <- hclust(baseline_dist, method = "complete")
+
+no_zero <- as.matrix(log_binned_parasite_densities[,2:5])
+baseline_dist <- dist(no_zero, method = "euclidean")
+
+baseline_hclust <- hclust(baseline_dist)
 
 # cut_tree <- cutree(baseline_hclust, k=6) 
-colnames(no_zero) <- c("1-3 months", "4-6 months", "7-9 months", "10-12 months", "13-15 months", "16-18 months")
+# colnames(no_zero) <- c("2-3 months", "4-5 months", "6-7 months", "8-9 months")
 
 inferno <- colorspace::sequential_hcl("inferno", n=9)
-col_inferno <- circlize::colorRamp2(c(-5, -1.5, -1, -0.5, 0, 1, 2, 3, 4), inferno)
+viridis <- colorspace::sequential_hcl("viridis", n=9)
+# col_inferno <- circlize::colorRamp2(c(-5, -1.5, -1, -0.5, 0, 1, 2, 3, 4), inferno)
+# col_inferno2 <- circlize::colorRamp2(c(seq(-0.5, 6, by=7/9)), colorspace::sequential_hcl("viridis", n=9))
 
-internal_split_plot <- Heatmap(matrix = no_zero,
-                               cluster_rows = baseline_hclust,
-                               # cluster_rows=FALSE,
-                               cluster_columns=FALSE,
-                               show_row_dend = TRUE,
-                               cluster_row_slices = FALSE,
-                               show_heatmap_legend = TRUE,
-                               # name = "Pearson r",
-                               #cluster_columns = FALSE,
-                               row_split=8,
-                               column_names_gp = gpar(fontsize = 6),
-                               column_names_centered=TRUE,
-                               row_names_gp = gpar(fontsize = 6),
-                               row_names_side = "left",
-                               col = col_inferno,
-                               column_names_rot = 0
+disease_phenotypes <- mic_drop %>%
+  group_by(id)%>%
+  summarise("disease"=if_else(
+    all(mstatus == "asymptomatic"), "asymptomatic", if_else(
+      any(mstatus == "severe"), "severe", if_else(
+        any(mstatus == "complicated"), "complicated", if_else(
+          any(mstatus=="uncomplicated"), "uncomplicated", "dont_know")
+      )
+    )
+  )
+  )
+
+max_parasites <- mic_drop %>%
+  group_by(id)%>%
+  summarise("max_parasites"=log10(max(any_parsdens, na.rm = TRUE)+0.001))
+
+
+col_inferno <- circlize::colorRamp2(seq(min(no_zero), max(no_zero), length.out=length(inferno)), inferno)
+col_inferno2 <- circlize::colorRamp2(seq(min(max_parasites$max_parasites), max(max_parasites$max_parasites), length.out=length(viridis)), viridis)
+
+disease_phenotypes <- disease_phenotypes[match(log_binned_parasite_densities$id, disease_phenotypes$id),]
+max_parasites <- max_parasites[match(log_binned_parasite_densities$id, max_parasites$id),]
+
+right_anno <-  rowAnnotation(#annotation_name_gp = gpar(fontsize=10),
+  # annotation_name_rot = 45,
+  gap = unit(1.5, "mm"),
+  "disease phenotype"= disease_phenotypes$disease,
+  "max parasitaemia"=max_parasites$max_parasites,
+  show_legend = TRUE,
+  show_annotation_name = FALSE,
+  simple_anno_size = unit(3, "mm"), # width of the significance bar
+  col=list("disease phenotype" = c("asymptomatic"="darkgrey",
+                                   "uncomplicated"="#ffda03",
+                                   "complicated"="darkorange",
+                                   "severe"="darkred"),
+           "max parasitaemia"=col_inferno2),
+  annotation_legend_param = list("disease phenotype" = list(title = "disease phenotype",
+                                                            at = c("asymptomatic", "uncomplicated", "complicated", "severe"),
+                                                            title_gp=gpar(angle=45),
+                                                            legend_gp = gpar(fill = c("darkgrey","#ffda03", "darkorange", "darkred")),
+                                                            title_position = "topleft"),
+                                 "max parasitaemia" = list(title = "highest log10\nparasitaemia")
+  )
+  
 )
 
-png("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/internal_split_plot.png", width = 6, height=12, units = "in", res = 444)
+
+internal_split_plot <- Heatmap(matrix = no_zero,
+        right_annotation=right_anno,
+        cluster_rows = baseline_hclust,
+        # cluster_rows=TRUE,
+        cluster_columns=FALSE,
+        show_row_dend = TRUE,
+        cluster_row_slices = TRUE,
+        show_heatmap_legend = TRUE,
+        # name = "geometric mean log10 parasites in time window",
+        #cluster_columns = FALSE,
+        row_split=8,
+        column_names_gp = gpar(fontsize = 6),
+        column_names_centered=TRUE,
+        heatmap_legend_param = list(title = "geometric mean log10\nparasitaemia in time window", title_position = "topleft", grid_width=unit(7, "mm")),
+        row_names_gp = gpar(fontsize = 6),
+        row_names_side = "left",
+        col = col_inferno,
+        column_names_rot = 0
+)
+
+png("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures/internal_split_plot_euclidean.png", width = 6, height=12, units = "in", res = 444)
 draw(internal_split_plot)
 dev.off()
 
@@ -595,3 +656,148 @@ dev.off()
 # ggExtra::ggMarginal(uncomp, type = "histogram", groupFill = TRUE)
 # ggExtra::ggMarginal(comp, type = "histogram", groupFill = TRUE)
 # ggExtra::ggMarginal(severe, type = "histogram", groupFill = TRUE)
+
+
+# 
+# bds <- mic_drop %>%
+#   group_by(id)%>%
+#   summarise("dob"=unique(dob))
+# 
+# ggplot(bds, aes(x=dob))+
+#   geom_histogram(binwidth = 7)+
+#   scale_x_date(breaks="1 week")+
+#   theme_minimal()+
+  # theme(axis.text.x = element_text(angle=90))
+# disease_phenotypes <- mic_drop %>%
+#   group_by(id)%>%
+#   summarise("disease"=if_else(
+#     all(mstatus == "asymptomatic"), "asymptomatic", if_else(
+#       any(mstatus == "severe"), "severe", if_else(
+#         any(mstatus == "complicated"), "complicated", if_else(
+#           any(mstatus=="uncomplicated"), "uncomplicated", "dont_know")
+#       )
+#     )
+#   )
+#   )
+# 
+# disease_phenotypes <- disease_phenotypes[match(log_binned_parasite_densities$id, disease_phenotypes$id),]
+# 
+# right_anno <-  rowAnnotation(#annotation_name_gp = gpar(fontsize=10),
+#   # annotation_name_rot = 45,
+#   gap = unit(1.5, "mm"),
+#   "disease phenotype"= disease_phenotypes$disease,
+#   show_legend = TRUE,
+#   show_annotation_name = FALSE,
+#   simple_anno_size = unit(3, "mm"), # width of the significance bar
+#   col=list("disease phenotype" = c("asymptomatic"="darkgrey",
+#                                    "uncomplicated"="#ffda03",
+#                                    "complicated"="darkorange",
+#                                    "severe"="darkred")),
+#   annotation_legend_param = list("disease phenotype" = list(title ="disease phenotype",
+#                                                             at = c("asymptomatic", "uncomplicated", "complicated", "severe"),
+#                                                             title_gp=gpar(angle=45),
+#                                                             legend_gp = gpar(fill = c("darkgrey","#ffda03", "darkorange", "darkred")),
+#                                                             title_position = "topleft")
+#   )
+#   
+# )
+# 
+# 
+# Heatmap(matrix = no_zero,
+#         right_annotation=right_anno,
+#         
+#         cluster_rows = baseline_hclust,
+#         # cluster_rows=FALSE,
+#         cluster_columns=FALSE,
+#         show_row_dend = TRUE,
+#         cluster_row_slices = FALSE,
+#         show_heatmap_legend = TRUE,
+#         # name = "geometric mean log10 parasites in time window",
+#         #cluster_columns = FALSE,
+#         row_split=8,
+#         column_names_gp = gpar(fontsize = 6),
+#         column_names_centered=TRUE,
+#         heatmap_legend_param = list(title = "geometric mean log10\nparasitaemia in time window", title_position = "topleft", grid_width=unit(7, "mm")),
+#         row_names_gp = gpar(fontsize = 6),
+#         row_names_side = "left",
+#         col = col_inferno,
+#         column_names_rot = 0
+# )
+# 
+# 
+# bds <- mic_drop %>%
+#   group_by(id)%>%
+#   summarise("dob"=unique(dob))
+# 
+# ggplot(bds, aes(x=dob))+
+#   geom_histogram(binwidth = 7)+
+#   scale_x_date(breaks="1 week")+
+#   theme_minimal()+
+#   theme(axis.text.x = element_text(angle=90))
+# 
+# 
+# 
+# 
+# 
+# 
+# complicated_data%>%
+#   arrange(desc(disease))%>%
+#   ggplot(aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
+#   geom_boxplot()+
+#   # geom_point(color="darkred", aes(alpha=factor(disease)))+
+#   geom_point(aes(color=factor(disease)))+
+#   theme_minimal()+
+#   ylab("Parasites /  μL")+
+#   scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
+#   scale_color_manual(values = c("darkred", "orange"))+
+#   scale_alpha_manual(values = c("uncomplicated"=0.1, "complicated"=1))+
+#   scale_y_log10()+
+#   theme(legend.position = "none")
+# xlab("Order of Infection")
+# 
+# complicated_data %>%
+#   group_by(id)%>%
+#   mutate("high_before_six"=if_else(any(parsdens>10000) & age>=0.5, "yes", "no"))%>%
+#   arrange(desc(disease))%>%
+#   ggplot(aes(x=factor(n_infection), y=parsdens, fill=factor(n_infection)))+
+#   geom_boxplot()+
+#   # geom_point(color="darkred", aes(alpha=factor(disease)))+
+#   geom_point(aes(color=factor(disease)))+
+#   facet_wrap(~high_before_six)+
+#   theme_minimal()+
+#   ylab("Parasites /  μL")+
+#   scale_fill_manual(values = colorspace::sequential_hcl(10, palette = "Purple Yellow"))+
+#   scale_color_manual(values = c("darkred", "orange"))+
+#   scale_alpha_manual(values = c("uncomplicated"=0.1, "complicated"=1))+
+#   scale_y_log10()+
+#   theme(legend.position = "none")
+# xlab("Order of Infection")
+# 
+# 
+# complicated_data <- complicated_data %>%
+#   group_by(id)%>%
+#   mutate("high_before_six"=if_else(any(parsdens>10000) & age <= 0.5, "yes", "no"))
+# 
+# df <- complicated_data %>%
+#   group_by(high_before_six, n_infection)%>%
+#   count(disease)%>%
+#   pivot_wider(values_from = n, names_from = disease)%>%
+#   mutate(complicated=replace_na(complicated, 0))%>%
+#   mutate(risk=complicated/(uncomplicated+complicated))
+# 
+# 
+# 
+# ggplot(df, aes(x=n_infection, y=risk, fill=high_before_six))+
+#   geom_bar(stat="identity")+
+#   geom_text(aes(label= paste0("frac(",complicated, ",", uncomplicated+complicated,")")),parse = TRUE, vjust= -0.2, size=3.5)+
+#   facet_wrap(~high_before_six)+
+#   scale_x_continuous(breaks = seq(1, 7), limits=c(0, 7))+
+#   scale_y_continuous(labels=scales::label_percent(), limits = c(0,0.15))+
+#   scale_fill_manual(values=c("magenta4", "darkred"))+
+#   theme_minimal()
+# 
+
+
+
+
+
