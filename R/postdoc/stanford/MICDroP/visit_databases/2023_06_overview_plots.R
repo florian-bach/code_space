@@ -5,15 +5,16 @@ library(ComplexHeatmap)
 comp_pal <- c("asymptomatic"="lightgrey", "uncomplicated"="black", "complicated"="orange", "severe"="darkred")
 
 mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/MICDROP all visit database through June 30th 2023.dta")
+
 mic_drop <- mic_drop %>%
-  mutate(mstatus = case_match(mstatus,
-                              0~"asymptomatic",
-                              1~"uncomplicated",
-                              2~"complicated",
-                              3~"severe"))%>%
-  mutate("any_parsdens" = qPCRparsdens)%>%
+  # mutate(mstatus = case_match(mstatus,
+  #                             0~"asymptomatic",
+  #                             1~"uncomplicated",
+  #                             2~"complicated"))%>%
+  # mutate("any_parsdens" = qPCRparsdens)%>%
+  mutate(visit_id = paste(id, date, sep=""))%>%
   mutate("parasitaemia_method" = if_else(qPCRdich==1, "qPCR", if_else(BSdich==1, "smear", "dunno")))%>%
-  mutate(any_parsdens = if_else(is.na(qPCRparsdens) & !is.na(pardens), pardens, any_parsdens))%>%
+  mutate(any_parsdens = if_else(is.na(qPCRparsdens) & !is.na(pardens), pardens, qPCRparsdens))%>%
   mutate(parasitaemia_method = if_else(is.na(qPCRparsdens) & !is.na(pardens), "smear", parasitaemia_method))
   
 
@@ -245,20 +246,35 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_06/figures
 # look at all visits where any parasites where measured, calculate the time interval between
 more_than_one <- mic_drop %>%
   group_by(id) %>%
-  mutate("number_of_malaria_episodes" = sum(mstatus=="uncomplicated"))%>%
+  mutate("number_of_malaria_episodes" = sum(mstatus !=0))%>%
   ungroup()%>%
   select(id, date, AGE, dob, mstatus, any_parsdens, parasitaemia_method, number_of_malaria_episodes)%>%
-  filter(number_of_malaria_episodes>=1)%>%
-  filter(any_parsdens>=1 & !is.na(any_parsdens)) %>%
+  filter(number_of_malaria_episodes > 1)%>%
+  # filter(any_parsdens>=1 & !is.na(any_parsdens)) %>%
+  filter(mstatus!=0)%>%
   group_by(id) %>%
-  add_count(name="total_positive_measurement")%>%
-  mutate(lagdate = lag(date), "time_to_previous" = date - lagdate, "time_to_next"=lead(time_to_previous))
+  mutate(
+         "previous_symptomatic_date" = lag(date),
+         "next_symptomatic_date"=lead(date),
+         "time_to_next_symptomatic_date" = next_symptomatic_date-date,
+         "time_to_previous_symptomatic_date"=lag(time_to_next_symptomatic_date),
+         )
+ 
+
+
+
+
  
 failure_to_clear <- more_than_one %>%
-  filter(mstatus=="uncomplicated", time_to_next<=13)
+  group_by(id)%>%
+  mutate("has_failure"=any(time_to_next_symptomatic_date<14))%>%
+  filter(has_failure==TRUE)
 
+# 
 # failure_to_cure <- more_than_one %>%
-#   filter(mstatus=="uncomplicated", time_to_previous<=13)
+#   filter(mstatus %in% c("uncomplicated", "complicated", "severe"), time_to_previous<=13)
+# dim(failure_to_cure)
+
 
 
 
