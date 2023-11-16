@@ -22,12 +22,7 @@ long_specimen_data <- raw_data %>%
   pivot_longer(cols = c(PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
   mutate(subject_id=id)%>%
   #Specimen_IDs are shared between specimen types, so let's create a unique code
-  mutate(Specimen_ID_ID=paste(Specimen_Type, visit_id, sep="_"))
-
-
-# add a timepoint label that allows for a week on either side
-routine_ish_visits <- long_specimen_data %>%
-  filter(flo_age_in_wks %in% sample_ranges) %>%
+  mutate(Specimen_ID_ID=paste(Specimen_Type, visit_id, sep="_"))%>%
   mutate("Timepoint_in_weeks"=if_else(
     flo_age_in_wks %in% sample_ages, flo_age_in_wks, ifelse(
       flo_age_in_wks %in% sample_ages_minus, flo_age_in_wks+1, if_else(
@@ -35,6 +30,11 @@ routine_ish_visits <- long_specimen_data %>%
     )
   )
   )
+
+
+# add a timepoint label that allows for a week on either side
+routine_ish_visits <- long_specimen_data %>%
+  filter(flo_age_in_wks %in% sample_ranges)
 
 
 
@@ -102,7 +102,7 @@ collection_rate_plot <- ggplot(sample_counts, aes(x=factor(Timepoint_in_weeks), 
   geom_bar(stat="identity")+
   facet_wrap(~Specimen_Type, ncol=4)+
   scale_y_continuous(labels = scales::label_percent())+
-  scale_fill_manual(values = colorspace::sequential_hcl(n=5, "RdPu")[1:4])+
+  # scale_fill_manual(values = colorspace::sequential_hcl(n=5, "RdPu")[1:4])+
   xlab("Timepoint (weeks)")+
   ylab("Collection Rate")+
   theme_minimal()+
