@@ -30,10 +30,10 @@ ab_columns <- grep("log", colnames(bc1), value = TRUE)
 
 
 long_raw_dfff <- bc1 %>%
-  dplyr::select(all_of(c("id", "timepoint", ab_columns, "MomFinalRx", "anyHPfinal", "gestage", "gender")))%>%
+  dplyr::select(all_of(c("id", "timepoint", ab_columns, "MomFinalRx", "anyHPfinal", "gestage", "gender", "anymalariapreg")))%>%
   pivot_longer(cols=all_of(ab_columns), names_to = "antigen", values_to = "conc")%>%
   filter(antigen %notin% c("logpd", "logGST"))%>%
-  mutate(antigen=gsub("log", "", antigen, fixed = TRUE))%>%
+  mutate(antigen=gsub("log", "", antigen,  fixed = TRUE))%>%
   mutate(antigen=gsub("_", " ", antigen, fixed = TRUE))%>%
   mutate(MomFinalRx=if_else(MomFinalRx==1, "3 Dose SP",
                              ifelse(MomFinalRx==2, "3 Dose DP",
@@ -42,7 +42,8 @@ long_raw_dfff <- bc1 %>%
   )%>%
   mutate(MomFinalRx=factor(MomFinalRx, levels = c("3 Dose SP", "3 Dose DP", "Monthly DP")))%>%
   mutate(anyHPfinalx=if_else(anyHPfinal==1, "Placental Malaria",
-                             if_else(anyHPfinal==0, "No Pathology", "Results missing")))
+                             if_else(anyHPfinal==0, "No Pathology", "Results missing")))%>%
+  mutate(matmal=if_else(anyHPfinal==1, "placental malaria", if_else(anymalariapreg==1, "non-placental malaria", "no malaria")))
 
 
 
@@ -151,6 +152,46 @@ very_long_combo_combo <- long_combo_combo %>%
                            "tfh_q4"="Th2",
                            "tfh_of_cd4"="Tfh of CD4 T Cells"))%>%
   filter(cell_pop != "cd10_neg_b")
+
+
+# make antibody cutoff data frame
+
+raw_data <- bc1[,c(1,67:132, 155)]
+
+#shove all antigens in their own column, same for flags and concentrations
+raw_conc_data <- raw_data %>%
+  pivot_longer(cols = colnames(raw_data)[seq(3, 66, by=3)], values_to = "conc")%>%
+  dplyr::select(conc)
+
+raw_flag_data <- raw_data%>%
+  pivot_longer(cols = colnames(raw_data)[seq(4, 67, by=3)], values_to = "flag")%>%
+  dplyr::select(flag)
+
+# make long data frame combining both conc and flag data
+long_raw_df <- raw_data %>%
+  pivot_longer(cols = colnames(raw_data)[seq(2, 65, by=3)], values_to = "antigen") %>%
+  dplyr::select(id, timepoint, antigen)%>%
+  mutate(timepoint=factor(timepoint))%>%
+  mutate(conc=raw_conc_data$conc, flag=raw_flag_data$flag)%>%
+  mutate(antigen=gsub(".", " ", antigen, fixed = TRUE))%>%
+  mutate(antigen=gsub("  ", " ", antigen, fixed = TRUE))%>%
+  mutate(id=factor(id))%>%
+  mutate(flag_type = case_when(flag==1 ~ "AboveMaxStd",
+                               flag==2 ~ "AboveUpperbound",
+                               flag==3 ~ "Above_fitted_asymptote",
+                               flag==4 ~ "BelowMinStd",
+                               is.na(flag) ~ "No Flag"))%>%
+  filter(antigen != "GST", antigen!="")
+
+cutoff_df <- long_raw_df %>%
+  filter(flag_type=="BelowMinStd", antigen != "GST")%>%
+  group_by(antigen)%>%
+  summarise("max_below_standard"=max(conc))%>%
+  mutate(antigen2=antigen,
+         antigen=unique(combo_data$antigen))
+
+
+
 
 # wide_combo_12months <- combo_data |> 
 #   dplyr::select(id, timepoint, anyHPfinal, antigen, conc)|>
@@ -670,7 +711,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/all_ce
 
 cells_incidence <- very_long_combo_combo %>%
   pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
-  filter(timepoint==1, Incidence_Type %in% c("inf_6_12", "symp_6_12", "inf_12_18", "symp_12_18"))%>%
+  filter(timepoint==1, Incidence_Type %in% c("inf_0_12", "symp_6_12", "inf_12_18", "symp_12_18"))%>%
   ggplot(., aes(x=Incidence_Value, y=cell_freq))+
   #geom_violin(draw_quantiles = seq(0,1,0.25), scale = TRUE, )+
   geom_point(aes(fill=cell_pop), alpha=0.1, shape=21)+
@@ -818,4 +859,50 @@ gestages_incidence <- combo_data %>%
         strip.text = element_text(size=13.5))
 
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/gestages_incidence.png", gestages_incidence, height = 10, width=22, bg="white", limitsize = FALSE)
+
+
+
+# paper remix ####
+
+
+cord_blood_matmal <- combo_data %>%
+  filter(timepointf=="Cord Blood", !is.na(matmal))%>%
+  ggplot(., aes(x=timepointf, y=conc))+
+  # geom_point(aes(color=matmal), alpha=0.1, shape=21)+
+  geom_boxplot(aes(fill=matmal))+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  ggtitle("Maternal Malaria Status Impacts Cord Blood Antibody Concentration")+
+  ylab("Concentration")+
+  theme_minimal()+
+  geom_hline(data=cutoff_df, aes(yintercept = log10(max_below_standard)), linetype="dashed")+
+  theme(panel.grid = element_blank(),
+        # legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=rev(time_palette))
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/cord_blood_matmal.png", cord_blood_matmal, width=12, height=12, bg="white", dpi=444)
+
+
+
+no_inf_matmal <- combo_data %>%
+  filter(inf_0_12==0, !is.na(matmal))%>%
+  ggplot(., aes(x=timepointf, y=conc))+
+  # geom_point(aes(color=matmal), alpha=0.1, shape=21)+
+  geom_boxplot(aes(fill=matmal))+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  ggtitle("Maternal Antibody Dynamics in Children Without Parasitemia in First Year of Life")+
+  ylab("Concentration")+
+  theme_minimal()+
+  geom_hline(data=cutoff_df, aes(yintercept = log10(max_below_standard)), linetype="dashed")+
+  theme(panel.grid = element_blank(),
+        # legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        strip.text = element_text(size=13.5))+
+  scale_fill_manual(values=rev(time_palette))
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/no_inf_matmal.png", no_inf_matmal, width=12, height=12, bg="white", dpi=444)
+
 

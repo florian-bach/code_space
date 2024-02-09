@@ -676,3 +676,74 @@ for(i in 1:nrow(bino_ab_poisson_incidence_sigs)){
 
 sig_bino_ab_poisson_plot <- cowplot::plot_grid(plotlist = list_of_bino_ab_poisson_plots, nrow = 5)
 ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/bino_ab_only_poisson_sig_incidence_plot.png"), sig_bino_ab_poisson_plot, height = 12, width=12, bg="white")
+# memory incidence stuff
+
+
+tplot <- tfh_clin%>%
+  filter(incidence_type %in% c("inf_0_12", "inf_12_24"), cell_pop%in%c("Th_memory"))%>%
+  ggplot(aes(x=factor(incidence_value), y=cell_freq,fill=factor(incidence_value)))+
+  geom_boxplot()+
+  geom_point()+
+  facet_wrap(incidence_type~cell_pop, scales="free")+
+  scale_fill_manual(values=incidence_cols)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+
+
+bplot <- abc_clin%>%
+  filter(incidence_type %in% c("inf_0_12", "inf_12_24"), cell_pop %in% c("memory_b"))%>%
+  ggplot(aes(x=factor(incidence_value), y=cell_freq,fill=factor(incidence_value)))+
+  geom_boxplot()+
+  geom_point()+
+  facet_wrap(incidence_type~cell_pop, scales="free")+
+  scale_fill_manual(values=incidence_cols)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+
+patch <- bplot / tplot
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/memory_incidence_cont.png", patch, height = 8, width=6, dpi=444, bg="white")
+
+
+
+tplot2 <- tfh_clin%>%
+  filter(incidence_type %in% c("inf_0_12", "inf_12_24"), cell_pop%in%c("Th_memory"))%>%
+  mutate(incidence_dich = if_else(incidence_value>0, "some infection", "no infection"))%>%
+  ggplot(aes(x=factor(incidence_dich), y=cell_freq,fill=factor(incidence_dich)))+
+  geom_boxplot()+
+  facet_wrap(incidence_type~cell_pop, scales="free")+
+  scale_fill_manual(values=incidence_cols[c(1,5)])+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+
+
+bplot2 <- abc_clin%>%
+  filter(incidence_type %in% c("inf_0_12", "inf_12_24"), cell_pop %in% c("memory_b"))%>%
+  mutate(incidence_dich = if_else(incidence_value>0, "some infection", "no infection"))%>%
+  ggplot(aes(x=factor(incidence_dich), y=cell_freq,fill=factor(incidence_dich)))+
+  geom_boxplot()+
+  facet_wrap(incidence_type~cell_pop, scales="free")+
+  scale_fill_manual(values=incidence_cols[c(1,5)])+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+patch2 <- bplot2 / tplot2
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/figures_for_paper/memory_incidence_dich.png", patch2, height = 8, width=6, dpi=444, bg="white")
+
+big_thing <- full_join(abc_combo_batch, tfh_combo_batch, by = "id")
+
+big_thing %>%
+  # pivot_wider(names_from = cell_pop, values_from = cell_freq)%>%
+  ggplot(., aes(x=memory_b, y=Th_memory))+
+  geom_point()+
+  ggpmisc::stat_poly_eq()+
+  geom_smooth(method="lm")+
+  theme_minimal()

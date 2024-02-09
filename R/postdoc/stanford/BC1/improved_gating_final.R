@@ -235,7 +235,7 @@ tfh_pop_ab_purf <- long_true_combo %>%
   group_by(cell_pop)%>%
   mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p))
 
-tfh_sigs <- filter(cell_pop_ab_purf, cell_ab_model_summary_padj<0.1)
+tfh_sigs <- filter(tfh_pop_ab_purf, tfh_pop_ab_purf<0.1)
 tfh_sigs
 
 #no padj sig, not even a p
@@ -272,20 +272,23 @@ long_true_combo %>%
 
 
 cell_pop_incidence_purf <- long_true_combo %>%
-  filter(cell_pop %in% c("Tfh_Th1", "Tfh_Th1_Th17",  "Tfh_Th17", "Tfh_Th2"), Tfh_count>100, timepoint==3)%>%
+  # filter(cell_pop %in% c("Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2"), Tfh_count>100, timepoint==3)%>%
+  filter(Tfh_count>100, timepoint==3)%>%
+  select(-starts_with("any_"))%>%
   pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
+  filter(Incidence_Type %notin% c("symp_6_12"), !duplicated(id))%>%
   group_by(cell_pop, Incidence_Type)%>%
   mutate(subset_count=round(cell_freq/100*Tfh_count), id=factor(id))%>%
   mutate(cell_freq_estimate=subset_count/Tfh_count)%>%
   nest() %>%
-  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., cell_freq_estimate ~ Incidence_Value, random = ~1 | id, family=binomial, weights = Tfh_count)))%>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value~cell_freq_estimate , random = ~1 | id, family=poisson)))%>%
   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
   mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
   group_by(cell_pop)%>%
   mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
 
-sigs <- filter(cell_pop_incidence_purf, cell_incidence_model_summary_padj<0.1)
-sigs
+sigs <- filter(cell_pop_incidence_purf, cell_incidence_model_summary_padj<1)
+
 
 hmm <- long_true_combo %>%
   filter(cell_pop %in% c("Tfh_Th1", "Tfh_Th1_Th17",  "Tfh_Th17", "Tfh_Th2"),
@@ -359,7 +362,7 @@ flipped_cell_pop_incidence_purf <- long_true_combo %>%
 
 sigs <- flipped_cell_pop_incidence_purf %>%
   dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
-  filter(cell_incidence_model_summary_padj<0.1)
+  filter(cell_incidence_model_summary_p<0.1)
 
 sigs
 
@@ -431,11 +434,11 @@ tfh_incidence_purf <- long_tfh_clinab %>%
   
   # mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value ~ cell_freq, random = ~1 | id, family=poisson)))%>%
   
-  mutate(cell_incidence_model=map(data, ~MASS::glm.nb(Incidence_Value ~ cell_freq + id, data=.)))%>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value~cell_freq , random = ~1 | id,family=poisson)))%>%
   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
   
-  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
-  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
+  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
   group_by(Incidence_Type)%>%
   mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
 
@@ -455,9 +458,10 @@ tfh_ab_purf <- long_tfh_clinab %>%
   mutate(cell_ab_model_summary_p=map_dbl(cell_ab_model_summary, ~.$tTable[10]))%>%
   group_by(cell_pop)%>%
   mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p))
-# solo abc ####
 
-abc_combo_batch
+tfh_ab_sigs <- tfh_ab_purf%>%
+  filter(cell_ab_model_summary_padj<0.1)
+# solo abc ####
 
 
 abc_clinab <- right_join(combo_data, abc_combo_batch, by="id")
