@@ -40,7 +40,8 @@ malaria_calendar <- mic_drop %>%
 
 
 failure_plus_previous_episode <- malaria_calendar %>%
-  filter(time_to_previous_symptomatic_date < 14 | time_to_next_symptomatic_date < 14) %>%
+  filter(time_to_previous_symptomatic_date < 21 | time_to_next_symptomatic_date < 21) %>%
+  # filter(time_to_next_symptomatic_date > 1) %>%
   mutate(visit_id = paste(id, date, sep=""))
 
 
@@ -56,13 +57,18 @@ mic_drop %>%
 
 two_week_symptoms_plot <- mic_drop %>%
   filter(id %in% unique(failure_plus_previous_episode$id), !is.na(any_parsdens))%>%
+  group_by(id, date)%>%
+  mutate("same_day"=ifelse(n()>1, "same day", "no"))%>%
+  ungroup()%>%
   # mutate(id_dob=paste(id, dob))
+  # mutate(same_day=ifelse(time_to_next_symptomatic_date==0, "same day", "no"))%>%
   ggplot(., aes(x=date, y=as.numeric(any_parsdens)+0.001))+
   geom_point(aes(color=factor(mstatus, #levels=c("0",
                                          #       "1",
                                           #      "2",
                                            #     "3")
-                              )))+
+                              ),
+                 shape=same_day))+
   geom_line(alpha=0.3, aes(group=id))+
   # ggrepel::geom_text_repel(data=label_df, aes(x=AGE, y=as.numeric(any_parsdens), label=age_in_days))+
   facet_wrap(~ id,nrow = 4)+
@@ -79,4 +85,4 @@ two_week_symptoms_plot <- mic_drop %>%
   theme(axis.text.x = element_text(size=5, angle=90, vjust=0.5))
 
 
-ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/figures/17_days_symptoms.png", two_week_symptoms_plot, width = 14, height=8, bg="white")
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/figures/21_days_symptoms.png", two_week_symptoms_plot, width = 24, height=8, bg="white")

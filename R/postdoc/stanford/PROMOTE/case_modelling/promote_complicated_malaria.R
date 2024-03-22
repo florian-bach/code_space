@@ -1,6 +1,6 @@
 library(tidyr)
 library(dplyr)
-library(ggplot2)
+library(ggplot2); theme_set(theme_bw())
 library(ggside)
 library(visreg)
 library(mediation)
@@ -33,7 +33,7 @@ age_cat_palette <- c(rgb(5,50,80, maxColorValue = 255),
 promote_data <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL.dta")
 
 # restrict data to only include incident malaria (i.e. diagnosis more than 14 days after last treatment)
-malaria_only <- filter(promote_data, incidentmalaria==1)
+malaria_only <- filter(promote_data, mstatus %in% c(1,2))
 
 # make a dataframe with only the kids that did get complicated malaria
 kids_with_complicated_malaria <- unique(subset(promote_data, promote_data$complicatedmalaria==1, select = id))
@@ -41,7 +41,7 @@ kids_with_complicated_malaria <- unique(subset(promote_data, promote_data$compli
 # select relevant columns, recode disease columns to something understandable
 smaller_data <- promote_data %>%
   # filter(id %in% kids_with_complicated_malaria$id ) %>%
-  dplyr::select(id, date, dob, age, temp, hb, uniqueid, incidentmalaria, complicatedmalaria, severe, parsdens) %>%
+  dplyr::select(id, date, dob, age, temp, hb, uniqueid, mstatus, incidentmalaria, complicatedmalaria, severe, parsdens) %>%
   mutate(complicatedmalaria=ifelse(is.na(complicatedmalaria), "mild", "complicated")) %>%
   mutate(severe=ifelse(is.na(severe), "non_severe", "severe")) %>%
   mutate(incidentmalaria=ifelse(is.na(incidentmalaria), "not_incident", "incident")) 
@@ -56,16 +56,24 @@ smaller_data <- promote_data %>%
 # look at only incident episodes; split data by individual, make column indicating the total number of infections for each kid;
 # add column for order of infection, add single column for disease status (comp and severe into one)
 complicated_data <- smaller_data %>%
-  filter(incidentmalaria=="incident")%>%
+  filter(mstatus %in% c(1,2))%>%
   mutate(id=factor(id))%>%
   group_by(id) %>%
   add_count(name="total_n_infection") %>%
   arrange(age) %>%
-  mutate(n_infection = seq(1, max(total_n_infection))) %>%
+  mutate(n_infection = seq(1, max(total_n_infection)))%>%
   mutate(disease=ifelse(severe=="severe", "complicated",
                         ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")
-    ))
-  
+    ))%>%
+  # mutate(dummy=as.numeric(if_else(any(incidentmalaria=="not_incident"), which(incidentmalaria=="not_incident"), 100)))%>%
+  group_by(id) %>%
+  #there are 2 complicated episodes that are non-incident, and 11 total. we keep the later one for all, allowing resolution of complicated episodes.
+  mutate(when_not_incident=ifelse(any(incidentmalaria=="not_incident"), which(incidentmalaria=="not_incident"), 200))%>%
+  mutate(n_infection=ifelse(n_infection>=when_not_incident, n_infection-1, n_infection))%>%
+  group_by(id, n_infection)%>%
+  slice_max(order_by = date, n=1, with_ties = FALSE)
+
+
 
 total_infections <- complicated_data %>%
   group_by(n_infection) %>%
@@ -189,18 +197,17 @@ ggplot(complicated_data, aes(x=age, y=comp_num))+
 
 # streamlined code ####
 
-
 promote_data <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL.dta")
 
 # restrict data to only include incident malaria 
-malaria_only <- filter(promote_data, incidentmalaria==1)
+malaria_only <- filter(promote_data, mstatus %in% c(1,2))
 
 # make a dataframe with only the kids that did get complicated malaria
 kids_with_complicated_malaria <- unique(subset(promote_data, promote_data$complicatedmalaria==1, select = id))
 
 # select relevant columns, recode disease columns to something human-readable
 smaller_data <- promote_data %>%
-  dplyr::select(id, date, dob, age, temp, hb, uniqueid, incidentmalaria, complicatedmalaria, severe, parsdens) %>%
+  dplyr::select(id, date, dob, age, temp, hb, uniqueid, mstatus, incidentmalaria, complicatedmalaria, severe, parsdens, tempgrade) %>%
   mutate(complicatedmalaria=ifelse(is.na(complicatedmalaria), "uncomplicated", "complicated")) %>%
   mutate(severe=ifelse(is.na(severe), "non_severe", "severe")) %>%
   mutate(incidentmalaria=ifelse(is.na(incidentmalaria), "not_incident", "incident")) %>%
@@ -212,7 +219,7 @@ smaller_data <- promote_data %>%
 # look at only incident episodes; split data by individual, make column indicating the total number of infections for each kid;
 # add column for order of infection, add single column for disease status
 complicated_data <- smaller_data %>%
-  filter(incidentmalaria=="incident")%>%
+  filter(mstatus %in% c(1,2))%>%
   group_by(id) %>%
   add_count(name="total_n_infection") %>%
   arrange(age) %>%
@@ -222,8 +229,14 @@ complicated_data <- smaller_data %>%
                         ifelse(complicatedmalaria=="complicated", "complicated", "uncomplicated")),
          comp_num=ifelse(complicatedmalaria=="complicated", 1, 0)
   )%>%
+  mutate(first_inf_before_two = if_else(age_at_first<2/12, "before 4 months", "after 4 months"))%>%
+  mutate(first_inf_before_three = if_else(age_at_first<3/12, "before 4 months", "after 4 months"))%>%
   mutate(first_inf_before_four = if_else(age_at_first<4/12, "before 4 months", "after 4 months"))%>%
-  mutate(first_inf_before_six = if_else(age_at_first<0.5, "before 6 months", "after 6 months"))
+  mutate(first_inf_before_six = if_else(age_at_first<0.5, "before 6 months", "after 6 months"))%>%
+  mutate(when_not_incident=ifelse(any(incidentmalaria=="not_incident"), which(incidentmalaria=="not_incident"), 200))%>%
+  mutate(n_infection=ifelse(n_infection>=when_not_incident, n_infection-1, n_infection))%>%
+  group_by(id, n_infection)%>%
+  slice_max(order_by = date, n=1, with_ties = FALSE)
   
 
 # calculate total number of observations for 1st, 2nd infection and so on
@@ -255,6 +268,9 @@ comp_model_fun <- function(x){
 
 #calculate SE for plotting
 
+
+
+
 comp_risk_n_infection_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
@@ -269,10 +285,43 @@ comp_risk_n_infection_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))
 
 ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/comp_risk_n_infection.png", comp_risk_n_infection_plot, height = 3, width=5, dpi=444, bg="white")
 
+ 
+promote_comp_cases_plot <- complicated_data %>%
+  arrange(desc(factor(complicatedmalaria)))%>%
+  ggplot(., aes(x=n_infection, y=parsdens))+
+  geom_point(aes(color=factor(complicatedmalaria, levels = c("complicated", "uncomplicated"))))+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", width = 0.5, color="darkred")+
+  # geom_line(alpha=0.3, aes(group=id))+
+  # geom_boxplot(aes(group=factor(AGE)))+
+  # stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+  #              geom = "crossbar", width = 0.8, color="white")+
+  ggtitle("")+
+  ylab("qPCR Parasite Density")+
+  xlab("n_infection")+
+  scale_y_log10(limits=c(0.9, 10^6), breaks=c(10^0, 10^2, 10^4, 10^6), labels=scales::label_number())+
+  scale_x_continuous(limits = c(0,10), breaks = seq(1,10))+
+  annotation_logticks(sides = "l", )+
+  theme_minimal()+
+  # facet_wrap(~mstatus)+
+  theme(legend.title = element_blank())+
+  scale_color_manual(values = c(comp_pal, "quinine"="purple"))
 
 
 
-complicated_data %>%
+
+promote_comp <-  promote_comp_cases_plot + comp_risk_n_infection_plot + plot_annotation(
+  title = 'Complicated Disease in PROMOTE',
+  subtitle = '')+
+  theme(plot.tag = element_text(size = 10, hjust = 0, vjust = 0))
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/promote_comp.png", promote_comp, width=8, height=4, bg="white", dpi=444)
+
+
+
+
+
+ complicated_data %>%
   filter(n_infection<7)%>%
   ggplot(., aes(y=age, x=complicatedmalaria, group=factor(complicatedmalaria, levels = c("uncomplicated", "complicated")), fill=complicatedmalaria))+
   facet_wrap(~n_infection)+
@@ -344,7 +393,6 @@ risk_by_n_infection_plot <- ggplot(complicated_df, aes(x=n_infection, y=risk))+
   scale_x_continuous(breaks = seq(1, 10))+
   ylab("Risk of Complicated Episodes")+
   xlab("Order of Infection")
-
 
 
 complicated_data$is_first <- ifelse(complicated_data$n_infection==1, 1, 0)
@@ -473,6 +521,26 @@ ggsave(filename = file_name, height=8, width=12, bg="white", dpi=500)
 
 }
 
+# tempgrade distribution ####
+
+tempgrade_plot <- complicated_data %>%
+  group_by(n_infection, tempgrade)%>%
+  summarise("n_grade"=n())%>%
+  ungroup()%>%
+  group_by(n_infection)%>%
+  add_count(name="n_count", wt=n_grade)%>%
+  mutate("temp_grade_perc"=n_grade/n_count)%>%
+  ggplot(aes(x=factor(n_infection), y=temp_grade_perc))+
+  geom_bar(stat = "identity", aes(fill=factor(tempgrade)))+
+  scale_y_continuous(labels = scales::label_percent())+
+  scale_fill_manual(values=viridis::inferno(n=5))+
+  ggtitle("fever distribution stable\nin the first year of life")+
+  theme(axis.title = element_blank(), 
+        legend.title = element_blank())
+  
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/tempgrade_plot.png", width=4, height=3, bg='white')
+
 # sandbox / stuff that's cut out ####
 
 # restricting data to only kids that will eventually get complicated disease ##
@@ -592,6 +660,41 @@ parsdens_down_arrow <- parsdens_arrow_data %>%
 
 
 ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/parsdens_down_arrow_plot.png", parsdens_down_arrow, height = 3, width=4, dpi=444, bg="white")
+
+
+
+
+# calculate confidence interval for complicated malaria risk based on whether first infections happen
+# before or after 2 months
+
+age_first_nest2 <- complicated_data %>%
+  group_by(first_inf_before_four) %>%
+  nest() %>%
+  mutate(confy_model=purrr::map(data, ~glm(comp_num~1, data=., family="binomial")),
+         coef=purrr::map(confy_model, ~exp(coef(.))),
+         upper=purrr::map(confy_model, ~exp(confint(.))[2]),
+         lower=purrr::map(confy_model, ~exp(confint(.))[1]))%>%
+  unnest(data)%>%
+  dplyr::select(n_infection, age_at_first, coef, upper, lower, first_inf_before_four)%>%
+  unnest()
+
+
+# first_inf_model <- lme4::glmer(comp_num~first_inf_before_four+(1|id), data=complicated_data, family = "binomial")
+# first_inf_model <- glm(comp_num~first_inf_before_four, data=complicated_data, family = "binomial")
+
+
+overall_risk_age_at_first_confint4<- ggplot(age_first_nest2, aes(x = first_inf_before_four, y = coef, color=first_inf_before_four))+
+  geom_point(aes(x = first_inf_before_four, y = coef)) + 
+  geom_linerange(aes(x = first_inf_before_four,  ymin = lower, ymax = upper), linewidth = 1)+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0, 0.25), labels = scales::label_percent())+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated Malaria")+
+  scale_color_manual(values=age_cat_palette)+
+  theme(axis.text.x = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/overall_risk_age_2_at_first_confint.png", overall_risk_age_at_first_confint4, height = 3, width=6, dpi=444, bg="white")
 
 
 
@@ -824,3 +927,55 @@ ggExtra::ggMarginal(p, groupColour = TRUE, type = "boxplot", )
 #   scale_fill_manual(values=c("magenta4", "darkred"))+
 #   theme_minimal()
 # 
+
+
+# jason models ####
+
+
+firsts <- complicated_data %>%
+  # filter(n_infection <=3)%>%
+  mutate(binomial=if_else(complicatedmalaria=="complicated", 1, 0))
+# 
+# arrange(desc(disease))%>%
+# ggplot(., aes(x=age, y=disease, color=disease))+
+# geom_point()+
+# theme_minimal()+
+# theme()
+
+model <- glm(binomial~age, data=firsts, family="binomial")
+summary(model)
+
+
+complicated_data %>%
+  filter(n_infection ==2)%>%
+  # mutate(binomial=if_else(complicatedmalaria=="complicated", 1, 0))%>%
+  arrange(desc(disease))%>%
+  ggplot(., aes(x=age, y=disease, color=disease))+
+  geom_point()+
+  theme_minimal()+
+  theme()
+
+
+
+complicated_df <- as.data.frame(table(firsts$age_months, firsts$complicatedmalaria))
+colnames(complicated_df) <- c("age_months", "disease", "complicated_episodes")
+
+# only include complicated (not uncomplicated) cases, inlcude more summary stats
+complicated_df <- subset(complicated_df, complicated_df$disease=="complicated")
+complicated_df$total_infections <- total_infections_by_age$total_infections
+complicated_df$risk <- complicated_df$complicated_episodes/complicated_df$total_infections
+
+
+
+# comp_risk_n_infection_plot <-
+ggplot(complicated_df, aes(x=age_months, y=risk))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  geom_smooth()+
+  ylab("Risk of Complicated Malaria\n")+
+  ggtitle("in the first 3 infections of life")+
+  #geom_text(aes(y=0.19, label= paste0("frac(",complicated_episodes, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  # scale_x_continuous(breaks = 1:12)+
+  # scale_y_continuous(limits = c(0,0.2), labels = scales::label_percent())+
+  xlab("Age in Months")
+

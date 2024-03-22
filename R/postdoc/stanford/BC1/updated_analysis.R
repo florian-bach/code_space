@@ -147,6 +147,7 @@ histopath_wilcox <- long_raw_dfff %>%
   pivot_wider(names_from = anyHPfinalx, values_from = conc)%>%
   nest()%>%
   mutate(wilcox=map(data, ~wilcox.test(.$`No Pathology`, .$`Placental Malaria`)))%>%
+  mutate(wilcox2=map(data, ~wilcox.test(.$`No Pathology`, .$`Placental Malaria`)))%>%
   mutate(raw_p=map_dbl(wilcox, ~.$p.value))%>%
   ungroup()%>%
   mutate(padj=p.adjust(raw_p))

@@ -217,8 +217,8 @@ twelve_cor_combo <- very_long_combo_combo %>%
   pivot_wider(names_from = antigen, values_from = conc)
 
 
-
-fave_antigens <- c("AMA1", "CSP", "HSP40", "MSP1", "SBP1", "SEA", "TT")
+# these have padj < 0.1;  > raw_p range 0.009 - 0.015
+placental_antigens <- c("GEXP", "TT", "AMA1", "GLURP", "SEA")
 
 # fig 1. gestational age, maternal malaria, 0 infection kids ####
 # Ab responses stratified by gestational age,
@@ -226,7 +226,7 @@ fave_antigens <- c("AMA1", "CSP", "HSP40", "MSP1", "SBP1", "SEA", "TT")
 # Ab responses of no-inf kids and effects later on
 
 gestages_cord <- combo_data %>%
-  filter(!is.na(gestage), antigen %in% fave_antigens, timepointf=="Cord Blood", is.finite(conc))%>%
+  filter(!is.na(gestage), antigen %in% placental_antigens, timepointf=="Cord Blood", is.finite(conc))%>%
   mutate(gestagef=factor(if_else(gestage<28, "<28", 
                                  if_else(gestage>=28 & gestage<32, "28-32", 
                                          if_else(gestage>=32 & gestage<37, "32-37", 
@@ -252,14 +252,15 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 
 cord_blood_matmal <- combo_data %>%
-  filter(timepointf=="Cord Blood", !is.na(matmal), antigen %in% fave_antigens, is.finite(conc))%>%
+  filter(timepointf=="Cord Blood", !is.na(matmal), antigen %in% placental_antigens, is.finite(conc))%>%
   ggplot(., aes(x=matmal, y=conc))+
-  geom_hline(data=filter(cutoff_df, antigen %in% fave_antigens), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
+  geom_hline(data=filter(cutoff_df, antigen %in% placental_antigens), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
   geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=matmal), outlier.shape = NA)+
-  facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  geom_boxplot(aes(fill=matmal), outlier.shape = NA,)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free_y", nrow=1)+
   ggtitle("Maternal Pf Infection Negatively Impacts Antibody Transfer")+
   ylab("Concentration")+
+  # scale_y_continuous(limits = c(-5, 2))+
   theme_minimal()+
     theme(
         legend.position="bottom",
@@ -269,7 +270,7 @@ cord_blood_matmal <- combo_data %>%
         strip.text = element_text())+
   scale_fill_manual(values=rev(time_palette))
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/cord_blood_matmal.png", cord_blood_matmal, height=3, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/cord_blood_matmal.png", cord_blood_matmal, height=4.4, width=8, bg="white", dpi=444)
 
 
 
@@ -764,8 +765,9 @@ tfh_incidence_purf <- long_tfh_clinab %>%
   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
   mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
-  group_by(Incidence_Type)%>%
-  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+  ungroup()%>%
+  # group_by(Incidence_Type)%>%
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="fdr"))
 
 tfh_incidence_sigs <- tfh_incidence_purf %>%
   dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
@@ -864,7 +866,7 @@ abc_incidence_purf <- long_abc_clinab %>%
   #poisson p
   mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
   group_by(Incidence_Type)%>%
-  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="fdr"))
 
 abc_incidence_sigs <- abc_incidence_purf %>%
   dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
@@ -922,9 +924,6 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 
 # fig 5 antibody ~ cell interactions ####
-
-
-
 tfh_ab_purf <- long_tfh_clinab %>%
   filter(timepoint==3)%>%
   group_by(cell_pop, antigen)%>%
@@ -935,7 +934,7 @@ tfh_ab_purf <- long_tfh_clinab %>%
   mutate(cell_ab_model_summary=map(cell_ab_model, ~summary(.)))%>%
   mutate(cell_ab_model_summary_p=map_dbl(cell_ab_model_summary, ~.$tTable[10]))%>%
   group_by(cell_pop)%>%
-  mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p))
+  mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p, method="fdr"))
 
 tfh_ab_sigs <- tfh_ab_purf%>%
   filter(cell_ab_model_summary_padj<0.1)
@@ -945,7 +944,7 @@ tfh_ab_broomer <- long_tfh_clinab%>%
   filter(!duplicated(id))%>%
   do(broom::tidy(cor.test(.$cell_freq, .$conc, method="spearman")))%>%
   ungroup()%>%
-  mutate("p_adj"=p.adjust(p.value, method="fdr" ))
+  mutate("p_adj"=p.adjust(p.value, method="fdr"))
 
 
 # needs work
@@ -961,7 +960,7 @@ abc_ab_purf <- long_abc_clinab %>%
   mutate(cell_ab_model_summary=map(cell_ab_model, ~summary(.)))%>%
   mutate(cell_ab_model_summary_p=map_dbl(cell_ab_model_summary, ~.$tTable[10]))%>%
   group_by(cell_pop)%>%
-  mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p))
+  mutate(cell_ab_model_summary_padj= p.adjust(cell_ab_model_summary_p, method="fdr"))
 
 abc_ab_sigs <- abc_ab_purf%>%
   filter(cell_ab_model_summary_padj<0.1)
