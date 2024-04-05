@@ -2,7 +2,7 @@ histopath_lm <- combo_data %>%
   filter(!is.na(matmal), !is.na(conc), timepoint==1)%>%
   group_by(antigen)%>%
   nest()%>%
-  mutate(model=map(data, ~lm(conc~matmal, data = .)))%>%
+  mutate(model=map(data, ~lm(log10(conc)~matmal, data = .)))%>%
   mutate("no_vs_non_placental" = map_dbl(model, ~summary(.)$coefficients[11]))%>%
   mutate("no_vs_placental" = map_dbl(model, ~summary(.)$coefficients[12]))%>%
   ungroup()%>%
@@ -14,10 +14,11 @@ histopath_glm <- combo_data %>%
   filter(!is.na(anyHPfinal), anyHPfinal!=9, !is.na(conc), timepoint==1)%>%
   group_by(antigen)%>%
   nest()%>%
-  mutate(model=map(data, ~glm(anyHPfinal~conc, data = ., family="binomial")))%>%
+  mutate(model=map(data, ~glm(anyHPfinal~log10(conc), data = ., family="binomial")))%>%
   mutate("any_vs_placental" = map_dbl(model, ~summary(.)$coefficients[8]))%>%
   ungroup()%>%
-  mutate("any_vs_placental_adj" = p.adjust(any_vs_placental, method="fdr"))
+  mutate("any_vs_placental_adj" = p.adjust(any_vs_placental, method="fdr"))%>%
+  filter(any_vs_placental_adj<0.1)
 
 
 
@@ -46,11 +47,16 @@ inf_012_matmal_frac <- combo_data %>%
   mutate(n=if_else(is.na(n), 0, n), "frac"=n/sum)%>%
   ggplot(., aes(x=inf_0_12, y=frac, fill=matmal))+
   geom_bar(stat="identity")+
-  geom_text(aes(x=inf_0_12, label=sum), y=0.75)+
+  geom_text(aes(x=inf_0_12, label=paste0("n=", sum, sep=""), y=0.75))+
   xlab("Number of parasitaemic episodes in the first year of life")+
   ylab("Fraction of maternal malaria status")+
   scale_fill_manual(values=rev(time_palette))+
-  theme_minimal()
+  theme_minimal()+
+  theme(legend.title = element_blank())
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/inf_012_matmal_frac.png", inf_012_matmal_frac, height=3, width=6, bg="white", dpi=444)
+
+
 
 any_inf_012_matmal_frac <- combo_data %>%
   filter(!duplicated(id), !is.na(matmal))%>%
@@ -108,12 +114,16 @@ inf_012_matmal_hist <- combo_data %>%
 
 
 matmal_df <- combo_data %>%
-  filter(!duplicated(id), !is.na(matmal))
+  filter(!duplicated(id), !is.na(matmal))%>%
+  mutate(any_inf_0_12=if_else(inf_0_12==0, 0, 1))
 
 # significant
 matmal_glm <- glm(data=matmal_df, inf_0_12~matmal, family=poisson)
 #significant
 matmal_glm2 <- glm(data=matmal_df, inf_0_12~matmal+id, family=poisson)
+# p=0.115
+matmal_glm3 <- glm(data=matmal_df, any_inf_0_12~matmal, family=binomial)
+matmal_glm4 <- glm(data=matmal_df, inf_0_12~matmal)
 
 #significant
 matmal_glmm1 <- MASS::glmmPQL(data=matmal_df, inf_0_12~matmal , random = ~1 | id,family=poisson)

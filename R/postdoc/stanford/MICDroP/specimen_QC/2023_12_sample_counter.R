@@ -5,10 +5,11 @@ library(xlsx)
 `%notin%` <- Negate(`%in%`)
 is.blank <- function(x){sapply(x, function(y) {ifelse(y=="", TRUE, FALSE)})}
 
-raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_12/MICDSpecimenBoxDec23_formerge.dta")
-bdays <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_10/MICDSpecimenBoxOct23_withclinical.dta", col_select = c(id, dob))
-bdays <- bdays[!duplicated(bdays),]
-raw_data$dob <- bdays$id[match(raw_data$id, bdays$id)]
+raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_12/MICDSpecimenBoxDec23_withclinical.dta")
+# bdays <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_10/MICDSpecimenBoxDec23_withclinical.dta", col_select = c(id, dob))
+# bdays <- bdays[!duplicated(bdays),]
+# 
+# raw_data$dob <- bdays$id[match(raw_data$id, bdays$id)]
 
 
 sample_ages <- c(8, 24, 52, 68, 84, 104, 120)
@@ -19,7 +20,7 @@ sample_ranges <- sort(c(sample_ages, sample_ages_minus, sample_ages_plus))
 
 long_specimen_data <- raw_data %>%
   mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
-  select(id, dob, date, flo_age_in_wks, SampleDate, PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR) %>%
+  select(id, dob, date, flo_age_in_wks, SampleDate, PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, visittype) %>%
   mutate("visit_id"=paste(id, date, sep="_"))%>%
   pivot_longer(cols = c(PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
   mutate(subject_id=id)%>%
@@ -41,12 +42,12 @@ routine_ish_visits <- long_specimen_data %>%
 
 
 
-# no_visit_type_recorded <- routine_ish_visits %>%
-#   filter(Specimen_ID != "" & visittype %notin% c(0, 1, 2))
+no_visit_type_recorded <- routine_ish_visits %>%
+  filter(Specimen_ID != "" & visittype %notin% c(0, 1, 2))
 
 n_distinct(no_visit_type_recorded$visit_id)
 n_distinct(no_visit_type_recorded$id)
-#766; 739
+#776; 746
 
 
 # subset routine visits with no sample code
@@ -55,7 +56,7 @@ visits_missing_samples <- routine_ish_visits %>%
 
 n_distinct(visits_missing_samples$visit_id)
 n_distinct(visits_missing_samples$id)
-#806 visits; 521 children
+#1632 visits; 854 children
 
 
 # count the number of missing samples per visit, subset to only include visits where all are missing
@@ -63,36 +64,56 @@ visits_missing_all_samples <- visits_missing_samples %>%
   group_by(visit_id)%>%
   mutate("n_missing"=n())%>%
   filter(n_missing==4, !duplicated(visit_id))
-# 25 visits miss all samples 
+# 45 visits miss all samples 
 
 
 # how many individuals have attended each timepoint where samples were taken;
 # sometimes samples are taken but visit-type is not recorded
-# the 11 extra visits exist because the enrolment visit was like a day before the routine visit 
+# the 12 extra visits exist because the enrolment visit was like a day before the routine visit; why?
 participant_summary <- routine_ish_visits %>%
   # mutate("visittype_edit"=ifelse(!is.na(visittype), visittype, ifelse(visit_id %in% no_visit_type_recorded, 1, NA)))%>%
   filter(visittype %notin% c(2, NA))%>%
   group_by(Timepoint_in_weeks) %>%
   summarise("Number_of_Individuals"=n_distinct(subject_id), "Number_of_Visits"=n_distinct(visit_id))
 
+# 
+# multiple_8 <- routine_ish_visits %>%
+#   # mutate("visittype_edit"=ifelse(!is.na(visittype), visittype, ifelse(visit_id %in% no_visit_type_recorded, 1, NA)))%>%
+#   filter(visittype %notin% c(2, NA))%>%
+#   group_by(Timepoint_in_weeks, subject_id)%>%
+#   filter(n_distinct(visit_id)>1)
+# n_distinct(multiple_8$id)
+# [1] 12
 
+long_specimen_data %>%
+  group_by(Timepoint_in_weeks)%>%
+  summarise("n"=n_distinct(id))
 
-participants_with_8 <- long_specimen_data %>%
-  filter(Timepoint_in_weeks==8)
-
-n_distinct(participants_with_8$id)
+# Timepoint_in_weeks     n
+# <dbl> <int>
+#   1                  8   919
+# 2                 24   901
+# 3                 52   612
+# 4                 68   436
+# 5                 84   218
+# 6                104     4
+# 7                999   952 
 
 participants_with_no_8 <- raw_data$id[raw_data$id %notin% participants_with_8$id]
+
+n_distinct(participants_with_8$id)
+# 919
 
 #correct for withdrawal
 withdrawn <- raw_data %>%
   filter(!is.na(raw_data$withdrawaldate))%>%
-  mutate("withdrawal_age" = withdrawaldate-dob)%>%
-  dplyr::select(id, withdrawal_age)%>%
+  mutate("withdrawal_age" = withdrawaldate-dob,
+         "withdrawal_age_in_wks" = round(as.integer(withdrawal_age)/7))%>%
+  dplyr::select(id, withdrawal_age, withdrawal_age_in_wks)%>%
   distinct()
 
 withdrawn_before_8 <- withdrawn%>%
-  filter(withdrawal_age<65)
+  filter(withdrawal_age_in_wks<8)
 # ten people, exactly how many 8 week visits are missing
 
 visits_with_samples_taken <- routine_ish_visits %>%
@@ -130,7 +151,7 @@ collection_rate_plot <-   sample_counts%>%
   theme_minimal()+
   theme(legend.position = "none")
 
-ggsave("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_10/collection_rate_plot.png", collection_rate_plot, bg="white", dpi=444, width=8, height=4)
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_12/collection_rate_plot.png", collection_rate_plot, bg="white", dpi=444, width=8, height=4)
 
 
 indie_samples <- routine_ish_visits %>%
@@ -182,7 +203,7 @@ n_sample_summary_plot  <- n_sample_summary %>%
         # axis.text.x = element_text(angle=90)
   )
 
-ggsave("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_10/n_sample_summary_plot.png", n_sample_summary_plot, bg="white", dpi=444, width=8, height=4)
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_12/n_sample_summary_plot.png", n_sample_summary_plot, bg="white", dpi=444, width=8, height=4)
 
 
 # visits without samples
@@ -384,8 +405,8 @@ write.csv(broken_bb_individuals, "/Users/fbach/Box Sync/MIC_DroP IPTc Study/Flor
 # 
 # participants_with_no_8 <- raw_data$id[raw_data$id %notin% participants_with_8$id]
 # 
-# enrolment <- raw_data%>%
-#   filter(visittype==0)
+enrolment <- raw_data%>%
+   filter(visittype==0)
 # 
 eight <- long_specimen_data%>%
   filter(Timepoint_in_weeks==8)
