@@ -1,12 +1,12 @@
-library(dplyr)
 library(tidyr)
+library(dplyr)
 library(xlsx)
 library(ggplot2)
 
 `%notin%` <- Negate(`%in%`)
 is.blank <- function(x){sapply(x, function(y) {ifelse(y=="", TRUE, FALSE)})}
 
-raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_10/MICDSpecimenBoxOct23_withclinical.dta")
+raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_12/MICDSpecimenBoxDec23_withclinical.dta")
 
 # for finding putative sampling visits we'll filter the database to only include visits around the proper sampling timepoint dates, with a week plus/minus
 sample_ages <- c(8, 24, 52, 68, 84, 104, 120)

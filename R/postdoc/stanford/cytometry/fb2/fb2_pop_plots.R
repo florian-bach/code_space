@@ -1,110 +1,110 @@
 library(ggplot2); theme_set(theme_minimal())
 library(tidyr)
 library(dplyr)
-
-
-add_summary_rows <- function(.data, ...) {
-  group_modify(.data, function(x, y) bind_rows(x, summarise(x, ...)))
-}
-
-id_colors <- c("darkblue", "orange")
-comp_pal <- c("asymptomatic"="lightgrey", "uncomplicated"="black", "complicated"="orange", "severe"="darkred")
-
-data <- read.csv("~/postdoc/stanford/cytometry/attune/FB02/big_pop_table.csv")
-
-long_data <- data %>%
-  pivot_longer(cols=colnames(data)[2:(ncol(data)-1)], names_to="cell_pop", values_to="freq")%>%
-  mutate("sample"=X)%>%
-  select(sample, cell_pop, freq, -X.1)%>%
-  mutate(cell_pop=gsub("Lymphocytes.Single.Cells.T.Cells.", "", .$cell_pop))%>%
-  mutate("lineage"=case_when(
-    grepl("Vd2*", .$cell_pop) ~ "Vd2",
-    grepl("CD4.neg*", .$cell_pop) ~ "CD4neg",
-    grepl("^CD4..*", .$cell_pop) ~ "CD4",
-    grepl("Monocytes*", .$cell_pop) ~ "Monocyte",
-    ))%>%
-  mutate(lineage=if_else(is.na(lineage), "CD3", lineage))%>%
-  mutate(cell_pop=gsub("..Freq..of.Parent....", "", .$cell_pop))%>%
-  mutate("marker1"=case_when(
-    grepl("CD69*", .$cell_pop) ~ "CD69",
-    grepl("OX40*", .$cell_pop) ~ "OX40",
-    grepl("CD137*", .$cell_pop) ~ "CD137",
-    grepl("CD25*", .$cell_pop) ~ "CD25",
-    grepl("ICOS*", .$cell_pop) ~ "ICOS",
-    grepl("CD40L*", .$cell_pop) ~ "CD40L",
-    grepl("CD200*", .$cell_pop) ~ "CD200",
-    grepl("PDL1*", .$cell_pop) ~ "PDL1",
-    # grepl("CD4-*", .$cell_pop) ~ "CD4",
-  ))%>%
-  mutate("marker2"=case_when(
-    # grepl("CD4-*", .$cell_pop) ~ "CD4",
-    grepl("PDL1*", .$cell_pop) ~ "PDL1",
-    grepl("CD200*", .$cell_pop) ~ "CD200",
-    grepl("CD40L*", .$cell_pop) ~ "CD40L",
-    grepl("ICOS*", .$cell_pop) ~ "ICOS",
-    grepl("CD25*", .$cell_pop) ~ "CD25",
-    grepl("CD137*", .$cell_pop) ~ "CD137",
-    grepl("OX40*", .$cell_pop) ~ "OX40",
-    grepl("CD69*", .$cell_pop) ~ "CD69",
-  ))%>%
-  mutate("marker_combo"=paste(marker1, marker2))%>%
-  # mutate(marker_combo = factor(marker_combo, levels=c("OX40 CD137", "CD69 PDL1", "ICOS CD40L", "CD25 CD200")))%>%
-  mutate("quadrant"=case_when(
-    grepl("Q1..", .$cell_pop, fixed = TRUE) ~ "Q1",
-    grepl("Q2..", .$cell_pop, fixed = TRUE) ~ "Q2",
-    grepl("Q3..", .$cell_pop, fixed = TRUE) ~ "Q3",
-    grepl("Q4..", .$cell_pop, fixed = TRUE) ~ "Q4",
-    grepl("Q5..", .$cell_pop, fixed = TRUE) ~ "Q1",
-    grepl("Q6..", .$cell_pop, fixed = TRUE) ~ "Q2",
-    grepl("Q7..", .$cell_pop, fixed = TRUE) ~ "Q3",
-    grepl("Q8..", .$cell_pop, fixed = TRUE) ~ "Q4",
-    grepl("Q9..", .$cell_pop, fixed = TRUE) ~ "Q1",
-    grepl("Q10..", .$cell_pop, fixed = TRUE) ~ "Q2",
-    grepl("Q11..", .$cell_pop, fixed = TRUE) ~ "Q3",
-    grepl("Q12..", .$cell_pop, fixed = TRUE) ~ "Q4",
-    grepl("Q13..", .$cell_pop, fixed = TRUE) ~ "Q1",
-    grepl("Q14..", .$cell_pop, fixed = TRUE) ~ "Q2",
-    grepl("Q15..", .$cell_pop, fixed = TRUE) ~ "Q3",
-    grepl("Q16..", .$cell_pop, fixed = TRUE) ~ "Q4",
-    grepl("Q17..", .$cell_pop, fixed = TRUE) ~ "Q1",
-    grepl("Q18..", .$cell_pop, fixed = TRUE) ~ "Q2",
-    grepl("Q19..", .$cell_pop, fixed = TRUE) ~ "Q3",
-    grepl("Q20..", .$cell_pop, fixed = TRUE) ~ "Q4",
-    grepl("Q21..", .$cell_pop, fixed = TRUE) ~ "Q1",
-    grepl("Q22..", .$cell_pop, fixed = TRUE) ~ "Q2",
-    grepl("Q23..", .$cell_pop, fixed = TRUE) ~ "Q3",
-    grepl("Q24..", .$cell_pop, fixed = TRUE) ~ "Q4",
-  ))%>%
-  mutate("stim"=case_when(
-    grepl("3.fcs$", .$sample) ~ "iRBC",
-    grepl("7.fcs$", .$sample) ~ "iRBC",
-    grepl("4.fcs$", .$sample) ~ "media",
-    grepl("8.fcs$", .$sample) ~ "media",
-    grepl("5.fcs$", .$sample) ~ "PMA",
-    grepl("9.fcs$", .$sample) ~ "PMA",
-  ))%>%
-  mutate("serum"=case_when(
-    grepl("3.fcs$", .$sample) ~ "FBS",
-    grepl("4.fcs$", .$sample) ~ "FBS",
-    grepl("5.fcs$", .$sample) ~ "FBS",
-    grepl("7.fcs$", .$sample) ~ "autologous",
-    grepl("8.fcs$", .$sample) ~ "autologous",
-    grepl("9.fcs$", .$sample) ~ "autologous",
-  ))%>%
-  mutate("id"=case_when(
-    grepl("^B", .$sample) ~ "2003",
-    grepl("^C", .$sample) ~ "2004",
-    grepl("^D", .$sample) ~ "2005",
-    grepl("^E", .$sample) ~ "2008",
-    grepl("^F", .$sample) ~ "2009",
-    grepl("^G", .$sample) ~ "2012",
-  ))%>%
-  filter(quadrant!="Q4")%>%
-  mutate("origin"="Uganda")%>%
-  group_by(sample, lineage, marker_combo, stim,  serum, id)%>%
-  add_summary_rows(quadrant="sum(Q)",
-                   freq=sum(freq))
-  
+{# 
+# 
+# add_summary_rows <- function(.data, ...) {
+#   group_modify(.data, function(x, y) bind_rows(x, summarise(x, ...)))
+# }
+# 
+# id_colors <- c("darkblue", "orange")
+# comp_pal <- c("asymptomatic"="lightgrey", "uncomplicated"="black", "complicated"="orange", "severe"="darkred")
+# 
+# data <- read.csv("~/postdoc/stanford/cytometry/attune/FB02/big_pop_table.csv")
+# 
+# long_data <- data %>%
+#   pivot_longer(cols=colnames(data)[2:(ncol(data)-1)], names_to="cell_pop", values_to="freq")%>%
+#   mutate("sample"=X)%>%
+#   select(sample, cell_pop, freq, -X.1)%>%
+#   mutate(cell_pop=gsub("Lymphocytes.Single.Cells.T.Cells.", "", .$cell_pop))%>%
+#   mutate("lineage"=case_when(
+#     grepl("Vd2*", .$cell_pop) ~ "Vd2",
+#     grepl("CD4.neg*", .$cell_pop) ~ "CD4neg",
+#     grepl("^CD4..*", .$cell_pop) ~ "CD4",
+#     grepl("Monocytes*", .$cell_pop) ~ "Monocyte",
+#     ))%>%
+#   mutate(lineage=if_else(is.na(lineage), "CD3", lineage))%>%
+#   mutate(cell_pop=gsub("..Freq..of.Parent....", "", .$cell_pop))%>%
+#   mutate("marker1"=case_when(
+#     grepl("CD69*", .$cell_pop) ~ "CD69",
+#     grepl("OX40*", .$cell_pop) ~ "OX40",
+#     grepl("CD137*", .$cell_pop) ~ "CD137",
+#     grepl("CD25*", .$cell_pop) ~ "CD25",
+#     grepl("ICOS*", .$cell_pop) ~ "ICOS",
+#     grepl("CD40L*", .$cell_pop) ~ "CD40L",
+#     grepl("CD200*", .$cell_pop) ~ "CD200",
+#     grepl("PDL1*", .$cell_pop) ~ "PDL1",
+#     # grepl("CD4-*", .$cell_pop) ~ "CD4",
+#   ))%>%
+#   mutate("marker2"=case_when(
+#     # grepl("CD4-*", .$cell_pop) ~ "CD4",
+#     grepl("PDL1*", .$cell_pop) ~ "PDL1",
+#     grepl("CD200*", .$cell_pop) ~ "CD200",
+#     grepl("CD40L*", .$cell_pop) ~ "CD40L",
+#     grepl("ICOS*", .$cell_pop) ~ "ICOS",
+#     grepl("CD25*", .$cell_pop) ~ "CD25",
+#     grepl("CD137*", .$cell_pop) ~ "CD137",
+#     grepl("OX40*", .$cell_pop) ~ "OX40",
+#     grepl("CD69*", .$cell_pop) ~ "CD69",
+#   ))%>%
+#   mutate("marker_combo"=paste(marker1, marker2))%>%
+#   # mutate(marker_combo = factor(marker_combo, levels=c("OX40 CD137", "CD69 PDL1", "ICOS CD40L", "CD25 CD200")))%>%
+#   mutate("quadrant"=case_when(
+#     grepl("Q1..", .$cell_pop, fixed = TRUE) ~ "Q1",
+#     grepl("Q2..", .$cell_pop, fixed = TRUE) ~ "Q2",
+#     grepl("Q3..", .$cell_pop, fixed = TRUE) ~ "Q3",
+#     grepl("Q4..", .$cell_pop, fixed = TRUE) ~ "Q4",
+#     grepl("Q5..", .$cell_pop, fixed = TRUE) ~ "Q1",
+#     grepl("Q6..", .$cell_pop, fixed = TRUE) ~ "Q2",
+#     grepl("Q7..", .$cell_pop, fixed = TRUE) ~ "Q3",
+#     grepl("Q8..", .$cell_pop, fixed = TRUE) ~ "Q4",
+#     grepl("Q9..", .$cell_pop, fixed = TRUE) ~ "Q1",
+#     grepl("Q10..", .$cell_pop, fixed = TRUE) ~ "Q2",
+#     grepl("Q11..", .$cell_pop, fixed = TRUE) ~ "Q3",
+#     grepl("Q12..", .$cell_pop, fixed = TRUE) ~ "Q4",
+#     grepl("Q13..", .$cell_pop, fixed = TRUE) ~ "Q1",
+#     grepl("Q14..", .$cell_pop, fixed = TRUE) ~ "Q2",
+#     grepl("Q15..", .$cell_pop, fixed = TRUE) ~ "Q3",
+#     grepl("Q16..", .$cell_pop, fixed = TRUE) ~ "Q4",
+#     grepl("Q17..", .$cell_pop, fixed = TRUE) ~ "Q1",
+#     grepl("Q18..", .$cell_pop, fixed = TRUE) ~ "Q2",
+#     grepl("Q19..", .$cell_pop, fixed = TRUE) ~ "Q3",
+#     grepl("Q20..", .$cell_pop, fixed = TRUE) ~ "Q4",
+#     grepl("Q21..", .$cell_pop, fixed = TRUE) ~ "Q1",
+#     grepl("Q22..", .$cell_pop, fixed = TRUE) ~ "Q2",
+#     grepl("Q23..", .$cell_pop, fixed = TRUE) ~ "Q3",
+#     grepl("Q24..", .$cell_pop, fixed = TRUE) ~ "Q4",
+#   ))%>%
+#   mutate("stim"=case_when(
+#     grepl("3.fcs$", .$sample) ~ "iRBC",
+#     grepl("7.fcs$", .$sample) ~ "iRBC",
+#     grepl("4.fcs$", .$sample) ~ "media",
+#     grepl("8.fcs$", .$sample) ~ "media",
+#     grepl("5.fcs$", .$sample) ~ "PMA",
+#     grepl("9.fcs$", .$sample) ~ "PMA",
+#   ))%>%
+#   mutate("serum"=case_when(
+#     grepl("3.fcs$", .$sample) ~ "FBS",
+#     grepl("4.fcs$", .$sample) ~ "FBS",
+#     grepl("5.fcs$", .$sample) ~ "FBS",
+#     grepl("7.fcs$", .$sample) ~ "autologous",
+#     grepl("8.fcs$", .$sample) ~ "autologous",
+#     grepl("9.fcs$", .$sample) ~ "autologous",
+#   ))%>%
+#   mutate("id"=case_when(
+#     grepl("^B", .$sample) ~ "2003",
+#     grepl("^C", .$sample) ~ "2004",
+#     grepl("^D", .$sample) ~ "2005",
+#     grepl("^E", .$sample) ~ "2008",
+#     grepl("^F", .$sample) ~ "2009",
+#     grepl("^G", .$sample) ~ "2012",
+#   ))%>%
+#   filter(quadrant!="Q4")%>%
+#   mutate("origin"="Uganda")%>%
+#   group_by(sample, lineage, marker_combo, stim,  serum, id)%>%
+#   add_summary_rows(quadrant="sum(Q)",
+#                    freq=sum(freq))
+#   
 # write fcs file metadata
 # meta_data <- long_data %>%
 #   ungroup()%>%
@@ -112,8 +112,9 @@ long_data <- data %>%
 #   filter(!duplicated(sample))
 #   
 # write.csv(meta_data, "~/postdoc/stanford/cytometry/attune/FB02/sample_metadata.csv")
-write.csv(long_data, "~/postdoc/stanford/cytometry/attune/FB02/fb02_long_data.csv")
-
+# write.csv(long_data, "~/postdoc/stanford/cytometry/attune/FB02/fb02_long_data.csv")
+}
+long_data <- read.csv("~/postdoc/stanford/cytometry/attune/FB02/fb02_long_data.csv")
 
 long_data_medians <- long_data %>%
   filter(!is.na(stim))%>%
@@ -129,21 +130,23 @@ long_data_medians <- long_data %>%
   filter(!is.na(marker_combo),
          !is.na(lineage),
          !is.na(stim),
-         marker_combo != "NA NA",
-         # lineage %in% c("CD4", "CD4neg"),
+         stim=="iRBC",
+         marker_combo %in% c("ICOS CD40L", "OX40 CD137"),
+         lineage %in% c("CD4", "CD4neg"),
          quadrant != "Q4")%>%
   ggplot(aes(x=quadrant, y=(freq+0.0001)/100))+
-  geom_point(aes(color=id, group=serum), alpha=0.6, position = position_dodge(width=0.75))+
+  geom_point(aes(color=factor(id), group=serum), alpha=0.6, position = position_dodge(width=0.75))+
   geom_boxplot(aes(fill=serum), outlier.shape = NA)+
-  facet_grid(lineage+marker_combo~stim)+
-  geom_text(aes(x=quadrant, y=1, label=median, group=serum), position = position_dodge(width=0.75), data = long_data_medians, size=2.8)+
+  facet_wrap(~lineage+marker_combo, scales = "free")+
+  # geom_text(aes(x=quadrant, y=1, label=median, group=serum), position = position_dodge(width=0.75), data = long_data_medians, size=2.8)+
   scale_y_log10(labels = scales::label_percent())+
   theme_minimal()+
   scale_fill_manual(values=c("#fec200", "#0047ab"))+
   theme(axis.text.x = element_text(angle=90, hjust=1),
-        axis.title = element_blank()))
+        axis.title = element_blank()))+
+  ggtitle("iRBC stim")
 
-ggsave("~/postdoc/stanford/cytometry/attune/FB2/figures/cd4_cd4neg_summary_plot.png", cd4_cd4neg_summary_plot, width=8*1.5, height=8*1.5, bg="white")
+ggsave("~/postdoc/stanford/cytometry/attune/FB2/figures/short_cd4_cd4neg_summary_plot.png", cd4_cd4neg_summary_plot, width=6, height=6, bg="white")
 
 
 

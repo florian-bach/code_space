@@ -20,7 +20,7 @@ dpsp <- haven::read_dta("~/postdoc/stanford/clinical_data/DPSP/DPSPSpecimenBoxOc
 # 
 smaller_dpsp <- dpsp %>%
   filter(dod>"2023-01-01")%>%
-  select(id, dob, dod, enrolldate, rand)
+  select(id, dob, dod, enrolldate)
 
 list_of_mothers <- unique(smaller_dpsp$id)
 list_of_children <- unique(c(list_of_impact_children,list_of_micdrop_children))
@@ -44,8 +44,9 @@ dpsp_sample_locations <- dpsp_samples %>%
 
 unique(dpsp_sample_locations$BoxNumber)
 
-picked_samples <- c("P6ZHT", "PLCAF", "PDYNR", "PLDZ7", "PFV48", "P5XME")
+# picked_samples <- c("P6ZHT", "PLCAF", "PDYNR", "PLDZ7", "PFV48", "P5XME")
 
+picked_samples <- dpsp_sample_locations$RandomNumber[1:16]
 #find specimen IDs of PBMC samples picked
 try <- dpsp_specimen %>%
   filter(RandomNumber %in% picked_samples)%>%

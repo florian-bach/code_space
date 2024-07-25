@@ -1,0 +1,767 @@
+---
+title: "MUSICAL Nulisa Analysis"
+format: html
+toc: true
+page-layout: article
+theme: robobook
+width: 10
+wrap: auto
+fig-format: png
+fig-align: "center"
+fig-dpi: 444
+self-contained: true
+code-fold: true
+---
+
+## Data Overview and QC
+
+As per Tran's email, the assay went well. Challenges included fat/protein aggregates in the plasma that required spinning the master plate so that the samples would be pipettable. There were high levels of detection in all samples except three which were flagged by the assay QC as having below 85% detectability. Unfortunately the three samples correspond to two symptomatic baseline samples (174 & 565) and one symptomatic day 7 sample (324).
+
+The data Tran sent to us has been normalized in two ways: each well contains an internal control that's sequenced to account for well to well variation in input. Secondly, each plate has three plate controls that aid to model plate to plate variation by providing plate-specific standard medians for each analyte. The normalized read counts are then rescaled and log2 transformed, which is the data I've used in this analysis.
+
+![](images/Picture1.jpg)
+
+```{r preamble}
+#| echo: false
+#| warning: false
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+library(ComplexHeatmap)
+
+`%notin%` <- Negate(`%in%`)
+
+fdr_cutoff=0.05
+
+```
+
+```{r loading & shaping data}
+#| echo: false
+`%notin%` <- Negate(`%in%`)
+
+musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
+random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/id_date_code.csv")
+random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
+random_codes$plasma.barcode <- gsub("D1JLGS", "DIJLGS", random_codes$plasma.barcode)
+random_codes$plasma.barcode <- gsub("D1KWT2", "D1_KWT2", random_codes$plasma.barcode)
+random_codes$plasma.barcode <- gsub("D1EF4A", "DEF4A", random_codes$plasma.barcode)
+
+
+micdrop_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/micdrop_nulisa_sample_codes.csv")
+micdrop_codes$study <- "MICDROP"
+micdrop_codes$plasma.barcode <- gsub("3YHJI", "X3YHJI", micdrop_codes$plasma.barcode)
+micdrop_codes$plasma.barcode <- gsub("8UPHI", "X8UPHI", micdrop_codes$plasma.barcode)
+#careful!!! not sure what the 426NI sample is
+micdrop_codes$plasma.barcode <- gsub("QF9VI", "X426NI", micdrop_codes$plasma.barcode)
+micdrop_codes$qpcr <- NA
+
+slim_musical_metadata <- musical_metadata %>%
+  mutate(day_annotation=if_else(day_annotation==84, -1, day_annotation))%>%
+  select(combined_id, combined_date, enrolltype, day_annotation, qpcr)%>%
+  mutate(id=combined_id, date=combined_date, class=enrolltype, timepoint=paste("t", day_annotation, sep=""))%>%
+  select(-combined_id, -combined_date, -enrolltype, -day_annotation)%>%
+  mutate("study"="MUSICAL")
+
+combo_frame <- merge(slim_musical_metadata, random_codes, by=c("id", "date"))
+combo_frame2 <- rbind(combo_frame, micdrop_codes)
+
+nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/nulisa_data.csv")
+
+wide_nulisa <- nulisa %>%
+  pivot_longer(cols = colnames(nulisa)[2:ncol(nulisa)], names_to = "plasma.barcode", values_to = "concentration")
+  
+
+wide_nulisa <- inner_join(wide_nulisa, combo_frame2, by="plasma.barcode")
+wide_nulisa <- wide_nulisa %>%
+  mutate("time_class"=paste(class, timepoint, sep='_'),
+         "age_class"=if_else(.$id %in% c(268, 324, 137, 176, 353, 161, 363, 571, 10766, 10794, 10842), "child", "adult"))%>%
+  mutate(timepoint=factor(timepoint, levels=c("t-1", "t0", "t7", "t14")),
+         age_class=factor(age_class, levels=c("child", "adult")),
+         time_class=factor(time_class, levels=c("A_t-1",
+                                                "A_t0",
+                                                "A_t14",
+                                                "S_t-1",
+                                                "S_t0",
+                                                "S_t7",
+                                                "S_t14",
+                                                "A_8", 
+                                                "A_24", 
+                                                "A_52",
+                                                "S_24", 
+                                                "A_pool")))%>%
+  group_by(targetName) %>%
+  mutate(z_conc=scale(concentration, center = TRUE, scale = TRUE))
+  
+```
+
+## Data Overview
+
+```{r Overall Heatmap}
+#| echo: false
+
+t_nulisa <-t(as.matrix(wide_nulisa %>%
+                         filter(study=="MUSICAL")%>%
+                         mutate(sample_id=interaction(id, time_class))%>%
+                         select(sample_id, targetName, z_conc)%>%
+                         pivot_wider(names_from = targetName, values_from = z_conc)))
+
+
+colnames(t_nulisa) <- t_nulisa[1,]
+
+num_nulisa_matrix <- t_nulisa[-1,]
+class(num_nulisa_matrix) <- "numeric"
+
+short_num_nulisa_matrix <- num_nulisa_matrix
+
+z_col_fun <- circlize::colorRamp2(c(min(short_num_nulisa_matrix)/1.5, 0, abs(min(short_num_nulisa_matrix)/1.5)), c("#123499", "white", "#FFA500"))
+
+big_heatmap_split <- substr(colnames(t_nulisa), 5, nchar(colnames(t_nulisa)))
+
+big_heatmap_split <- factor(big_heatmap_split, levels=sort(unique(big_heatmap_split))[c(1:5, 7, 6)])
+
+big_heatmap <- Heatmap(matrix = short_num_nulisa_matrix,
+                       cluster_rows = TRUE,
+                       cluster_columns=FALSE,
+                       show_row_dend = FALSE,
+                       show_column_dend = FALSE,
+                       show_heatmap_legend = TRUE,
+                       column_split = big_heatmap_split,
+                       name = "z score",
+                       width=12,
+                       height = 10,
+                      
+                       #cluster_columns = FALSE,
+                      
+                       column_names_gp = gpar(fontsize = 6),
+                       row_names_gp = gpar(fontsize = 0),
+                       row_names_side = "left",
+                       col = z_col_fun,
+                       column_names_rot = 90)
+
+
+draw(big_heatmap)
+
+
+```
+
+Unfortunately the QC-flagged samples with low detectability do stick out quite clearly against the background, so I will remove them from downstream analysis. There's a couple of other samples at the t7 and t14 timepoints that look like blue streaks but they weren't flagged by the QC so I've kept them in for now.
+
+T-1 refers to the baseline sample, t0 to a malaria episode / start of asymptomatic parasitemia, t7 and t14 refer to 7 and 14 days post t0. Timecourses with / without symptoms differ by a variable I called "class".
+
+## Analysis Plan
+
+As a starting point I wanted to answer 4 specific questions with this dataset:
+
+-   what are plasma analyte dynamics during and after ***symptomatic*** infection?
+
+-   what are plasma analyte dynamics during and after ***asymptomatic*** infection?
+
+-   do children and adults differ in their responses to infection?
+
+-   are baseline measurements predictive of symptom development?
+
+Generally, all these questions can be asked with linear regression models, with subtle tweaks depending on the input data. Because not every person has a measurement in every category I've included subject id as a random effect. In this report I've only included results from models with linear, additive effects, rather than interaction terms or higher order effects. There may be reasons to use interaction terms anyway as I outline below, but for now I've gone for the simpler model.
+
+An inbuilt assumption of the purely additive regression model is that the effect of "day 0" is the same across all individuals & classes. What then distinguishes individuals with or without symptoms is **added** to the effect of day 0. Because "day 0" marks a malaria episode in some individuals and (relatively) low-level parasitemia in others, I don't think this assumption is met. Day 0 clearly means something very different to someone with asymptomatic parasitemia vs. someone with malaria. To account for this in the model, an interaction term between timepoint and (clinical) class may allow us to estimate differences in direction or magnitude of protein abundance more accurately. However, I've checked whether that way of modelling change would be significantly better (explain more variance without overfitting) by comparing AIC, and they largely appear equivalent. I will do a bit more digging and compare the two model types later on, just to be thorough, but for now the simpler model seems like a good choice.
+
+## Analysis Results
+
+### Analytes Through Time in Symptomatic Individuals
+
+To model dynamics of the plasma analytes I fitted individual mixed effects models for each target, controlling for age (adult/child) using a fixed effect, and individual variation using a random effect. Differential abundance was defined as an FDR of less than 0.05. I found 80 analytes differentially abundant (DA) at day 0 of symptomatic infection compared to baseline across all individuals. None are DA at day 7 or day 14 compared to baseline, showing plasma proteome changes quickly return to baseline within a week or two of infection.
+
+The top hits involve all the classics of a type 1 immune response. 80 hits is a lot though, and it will take me some time to figure out which of these have been described before in malaria (the vast majority I reckon), just in case there are some surprises here.
+
+For illustrative purposes I'm showing only the top20 (lowest adjusted p value) targets for each comparison.
+
+```{r Analytes Through Time in Symptomatic Individuals}
+#| warning: false
+#| fig-width: 15
+#| fig-height: 15
+
+
+base_zero_contrast <- t(matrix(c(0,1,0,0,0)))
+base_14_contrast <- t(matrix(c(0,0,0,1,0)))
+base_7_contrast <- t(matrix(c(0,0,1,0,0)))
+
+zero_14_contrast <- t(matrix(c(0,-1,0,1,0)))
+base_zero_age_contrast <- t(matrix(c(0,1,0,0,1)))
+base_age_contrast <- t(matrix(c(0,0,0,0,1)))
+
+symp_only_purff <- wide_nulisa %>%
+  filter(plasma.barcode %notin% c("D19E2G", "D1FK67", "D1SSPJ"))%>%
+  filter(study=="MUSICAL")%>%
+  filter(class=="S")%>%
+  group_by(targetName) %>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~factor(timepoint)+age_class+(1|id), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(base_zero=map(model, ~multcomp::glht(., base_zero_contrast)),
+         base_zero_p=map_dbl(base_zero, ~summary(.)$test$pvalues)) %>%
+  mutate(base_14=map(model, ~multcomp::glht(., base_14_contrast)),
+         base_14_p=map_dbl(base_14, ~summary(.)$test$pvalues)) %>%
+  mutate(base_7=map(model, ~multcomp::glht(., base_7_contrast)),
+         base_7_p=map_dbl(base_7, ~summary(.)$test$pvalues))%>%
+  mutate(zero_14=map(model, ~multcomp::glht(., zero_14_contrast)),
+         zero_14_p=map_dbl(zero_14, ~summary(.)$test$pvalues)) %>%
+  mutate(base_zero_age=map(model, ~multcomp::glht(., base_zero_age_contrast)),
+         base_zero_age_p=map_dbl(base_zero_age, ~summary(.)$test$pvalues)) %>%
+  mutate(base_age=map(model, ~multcomp::glht(., base_age_contrast)),
+         base_age_p=map_dbl(base_age, ~summary(.)$test$pvalues)) %>%
+  ungroup()%>%
+  mutate(base_zero_padj=p.adjust(base_zero_p, method="BH"),
+         base_7_padj=p.adjust(base_7_p, method="BH"),
+         base_14_padj=p.adjust(base_14_p, method="BH"),
+         zero_14_padj=p.adjust(zero_14_p, method="BH"),
+         base_zero_age_padj=p.adjust(base_zero_age_p, method="BH"),
+         base_age_padj=p.adjust(base_age_p, method="BH")
+  )
+
+symp_results_table <- symp_only_purff %>%
+  mutate(coef=map_dbl(model, ~coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
+  dplyr::select(targetName, coef,
+                base_zero_padj,
+                base_7_padj,
+                base_14_padj,
+                zero_14_padj,
+                base_zero_age_padj,
+                base_age_padj)%>%
+  ungroup()
+
+symp_sig_base_zero <- symp_results_table %>%
+  filter(base_zero_padj<fdr_cutoff)%>%
+  select(targetName)
+
+sig_base_7 <- symp_results_table %>%
+  filter(base_7_padj<fdr_cutoff)%>%
+  select(targetName)
+
+symp_sig_base_14 <- symp_results_table %>%
+  filter(base_14_padj<fdr_cutoff)%>%
+  select(targetName)
+
+symp_sig_zero_14 <- symp_results_table %>%
+  filter(zero_14_padj<fdr_cutoff)%>%
+  select(targetName)
+
+symp_sig_zero_base_age <- symp_results_table %>%
+  filter(base_zero_age_padj<fdr_cutoff)%>%
+  select(targetName)
+
+symp_plottable_targets_base_0 <- symp_results_table%>%
+  top_n(-20, wt=base_zero_padj)
+
+symp_plottable_targets_zero_14 <- symp_results_table%>%
+  top_n(-20, wt=zero_14_padj)
+
+symp_plottable_targets_base_zero_age <- symp_results_table%>%
+  filter(base_zero_age_padj <0.05)%>%
+  top_n(-20, wt=base_zero_age_padj)%>%
+  arrange(base_zero_age_padj)
+
+symp_plottable_targets_base_age <- symp_results_table%>%
+  filter(base_age_padj < 0.05)%>%
+  top_n(-20, wt=base_age_padj)
+```
+
+```{r symp baseline day0}
+#| fig-align: center
+#| fig-width: 12
+#| fig-height: 12
+symp_time_theme <- theme(strip.text = element_text(size = 15),
+                         axis.title = element_blank(),
+                         axis.text = element_text(size=13),
+                         plot.title = element_text(hjust = 0.5, size=18))
+
+symp_time_palette <- c("white", "darkred", "orange")
+names(symp_time_palette) <- c("t-1", "t0", "t14")
+
+wide_nulisa %>%
+  filter(study=="MUSICAL")%>%
+  # filter(class=="S", age_class=="child")%>%
+  filter(class=="S", timepoint %in% c("t-1", "t0"))%>%
+  filter(targetName %in% symp_plottable_targets_base_0$targetName)%>%
+  ggplot(., aes(x="", y=concentration, fill=timepoint))+
+  ggtitle("top 20 DA proteins baseline vs. day 0 of symptomatic malaria across all individuals")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free")+
+  scale_fill_manual(values = symp_time_palette)+
+  theme_minimal()+
+  symp_time_theme
+  
+```
+
+Generally, children have larger effect sizes between baseline and day 0 than adults. In fact, symptomatic adults don't show consistent increases in several key cytokines and chemokines targets such as IL6, TNF and CCL2.
+
+More formally, 38 analytes showed differential dynamics between baseline and day 0 in symptomatic children vs symptomatic adults. The top20 are shown here.
+
+```{r symp baseline day0 differences}
+#| fig-width: 12
+#| fig-height: 12
+wide_nulisa %>%
+  filter(study=="MUSICAL")%>%
+  # filter(class=="S", age_class=="child")%>%
+  filter(class=="S", timepoint %in% c("t-1", "t0"))%>%
+  filter(targetName %in% symp_plottable_targets_base_zero_age$targetName)%>%
+  ggplot(., aes(x=age_class, y=concentration, fill=timepoint))+
+  ggtitle("top 20 proteins that change differently in adults and children from baseline to day 0")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free")+
+ scale_fill_manual(values = symp_time_palette)+
+  theme_minimal()+
+  symp_time_theme
+```
+
+I noticed the spread of adult data got wider at day 0, so I looked at the individual data. This showed that while some inflammatory markers were conserved (e.g. CRP), fascinatingly, there were two opposing patterns where some adults (627, 643) consistently upregulated both pro- and anti-inflammatory markers while others (174, 575, 487) consistently downregulated them at day 0.
+
+```{r individual variation in symptomatic adults}
+#| fig-width: 12
+#| fig-height: 12
+wide_nulisa %>%
+  filter(study=="MUSICAL", age_class=="adult", class=="S")%>%
+  # filter(timepoint %in% c("t0","t-1"))%>%
+  # filter(targetName %in% symp_plottable_targets_base_zero_age$targetName[1:5])%>%
+   filter(targetName %in% c("CRP", "IL10", "TNF", "IL1RN", "IL6"))%>%
+  ggplot(., aes(x=timepoint, y=concentration, color=id))+
+  # ggtitle("Top 5 DA proteins at baseline in children")+
+  geom_point()+
+  geom_line(aes(group=id))+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  # geom_boxplot()+
+  facet_wrap(~id+targetName, scales="free", ncol=5)+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  viridis::scale_color_viridis(discrete = TRUE)+
+  theme_minimal()+
+  symp_time_theme+
+  theme(legend.position = "none")
+
+```
+
+Something akin to this division has been seen in [human challenge models](https://elifesciences.org/articles/62800), though interestingly, all adults in our study were symptomatic, which was not the case in the challenge study.
+
+At baseline, however, only three analytes (IL17B, MMP3, SPP1) were DA between adults and children.
+
+```{r symp baseline age differences}
+#| fig-width: 7.2
+#| fig-height: 3
+wide_nulisa %>%
+  filter(study=="MUSICAL")%>%
+  # filter(class=="S", age_class=="child")%>%
+  filter(class=="S", timepoint %in% c("t-1"))%>%
+  filter(targetName %in% symp_plottable_targets_base_age$targetName)%>%
+  ggplot(., aes(x=age_class, y=concentration, fill=timepoint))+
+  ggtitle("only three proteins differ at baseline between adults and children")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free")+
+ scale_fill_manual(values = symp_time_palette)+
+  theme_minimal()+
+  theme(strip.text = element_text(size = 11),
+                         axis.title = element_blank(),
+                         axis.text = element_text(size=9),
+                         plot.title = element_text(hjust = 0.5),
+       legend.position="none")
+```
+
+MMP3 is part of the same family of metalloproteinases as MMP8 and MMP9 of Neutrophil fame. It is involved in a broad variety of conditions with tissue damage, exacerbating [lung pathology](https://www.sciencedirect.com/science/article/abs/pii/S0014480007000482?via%3Dihub) in mice, [vasculitis](https://www.nature.com/articles/s41598-021-84662-3) and [kidney disease](https://karger.com/kbr/article/44/3/298/185817/Matrix-Metalloproteinases-in-Renal-Diseases-A). SPP1, also known as osteopontin, is involved in bone remodelling but has broad activity on innate and adaptive immune cells. [Knockout of SPP1](https://journals.asm.org/doi/10.1128/iai.74.4.2423-2427.2006) in mice led to reduced IL12 production and turned *P. chabaudi* infection lethal. It has been shown to be more abundant in infants than mothers and to be [correlated with atypical B cell frequencies](https://bmcmicrobiol.biomedcentral.com/articles/10.1186/s12866-021-02368-y).
+
+### Analytes Through Time in Asymptomatic Individuals
+
+I used the same mixed effects model structure for asymptomatic infections. Unsurprisingly, asymptomatic infections led to much fewer changes in the plasma proteome. 7 analytes were DA at day 0 compared to baseline in asymptomatic children and none at day 14.
+
+```{r modelling analytes Through Time in Asymptomatic Individuals}
+#| warning: false
+base_zero_contrast <- t(matrix(c(0,1,0,0)))
+base_14_contrast <- t(matrix(c(0,0,1,0)))
+
+zero_14_contrast <- t(matrix(c(0,-1,1,0)))
+base_zero_age_contrast <- t(matrix(c(0,1,0,0)))
+base_age_contrast <- t(matrix(c(0,0,0,1)))
+
+asymp_only_purff <- wide_nulisa %>%
+  filter(plasma.barcode %notin% c("D19E2G", "D1FK67", "D1SSPJ"))%>%
+  filter(study=="MUSICAL")%>%
+  filter(class=="A")%>%
+  group_by(targetName) %>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~factor(timepoint)+age_class+(1|id), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(base_zero=map(model, ~multcomp::glht(., base_zero_contrast)),
+         base_zero_p=map_dbl(base_zero, ~summary(.)$test$pvalues)) %>%
+  mutate(base_14=map(model, ~multcomp::glht(., base_14_contrast)),
+         base_14_p=map_dbl(base_14, ~summary(.)$test$pvalues)) %>%
+  mutate(zero_14=map(model, ~multcomp::glht(., zero_14_contrast)),
+         zero_14_p=map_dbl(zero_14, ~summary(.)$test$pvalues)) %>%
+  mutate(base_zero_age=map(model, ~multcomp::glht(., base_zero_age_contrast)),
+         base_zero_age_p=map_dbl(base_zero_age, ~summary(.)$test$pvalues)) %>%
+  mutate(base_age=map(model, ~multcomp::glht(., base_age_contrast)),
+         base_age_p=map_dbl(base_age, ~summary(.)$test$pvalues)) %>%
+  ungroup()%>%
+  mutate(base_zero_padj=p.adjust(base_zero_p, method="BH"),
+         base_14_padj=p.adjust(base_14_p, method="BH"),
+         zero_14_padj=p.adjust(zero_14_p, method="BH"),
+         base_zero_age_padj=p.adjust(base_zero_age_p, method="BH"),
+         base_age_padj=p.adjust(base_age_p, method="BH")
+  )
+
+asymp_results_table <- asymp_only_purff %>%
+  mutate(coef=map_dbl(model, ~coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
+  dplyr::select(targetName, coef,
+                base_zero_padj,
+                base_14_padj,
+                zero_14_padj,
+                base_zero_age_padj,
+                base_age_padj)%>%
+  ungroup()
+
+asymp_sig_base_zero <- asymp_results_table %>%
+  filter(base_zero_padj<fdr_cutoff)%>%
+  select(targetName)
+
+asymp_sig_base_14 <- asymp_results_table %>%
+  filter(base_14_padj<fdr_cutoff)%>%
+  select(targetName)
+
+asymp_sig_zero_14 <- asymp_results_table %>%
+  filter(zero_14_padj<fdr_cutoff)%>%
+  select(targetName)
+
+asymp_sig_zero_base_age <- asymp_results_table %>%
+  filter(base_zero_age_padj<fdr_cutoff)%>%
+  select(targetName)
+
+asymp_sig_base_age <- asymp_results_table %>%
+  filter(base_age_padj<fdr_cutoff)%>%
+  select(targetName)
+
+asymp_plottable_targets_base_0 <- asymp_results_table%>%
+  filter(base_zero_padj <fdr_cutoff)%>%
+  top_n(-20, wt=base_zero_padj)
+
+asymp_plottable_targets_zero_14 <- asymp_results_table%>%
+  filter(zero_14_padj <fdr_cutoff)%>%
+  top_n(-20, wt=zero_14_padj)
+
+asymp_sig_zero_base_age <- asymp_results_table%>%
+  filter(base_zero_age_padj <fdr_cutoff)%>%
+  top_n(-22, wt=base_zero_age_padj)
+
+asymp_plottable_targets_base_age <- asymp_results_table%>%
+  filter(base_age_padj < fdr_cutoff)%>%
+  top_n(-20, wt=base_age_padj)
+```
+
+```{r asymp baseline vs day0}
+#| fig-align: center
+#| fig-width: 7.2
+#| fig-height: 6
+asymp_time_theme <- theme(strip.text = element_text(size = 11),
+                         axis.title = element_blank())
+
+asymp_time_palette <- c("lightgrey", "#444444", "#222")
+names(asymp_time_palette) <- c("t-1", "t0", "t14")
+
+wide_nulisa %>%
+  filter(study=="MUSICAL")%>%
+  # filter(class=="S", age_class=="child")%>%
+  filter(class=="A", timepoint %in% c("t-1", "t0"), age_class=="child")%>%
+  filter(targetName %in% asymp_plottable_targets_base_0$targetName)%>%
+  ggplot(., aes(x=age_class, y=concentration, fill=timepoint))+
+  ggtitle("7 DA proteins baseline vs. day 0\nin children with asymptomatic infection")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free", nrow=2)+
+  scale_fill_manual(values = asymp_time_palette)+
+  theme_minimal()+
+  symp_time_theme
+```
+
+These 7 are an interesting mix including factors for T cell activation (IL12, IL27, MICA), and broad immune regulation (IL10, FASLG & IL1RN, better known \[to me\] as FASL and IL1RA) as well as IFNγ.
+
+There were much more pronounced differences between age groups among asymptomatics. 22 proteins differed between adults and children at baseline of their asymptomatic parasitemia. The top 20 are shown here.
+
+```{r asymp baseline age differences}
+#| fig-align: center
+#| fig-width: 10
+#| fig-height: 10
+wide_nulisa %>%
+  filter(study=="MUSICAL")%>%
+  # filter(class=="S", age_class=="child")%>%
+  filter(class=="A", timepoint %in% c("t-1"))%>%
+  filter(targetName %in% asymp_plottable_targets_base_age$targetName)%>%
+  ggplot(., aes(x=age_class, y=concentration, fill=timepoint))+
+  ggtitle("22 differ at baseline between adults and children")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free")+
+ scale_fill_manual(values = symp_time_palette)+
+  theme_minimal()+
+  symp_time_theme
+
+
+```
+
+These included 2 of the 3 proteins DA between baselines of symptomatic children and adults (MMP3, SPP1), but not IL17B. However, it is worth noting that there are only 4 "asymptomatic" adults in the dataset and 3/4 do not have quantifiable parasitemia by qPCR at baseline, so they may not be a good match for asymptomatic, but infected children.
+
+### Comparing Symptomatic and Asymptomatic Infections in the Same Individual
+
+To best compare symptomatic and asymptomatic infection in the same individual I subsetted the data to only include children, so that each participant had matching (a-)symptomatic episodes. Across all kids 54 markers were differentially abundant, and all save 13 of these varied between symptomatic and asymptomatic episodes. The top 20 hits for each comparison are shown below.
+
+```{r child only modelling}
+#| warning: false
+base_zero_contrast <- t(matrix(c(0,1,0,0,0)))
+base_14_contrast <- t(matrix(c(0,0,1,0,0)))
+
+base_zero_class_contrast <- t(matrix(c(0,1,0,0,1)))
+base_class_contrast <- t(matrix(c(0,0,0,0,1)))
+
+child_only_purff <- wide_nulisa %>%
+  filter(plasma.barcode %notin% c("D19E2G", "D1FK67", "D1SSPJ"))%>%
+  filter(study=="MUSICAL")%>%
+  filter(age_class=="child")%>%
+  group_by(targetName) %>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~factor(timepoint)+class+(1|id), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(base_zero=map(model, ~multcomp::glht(., base_zero_contrast)),
+         base_zero_p=map_dbl(base_zero, ~summary(.)$test$pvalues)) %>%
+  mutate(base_14=map(model, ~multcomp::glht(., base_14_contrast)),
+         base_14_p=map_dbl(base_14, ~summary(.)$test$pvalues)) %>%
+  mutate(base_zero_class=map(model, ~multcomp::glht(., base_zero_class_contrast)),
+         base_zero_class_p=map_dbl(base_zero_class, ~summary(.)$test$pvalues)) %>%
+  mutate(base_class=map(model, ~multcomp::glht(., base_class_contrast)),
+         base_class_p=map_dbl(base_class, ~summary(.)$test$pvalues)) %>%
+  ungroup()%>%
+  mutate(base_zero_padj=p.adjust(base_zero_p, method="BH"),
+         base_14_padj=p.adjust(base_14_p, method="BH"),
+         base_zero_class_padj=p.adjust(base_zero_class_p, method="BH"),
+         base_class_padj=p.adjust(base_class_p, method="BH")
+  )
+
+child_results_table <- child_only_purff %>%
+  mutate(coef=map_dbl(model, ~coef(.)$id[1,2]+coef(.)$id[1,3]))%>%
+  dplyr::select(targetName, coef,
+                base_zero_padj,
+                base_14_padj,
+                base_zero_class_padj,
+                base_class_padj)%>%
+  ungroup()
+
+#50
+child_sig_base_zero <- child_results_table %>%
+  filter(base_zero_padj<fdr_cutoff)%>%
+  select(targetName)
+# 0
+child_sig_base_14 <- child_results_table %>%
+  filter(base_14_padj<fdr_cutoff)%>%
+  select(targetName)
+
+child_sig_zero_14 <- child_results_table %>%
+  filter(base_zero_class_padj<fdr_cutoff)%>%
+  select(targetName)
+
+#54
+child_base_zero_class <- child_results_table %>%
+  filter(base_zero_class_padj<fdr_cutoff)%>%
+  select(targetName)
+
+#7
+child_base_class <- child_results_table %>%
+  filter(base_class_padj<fdr_cutoff)%>%
+  select(targetName)
+
+
+child_plottable_targets_base_0 <- child_results_table%>%
+  filter(base_zero_padj <fdr_cutoff)%>%
+  top_n(-20, wt=base_zero_padj)
+
+child_plottable_targets_base_zero_class<- child_results_table%>%
+  filter(base_zero_class_padj <fdr_cutoff)%>%
+  top_n(-20, wt=base_zero_class_padj)
+
+child_plottable_targets_base_class <- child_results_table%>%
+  filter(base_class_padj < fdr_cutoff)%>%
+  top_n(-20, wt=base_class_padj)
+
+```
+
+```{r base day 0 across all children}
+#| fig-width: 12
+#| fig-height: 12
+time_class_palette <- c(unname(symp_time_palette[1:2]), asymp_time_palette[1:2])
+names(time_class_palette) <- c("t-1.S", "t0.S", "t-1.A", "t0.A")
+
+wide_nulisa %>%
+  filter(study=="MUSICAL")%>%
+  filter(age_class=="child")%>%
+  filter(timepoint %in% c("t-1", "t0"))%>%
+  filter(targetName %in% child_plottable_targets_base_0$targetName)%>%
+  ggplot(., aes(x=class, y=concentration, fill=interaction(timepoint, class)))+
+  ggtitle("top20 of 50 proteins DA across all children")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free")+
+  scale_fill_manual(values = (time_class_palette))+
+  theme_minimal()+
+  symp_time_theme+
+  theme(legend.title = element_blank())
+```
+
+```{r base day 0 class differences in children}
+#| fig-width: 12
+#| fig-height: 12
+
+
+wide_nulisa %>%
+filter(study=="MUSICAL")%>%
+  filter(age_class=="child")%>%
+  filter(timepoint %in% c("t-1", "t0"))%>%
+  filter(targetName %in% child_plottable_targets_base_zero_class$targetName)%>%
+  ggplot(., aes(x=class, y=concentration, fill=interaction(timepoint, class)))+
+  ggtitle("top20 of 54 DA proteins that differ between baseline and day 0 by class")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  facet_wrap(~targetName, scales = "free")+
+  scale_fill_manual(values = time_class_palette)+
+  theme_minimal()+
+  symp_time_theme+
+  theme(legend.title = element_blank())
+```
+
+Interestingly, there were 7 plasma proteins that were DA at baseline in children that went on to develop symptomatic disease.
+
+```{r baseline differences in children due to symptom class}
+#| fig-width: 7.2
+#| fig-height: 6
+
+wide_nulisa %>%
+filter(study=="MUSICAL")%>%
+  filter(age_class=="child")%>%
+  filter(timepoint %in% c("t-1"))%>%
+  filter(targetName %in% child_plottable_targets_base_class$targetName)%>%
+  ggplot(., aes(x=timepoint, y=concentration, fill=class))+
+  ggtitle("7 differentially abundant proteins at baseline predict symptomatic infections")+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  geom_boxplot()+
+  facet_wrap(~targetName, scales="free", nrow = 2)+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  scale_fill_manual(values = unname(time_class_palette[c(3,1)]))+
+  theme_minimal()
+```
+
+6/7 were more abundant before symptomatic episodes and there was a clear immunological theme related to neutrophil recruitment (CXCL8, i.e. IL8) and activation (MPO, MMP8, MMP9, OSM). PTX3 (pentraxin-related protein 3), is an [acute phase protein](https://www.nature.com/articles/s41590-020-00832-x) produced by myeloid & stromal cells in response to TLR stimulation or inflammatory cytokines and activates complement. The only protein less abundant at symptomatic baselines was TNFSF11 (RANKL), an osteoclastogenic cytokine that appears to also play a role in the production of nitrous oxide by epithelial cells and has [pleiotropic effects on many tissues](https://inflammregen.biomedcentral.com/articles/10.1186/s41232-019-0111-3). Intriguingly, the simplistic model of more RANKL --\> more NO --\> less pathology would be consistent with what Miguel Soares's *P.berghei* ANKA data has suggested for [experimental cerebral mouse malaria](https://www.sciencedirect.com/science/article/pii/S2211124714004483). But again, RANKL does a lot, so this might be purely incidental, or work through a completely different mechanism not involving heme oxygenase 1.
+
+### Modelling Conserved Features of (A-)Symptomatic Infection
+
+Lastly, I wanted to see what markers consistently varied in both adults and children and infections with and without symptoms. For this I included all of the data, except the t7 timepoint that was only available in symptomatic children. Changes in abundance of 13 proteins were conserved (in direction, not magnitude) in both adults and children across both symptomatic and asymptomatic infections at day 0. Adding a coefficient for age resolved 32 changing through time, 27 when controlling for symptoms, and 53 when accounting for both.
+
+```{r biiiig purrrf}
+#| warning: false
+#| fig-width: 12
+#| fig-height: 12
+
+#big purrrf contrasts
+base_zero_contrast <- t(matrix(c(0,1,0,0,0)))
+base_zero_age_contrast <- t(matrix(c(0,1,0,0,1)))
+base_zero_class_contrast <- t(matrix(c(0,1,0,1,0)))
+base_zero_age_class_contrast <- t(matrix(c(0,1,0,1,1)))
+
+
+big_purff <- wide_nulisa %>%
+  filter(study=="MUSICAL", timepoint!="t7")%>%
+  group_by(targetName) %>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~factor(timepoint)+class+age_class+(1|id), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(base_zero=map(model, ~multcomp::glht(., base_zero_contrast)),
+         base_zero_p=map_dbl(base_zero, ~summary(.)$test$pvalues)) %>%
+  mutate(base_zero_age=map(model, ~multcomp::glht(., base_zero_age_contrast)),
+         base_zero_age_p=map_dbl(base_zero_age, ~summary(.)$test$pvalues)) %>%
+  mutate(base_zero_age_class=map(model, ~multcomp::glht(., base_zero_age_class_contrast)),
+         base_zero_age_class_p=map_dbl(base_zero_age_class, ~summary(.)$test$pvalues))%>%
+  mutate(base_zero_class=map(model, ~multcomp::glht(., base_zero_class_contrast)),
+         base_zero_class_p=map_dbl(base_zero_class, ~summary(.)$test$pvalues))%>%
+  ungroup()%>%
+  mutate(base_zero_padj=p.adjust(base_zero_p, method="BH"),
+         base_zero_age_padj=p.adjust(base_zero_age_p, method="BH"),
+         base_zero_class_padj=p.adjust(base_zero_class_p, method="BH"),
+         base_zero_age_class_padj=p.adjust(base_zero_age_class_p, method="BH"))
+
+  # mutate(r2=partR2::partR2(model, partvars=c("class", "age_class"), nboot=10),
+  #        r2_summary=map(r2, ~summary(.)))
+  
+
+#13
+sig_base_zero <- filter(big_purff, base_zero_padj <0.05)
+#32
+base_zero_age <- filter(big_purff, base_zero_age_padj <0.05)
+#27
+base_zero_class <- filter(big_purff, base_zero_class_padj <0.05)
+#53
+sig_base_zero_age_class <- filter(big_purff, base_zero_age_class_padj <0.05)
+
+wide_nulisa %>%
+filter(study=="MUSICAL")%>%
+  filter(timepoint %in% c("t0","t-1"))%>%
+  filter(targetName %in% sig_base_zero$targetName)%>%
+  ggplot(., aes(x=timepoint, y=concentration, fill=interaction(timepoint, class)))+
+  ggtitle("13 DA proteins between baseline and day 0 are stereotypically regulated in infections with and without symptoms")+
+  geom_boxplot()+
+  facet_wrap(~targetName, scales="free", ncol=5)+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  scale_fill_manual(values = time_class_palette)+
+  theme_minimal()+
+  symp_time_theme+
+  theme(legend.title = element_blank())
+
+
+```
+
+The baseline differences in these markers are very consistent across all children, with the exception of subject 161, a 5 year old boy who consistently has the opposite trend for these markers at baseline.
+
+```{r individual variation in children}
+#| fig-width: 12
+#| fig-height: 24
+wide_nulisa %>%
+  filter(study=="MUSICAL", age_class=="child")%>%
+  # filter(timepoint %in% c("t0","t-1"))%>%
+  filter(targetName %in% child_base_class$targetName[1:5])%>%
+  ggplot(., aes(x=timepoint, y=concentration, color=class))+
+  ggtitle("Top 5 DA proteins at baseline in children")+
+  geom_point()+
+  geom_line(aes(group=class))+
+  # ggtitle("differentially abundant proteins baseline vs. day 0 in symptomatic adults")+
+  # geom_boxplot()+
+  facet_wrap(~id+targetName, scales="free", ncol=5)+
+  # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
+  scale_color_manual(values = c("#444444", "darkred"))+
+  theme_minimal()
+```
+
+## Summary
+
+-   what are plasma analyte dynamics during and after ***symptomatic*** infection?
+
+    -   there were huge changes in the plasma proteome of infected individuals. Targets included classic inflammatory markers (C-reactive protein, calcitonin, IL6), type-I interferons and their stimulated genes (e.g. IFNα, CXCL9, CXCL10), as well as some "regulatory" markers (e.g. IL10, TGFβ, TREM2). It will take some time for me to read up on the biology of all 80 markers and whether they all have been described in malaria, but so far it looks like the classic response one would expect. Notable absences include angiopoietins 1 and 2, though perhaps this is because disease wasn't severe enough. Generally this response quickly resolved after treatment and no proteins were differentially abundant 7 or 14 days relative to day 0, though there is some individual variation with this.
+
+-   what are plasma analyte dynamics during and after ***asymptomatic*** infection?
+
+    -   "Only" 7 analytes were DA at day 0 in asymptomatic individuals, suggestive of T cell activation (IL12, IL27, MICA), and immune regulation (IL10, RANKL & IL1RA) as well as IFNγ. Likewise, this response does not last until day 14 raising the intriguing possibility that after the induction of these plasma proteins, their maintenance is not required to retain an asymptomatic response to infection. This is particularly interesting in the cases of subjects 268, 324 and 363, whose parasitemia actually actually goes up from day0 to day14. However, there was considerable individual variation in this, with some clear increases at day14 in some individuals that simply weren't consistent. Incorporating more data, be it demographic, clinical or experimental, may help better predict symptomatology in a more personalised way.
+
+-   do children and adults differ in their responses to infection?
+
+    -   symptomatic children consistently had more DA proteins compared to symptomatic adults. The adults exhibited two, mostly opposing, responses with three individuals actively downregulating both pro and anti-inflammatory cytokines at day0 relative to baseline, while two showed a more expected pro-inflammatory signature. Intriguingly, this has been seen in [human challenge models](https://elifesciences.org/articles/62800), and may represent a conserved feature of the adult immune response to *Plasmodium*, (at least partially) independent of exposure.
+
+-   are baseline measurements predictive of symptom development?
+
+    -   I found 7 plasma proteins that were differentially abundant at baseline in children depending on whether they went on to have a symptomatic or asymptomatic episode. 6/7 were more abundant before symptomatic episodes and there was a clear immunological theme related to neutrophil recruitment (CXCL8 i.e. IL8) and activation (MPO, MMP8, MMP9, OSM). Neutrophils are absent in PBMCs and so the whole blood transcriptome is the only data source where we can try to dig deeper into this observation.

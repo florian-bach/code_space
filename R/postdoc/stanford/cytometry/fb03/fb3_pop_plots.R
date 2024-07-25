@@ -335,3 +335,36 @@ stim_cell_count_plot <- count_data %>%
 ggsave("~/postdoc/stanford/cytometry/attune/FB03/figures/stim_cell_counts.png", stim_cell_count_plot, width=7, height=5, bg="white")
 
 
+# 
+# 
+# 
+# try <- cd4_cd4neg_summary_data %>%
+#   filter(stim=="media", lineage=="CD4")%>%
+#   ggplot(., aes(x=quadrant, y=(freq+0.0001)/100))+
+#   geom_point(aes(color=id, group=serum, shape=person), alpha=0.6, position = position_dodge(width=0.75))+
+#   geom_boxplot(aes(fill=serum), outlier.shape = NA)+
+#   facet_grid(lineage+marker_combo~stim)+
+#   # geom_text(aes(x=quadrant, y=1, label=median, group=serum), position = position_dodge(width=0.75), data = long_data_medians, size=2.8)+
+#   scale_y_continuous(labels = scales::label_percent())+
+#   theme_minimal()+
+#   scale_fill_manual(values=serum_pal)+
+#   theme(axis.text.x = element_text(angle=90, hjust=1),
+#         axis.title = element_blank())
+# 
+# ggsave("~/postdoc/stanford/cytometry/attune/FB03/figures/short_cd4_summary_plot.png", try, width=6, height=6, bg="white")
+# 
+# 
+# try2 <- cd4_cd4neg_summary_data %>%
+#   filter(stim=="PMA", lineage=="CD4")%>%
+#   ggplot(., aes(x=quadrant, y=(freq+0.0001)/100))+
+#   geom_point(aes(color=id, group=serum, shape=person), alpha=0.6, position = position_dodge(width=0.75))+
+#   geom_boxplot(aes(fill=serum), outlier.shape = NA)+
+#   facet_grid(lineage+marker_combo~stim)+
+#   # geom_text(aes(x=quadrant, y=1, label=median, group=serum), position = position_dodge(width=0.75), data = long_data_medians, size=2.8)+
+#   scale_y_continuous(labels = scales::label_percent())+
+#   theme_minimal()+
+#   scale_fill_manual(values=serum_pal)+
+#   theme(axis.text.x = element_text(angle=90, hjust=1),
+#         axis.title = element_blank())
+# 
+# ggsave("~/postdoc/stanford/cytometry/attune/FB03/figures/short_cd4_summary_plot2.png", try2, width=6, height=6, bg="white")

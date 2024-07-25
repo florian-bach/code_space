@@ -21,7 +21,8 @@ comp_pal <- c("asymptomatic"="lightgrey",
 
 
 # mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP expanded database through December 31st 2022.dta")
-mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_01/MICDROP expanded database through January 31st 2024.dta")
+# mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_01/MICDROP expanded database through January 31st 2024.dta")
+mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_04/MICDROP expanded database through April 30th 2024.dta")
 
 
 smear_positive <- mic_drop %>%
@@ -108,9 +109,10 @@ malaria <- mic_drop %>%
   filter(!is.na(mstatus) & mstatus !=0)%>%
   mutate(id=factor(id))%>%
   group_by(id) %>%
-  add_count(name="total_malaria_episodes") %>%
+  add_count(name="total_malaria_episodes")%>%
+  filter(total_malaria_episodes>=2)%>%
   arrange(date) %>%
-  mutate(n_infection = seq(1, max(total_malaria_episodes)))%>%
+  mutate(n_infection = seq(1, unique(total_malaria_episodes)))%>%
   mutate(mstatus = case_match(mstatus,
                               0~"asymptomatic",
                               1~"uncomplicated",
@@ -118,7 +120,13 @@ malaria <- mic_drop %>%
                               3~"uncomplicated",
                               4~"uncomplicated"),
          )%>%
-  mutate(comp_dich=if_else(mstatus=="complicated", 1, 0))
+  mutate(comp_dich=if_else(mstatus=="complicated", 1, 0))%>%
+  mutate("age_at_first"=AGE[n_infection==2],
+         "first_before_one"=ifelse(age_at_first<=52, "2+ infections before 52 weeks", "<2 infections before 52 weeks"))
+  
+
+
+
 
 comp_cases_n <- malaria %>%
   arrange(desc(factor(mstatus)))%>%
@@ -137,11 +145,11 @@ comp_cases_n <- malaria %>%
   scale_x_continuous(limits = c(0,max(malaria$n_infection)), breaks = seq(1,max(malaria$n_infection)))+
   annotation_logticks(sides = "l", )+
   theme_minimal()+
-  # facet_wrap(~mstatus)+
+  facet_wrap(~first_before_one)+
   theme(legend.position="none")+
   scale_color_manual(values = c(comp_pal, "quinine"="purple"))
 
-bins <- seq(0, 104, by=4)
+bins <- seq(0, 156, by=4)
 nice_labels <- list(vector(length = length(bins)))
 
 for(i in 1:(length(bins)-1)){
@@ -152,32 +160,36 @@ for(i in 1:(length(bins)-1)){
 
 (comp_cases_age <- malaria %>%
   arrange(desc(factor(mstatus)))%>%
-  mutate(agebins=cut(AGE, breaks = seq(0, 104, by=4), labels = nice_labels))%>%
+  mutate(agebins=cut(AGE, breaks = seq(0, 156, by=4), labels = nice_labels))%>%
   ggplot(., aes(x=factor(agebins), y=pardens+0.001))+
   geom_vline(xintercept = c("24 to 28",
                             "48 to 52",
                             "76 to 80"), linetype="dashed", color="grey")+
   geom_point(aes(color=factor(mstatus)))+
   stat_summary(fun = median, fun.min = median, fun.max = median,
-               geom = "crossbar", width = 0.5, color="darkred")+
+               geom = "crossbar", width = 0.5, color="darkgrey")+
   ggtitle("")+
-  ylab("qPCR Parasite Density")+
+  ylab("TBS Parasite Density")+
   xlab("Age in weeks")+
   scale_y_log10(limits=c(0.9, 10^6), breaks=c(10^0, 10^2, 10^4, 10^6), labels=scales::label_number())+
   # scale_x_continuous(limits = c(0,max(malaria$n_infection)), breaks = seq(1,max(malaria$n_infection)))+
   annotation_logticks(sides = "l", )+
   theme_minimal()+
-  # facet_wrap(~mstatus)+
+  facet_wrap(~first_before_one)+
   theme(legend.position = "none",
         axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))+
   scale_color_manual(values = c(comp_pal, "quinine"="purple"))
 )
+
+ggsave("~/postdoc/stanford/clinical_data/MICDROP/complicated/comp_cases_age_para.png", comp_cases_age, width = 8, height=5, bg="white")
+
 
 
 
 
 # linear  regression ####
 comp_df <- malaria %>%
+  # filter(first_before_one=="2+ infections before 52 weeks")%>%
   group_by(n_infection)%>%
   summarise(comp_cases=sum(mstatus=="complicated"),
             comp_rate=comp_cases/n(),
@@ -185,7 +197,13 @@ comp_df <- malaria %>%
 
 
 comp_model <- glm(comp_rate~n_infection+I(n_infection^2), weights = total_cases, data=comp_df, family = "binomial")
-comp_model_integer <- glm(comp_dich~n_infection+I(n_infection^2), data=malaria, family = "binomial")
+comp_model_integer <- lme4::glmer(comp_dich~n_infection+I(n_infection^2)+(1|id), data=malaria, family = "binomial")
+comp_model_integer2 <- MASS::glmmPQL(comp_dich~n_infection+I(n_infection^2), random = ~1|id, data=malaria, family = "binomial")
+comp_model_integer3 <- MASS::glmmPQL(comp_dich~n_infection+I(n_infection^2), random = ~1|id, data=malaria, family = "binomial")
+comp_model_integer4 <- glm(comp_dich~n_infection+I(n_infection^2)+id, data=malaria, family = "binomial")
+
+visreg::visreg(comp_model_integer, xvar="n_infection", by="first_before_one", trans=exp)
+
 
 
 comp_model_fun <- function(x){
@@ -196,23 +214,29 @@ comp_model_fun <- function(x){
 
 comp_model_plot <- ggplot(comp_df, aes(x=n_infection, y=comp_rate))+
   geom_point(color="darkred")+
-  scale_y_continuous(limits = c(0,0.15), labels = scales::label_percent())+
-  scale_x_continuous(limits = c(1,9), breaks = seq(1,9))+
+  # geom_bar(stat="identity")+
+  geom_text(aes(y=0.11, label= paste0("frac(",comp_cases, ",", total_cases,")")),parse = TRUE, vjust= -0.2,)+
+  scale_y_continuous(limits = c(0,0.125), labels = scales::label_percent())+
+  # scale_x_continuous(limits = c(1,9), breaks = seq(1,9))+
+  ggtitle("risk of complicated diseae among children who had\nmalaria at least twice in the first year of life")+
   ylab("risk of complicated malaria")+
   xlab("n_infection")+
+  # facet_wrap(~first_before_one)+
+  # geom_smooth(method="lm")+
   geom_ribbon(data=model_visualiser(comp_model, "n_infection"),
               aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = comp_model_fun, colour="black")+
   theme_minimal()
   
-
+# ggsave("~/postdoc/stanford/clinical_data/MICDROP/complicated/comp_risk_seecond_year.png", comp_model_plot, width = 6, height=5, bg="white")
+# 
 
 
 # combo plot ####
 mic_drop_comp <- comp_cases_age + comp_cases_n + comp_model_plot + plot_annotation(
     title = 'Complicated Disease in MIC-DRoP ',
-    subtitle = 'Data inclusive of 01/2024')+
+    subtitle = 'Data inclusive of 04/2024')+
   theme(plot.tag = element_text(size = 10, hjust = 0, vjust = 0))
 
 ggsave("~/postdoc/stanford/clinical_data/MICDROP/complicated/mic_drop_comp_20240131.png", mic_drop_comp, width=15, height=5, bg="white", dpi=444)
@@ -324,3 +348,22 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/complicated/para_temp_plot.png"
 #   theme_minimal()+
 #   # facet_wrap(~mstatus)+
 #   theme(legend.title = element_blank())
+
+
+
+
+all_malaria <- mic_drop %>%
+  filter(qPCRparsdens>50)%>%
+  group_by(id)%>%
+  mutate("age_at_first"=AGE[n_infection==1],
+         "first_before_one"=ifelse(age_at_first<52, "1st infection before 52 weeks", "1st infection after 52 weeks"))%>%
+  ungroup()%>%
+  mutate("treatment_failure"=if_else(mstatus%in% c("quinine for AL failure", "Q/AS failure"), 1, 0))%>%
+  mutate(agebins=cut(as.numeric(age), breaks = seq(0, max(as.numeric(age)), by=30)))%>%
+  mutate(age_at_first_bins=cut(as.numeric(age_at_first), breaks = seq(0, 730, by=90), labels = three_month_labels))%>%
+  mutate(disease=if_else(mstatus=="complicated", "complicated", if_else(mstatus=="no malaria", "asymptomatic", "uncomplicated")),
+         complicated=if_else(mstatus=="complicated", 1, 0), 
+         symptoms=if_else(disease != "asymptomatic", 1, 0))%>%
+  mutate(id=factor(id),
+         age=as.numeric(age),
+         log_pardens=log10(pardens+0.1))

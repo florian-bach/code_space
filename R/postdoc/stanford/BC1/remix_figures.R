@@ -468,7 +468,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 # fig 5 impact of early life infection on b & t cell subsets ####
 
-tfh_clinab <- right_join(combo_data, tfh_combo_batch, by="id")
+tfh_clinab <- inner_join(combo_data, tfh_combo_batch, by="id")
 
 long_tfh_clinab <- tfh_clinab %>%
   pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive"), names_to = "cell_pop", values_to = "cell_freq")%>%
