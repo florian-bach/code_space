@@ -1,5 +1,6 @@
 # CATALYST ####
 library(CATALYST)
+library(ncdfFlow)
 
 `%notin%` <- Negate(`%in%`)
 
@@ -20,12 +21,12 @@ musical_metadata$batch <- as.character(musical_metadata$batch)
 # long_file_list <- list.files("/Users/fbach/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/big_fcs/", full.names = TRUE)
 # files_to_read <- subset(musical_metadata, subject_id==1217, select=file_path)
 
-metadata_to_read <- subset(musical_metadata, class ==  %in% c(268, 324, 137, 176, 353, 161, 363, 571))
+metadata_to_read <- subset(musical_metadata, subject_id  %in% c(268, 324, 137, 176, 353, 161, 363, 571))
 
 musical_flowset <- read.ncdfFlowSet(metadata_to_read$file_path)
 
 set.seed(1234)
-downsampled_musical_flowset <- musical_flowset
+downsampled_musical_flowset <- hard_downsample(musical_flowset, 10000)
 # downsampled_musical_flowset <- musical_flowset
 
 musical_flowset <- NULL
@@ -43,9 +44,9 @@ sce <- prepData(downsampled_musical_flowset,
 downsampled_musical_flowset <- NULL
 gc(full = TRUE)
 
-# p <- plotExprs(sce, color_by = "batch")
-# p$facet$params$ncol <- 6
-# p
+p <- plotExprs(sce, color_by = "batch")
+p$facet$params$ncol <- 6
+p
 
 cluster_markers <- musical_panel$antigen[-c(1,2,5,40:42, 44:48)]
 type_markers <- musical_panel$antigen[musical_panel$class=="type"&!is.na(musical_panel$class)]

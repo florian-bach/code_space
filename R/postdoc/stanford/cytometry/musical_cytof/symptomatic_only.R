@@ -30,7 +30,7 @@ metadata_to_read <- subset(musical_metadata, class == "symptomatic")
 
 musical_flowset <- ncdfFlow::read.ncdfFlowSet(metadata_to_read$file_path)
 # set.seed(1234)
-# musical_flowset <- hard_downsample(musical_flowset, event_number = 150000)
+musical_flowset <- hard_downsample(musical_flowset, event_number = 20000)
 # 
 # 
 
@@ -52,7 +52,8 @@ musical_flowset <- NULL
 gc(full = TRUE)
 
 assay(sce, "exprs") <- assay(sce, "counts")
-# p <- plotExprs(sce, color_by = "batch", features = "Dead")
+
+# p <- plotExprs(sce, color_by = "batch")
 # p$facet$params$ncol <- 6
 # p
 

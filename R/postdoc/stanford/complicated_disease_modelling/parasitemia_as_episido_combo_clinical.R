@@ -7,6 +7,11 @@ library(visreg)
 # library(mediation)
 # library(patchwork)
 
+comp_pal <- c("no malaria"="lightgrey",
+              "uncomplicated"="black",
+              "complicated"="orange",
+              "quinine for AL failure"="purple",
+              "Q/AS failure"="purple")
 
 model_visualiser <- function(model=NULL, xvar=NULL){
   model_data = model$data
@@ -36,7 +41,7 @@ promote_data <- promote %>%
   add_count(name="total_n_visits") %>%
   mutate(n_visit = seq(1, max(total_n_visits)))%>%
   mutate("total_n_para"=sum(parsdens!=0, na.rm=TRUE),
-         "total_n_malaria"=sum(mstatus!=0, , na.rm=TRUE),
+         "total_n_malaria"=sum(mstatus!=0, na.rm=TRUE),
          "n_para"=if_else(parsdens!=0, cumsum(parsdens!=0), NA),
          "n_malaria"=if_else(mstatus!=0, cumsum(mstatus!=0), NA))%>%
   mutate(mstatus = case_match(mstatus,
@@ -128,11 +133,11 @@ all_malaria <- combo_data %>%
   ungroup()%>%
   filter(total_n_malaria>=2)%>%
   group_by(id)%>%
-  mutate("age_at_first"=na.omit(age[n_malaria==2]))%>%
+  mutate("age_at_second"=na.omit(age[n_malaria==2]))%>%
   ungroup()%>%
   mutate("treatment_failure"=if_else(mstatus%in% c("quinine for AL failure", "Q/AS failure"), 1, 0))%>%
   mutate(agebins=cut(as.numeric(age), breaks = seq(0, max(as.numeric(age)), by=30)))%>%
-  mutate(age_at_first_bins=cut(as.numeric(age_at_first), breaks = seq(0, 730, by=90), labels = three_month_labels))%>%
+  mutate(age_at_second_bins=cut(as.numeric(age_at_second), breaks = seq(0, 730, by=90), labels = three_month_labels))%>%
   mutate(disease=if_else(mstatus=="complicated", "complicated", if_else(mstatus=="no malaria", "asymptomatic", "uncomplicated")),
          complicated=if_else(mstatus=="complicated", 1, 0), 
          symptoms=if_else(disease != "asymptomatic", 1, 0))%>%
@@ -145,7 +150,8 @@ all_malaria <- combo_data %>%
   ## add test-positivity rate ####
 all_malaria <- all_malaria %>%
   group_by(id)%>%
-  mutate("para_positivity_rate"=total_n_para/total_n_visits,
+  mutate(# positivity rate multiplied by length of stay in study = denominator; to account for differences in healthcare seeking behaviour
+         "para_positivity_rate"=total_n_para/total_n_visits,
          "malaria_positivity_rate"=total_n_malaria/total_n_visits,
          "para_risk"=total_n_malaria/para_positivity_rate,
          "malaria_risk"=total_n_malaria/malaria_positivity_rate)
@@ -165,7 +171,7 @@ comp_model <- glm(risk~n_para+I(n_para^2), family = "binomial", weights = total_
 
 comp_model2 <- glm(complicated~n_para+age, family = "binomial", data = all_malaria)
 
-comp_model3 <- lme4::glmer(complicated~n_para+I(n_para^2)+age_at_first+(1|id), family = "binomial", data = all_malaria)
+comp_model3 <- lme4::glmer(complicated~n_para+I(n_para^2)+age_at_second+(1|id), family = "binomial", data = all_malaria)
 
   ## risk~n_infection ####
 
@@ -243,11 +249,11 @@ n_infection_para <- all_malaria %>%
   # filter(pardens>=500)%>%
   # mutate(quarter=cut(as.numeric(factor(agebins)),breaks = seq(0, 24, by=3)))%>%
   ggplot(aes(x=n_para, y=pardens+0.1))+
-  # geom_point(aes(color=age_at_first_bins))+
+  # geom_point(aes(color=age_at_second_bins))+
   geom_boxplot(aes(fill=factor(n_para)), outlier.shape = NA)+
   scale_y_log10()+
   # geom_smooth(method="lm", formula = y~x+I(x^2))+
-  # facet_wrap(~age_at_first_bins)+
+  # facet_wrap(~age_at_second_bins)+
   scale_fill_manual(values=colorspace::sequential_hcl(n=25, palette = "Lajolla"))+
   xlab("order of parasitemic event")+
   ylab("parasites / μL")+
@@ -257,6 +263,7 @@ n_infection_para <- all_malaria %>%
 n_infection_age_para <- cowplot::plot_grid(age_para, n_infection_para, nrow = 1)
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/n_para_infection_age_load.png", n_infection_age_para, width=8, height=4)
   ## risk~age####
+
 age_para_comp <- all_malaria %>%
   group_by(disease, agebins)%>%
   summarise("n"=n())%>%
@@ -287,9 +294,9 @@ prd$uci <- err$fit + 1.96 * err$se.fit
 comp_age <- ggplot(age_para_comp, aes(x=age_months, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
-  geom_ribbon(data=prd, aes(x=age_months, ymin = exp(lci), ymax = exp(uci)),
-              alpha = 0.2, inherit.aes = FALSE)+
-  geom_function(fun = comp_model_age_fun, colour="black")+
+  # geom_ribbon(data=prd, aes(x=age_months, ymin = exp(lci), ymax = exp(uci)),
+  #             alpha = 0.2, inherit.aes = FALSE)+
+  # geom_function(fun = comp_model_age_fun, colour="black")+
   geom_text(aes(y=0.10, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
   scale_x_continuous(breaks = seq(0,24, by=3), limits=c(1,24))+
   # scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
@@ -305,7 +312,7 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_impact_promote_
 comp_model2 <- glm(complicated~n_infection+I(n_infection^2)+age, family = "binomial", data = all_malaria)
 comp_model2a <- lme4::glmer(complicated~n_infection+I(n_infection^2)+age+log_pardens+(1|id), family = "binomial", data = all_malaria)
 
-comp_model2b <- MASS::glmmPQL(complicated~n_infection+I(n_infection^2)+age_at_first+log_pardens, random=~1 | id, family = "binomial", data = all_malaria)
+comp_model2b <- MASS::glmmPQL(complicated~n_infection+I(n_infection^2)+age_at_second+log_pardens, random=~1 | id, family = "binomial", data = all_malaria)
 
 
 combo_comp_hbs <- all_malaria %>%
@@ -519,7 +526,7 @@ all_malaria %>%
 
 combo_clin_hbs_age_study <- all_malaria %>%
   filter(!is.na(hbs))%>%
-  group_by(disease, agebins, hbs, study)%>%
+  group_by(disease, agebins, hbs)%>%
   summarise("n"=n())%>%
   pivot_wider(names_from = disease, values_from = n)%>%
   mutate(complicated=if_else(is.na(complicated), 0, complicated))%>%
@@ -538,8 +545,8 @@ combo_clin_hbs_age_study %>%
   geom_point(color="darkred")+
   # geom_line(aes(group=hbs))+
   theme_minimal()+
-  geom_smooth(method="lm")+
-  facet_grid(study~hbs)+
+  geom_smooth(method="lm", formula = 'y~x+I(x^2)')+
+  facet_grid(~hbs)+
   scale_x_continuous(breaks = 1:50)+
   scale_y_continuous(labels = scales::label_percent(), limits = c(0, NA))+
   geom_text(aes(y=0.9, label= paste0("frac(",complicated+uncomplicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
@@ -572,12 +579,21 @@ all_malaria %>%
 
 
 
+names(shape_pallette)<- c(1, 4, 7, 6, 4)
+shape_pallette <- unique(all_malaria$mstatus)
+"no malaria" circle
+"uncomplicated" X        
+"quinine for AL failure" box with X
+"complicated" upside down triangle    
+"Q/AS failure" box with X
+
 para_temp_plot <- all_malaria %>%
-  mutate(arm=if_else(age_at_first>350, "IPT", "unknown"))%>%
-  filter(total_n_infection>3, hbs !="HbSS", !is.na(hbs))%>%
+  mutate(arm=if_else(age_at_second>400, "putative IPT", "unknown"))%>%
+  filter(total_n_malaria>3, hbs !="HbSS", !is.na(hbs))%>%
+  arrange(total_n_malaria)%>%
   ggplot(., aes(x=as.numeric(agebins), y=pardens, group=id))+
   geom_vline(xintercept = 12, linetype="dashed")+
-  geom_point(aes(shape=arm, color=factor(round(temp))))+
+  geom_point(aes(shape=mstatus, color=factor(round(temp))))+
   geom_line(alpha=0.2)+
   facet_wrap(hbs~id, nrow=3)+
   # ggtitle("")+
@@ -588,7 +604,121 @@ para_temp_plot <- all_malaria %>%
   theme_minimal()+
   # facet_wrap(~mstatus)+
   theme(legend.title = element_blank())+
-  scale_color_manual(values=c("darkgreen", "green", "yellow", "orange", "red", "darkred", "#380000"))
+  scale_color_manual(values=c("darkgreen", "green", "yellow", "orange", "red", "darkred", "#380000"))+
+  scale_shape_manual(values=c(6, 1, 7, 7, 4))
 
 ggsave("~/postdoc/stanford/clinical_data/MICDROP/complicated/para_temp_plot2.png", para_temp_plot, width=120, height=4, bg="white", limitsize = FALSE)
+
+
+
+
+# more stuff with asymptomatic probability ####
+
+all_malaria%>%
+  group_by(id)%>%
+  slice_max(order_by = age)%>%
+  mutate("placebo"=if_else(age_at_first>400, "yes", "no"))%>%
+  ggplot(., aes(x=total_n_visits, y=age,color=placebo))+
+  geom_point(position = position_jitterdodge(jitter.width = 2, jitter.height = 2))
+
+all_malaria%>%
+  group_by(id)%>%
+  slice_max(order_by = age, with_ties = FALSE)%>%
+  mutate("placebo"=if_else(age_at_first>365, "yes", "no"))%>%
+  ggplot(., aes(x=total_n_para, y=age, color=placebo))+
+  geom_point(position = position_jitterdodge(jitter.width = 0.1, jitter.height = 0.1))
+
+all_malaria%>%
+  group_by(id)%>%
+  slice_max(order_by = age, with_ties = FALSE)%>%
+  mutate("placebo"=if_else(age_at_first>365, "yes", "no"))%>%
+  ggplot(., aes(x=total_n_malaria, y=age, color=placebo))+
+  geom_point(position = position_jitterdodge(jitter.width = 0.1, jitter.height = 0.1))
+
+
+only_malaria <- all_malaria %>%
+  filter(!is.na(n_malaria))%>%
+  group_by(id)%>%
+  mutate("n_para_in_between"= (lead(n_para)-n_para)-1)%>%
+  mutate(n_para_in_between=if_else(is.na(n_para_in_between), -1, n_para_in_between))
+
+ggplot(only_malaria, aes(x=age_months, y=n_para_in_between, color=id))+
+  geom_point(position = position_jitterdodge(jitter.width = 0.2, jitter.height = 0.2))+
+  theme_minimal()+
+  theme(legend.position="none")
+
+
+max_one <- filter(only_malaria, n_para_in_between <= 1)
+more <- filter(only_malaria, n_para_in_between > 1)
+
+"%notin%"=Negate("%in%")
+
+big_max_one <- all_malaria%>%
+  filter(id %notin% more$id)
+
+
+n_para_comp <- big_max_one %>%
+  group_by(disease, n_para)%>%
+  summarise("n"=n())%>%
+  pivot_wider(names_from = disease, values_from = n)%>%
+  mutate(complicated=if_else(is.na(complicated), 0, complicated),
+         total_infections=complicated+uncomplicated+asymptomatic,
+         risk=complicated/total_infections,
+         asymp_prob=asymptomatic/total_infections)
+
+
+
+ggplot(n_para_comp[1:11,], aes(x=n_para, y=1-asymp_prob))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  # geom_ribbon(data=prd, aes(x=n_para, ymin = exp(lci), ymax = exp(uci)),
+  #             alpha = 0.2, inherit.aes = FALSE)+
+  # geom_function(fun = comp_model_fun, colour="black")+
+  # facet_wrap(~study)+
+  geom_text(aes(y=0.8, label= paste0("frac(",asymptomatic, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  geom_smooth(method="lm", color="black")+
+  # scale_x_continuous(breaks = 1:50, limits=c(1,15))+
+  # scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
+  xlab("Order of Infection")+
+  ylab("Risk of Symtoms Given Parasitemia")+
+  ggtitle("827 children, aged 8 weeks - 2 years
+3181 parasitemic episodes; at least one malaria episode")
+
+big_max_one$symp_dich <- ifelse(big_max_one$mstatus != "no malaria", 1, 0)
+
+model1 <- glm(n_malaria~n_para_in_between, family="poisson", data = only_malaria)
+
+only_malaria%>%
+  mutate("placebo"=if_else(age_at_second>400, "yes", "no"))%>%
+  ggplot(., aes(x=n_malaria, y=n_para_in_between, color=placebo))+
+  geom_point(position=position_jitterdodge(jitter.width = 0.2, jitter.height = 0.2))
+
+
+#parasitemia mstatus dotplot ####
+
+(comp_cases_age <- all_malaria %>%
+   mutate(arm=if_else(age_at_second>400, "putative IPT", "unknown"))%>%
+   filter(study=="micdrop")%>%
+   arrange(desc(factor(mstatus, levels=c("complicated", "uncomplicated", "quinine for AL failure", "Q/AS failure", "no malaria"))))%>%
+   ggplot(., aes(x=as.numeric(factor(agebins)), y=pardens+0.001))+
+   # geom_vline(xintercept = c("24 to 28",
+   #                           "48 to 52",
+   #                           "76 to 80"), linetype="dashed", color="grey")+
+   geom_point(aes(color=factor(mstatus)))+
+   stat_summary(fun = median, fun.min = median, fun.max = median,
+                geom = "crossbar", width = 0.5, color="darkgrey")+
+   ggtitle("")+
+   ylab("TBS Parasite Density")+
+   xlab("Age in Months")+
+   scale_y_log10(limits=c(0.9, 10^6), breaks=c(10^0, 10^2, 10^4, 10^6), labels=scales::label_number())+
+   scale_x_continuous(breaks = seq(0,27,by=3))+
+   annotation_logticks(sides = "l", )+
+   theme_minimal()+
+   facet_wrap(~arm)+
+   theme(legend.position = "none",
+         axis.text.x = element_text(angle=90, hjust=1, vjust=0.5))+
+   scale_color_manual(values = c(comp_pal, "quinine"="purple"))
+)
+
+ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/micdrop_only_comp_cases_age_para.png", comp_cases_age, width = 8, height=5, bg="white")
 

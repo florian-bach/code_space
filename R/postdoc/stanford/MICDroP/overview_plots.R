@@ -32,7 +32,11 @@ smear_positive <- mic_drop %>%
   add_count(name="total_positive_smears") %>%
   arrange(compage) %>%
   mutate(n_smear = seq(1, max(total_positive_smears)))
-  
+
+kids_with_comp <- mic_drop %>%
+  filter(mstatus==2)%>%
+  group_by(id)%>%
+  filter(!duplicated(date))
 
 n_infection_cols <- c("white", colorspace::sequential_hcl(n=max(smear_positive$n_smear), palette = "Lajolla"))
 

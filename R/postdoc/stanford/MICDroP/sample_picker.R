@@ -34,7 +34,7 @@ long_specimen_data <- raw_data %>%
 
 # 461 individuals, 646 samples
 pbmc_samples <- long_specimen_data %>%
-  filter(BoxNumber1 %in% paste("MICD-", 3001:3008, sep=""))
+  filter(BoxNumber1 %in% paste("MICD-", c(3001:3013, 3015:3040), sep=""))
   # filter(Specimen_Type =="PBMC") #%>%
   # select(id, date, Specimen_Type, ageinwks, BoxNumber1)
 
@@ -137,3 +137,36 @@ mic_drop %>%
 
 
 ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/figures/21_days_symptoms.png", two_week_symptoms_plot, width = 24, height=8, bg="white")
+
+
+
+# fei gao hla typing
+# need 100 24 week samples where 8 week samples exist
+
+
+mic_drop_clin <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_04/MICDROP expanded database through April 30th 2024.dta")
+kids_with_comp <- mic_drop_clin %>%
+  filter(mstatus==2)%>%
+  group_by(id)%>%
+  filter(!duplicated(date))
+
+eight_week_pbmcs <- pbmc_samples %>%
+  filter(Timepoint_in_weeks==8, Specimen_Type=="PBMC")%>%
+  filter(!duplicated(id))
+
+set.seed(123)
+samples_for_fei <- pbmc_samples %>%
+  filter(Timepoint_in_weeks==24, qPCRparsdens==0, Specimen_Type=="PBMC", id %in% eight_week_pbmcs$id, id %notin% kids_with_comp)%>%
+  slice_sample(n=100)%>%
+  select(id, BoxNumber1, PositionColumn1, PositionRow1)
+
+write.csv(samples_for_fei,"~/postdoc/stanford/clinical_data/MICDROP/samples_for_hla.csv")  
+
+  
+forty_more <- pbmc_samples %>%
+  filter(Timepoint_in_weeks==24, qPCRparsdens==0, Specimen_Type=="PBMC", id %in% eight_week_pbmcs$id, id %notin% kids_with_comp, id %notin%samples_for_fei$id)%>%
+  slice_sample(n=40)%>%
+  select(id, BoxNumber1, PositionColumn1, PositionRow1)
+
+write.csv(forty_more,"~/postdoc/stanford/clinical_data/MICDROP/forty_more.csv")  
+

@@ -1,5 +1,6 @@
 library(purrr)
-
+library(tidyr)
+library(dplyr)
 `%notin%` <- Negate(`%in%`)
 
 musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
@@ -17,7 +18,7 @@ micdrop_codes$plasma.barcode <- gsub("8UPHI", "X8UPHI", micdrop_codes$plasma.bar
 #careful!!! not sure what the 426NI sample is
 micdrop_codes$plasma.barcode <- gsub("QF9VI", "X426NI", micdrop_codes$plasma.barcode)
 
-subset(colnames(nulisa),  colnames(nulisa)%notin% c(micdrop_codes$plasma.barcode, random_codes$plasma.barcode))
+# subset(colnames(nulisa),  colnames(nulisa)%notin% c(micdrop_codes$plasma.barcode, random_codes$plasma.barcode))
 
 
 slim_musical_metadata <- musical_metadata %>%
