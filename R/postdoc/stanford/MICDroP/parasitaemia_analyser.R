@@ -5,7 +5,7 @@ library(ggplot2)
 comp_pal <- c("asymptomatic"="lightgrey", "uncomplicated"="black", "complicated"="orange", "severe"="darkred")
 mstatus_pal <- c("no malaria"="lightgrey", "uncomplicated"="black", "complicated"="orange", "quinine for AL failure"="violet", "Q/AS failure"="purple")
 
-mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/MICDROP all visit database through July 31st 2023.dta")
+mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
 
 # merge parasitemia data so that qPCR takes precedent when both slide and qPCR are present
 mic_drop <- mic_drop %>%
@@ -29,9 +29,18 @@ counter_16 <- mic_drop %>%
   add_count(name="number_of_episodes_in_16")%>%
   filter(number_of_episodes_in_16>=1)
 
+counter_16 <- mic_drop %>%
+  select(id, date, AGE, dob, mstatus, any_parsdens, parasitaemia_method)%>%
+  filter(mstatus!="no malaria", AGE<=16)%>%
+  group_by(id) %>%
+  add_count(name="number_of_episodes_in_16")%>%
+  filter(number_of_episodes_in_16>=1)
+
+
 
 mic_drop %>%
-  filter(id %in% counter_16$id, AGE<=16, !is.na(any_parsdens))%>%
+  filter(#id %in% counter_16$id, AGE<=16,
+         !is.na(any_parsdens))%>%
   ggplot(., aes(x=AGE, y=as.numeric(any_parsdens)+0.001))+
   geom_point(aes(color=factor(mstatus, #levels=c("0",
                               #       "1",

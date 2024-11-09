@@ -7,6 +7,9 @@ library(visreg)
 # library(mediation)
 # library(patchwork)
 
+
+#check influence of birthmonth
+
 comp_pal <- c("no malaria"="lightgrey",
               "uncomplicated"="black",
               "complicated"="orange",
@@ -58,7 +61,7 @@ promote_data <- promote %>%
 
 # mic drop ####
 
-mic_drop <-  haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_04/MICDROP expanded database through April 30th 2024.dta")
+mic_drop <-  haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
 
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
@@ -86,7 +89,7 @@ mic_drop_data <- mic_drop %>%
 
 # impact ####
 
-impact <- haven::read_dta("~/postdoc/stanford/clinical_data/IMPACT/IMPACT expanded database through April 30th 2024.dta")
+impact <- haven::read_dta("~/postdoc/stanford/clinical_data/IMPACT/IMPACT expanded database through July 31st 2024.dta")
 
 impact_data <- impact %>%
   filter(!is.na(pardens), !is.na(mstatus))%>%
@@ -131,9 +134,9 @@ three_month_labels <- paste0(seq(0, 21, by=3), " to ", seq(3, 24, by=3), " month
 
 all_malaria <- combo_data %>%
   ungroup()%>%
-  filter(total_n_malaria>=2)%>%
+  filter(total_n_malaria>=1)%>%
   group_by(id)%>%
-  mutate("age_at_second"=na.omit(age[n_malaria==2]))%>%
+  mutate("age_at_second"=ifelse(any(n_malaria==2), age[n_malaria==2], NULL))%>%
   ungroup()%>%
   mutate("treatment_failure"=if_else(mstatus%in% c("quinine for AL failure", "Q/AS failure"), 1, 0))%>%
   mutate(agebins=cut(as.numeric(age), breaks = seq(0, max(as.numeric(age)), by=30)))%>%
@@ -141,10 +144,17 @@ all_malaria <- combo_data %>%
   mutate(disease=if_else(mstatus=="complicated", "complicated", if_else(mstatus=="no malaria", "asymptomatic", "uncomplicated")),
          complicated=if_else(mstatus=="complicated", 1, 0), 
          symptoms=if_else(disease != "asymptomatic", 1, 0))%>%
-  mutate(id=factor(id),
+  mutate(id=as.character(id),
          age=as.numeric(age),
          age_months=as.numeric(factor(agebins)),
-         log_pardens=log10(pardens+0.1))
+         log_pardens=log10(pardens+0.1),
+         birth_month=data.table::month(dob),
+         birth_quarter=case_match(birth_month,
+                                  c(1,2,3)~"Q1",
+                                  c(4,5,6)~"Q2",
+                                  c(7,8,9)~"Q3",
+                                  c(10,11,12)~"Q4"
+        ))
 
 
   ## add test-positivity rate ####
@@ -158,6 +168,7 @@ all_malaria <- all_malaria %>%
 
 # complicated disease modelling ####
 n_para_comp <- all_malaria %>%
+  filter(study=="micdrop")%>%
   group_by(disease, n_para)%>%
   summarise("n"=n())%>%
   pivot_wider(names_from = disease, values_from = n)%>%
@@ -189,8 +200,8 @@ prd$lci <- err$fit - 1.96 * err$se.fit
 prd$fit <- err$fit
 prd$uci <- err$fit + 1.96 * err$se.fit
 
-
-n_para_comp_plot <- ggplot(n_para_comp[1:19,], aes(x=n_para, y=risk))+
+n_para_comp_data <- n_para_comp[1:19,]
+n_para_comp_plot <- ggplot(n_para_comp_data, aes(x=n_para, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
   geom_ribbon(data=prd, aes(x=n_para, ymin = exp(lci), ymax = exp(uci)),
@@ -201,8 +212,8 @@ n_para_comp_plot <- ggplot(n_para_comp[1:19,], aes(x=n_para, y=risk))+
   scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
   xlab("Order of Infection")+
   ylab("Risk of Complicated")+
-  ggtitle("827 children, aged 8 weeks - 120 weeks
-3541 parasitemic episodes; at least two malaria episodes")
+  ggtitle(paste(n_distinct(all_malaria$id), "children, aged 8 weeks - 120 weeks", sum(n_para_comp_data$total_infections, na.rm=TRUE),
+"parasitemic episodes"))
 
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_impact_promote_and_micdrop_comp_plot.png", n_para_comp_plot, height = 4.5, width=7.5, dpi=444, bg="white")
 

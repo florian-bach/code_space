@@ -50,7 +50,7 @@ inf_012_matmal_frac <- combo_data %>%
   geom_text(aes(x=inf_0_12, label=paste0("n=", sum, sep=""), y=0.75))+
   xlab("Number of parasitaemic episodes in the first year of life")+
   ylab("Fraction of maternal malaria status")+
-  scale_fill_manual(values=rev(time_palette))+
+  scale_fill_manual(values=disease_pal)+
   theme_minimal()+
   theme(legend.title = element_blank())
 

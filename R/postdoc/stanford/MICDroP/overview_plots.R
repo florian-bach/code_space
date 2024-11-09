@@ -22,7 +22,7 @@ comp_pal <- c("asymptomatic"="lightgrey",
 
 # mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP expanded database through December 31st 2022.dta")
 # mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_01/MICDROP expanded database through January 31st 2024.dta")
-mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_04/MICDROP expanded database through April 30th 2024.dta")
+mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
 
 
 smear_positive <- mic_drop %>%

@@ -41,7 +41,7 @@ fdr_cutoff=0.05
 `%notin%` <- Negate(`%in%`)
 
 musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
-random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/id_date_code.csv")
+random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/id_date_code.csv")
 random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1JLGS", "DIJLGS", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1KWT2", "D1_KWT2", random_codes$plasma.barcode)
@@ -66,7 +66,7 @@ slim_musical_metadata <- musical_metadata %>%
 combo_frame <- merge(slim_musical_metadata, random_codes, by=c("id", "date"))
 combo_frame2 <- rbind(combo_frame, micdrop_codes)
 
-nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/nulisa_data.csv")
+nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/nulisa_data.csv")
 
 wide_nulisa <- nulisa %>%
   pivot_longer(cols = colnames(nulisa)[2:ncol(nulisa)], names_to = "plasma.barcode", values_to = "concentration")
@@ -122,11 +122,11 @@ big_heatmap_split <- factor(big_heatmap_split, levels=sort(unique(big_heatmap_sp
 
 big_heatmap <- Heatmap(matrix = short_num_nulisa_matrix,
                        cluster_rows = TRUE,
-                       cluster_columns=FALSE,
+                       cluster_columns=TRUE,
                        show_row_dend = FALSE,
                        show_column_dend = FALSE,
                        show_heatmap_legend = TRUE,
-                       column_split = big_heatmap_split,
+                       #column_split = big_heatmap_split,
                        name = "z score",
                        width=12,
                        height = 10,
@@ -655,7 +655,7 @@ filter(study=="MUSICAL")%>%
   geom_boxplot()+
   facet_wrap(~targetName, scales="free", nrow = 2)+
   # geom_violin(draw_quantiles = c(0.25, 0.5, 0.75))+
-  scale_fill_manual(values = unname(time_class_palette[c(3,1)]))+
+  scale_fill_manual(values = unname([c(3,1)]))+
   theme_minimal()
 ```
 

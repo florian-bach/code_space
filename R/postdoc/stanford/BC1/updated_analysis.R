@@ -69,7 +69,7 @@ abc_combo_batch <- rbind(abc_batch1[,c("X", "b_count", "mature_b_count", "activa
 abc_combo_batch <- abc_combo_batch %>%
   filter(X!="SD", X!="Mean", X!="B CELL PANEL_NF.fcs", !grepl("Control.fcs", abc_combo_batch$X))%>%
   mutate(file_name=X, .keep = "unused")%>%
-  mutate(id=as.numeric(paste(1, substr(.$file_name, 17, 20), sep="")))
+  mutate(id=factor(paste(1, substr(.$file_name, 17, 20), sep="")))
 
 abc_combo_batch <- subset(abc_combo_batch, abc_combo_batch$id %in% ids_to_keep$id)
 
@@ -150,7 +150,7 @@ histopath_wilcox <- long_raw_dfff %>%
   mutate(wilcox2=map(data, ~wilcox.test(.$`No Pathology`, .$`Placental Malaria`)))%>%
   mutate(raw_p=map_dbl(wilcox, ~.$p.value))%>%
   ungroup()%>%
-  mutate(padj=p.adjust(raw_p, method="BH"))
+  mutate(padj=p.adjust(raw_p, method="fdr"))
 
 sig_histopath <- filter(histopath_wilcox, padj<0.1)
 
@@ -212,7 +212,8 @@ infs <- clin_data %>%
          any_symp_6_12 = ifelse(symp_6_12==0, 0, 1),
          any_symp_12_18 = ifelse(symp_12_18==0, 0, 1)
   ) %>%
-  mutate(ChildFinalRx = case_match(ChildFinalRx, 1~"trimonthly", 2~"monthly"))%>%
+  mutate(ChildFinalRx = case_match(ChildFinalRx, 1~"trimonthly", 2~"monthly"),
+         id=factor(id))%>%
   dplyr::select(-anyinfection, -sxifinfected, -age) %>%
   distinct()
 
@@ -246,7 +247,7 @@ abc_clin %>%
 
 abc_incidence_purf <- abc_clin %>%
   # there is very little transmission in the b cell cohort so it's hard to evaulate stuff
-  filter(incidence_type %notin% c("symp_0_6", "symp_6_12", "inf_6_12", "symp_0_12"))%>%
+  # filter(incidence_type %notin% c("symp_0_6", "symp_6_12", "inf_6_12", "symp_0_12"))%>%
   group_by(cell_pop, incidence_type)%>%
   filter(!duplicated(id))%>%
   nest() %>%
@@ -254,14 +255,14 @@ abc_incidence_purf <- abc_clin %>%
   # mutate(cell_incidence_model=map(data, ~MASS::glm.nb(incidence_value ~ cell_freq + id, data=.)))%>%
   
   # MASS poisson model
-  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ cell_freq * ChildFinalRx, random = ~1 | id, family=poisson)))%>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ cell_freq, random = ~1 | id, family=poisson)))%>%
   # lme4 possoin model
   # mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., incidence_value ~ cell_freq * ChildFinalRx + (1 | id), family="poisson")))%>%
   mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
   #negative binomial p
   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[11]))%>%
   # MASS poisson p
-  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[20]))%>%
+  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
   # lme4 poisson p
   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
   ungroup()%>%
@@ -270,7 +271,7 @@ abc_incidence_purf <- abc_clin %>%
 
 abc_incidence_sigs <- abc_incidence_purf %>%
   dplyr::select(cell_pop, incidence_type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
-  filter(cell_incidence_model_summary_padj<0.05)
+  filter(cell_incidence_model_summary_padj<0.1)
 
 # visualise modelling results
 
@@ -487,6 +488,7 @@ ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/
 # regular concentration~incidence ##
 
 ab_clin <- long_raw_dfff%>%
+  # mutate(id=as.numeric(as.character(id)))%>%
   # filter(timepoint==3)%>%
   inner_join(., infs, by="id")%>%
   dplyr::select(-matches("any"))%>%
@@ -512,15 +514,19 @@ ab_clin%>%
 #   summarise("infs"=n())%>%
 #   print(n = 62)
 
+
+
+
+
 ab_incidence_purf <- ab_clin %>%
   group_by(antigen, incidence_type, timepoint)%>%
   filter(!duplicated(id), incidence_type!="symp_6_12")%>%
   nest() %>%
   # negative binomial model
-  # mutate(nb_cell_incidence_model=map(data, ~MASS::glm.nb(incidence_value ~ conc + id, data=., )))%>%
+  # mutate(nb_cell_incidence_model=map(data, ~lme4::glmer.nb(incidence_value ~ conc + (1|id), data=.)))%>%
   # mutate(nb_cell_incidence_model_summary=map(nb_cell_incidence_model, ~summary(.)))%>%
   # mutate(nb_cell_incidence_model_summary_p=map_dbl(nb_cell_incidence_model_summary, ~coef(.)[11]))%>%
-  
+  # 
   # MASS poisson model
   mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ log10(conc), random = ~1 | id, family=poisson)))%>%
   # lme4 poisson model
@@ -533,15 +539,14 @@ ab_incidence_purf <- ab_clin %>%
   # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
   ungroup()%>%
   group_by(timepoint)%>%
-  # 
-  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="BH"))
-  # mutate(nb_cell_incidence_model_summary_padj= p.adjust(nb_cell_incidence_model_summary_p))
+  # mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="BH"))
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
 
 
 
 ab_poisson_incidence_sigs <- ab_incidence_purf %>%
-  dplyr::select(antigen, incidence_type, timepoint, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
-  filter(cell_incidence_model_summary_padj<0.1, timepoint==3)
+  dplyr::select(antigen, incidence_type, timepoint, cell_incidence_model_summary_padj)%>%
+  filter(cell_incidence_model_summary_padj<0.1)
 
 View(ab_poisson_incidence_sigs)
 
@@ -564,7 +569,7 @@ for(i in 1:nrow(ab_poisson_incidence_sigs)){
     # facet_wrap(~timepoint)+
     # geom_point(fill=pc1_cols[i], alpha=1, shape=21)+
     # geom_smooth(method="lm")+
-    scale_y_log10()+
+    # scale_y_log10()+
     # ggpubr::stat_cor(method = "spearman", label.y = -1.5, na.rm = TRUE, size=2)+
     ylab(ab_poisson_incidence_sigs[i,1])+
     xlab(ab_poisson_incidence_sigs[i,2])+
@@ -616,10 +621,9 @@ ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/
 
 
 # increasers and non-increasers ~ incidence 
-
 bino_ab_incidence_purf <- ab_clin %>%
   group_by(antigen, incidence_type, timepoint)%>%
-  filter(!duplicated(id), incidence_type!="symp_6_12", antigen != "TT", timepoint=="3")%>%
+  filter(!duplicated(id), incidence_type%notin%c("symp_0_12"), antigen != "TT", timepoint=="3")%>%
   nest() %>%
   # poisson model
   # tried flipping model formula to do binomial regression, only two sig, included here, overall bad performance

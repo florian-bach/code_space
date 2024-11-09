@@ -6,7 +6,7 @@ library(ggplot2)
 `%notin%` <- Negate(`%in%`)
 is.blank <- function(x){sapply(x, function(y) {ifelse(y=="", TRUE, FALSE)})}
 
-raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2023_12/MICDSpecimenBoxDec23_withclinical.dta")
+raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta")
 
 # for finding putative sampling visits we'll filter the database to only include visits around the proper sampling timepoint dates, with a week plus/minus
 sample_ages <- c(8, 24, 52, 68, 84, 104, 120)
@@ -18,7 +18,7 @@ sample_ranges <- sort(c(sample_ages, sample_ages_minus, sample_ages_plus))
 #turn the data into long format, include a couple of convenience variables, drop irrelevant columns
 long_specimen_data <- raw_data %>%
   mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
-  select(id, dob, date, flo_age_in_wks, mstatus, qPCRparsdens, ageinwks, SampleDate,BoxNumber1,PositionColumn1, PositionRow1, PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, visittype, withdrawaldate) %>%
+    select(id, dob, date, flo_age_in_wks, mstatus, qPCRparsdens, ageinwks, SampleDate, starts_with(c("BoxNumber", "PositionColumn", "PositionRow")), PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, visittype, withdrawaldate) %>%
   mutate("visit_id"=paste(id, date, sep="_"))%>%
   pivot_longer(cols = c(PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
   mutate(subject_id=id)%>%
@@ -31,7 +31,7 @@ long_specimen_data <- raw_data %>%
     )
   )
   )
-
+# finding PBMC dropout samples ####
 # 461 individuals, 646 samples
 pbmc_samples <- long_specimen_data %>%
   filter(BoxNumber1 %in% paste("MICD-", c(3001:3013, 3015:3040), sep=""))
@@ -56,23 +56,20 @@ kids_with_clinical <- long_specimen_data %>%
   filter(id %in% pbmc_samples$id, mstatus!=0 & ageinwks<24) %>%
   select(id, date, Specimen_Type, ageinwks, BoxNumber1, mstatus, withdrawaldate)
 
+# finding "ex vivo" samples ####
 ex_vivo <- long_specimen_data %>%
+  filter(!is.na(mstatus))%>%
+  group_by(id)%>%
   # make variable "days_since_malaria" that calculates the days a malaria episode and resets to 0 when mstatus!=0
-  mutate(days_since_malaria=SampleDate)%>%
-  filter(Specimen_Type == "PBMC")%>%
-  filter()%>%
-  select(id, date, , ageinwks, BoxNumber1, mstatus, withdrawaldate)
+  mutate(malaria_episode_num_date = if_else(mstatus != 0, as.numeric(date), -Inf),
+         # malaria_episode_dich = if_else(mstatus != 0, 1, 0))%>%
+         most_recent_malaria = as.Date(cummax(malaria_episode_num_date)),
+         malaria_episode_id = paste(id, most_recent_malaria,sep="_"),
+         days_since_malaria = date-most_recent_malaria)%>%
+  filter(Specimen_Type=="PBMC", Specimen_ID!="", days_since_malaria > 3 & days_since_malaria<14)%>%
+  select(id, date, flo_age_in_wks, malaria_episode_id, mstatus, Specimen_ID, days_since_malaria)
   
 
-# 
-# ex_vivo_pbmc <- long_specimen_data %>%
-#   filter(Specimen_Type=="PBMC")%>%
-#   group_by(id)%>%
-#   mutate(
-#     n_infection = cumsum(mstatus%in%c(1,2,3)),
-#     date_of_malaria = if_else(mstatus%in%c(1,2,3), date, NA))%>%
-#   group_by(id, n_infection)%>%
-#   mutate(days_since_malaria=date-date_of_malaria)
 # 
 # n_inf_summary <- ex_vivo_pbmc %>%
 #   group_by(id)%>%
@@ -140,7 +137,7 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/figures
 
 
 
-# fei gao hla typing
+# fei gao hla typing ####
 # need 100 24 week samples where 8 week samples exist
 
 
@@ -169,4 +166,143 @@ forty_more <- pbmc_samples %>%
   select(id, BoxNumber1, PositionColumn1, PositionRow1)
 
 write.csv(forty_more,"~/postdoc/stanford/clinical_data/MICDROP/forty_more.csv")  
+
+# validation of DRB11 hits against neurocognitive testing ####
+
+library(tidyr)
+library(dplyr)
+
+
+neuro_cog <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/neurocog_19092024.xlsx")
+neuro_cog_ids <- neuro_cog$ID
+
+hla_data <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/HLA typing results_Pras&Davis lab_BCGinfant.xlsx")
+
+drb11 <- hla_data%>%
+  mutate(`Sample ID2`=lag(`Sample ID`))%>%
+  mutate(`Sample ID3`=ifelse(is.na(`Sample ID`), `Sample ID2`, `Sample ID`))%>%
+  filter(hla_data$`IMGT/DRB1`=="11:01:02:--")%>%
+  select(`Sample ID3`)
+
+drb11_ids <- substr(drb11$`Sample ID3`, 10,15)
+drb11_ids <- gsub(" ", "", drb11_ids)
+drb11_ids <- unique(c(drb11_ids, 11451, 11455))
+
+
+sample_ages <- c(8, 24, 52, 68, 84, 104, 120)
+sample_ages_minus <- sample_ages-1
+sample_ages_plus <- sample_ages+1
+
+sample_ranges <- sort(c(sample_ages, sample_ages_minus, sample_ages_plus))
+
+mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta")%>%
+  mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
+  mutate("Timepoint_in_weeks"=if_else(
+    flo_age_in_wks %in% sample_ages, flo_age_in_wks, ifelse(
+      flo_age_in_wks %in% sample_ages_minus, flo_age_in_wks+1, if_else(
+        flo_age_in_wks %in% sample_ages_plus, flo_age_in_wks-1, 999)))
+  )
+  
+
+table(drb11_ids %in% neuro_cog_ids)
+drb11_ids[!drb11_ids%in%neuro_cog_ids]
+
+
+more_for_fei <- mic_drop %>%
+  filter(id %in% drb11_ids[!drb11_ids%in%neuro_cog_ids], Timepoint_in_weeks==8)%>%
+  select(id, Timepoint_in_weeks, RandomNumber1, BoxNumber1, PositionRow1, PositionColumn1)%>%
+  filter(RandomNumber1!="")
+  
+write.csv(more_for_fei, "~/postdoc/stanford/clinical_data/MICDROP/fei_gao_mark_davis/8weeks_for_fei.csv")
+
+
+
+# finding 10 paxgene and PBMC for Scott and Oliver
+# let's find 12 month old samples of kids with multiple malaria episodes, but without full sample sets, as to not collide with the big MICDROP experiment
+
+mstatus_pal <- c("no malaria"="lightgrey", "uncomplicated"="black", "complicated"="orange", "quinine for AL failure"="violet", "Q/AS failure"="purple")
+
+routine_visits <- long_specimen_data %>%
+  filter(visittype %in% c(0,1))
+
+kids_with_full_one_year <- routine_visits %>%
+  filter(Timepoint_in_weeks %in% c(8, 24, 52), Specimen_ID!="", Specimen_Type %in% c("Plasma", "PBMC", "Paxgene"))%>%
+  group_by(subject_id, Specimen_Type)%>%
+  filter(n()==3)%>%
+  ungroup()%>%
+  group_by(subject_id)%>%
+  filter(n()==9)
+
+kids_without_full_one_year <- routine_visits %>%
+  filter(id %notin% kids_with_full_one_year$id)%>%
+  select(id)%>%
+  distinct()
+
+
+mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
+
+# merge parasitemia data so that qPCR takes precedent when both slide and qPCR are present
+mic_drop <- mic_drop %>%
+  mutate(mstatus = case_match(mstatus,
+                              0~"no malaria",
+                              1~"uncomplicated",
+                              2~"complicated",
+                              3~"quinine for AL failure",
+                              4~"Q/AS failure"))%>%
+  mutate(visit_id = paste(id, date, sep=""))%>%
+  mutate("parasitaemia_method" = if_else(qPCRdich==1, "qPCR", if_else(BSdich==1, "smear", "dunno")))%>%
+  mutate(any_parsdens = if_else(is.na(qPCRparsdens) & !is.na(pardens), pardens, qPCRparsdens))%>%
+  mutate(parasitaemia_method = if_else(is.na(qPCRparsdens) & !is.na(pardens), "smear", parasitaemia_method))
+
+counter <- mic_drop %>%
+  select(id, date, AGE, dob, mstatus, any_parsdens, parasitaemia_method)%>%
+  filter(mstatus!="no malaria", AGE<=52)%>%
+  filter(id %in% kids_without_full_one_year$id)%>%
+  group_by(id) %>%
+  add_count(name="number_of_episodes_in_year1")%>%
+  filter(number_of_episodes_in_year1>=3)
+
+mic_drop %>%
+  filter(id %in% counter$id, !is.na(mstatus), !is.na(any_parsdens))%>%
+  ggplot(., aes(x=date, y=any_parsdens+0.01, group=id))+
+  geom_line()+
+  geom_point(aes(color=mstatus))+
+  scale_y_log10()+
+  facet_wrap(~id)+
+  scale_color_manual(values = mstatus_pal)+
+  theme_minimal()
+
+samples_for_scott <- long_specimen_data %>%
+  filter(id %in% counter$id)%>%
+  filter(Timepoint_in_weeks %in% c(52),
+         Specimen_ID!="", Specimen_Type %in% c("PBMC", "Paxgene"))%>%
+  arrange(id, Specimen_Type)%>%
+  select(id, Timepoint_in_weeks, BoxNumber1, PositionColumn1, PositionRow1, BoxNumber2, PositionColumn2, PositionRow2)
+
+write.csv(samples_for_scott, "~/postdoc/stanford/clinical_data/MICDROP/oliver_wirz_scott_boyd/eleven_kids_with_3_or_more_malaria_episodes_but_excluded_from_big_study.csv", row.names = FALSE)
+
+#BoxNumber1=PBMC
+#BoxNumber2=Paxgene
+#BoxNumber3=Plasma
+#BoxNumber4=PlasmaPK
+#BoxNumber5=CellStabiliser
+#BoxNumber7=CellStabiliser
+table(long_specimen_data$Specimen_Type[long_specimen_data$Specimen_ID!=""], long_specimen_data$BoxNumber7[long_specimen_data$Specimen_ID!=""]=="")
+
+grants_list <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/all_209_for_project.csv")
+
+list_for_petter <- long_specimen_data %>%
+  filter(id %in% grants_list$id, Specimen_Type=="CellStabilizer")%>%
+  select(id, flo_age_in_wks, Specimen_ID, BoxNumber5, PositionColumn5, PositionRow5)%>%
+  filter(Specimen_ID!="")
+  
+write.csv(list_for_petter, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/list_for_petter.csv", row.names = F)
+
+list_for_kenneth <- long_specimen_data %>%
+  filter(id %in% grants_list$id, Specimen_Type=="Plasma")%>%
+  filter(Specimen_ID!="", flo_age_in_wks<54)%>%
+  select(id, flo_age_in_wks, date)
+  
+
+write.csv(list_for_kenneth, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/list_for_kenneth.csv", row.names = F)
 

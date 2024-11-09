@@ -1,9 +1,18 @@
 library(Libra)
+library(tidyr)
+library(dplyr)
 
 `%notin%` <- Negate(`%in%`)
-sce <- readRDS("/Volumes/lab_prasj/BIG_Flo/kassie_bd_rhapsody/combo_sce")
-sce$cell_type=ifelse(sce$seurat_clusters %in% c(5, 9, 12), "B Cell",
-                           ifelse(sce$seurat_clusters %in% c(11, 17), "Red Cell", "T Cell"))
+sce <- readRDS("/Volumes/lab_prasj/BIG_Flo/kassie_bd_rhapsody/harmonised_scaled_cleaned_sce.rds")
+
+sce$cell_type=ifelse(sce$seurat_clusters %in% c(8:10, 12), "B Cell",
+                           ifelse(sce$seurat_clusters %in% c(11), "Red Cell",
+                                  ifelse(sce$seurat_clusters %in% c(15, 6), "CD4 T Cell",
+                                         ifelse(sce$seurat_clusters %in% c(4, 7, 5, 2), "CD8 T Cell", "gd T Cell")
+                                  )
+                           )
+)
+
 
 sce <- sce[,sce$stim!="PBMC"]
 d0_irbc <- sce[,sce$stim%in%c("d0", "iRBC")]
@@ -32,8 +41,8 @@ d0_urbc_DE <- run_de(d0_urbc,
                      min_reps = 3,
                      min_cells = 15)
 
-irbc_urbc$cell_type=ifelse(irbc_urbc$seurat_clusters %in% c(5, 9, 12), "B Cell",
-                           ifelse(irbc_urbc$seurat_clusters %in% c(11, 17), "Red Cell", "T Cell"))
+# irbc_urbc$cell_type=ifelse(irbc_urbc$seurat_clusters %in% c(5, 9, 12), "B Cell",
+#                            ifelse(irbc_urbc$seurat_clusters %in% c(11, 17), "Red Cell", "T Cell"))
 
 irbc_urbc_DE <- Libra::run_de(irbc_urbc,
                      cell_type_col = "cell_type",
@@ -47,11 +56,17 @@ irbc_urbc_DE <- Libra::run_de(irbc_urbc,
                      # min_cells = 15
 )
 
-sig_irbc_urbc_T <- irbc_urbc_DE %>%
-  filter(cell_type=="T Cell", p_val_adj<0.05)
+sig_irbc_urbc_cd4 <- irbc_urbc_DE %>%
+  filter(cell_type=="CD4 T Cell", p_val_adj<0.05)
+
+sig_irbc_urbc_cd8 <- irbc_urbc_DE %>%
+  filter(cell_type=="CD8 T Cell", p_val_adj<0.05)
 
 sig_irbc_urbc_B <- irbc_urbc_DE %>%
   filter(cell_type=="B Cell", p_val_adj<0.05)
+
+sig_irbc_urbc_gd <- irbc_urbc_DE %>%
+  filter(cell_type=="gd T Cell", p_val_adj<0.05)
 
 list_of_DE <- list(d0_irbc_DE, d0_urbc_DE, irbc_urbc_DE)
 list_of_sig <- lapply(list_of_DE, function(x) subset(x, x$p_val_adj<0.05 & abs(x$avg_logFC)>2))
