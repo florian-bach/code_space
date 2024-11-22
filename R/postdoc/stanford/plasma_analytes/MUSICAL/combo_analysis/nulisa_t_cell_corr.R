@@ -1,3 +1,5 @@
+#preamble ####
+
 library(purrr)
 library(tidyr)
 library(dplyr)
@@ -8,8 +10,10 @@ names(stim_palette) <- c("iRBC", "PMA", "unstim")
 
 `%notin%` <- Negate(`%in%`)
 
+# data generation ####
 nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv")
 
+## read in cytometry data ####
 list.files("~/Library/CloudStorage/Box-Box/Jagannathan_Lab_Folder/PROJECTS/Tr1/MUSICAL_Tr1_Flow/Luis_Analysis/CSV_Files/")
 
 metadata_files <- list.files("~/Library/CloudStorage/Box-Box/Jagannathan_Lab_Folder/PROJECTS/Tr1/MUSICAL_Tr1_Flow/Luis_Analysis/CSV_Files/", pattern = "Metadata_MUS[0-9].csv", full.names = T)
@@ -33,7 +37,7 @@ for(files in 1:length(data_files)){
   tmp$study <- "big batch"
   tmp$MusicalID <- paste("MUS", files, sep="")
   #ignore letter before 0, find 0, ignore number after 0
-  tmp$well <- str_remove(tmp$well, "(?<=[A-Z])0(?=[0-9])")
+  tmp$well <- stringr::str_remove(tmp$well, "(?<=[A-Z])0(?=[0-9])")
   tmp <- tmp[!is.na(tmp$plate),]
   tmp <- tmp[tmp$X%notin%c("SD", "Mean"),]
   tmp <- tmp[,colnames(tmp)!="X.1"]
@@ -76,15 +80,21 @@ slim_nulisa_data <- nulisa_data %>%
                             ), sep="_"))%>%
   select(targetName, concentration, qpcr, temperature, sample_id2, timepoint)
 
-combo_data <- right_join(slim_nulisa_data, luis_data, by = "sample_id2", relationship = "many-to-many", )
+## putting it all together ####
+combo_data <- slim_nulisa_data %>%
+  right_join(., luis_data, by = "sample_id2", relationship = "many-to-many")%>%
+  filter(!is.na(timepoint.x))
 
 fdr_cutoff <- 0.1
 
 unstim_corrs <- combo_data %>%
   group_by(targetName, gate, timepoint.x, inf_type)%>%
-  do(broom::tidy(cor.test(.$concentration, .$unstim, method="spearman")))%>%
+  nest()%>%
+  mutate(correlation=map(data, ~cor.test(.$concentration, .$unstim, method = "spearman")))%>%
+  mutate(p=map_dbl(correlation, ~.$p.value),
+         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
   ungroup()%>%
-  mutate(padj=p.adjust(p.value))
+  mutate(padj=p.adjust(p))
 
 sig_unstim <- unstim_corrs %>%
   filter(padj<fdr_cutoff)
@@ -93,9 +103,13 @@ sig_unstim <- unstim_corrs %>%
 
 PMA_corrs <- combo_data %>%
   group_by(targetName, gate, timepoint.x, inf_type)%>%
-  do(broom::tidy(cor.test(.$concentration, .$PMA, method="spearman")))%>%
+  nest()%>%
+  mutate(correlation=map(data, ~cor.test(.$concentration, .$PMA, method = "spearman")))%>%
+  mutate(p=map_dbl(correlation, ~.$p.value),
+         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
   ungroup()%>%
-  mutate(padj=p.adjust(p.value))
+  mutate(padj=p.adjust(p))
+
 
 sig_PMA <- PMA_corrs %>%
   filter(padj<fdr_cutoff)
@@ -104,9 +118,12 @@ sig_PMA <- PMA_corrs %>%
 
 iRBC_corrs <- combo_data %>%
   group_by(targetName, gate, timepoint.x, inf_type)%>%
-  do(broom::tidy(cor.test(.$concentration, .$iRBC, method="spearman")))%>%
+  nest()%>%
+  mutate(correlation=map(data, ~cor.test(.$concentration, .$iRBC, method = "spearman")))%>%
+  mutate(p=map_dbl(correlation, ~.$p.value),
+         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
   ungroup()%>%
-  mutate(padj=p.adjust(p.value))
+  mutate(padj=p.adjust(p))
 
 sig_iRBC<- iRBC_corrs %>%
   filter(padj<fdr_cutoff)
@@ -144,23 +161,27 @@ combo_data %>%
 
 # disjointed timepoints, absolute values ####
 long_combo <-  combo_data %>%
-  pivot_longer(cols=c(iRBC, unstim, PMA), names_to = "stim", values_to = "freq")
+  pivot_longer(cols=c(iRBC, unstim, PMA), names_to = "stim", values_to = "freq")%>%
+  filter(!(stim=="PMA" & !grepl("_[^_]+_", gate)),
+         !(stim=="iRBC" & !grepl("_[^_]+_", gate)),
+         !(stim=="unstim" & grepl("_[^_]+_", gate)),
+         !(stim=="PMA" & gate=="CD4_T_Cell_Frequency"))
 
 day0_concs <- long_combo %>%
-  filter(class=="S", timepoint.x=="baseline")%>%
-  distinct(targetName, concentration, cohortid, timepoint.x, class)
+  filter(inf_type=="symp", timepoint.x=="baseline")%>%
+  distinct(targetName, concentration, cohortid, timepoint.x, inf_type)
   
 day7_freqs <- long_combo%>%
-  filter(class=="S", timepoint.x=="day7")%>%
-  distinct(gate, freq, stim, cohortid, timepoint.x, class)
+  filter(inf_type=="symp", timepoint.x=="day7")%>%
+  distinct(gate, freq, stim, cohortid, timepoint.x, inf_type)
 
 day14_freqs <- long_combo%>%
-  filter(class=="S", timepoint.x=="day14")%>%
-  distinct(gate, freq, stim, cohortid, timepoint.x, class)
+  filter(inf_type=="symp", timepoint.x=="day14")%>%
+  distinct(gate, freq, stim, cohortid, timepoint.x, inf_type)
 
 
-conc_freq_07 <- inner_join(day0_concs, day7_freqs, by=c("cohortid", "class"), relationship = "many-to-many")
-conc_freq_014 <- inner_join(day0_concs, day14_freqs, by=c("cohortid", "class"), relationship = "many-to-many")
+conc_freq_07 <- inner_join(day0_concs, day7_freqs, by=c("cohortid", "inf_type"), relationship = "many-to-many")
+conc_freq_014 <- inner_join(day0_concs, day14_freqs, by=c("cohortid", "inf_type"), relationship = "many-to-many")
 
 conc_freq_07_corr <- conc_freq_07%>%
   group_by(gate, stim, targetName)%>%
@@ -187,7 +208,7 @@ sig_conc_freq_014_corr <- conc_freq_014_corr%>%
   filter(padj<fdr_cutoff)
 
 long_combo %>%
-  filter(class=="S", targetName %in% c("CRP", "IL10"), grepl("^Treg2", gate))%>%
+  filter(inf_type=="symp", targetName %in% c("CRP", "IL10"), grepl("^Treg2", gate))%>%
   ggplot(., aes(x=freq, y=concentration))+
   geom_point()+
   facet_wrap(~gate+stim)+
@@ -201,6 +222,11 @@ pilot_data <- read.csv("~/Library/CloudStorage/Box-Box/Jagannathan_Lab_Folder/PR
 # fold changes ####
 
 wide_concs <-  combo_data %>%
+  pivot_longer(cols=c(iRBC, unstim, PMA), names_to = "stim", values_to = "freq")%>%
+  filter(!(stim=="PMA" & !grepl("_[^_]+_", gate)),
+         !(stim=="iRBC" & !grepl("_[^_]+_", gate)),
+         !(stim=="unstim" & grepl("_[^_]+_", gate)),
+         !(stim=="PMA" & gate=="CD4_T_Cell_Frequency"))%>%
   select(targetName, concentration, cohortid, inf_type, timepoint.x, sample_id2)%>%
   filter(inf_type!="nmf", timepoint.x %in% c("baseline", "day0", "day7", "day14"))%>%
   distinct(targetName, concentration, cohortid, inf_type, timepoint.x)%>%
@@ -213,6 +239,10 @@ wide_concs <-  combo_data %>%
 
 wide_freqs <-  combo_data %>%
   pivot_longer(cols=c(iRBC, unstim, PMA), names_to = "stim", values_to = "freq")%>%
+  filter(!(stim=="PMA" & !grepl("_[^_]+_", gate)),
+         !(stim=="iRBC" & !grepl("_[^_]+_", gate)),
+         !(stim=="unstim" & grepl("_[^_]+_", gate)),
+         !(stim=="PMA" & gate=="CD4_T_Cell_Frequency"))%>%
   select(gate, stim, freq, cohortid, inf_type, timepoint.x, sample_id2)%>%
   filter(inf_type!="nmf", timepoint.x %in% c("baseline", "day0", "day7", "day14"))%>%
   distinct(gate, stim, freq, cohortid, inf_type, timepoint.x)%>%
@@ -226,33 +256,53 @@ wide_freqs <-  combo_data %>%
 
 fc_combo_frame <- left_join(wide_freqs, wide_concs, by=c("cohortid", "inf_type"))
 
-fc_corr_purr <- fc_combo_frame%>%
+fc_corr_purr <- fc_combo_frame %>%
+  filter(inf_type=="symp")%>%
   group_by(inf_type, stim, gate, targetName)%>%
   nest()%>%
-  # mutate(base_d7_correlation=if_else(all(is.na(freq_day7)), map(data, ~cor.test(.$freq_base_d7_fc, .$conc_base_d0_fc, method = "spearman")))%>%
-  mutate(base_d14_correlation=map(data, ~cor.test(.$freq_base_d14_fc, .$conc_base_d0_fc, method = "spearman", )))%>%
+  # mutate(base_d7_correlation=if_else(all(is.na(data$freq_day7)), map(data, ~cor.test(.$freq_base_d7_fc, .$conc_base_d0_fc, method = "spearman"))))%>%
+  mutate(base_d7_correlation=map(data, ~cor.test(.$freq_base_d7_fc, .$conc_base_d0_fc, method = "spearman")))%>%
+  mutate(base_d14_correlation=map(data, ~cor.test(.$freq_base_d14_fc, .$conc_base_d0_fc, method = "spearman")))%>%
   mutate(
-         # base_d7_p=map_dbl(base_d7_correlation, ~.$p.value),
-         # base_d7_rho=map_dbl(base_d7_correlation, ~.$estimate),
+         base_d7_p=map_dbl(base_d7_correlation, ~.$p.value),
+         base_d7_rho=map_dbl(base_d7_correlation, ~.$estimate),
          base_d14_p=map_dbl(base_d14_correlation, ~.$p.value),
          base_d14_rho=map_dbl(base_d14_correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
   group_by(inf_type, stim, targetName)%>%
-  mutate(padj=p.adjust(base_d14_p))
+  mutate(base_d14_padj=p.adjust(base_d14_p),
+         base_d7_padj=p.adjust(base_d7_p)
+         )
   
 sig_fc_corr_purr <- fc_corr_purr%>%
-  filter(padj<0.05)
+  filter(base_d14_padj<0.05 | base_d7_padj<0.05)
 
 
-fc_combo_frame %>%
-  filter(gate=="Tr1_Frequency", stim!="PMA", inf_type=="symp", targetName%in%c("GZMA"))%>%
+tr1_gzma <- fc_combo_frame %>%
+  filter(gate=="Tr1_Frequency", stim!="PMA", targetName%in%c("GZMA"))%>%
   ggplot(., aes(x=freq_base_d7_fc, y=conc_base_d0_fc, color=stim))+
   geom_point()+
   ggpubr::stat_cor()+
-  # ggtitle(paste(gate, stim, inf_type, targetName))+
+  ggtitle("Tr1 Frequency change vs. GZMA change")+
   geom_smooth(method="lm")+
   scale_color_manual(values =stim_palette)+
   facet_wrap(~targetName)+
   theme_minimal()
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/tr1_gzma_fc_corr_day0_day14.png", tr1_gzma, height = 6, width=6, dpi=444, bg="white")
+
+ctfh_cxcl10 <- fc_combo_frame %>%
+  filter(gate=="cTfh_Frequency", stim!="PMA", targetName%in%c("CXCL10"))%>%
+  ggplot(., aes(x=freq_base_d14_fc, y=conc_base_d0_fc, color=stim))+
+  geom_point()+
+  ggpubr::stat_cor()+
+  ggtitle("cTfh change vs. CXCL10 change")+
+  geom_smooth(method="lm")+
+  scale_color_manual(values =stim_palette)+
+  facet_wrap(~targetName)+
+  theme_minimal()
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/ctfh_cxcl10_fc_corr_day0_day14.png", ctfh_cxcl10, height = 6, width=6, dpi=444, bg="white")
+
 
 
 list_of_plots <- list(matrix(nrow = nrow(sig_fc_corr_purr)))
@@ -403,3 +453,36 @@ combo_data %>%
   # scale_color_manual(values =stim_palette)+
   facet_wrap(~inf_type)+
   theme_minimal()
+
+
+# combo_data%>%
+#   filter(targetName %in% c("IL10", "CXCL10", "TNF"))%>%
+#   group_by(cohortid, timepoint)%>%
+#   ggplot(aes(x=timepoint.x, y=concentration, fill=timepoint.x))+
+#   geom_point()+#
+#   geom_line(aes(group=cohortid))+
+#   # geom_boxplot(outliers = FALSE)+
+#   # geom_violin(draw_quantiles = seq(0,1,0.25))+
+#   # ggtitle("regulated during asymptomatic parasitemia")+
+#   facet_wrap(~targetName+inf_type, scales = "free")+
+#   scale_fill_manual(values=viridis::magma(4))+
+#   theme_minimal()+
+#   da_boxplot_theme
+
+
+cd4_t_plot <- combo_data%>%
+  filter(gate %in% c("CD4_T_Cell_Frequency"))%>%
+  filter(inf_type!="nmf", !is.na(timepoint.x))%>%
+  ggplot(aes(x=factor(timepoint.x, levels=c("baseline", "day0", "day7", "day14")), y=unstim, fill=timepoint.x))+
+  geom_line(aes(group=cohortid))+
+  geom_boxplot(outliers = FALSE)+
+  geom_point(color="grey")+#
+  # geom_violin(draw_quantiles = seq(0,1,0.25))+
+  # ggtitle("regulated during asymptomatic parasitemia")+
+  facet_wrap(gate~inf_type, scales = "free")+
+  scale_color_manual(values=viridis::magma(3))+
+  scale_fill_manual(values=viridis::magma(4))+
+  theme_minimal()+
+  da_boxplot_theme
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/cd4_freqs.png", cd4_t_plot, width=4, height=4, bg="white", dpi=444)

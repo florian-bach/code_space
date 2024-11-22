@@ -11,8 +11,13 @@ da_boxplot_theme <- theme(legend.position = "none",
 
 #unclean data
 unclean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/unclean_musical_combo_with_metadata.csv")
+unclean_data <- unclean_data %>%
+  mutate(timepoint = factor(timepoint, levels=c("bad_baseline", "baseline", "day0", "day7", "day14", "day28")))
+
 #clean data
 clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv")
+clean_data <- clean_data %>%
+  mutate(timepoint = factor(timepoint, levels=c("bad_baseline", "baseline", "day0", "day7", "day14", "day28")))
 
 # big heatmap ####
 ## unclean ####
@@ -104,7 +109,7 @@ dev.off()
 # PCA ####
   ## unclean ####
 
-id_columns <- c("sample_id", "id", "gender_categorical", "ageyrs", "timepoint", "class", "study", "qpcr", "qpcr_cat")
+id_columns <- c("sample_id", "id", "gender_categorical", "ageyrs", "timepoint", "infectiontype", "plate_number", "qpcr", "qpcr_cat")
 
 unclean_wide_df2 <- unclean_data %>%
   # filter(targetName %in% most_variable$targetName)%>%
@@ -118,31 +123,21 @@ unclean_pca_plot_data <- as.data.frame(cbind(unclean_wide_df2, unclean_big_pca$x
 
 removed_samples <- unique(unclean_data$sample_id[unclean_data$sample_id %notin% clean_data$sample_id])
 
-pc_removed_samples <- c("X384_S.1_D1V93U",
-                        "X744_A.1_D1KT5Z",
-                        "X323_A14_D1DZ2D",
-                        "X496_NM7_D1CAYS",
-                        "X316_S.1_D12FNR",
-                        "X667_NM7_D1GBYA",
-                        "X 176 S_t14 D1FXRJ",
-                        "X164_NM0_D1WA6Q",
-                        "X 176 S_t7 D1VFF7",
-                        "X219_S.1_D1C4ZM",
-                        "X132_S0_D1AUZD")
-
-z_score_removed_samples <- unique(unclean_data$sample_id[unclean_data$mean_z_conc < -0.4])
-
+post_hoc <- unique(unclean_data$sample_id[unclean_data$barcode%in%c("D1RTFU", "D12FNR")])
+  
 pca_removal_plot <- unclean_pca_plot_data %>%
   filter(timepoint %notin% c("day28", "bad_baseline"))%>%
   mutate("over_six"=if_else(ageyrs>6, "over 6y", "under 6y"))%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
   ggplot(., aes(x=PC1, y=PC2))+
-  geom_point(aes(color=ifelse(sample_id %in% removed_samples, "removed", "included")))+
+  geom_point(aes(color=ifelse(sample_id %in% removed_samples, "removed", "kept")
+                 ))+
+  # geom_text(aes(label=sample_id))+
   # stat_ellipse()+
-  xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
-  ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
+  # xlab(paste("PC1 ", data.frame(summary(unclean_big_pca)[6])[2,1]*100, "%", sep = ""))+
+  # ylab(paste("PC2 ", data.frame(summary(unclean_big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
-  scale_color_manual(values=c("black", "red", "orange"))+
+  scale_color_manual(values=c("black", "red"))+
   theme(legend.title = element_blank(),
         axis.text = element_blank())
 
@@ -157,8 +152,8 @@ pca_removal_plot2 <- unclean_pca_plot_data %>%
   ggplot(., aes(x=PC3, y=PC4))+
   geom_point(aes(color=CTSS))+
   # stat_ellipse()+
-  xlab(paste("PC3 ", data.frame(summary(big_pca)[6])[2,3]*100, "%", sep = ""))+
-  ylab(paste("PC4 ", data.frame(summary(big_pca)[6])[2,4]*100, "%", sep = ""))+
+  xlab(paste("PC3 ", data.frame(summary(unclean_big_pca)[6])[2,3]*100, "%", sep = ""))+
+  ylab(paste("PC4 ", data.frame(summary(unclean_big_pca)[6])[2,4]*100, "%", sep = ""))+
   theme_minimal()+
   scale_color_viridis_c()+
   theme(legend.title = element_blank(),
@@ -175,7 +170,7 @@ loop_data <- unclean_pca_plot_data %>%
 
 plot_list <- list()
 
-for(color_by in c("gender_categorical", "class", "over_six", "study")){
+for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number")){
   for(i in seq(1,7, by=2)){
     
     xvar <- paste("PC", i, sep="")
@@ -186,8 +181,8 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
     
     plt <- ggplot(loop_data, aes_string(x=xvar, y=yvar, color=color_by))+
       geom_point()+
-      xlab(paste0("PC", i, " ", data.frame(summary(big_pca)[6])[2,i]*100, "%", sep = ""))+
-      ylab(paste0("PC", i+1, " ", data.frame(summary(big_pca)[6])[2,i+1]*100, "%", sep = ""))+
+      xlab(paste0("PC", i, " ", data.frame(summary(unclean_big_pca)[6])[2,i]*100, "%", sep = ""))+
+      ylab(paste0("PC", i+1, " ", data.frame(summary(unclean_big_pca)[6])[2,i+1]*100, "%", sep = ""))+
       theme_minimal()+
       theme(legend.title = element_blank())+
       scale_color_manual(values=viridis::magma(length(unique(loop_data[,color_by]))+1))
@@ -207,7 +202,7 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 
   ## clean ####
 
-id_columns <- c("sample_id", "id", "gender_categorical", "ageyrs", "timepoint", "class", "study", "qpcr", "qpcr_cat")
+id_columns <- c("sample_id", "id", "gender_categorical", "ageyrs", "timepoint", "infectiontype", "plate_number", "qpcr", "qpcr_cat")
 wide_df2 <- clean_data %>%
   filter(targetName !="CTSS")%>%
   # filter(targetName %in% most_variable$targetName)%>%
@@ -298,28 +293,28 @@ time_pca_plot <- pca_plot_data %>%
 ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/time_pca_plot.png", time_pca_plot, width=4, height=4, bg="white", dpi=444)
 
 
-study_pca_plot <- pca_plot_data %>%
+plate_number_pca_plot <- pca_plot_data %>%
   filter(timepoint %notin% c("day28", "bad_baseline"))%>%
   mutate("over_six"=if_else(ageyrs>6, "over 6y", "under 6y"))%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
-  ggplot(., aes(x=PC1, y=PC2, fill=study))+
+  ggplot(., aes(x=PC1, y=PC2, fill=plate_number))+
   geom_point(shape=21)+
   # stat_ellipse()+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
-  scale_fill_manual(values=c("black", "pink"))+
+  # scale_fill_manual(values=colorspace::qualitative_hcl(n=5, palette = "dark2"))+
   theme(legend.title = element_blank(),
         axis.text = element_blank())
 
-ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/study_pca_plot.png", study_pca_plot, width=4, height=4, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/plate_number_pca_plot.png", plate_number_pca_plot, width=4, height=4, bg="white", dpi=444)
 
 
-class_pca_plot <- pca_plot_data %>%
+infectiontype_pca_plot <- pca_plot_data %>%
   filter(timepoint %notin% c("day28", "bad_baseline"))%>%
   mutate("over_six"=if_else(ageyrs>6, "over 6y", "under 6y"))%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
-  ggplot(., aes(x=PC1, y=PC2, color=class))+
+  ggplot(., aes(x=PC1, y=PC2, color=infectiontype))+
   geom_point()+
   # stat_ellipse()+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
@@ -329,7 +324,7 @@ class_pca_plot <- pca_plot_data %>%
   theme(legend.title = element_blank(),
         axis.text = element_blank())
 
-ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/class_pca_plot.png", class_pca_plot, width=4, height=4, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/infectiontype_pca_plot.png", infectiontype_pca_plot, width=4, height=4, bg="white", dpi=444)
 
 
 
@@ -358,7 +353,7 @@ loop_data <- pca_plot_data %>%
 
 plot_list <- list()
 
-for(color_by in c("gender_categorical", "class", "over_six", "study")){
+for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number")){
   for(i in seq(1,7, by=2)){
     
     xvar <- paste("PC", i, sep="")
@@ -388,6 +383,161 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
   
 }
 
+# plot parasite densities ####
+## qpcr ####
+asymp_pcr_plot <- clean_data %>%
+  filter(infectiontype%in%c("A"), timepoint %notin% c("day28"), timepoint!="bad_baseline")%>%
+  distinct(id, timepoint, qpcr)%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  ggplot(aes(x=factor(timepoint), y=qpcr+0.1, color=id))+
+  geom_point()+
+  geom_line(aes(group=id))+
+  ggtitle("asymptomatic parasitemia")+
+  scale_color_manual(values=viridis::magma(60))+
+  scale_y_log10(limits=c(0.1, 10^6))+
+  theme_minimal()+
+  da_boxplot_theme
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/asymp_pcr_plot.png", asymp_pcr_plot, width=5, height=5, dpi=444, bg="white")
+
+
+symp_pcr_plot <- clean_data %>%
+  filter(infectiontype%in%c("S"), timepoint %notin% c("day28"), timepoint!="bad_baseline")%>%
+  distinct(id, timepoint, qpcr)%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  ggplot(aes(x=factor(timepoint), y=qpcr+0.1, color=id))+
+  geom_point()+
+  geom_line(aes(group=id))+
+  ggtitle("symptomatic parasitemia")+
+  scale_color_manual(values=viridis::magma(60))+
+  scale_y_log10(limits=c(0.1, 10^6))+
+  theme_minimal()+
+  da_boxplot_theme
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/symp_pcr_plot.png", symp_pcr_plot, width=5, height=5, dpi=444, bg="white")
+
+
+## blood smears ####
+
+asymp_bs_plot <- clean_data %>%
+  filter(infectiontype%in%c("A"), timepoint %notin% c("day28"), timepoint!="bad_baseline")%>%
+  distinct(id, timepoint, parasitedensity)%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  ggplot(aes(x=factor(timepoint), y=parasitedensity+0.1, color=id))+
+  geom_point()+
+  geom_line(aes(group=id))+
+  ggtitle("asymptomatic parasitemia")+
+  scale_color_manual(values=viridis::magma(60))+
+  scale_y_log10(limits=c(0.1, 10^6))+
+  theme_minimal()+
+  da_boxplot_theme
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/asymp_bs_plot.png", asymp_bs_plot, width=5, height=5, dpi=444, bg="white")
+
+
+symp_bs_plot <- clean_data %>%
+  filter(infectiontype%in%c("S"), timepoint %notin% c("day28"), timepoint!="bad_baseline")%>%
+  distinct(id, timepoint, parasitedensity)%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  ggplot(aes(x=factor(timepoint), y=parasitedensity+0.1, color=id))+
+  geom_point()+
+  geom_line(aes(group=id))+
+  ggtitle("symptomatic parasitemia")+
+  scale_color_manual(values=viridis::magma(60))+
+  scale_y_log10(limits=c(0.1, 10^6))+
+  theme_minimal()+
+  da_boxplot_theme
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/symp_pcr_plot.png", symp_bs_plot, width=5, height=5, dpi=444, bg="white")
+
+## correlating blood smears with pcr####
+
+pardens_qpcr_cor <- clean_data %>%
+  filter(timepoint %notin% c("day28", "bad_baseline"), infectiontype %in% c("A", "S"))%>%
+  distinct(id, timepoint, parasitedensity, qpcr, infectiontype)%>%
+  ggplot(aes(x=qpcr+0.1, y=parasitedensity+0.1))+
+  geom_point(aes(color=infectiontype))+
+  geom_hline(yintercept = 500, linetype="dashed")+
+  ggpubr::stat_cor()+
+  geom_smooth(method="lm")+
+  ggtitle("correlating microscopy with qPCR")+
+  scale_color_manual(values=viridis::magma(3))+
+  scale_y_log10(limits=c(0.1, 10^6))+
+  scale_x_log10(limits=c(0.1, 10^6))+
+  facet_wrap(~timepoint)+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/pardens_qpcr_cor.png", pardens_qpcr_cor, width=5, height=5, dpi=444, bg="white")
+
+
+# analytes that vary by parasitemia, but not infectiontype; 59/95
+clean_data %>%
+  filter(infectiontype %in% c("A", "S"))%>%
+  filter(targetName %in% c("CTLA4", "IL2RA", "TNFRSF1A", "FASLG", "CCL4", "GZMA"))%>%
+  ggplot(., aes(x=log_qpcr, y=concentration, color=infectiontype))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~targetName)+
+  scale_color_manual(values=viridis::magma(n=3))+
+  theme_minimal()
+
+# analytes that vary by timepoint, but not parasitemia;
+clean_data %>%
+  filter(infectiontype %in% c("A", "S"))%>%
+  filter(targetName %in% c("LAMP3", "CLEC4A", "CCL22", "CXADR", "CD276", "CD200"))%>%
+  ggplot(., aes(x=log_qpcr, y=concentration, color=infectiontype))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~targetName)+
+  scale_color_manual(values=viridis::magma(n=3))+
+  theme_minimal()
+
+clean_data %>%
+  filter(infectiontype %in% c("A", "S"), timepoint %notin% c("bad_baseline", "day28", "day7"))%>%
+  filter(targetName %in% c("LAMP3", "CLEC4A", "CCL22", "CXADR", "CD276", "CD200"))%>%
+  ggplot(., aes(x=timepoint, y=concentration, fill=infectiontype))+
+  geom_boxplot()+
+  # geom_point()+
+  # geom_smooth(method="lm")+
+  facet_wrap(~targetName)+
+  scale_fill_manual(values=viridis::magma(n=3))+
+  theme_minimal()
+
+clean_data %>%
+  filter(infectiontype %in% c("A", "S"))%>%
+  filter(targetName %in% c("IL10", "CXCL10", "IL6", "TNFSF11", "KNG1", "C1QA"))%>%
+  ggplot(., aes(x=log_qpcr, y=concentration, color=infectiontype))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~targetName)+
+  scale_color_manual(values=viridis::magma(n=3))+
+  theme_minimal()
+
+
+clean_data %>%
+  filter(infectiontype %in% c("A", "S"), timepoint %notin% c("bad_baseline", "day28"))%>%
+  select(-targetName)%>%
+  filter(!duplicated(sample_id))%>%
+  ggplot(., aes(x=timepoint, y=log_qpcr, fill=infectiontype))+
+  # scale_y_log10()+
+  # geom_point(position = position_dodge(width=0.75))+
+  # geom_boxplot()+
+  geom_violin(draw_quantiles = seq(0,1,0.25))+
+  scale_fill_manual(values=viridis::magma(n=3))+
+  theme_minimal()
+
+
+ clean_data %>%
+  filter(infectiontype %in% c("A", "S"), timepoint %notin% c("bad_baseline", "day28"))%>%
+  select(-targetName)%>%
+  filter(!duplicated(sample_id))%>%
+  ggplot(., aes(x=timepoint, y=parasitedensity+0.1, fill=infectiontype))+
+  scale_y_log10()+
+  geom_violin(draw_quantiles = seq(0,1,0.25))+
+  scale_fill_manual(values=viridis::magma(n=3))+
+  theme_minimal()
+  
 
 # sandbox ####
 # 
@@ -410,11 +560,11 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 #   group_by(targetName)%>%
 #   mutate(log_qpcr=log10(qpcr+0.1))%>%
 #   nest() %>%
-#   mutate(simple_model=map(data,  ~lme4::lmer(concentration~timepoint+class+(1|id), data=.)), simple_AIC=map_dbl(simple_model, ~AIC(.)))%>%
-#   mutate(qpcr_model=map(data,     ~lme4::lmer(concentration~timepoint+class+log_qpcr+(1|id), data=.)), qpcr_AIC=map_dbl(qpcr_model, ~AIC(.)))%>%
-#   mutate(age_model=map(data,     ~lme4::lmer(concentration~timepoint+class+ageyrs+(1|id), data=.)), age_AIC=map_dbl(age_model, ~AIC(.)))%>%
-#   mutate(sex_model=map(data,     ~lme4::lmer(concentration~timepoint+class+gender_categorical+(1|id), data=.)), sex_AIC=map_dbl(sex_model, ~AIC(.)))%>%
-#   mutate(age_sex_model=map(data, ~lme4::lmer(concentration~timepoint+class+ageyrs+gender_categorical+(1|id), data=.)), age_sex_AIC=map_dbl(age_sex_model, ~AIC(.)))
+#   mutate(simple_model=map(data,  ~lme4::lmer(concentration~timepoint+infectiontype+(1|id), data=.)), simple_AIC=map_dbl(simple_model, ~AIC(.)))%>%
+#   mutate(qpcr_model=map(data,     ~lme4::lmer(concentration~timepoint+infectiontype+log_qpcr+(1|id), data=.)), qpcr_AIC=map_dbl(qpcr_model, ~AIC(.)))%>%
+#   mutate(age_model=map(data,     ~lme4::lmer(concentration~timepoint+infectiontype+ageyrs+(1|id), data=.)), age_AIC=map_dbl(age_model, ~AIC(.)))%>%
+#   mutate(sex_model=map(data,     ~lme4::lmer(concentration~timepoint+infectiontype+gender_categorical+(1|id), data=.)), sex_AIC=map_dbl(sex_model, ~AIC(.)))%>%
+#   mutate(age_sex_model=map(data, ~lme4::lmer(concentration~timepoint+infectiontype+ageyrs+gender_categorical+(1|id), data=.)), age_sex_AIC=map_dbl(age_sex_model, ~AIC(.)))
 # 
 # 
 # 
@@ -437,21 +587,21 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 # 
 # 
 # pca_plot_data %>%
-#   filter(timepoint %in% c("day0", "day7", "day14", "baseline"), class %in% c("A", "S"))%>%
+#   filter(timepoint %in% c("day0", "day7", "day14", "baseline"), infectiontype %in% c("A", "S"))%>%
 #   ggplot(., aes(x=PC1, y=PC2, color=timepoint))+
 #   geom_point()+
 #   stat_ellipse()+
 #   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
 #   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
 #   theme_minimal()+
-#   facet_wrap(~class)+
+#   facet_wrap(~infectiontype)+
 #   scale_color_manual(values=viridis::magma(5))+
 #   theme(legend.title = element_blank(),
 #         axis.text = element_blank())
 # 
 # pca_plot_data %>%
-#   filter(timepoint %in% c("baseline"), class %in% c("A", "S"))%>%
-#   ggplot(., aes(x=PC1, y=PC2, color=class))+
+#   filter(timepoint %in% c("baseline"), infectiontype %in% c("A", "S"))%>%
+#   ggplot(., aes(x=PC1, y=PC2, color=infectiontype))+
 #   geom_point()+
 #   stat_ellipse()+
 #   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
@@ -463,16 +613,16 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 # 
 # 
 # qpcr_cat_at_day0 <- clean_data %>%
-#   filter(class %in% c("A", "S"), !is.na(qpcr_cat), timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
-#   group_by(class, id)%>%
+#   filter(infectiontype %in% c("A", "S"), !is.na(qpcr_cat), timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
+#   group_by(infectiontype, id)%>%
 #   reframe("day0_qpcr_cat"=qpcr_cat[timepoint=="day0"],
 #           "day0_qpcr"=log10(qpcr+0.1)[timepoint=="day0"])%>%
 #   distinct()
 # 
 # 
 # clean_data %>%
-#   filter(class%in%c("A", "S"), timepoint!="day28", timepoint!="bad_baseline", !is.na(qpcr_cat))%>%
-#   left_join(., qpcr_cat_at_day0, by=c("class", "id"))%>%
+#   filter(infectiontype%in%c("A", "S"), timepoint!="day28", timepoint!="bad_baseline", !is.na(qpcr_cat))%>%
+#   left_join(., qpcr_cat_at_day0, by=c("infectiontype", "id"))%>%
 #   filter(targetName %in% c("IFNG", "TNF", "CCL4"))%>%
 #   # filter(targetName %in% c("IL15", "SDC1", "EPO", "TNFRSF8", "PDCD1", "IRAK4", "CXCL11""ANGPT2"))%>%
 #   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
@@ -485,7 +635,7 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 #   geom_boxplot(outliers = FALSE)+
 #   # geom_violin(draw_quantiles = seq(0,1,0.25))+
 #   # ggtitle("upregulated on day 7 post malaria")+
-#   facet_wrap(~targetName+class, scales = "free", ncol=2)+
+#   facet_wrap(~targetName+infectiontype, scales = "free", ncol=2)+
 #   scale_fill_manual(values=viridis::magma(8))+
 #   theme_minimal()+
 #   da_boxplot_theme+
@@ -494,8 +644,8 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 # ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/il10_tnf_qpcr_cat_plot.png", il10_tnf_qpcr_cat_plot, width=8, height=4, dpi=444, bg='white')
 # 
 # pca_plot_data %>%
-#   filter(class %in% c("A", "S"))%>%
-#   left_join(., qpcr_cat_at_day0, by=c("class", "id"))%>%
+#   filter(infectiontype %in% c("A", "S"))%>%
+#   left_join(., qpcr_cat_at_day0, by=c("infectiontype", "id"))%>%
 #   ggplot(., aes(x=PC1, y=PC2, color=day0_qpcr))+
 #   geom_point()+
 #   # stat_ellipse()+
@@ -509,8 +659,8 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 # 
 # # check whether
 # clean_data %>%
-#   filter(class%in%c("S"), timepoint!="day28", timepoint!="bad_baseline", !is.na(qpcr_cat))%>%
-#   left_join(., qpcr_cat_at_day0, by=c("class", "id"))%>%
+#   filter(infectiontype%in%c("S"), timepoint!="day28", timepoint!="bad_baseline", !is.na(qpcr_cat))%>%
+#   left_join(., qpcr_cat_at_day0, by=c("infectiontype", "id"))%>%
 #   # filter(targetName %in% c("IL15", "SDC1", "EPO", "TNFRSF8", "PDCD1", "IRAK4", "CXCL11""ANGPT2"))%>%
 #   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
 #   mutate(qpcr_cat = factor(qpcr_cat, levels=c("0", ">1", ">10", ">10e2", ">10e3", ">10e4", ">10e5")))%>%
@@ -527,7 +677,7 @@ for(color_by in c("gender_categorical", "class", "over_six", "study")){
 #   # geom_boxplot(outliers = FALSE)+
 #   # geom_violin(draw_quantiles = seq(0,1,0.25))+
 #   # ggtitle("upregulated on day 7 post malaria")+
-#   facet_wrap(~targetName+class, scales = "free", ncol=4)+
+#   facet_wrap(~targetName+infectiontype, scales = "free", ncol=4)+
 #   scale_fill_manual(values=viridis::magma(8))+
 #   theme_minimal()
 

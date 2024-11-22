@@ -61,7 +61,7 @@ promote_data <- promote %>%
 
 # mic drop ####
 
-mic_drop <-  haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
+mic_drop <-  haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_09/MICDROP expanded database through September 30th 2024.dta")
 
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
@@ -168,7 +168,7 @@ all_malaria <- all_malaria %>%
 
 # complicated disease modelling ####
 n_para_comp <- all_malaria %>%
-  filter(study=="micdrop")%>%
+  # filter(study=="micdrop")%>%
   group_by(disease, n_para)%>%
   summarise("n"=n())%>%
   pivot_wider(names_from = disease, values_from = n)%>%
@@ -178,11 +178,26 @@ n_para_comp <- all_malaria %>%
          asymp_prob=asymptomatic/total_infections)
 
 
+total_n_para <- all_malaria%>%
+       group_by(id)%>%
+       summarise("summe"=max(total_n_para))%>%
+       summarise("total_n_para"=sum(summe))
+
+total_n_malaria <- all_malaria%>%
+  group_by(id)%>%
+  summarise("summe"=max(total_n_malaria))%>%
+  summarise("total_n_malaria"=sum(summe))
+
+n_kids <- n_distinct(all_malaria$id)
+
+max_age <- max(all_malaria$age_months, na.rm = T)
+
+
 comp_model <- glm(risk~n_para+I(n_para^2), family = "binomial", weights = total_infections, data = n_para_comp)
 
 comp_model2 <- glm(complicated~n_para+age, family = "binomial", data = all_malaria)
 
-comp_model3 <- lme4::glmer(complicated~n_para+I(n_para^2)+age_at_second+(1|id), family = "binomial", data = all_malaria)
+comp_model3 <- lme4::glmer(complicated~n_para+I(n_para^2)+(1|id), family = "binomial", data = all_malaria)
 
   ## risk~n_infection ####
 
@@ -200,8 +215,8 @@ prd$lci <- err$fit - 1.96 * err$se.fit
 prd$fit <- err$fit
 prd$uci <- err$fit + 1.96 * err$se.fit
 
-n_para_comp_data <- n_para_comp[1:19,]
-n_para_comp_plot <- ggplot(n_para_comp_data, aes(x=n_para, y=risk))+
+
+n_para_comp_plot <- ggplot(n_para_comp, aes(x=n_para, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
   geom_ribbon(data=prd, aes(x=n_para, ymin = exp(lci), ymax = exp(uci)),
@@ -211,35 +226,35 @@ n_para_comp_plot <- ggplot(n_para_comp_data, aes(x=n_para, y=risk))+
   scale_x_continuous(breaks = 1:50, limits=c(1,19))+
   scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
   xlab("Order of Infection")+
-  ylab("Risk of Complicated")+
-  ggtitle(paste(n_distinct(all_malaria$id), "children, aged 8 weeks - 120 weeks", sum(n_para_comp_data$total_infections, na.rm=TRUE),
-"parasitemic episodes"))
+  ylab("Risk of Complicated Malaria When Parasitemic")+
+  ggtitle(paste(n_kids, " children, aged 2-", max_age, " months\n", total_n_para,
+"parasitemic episodes", sep = ""))
 
-ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_impact_promote_and_micdrop_comp_plot.png", n_para_comp_plot, height = 4.5, width=7.5, dpi=444, bg="white")
+ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_impact_promote_and_micdrop_n_para_comp_plot.png", n_para_comp_plot, height = 4.5, width=7.5, dpi=444, bg="white")
 
 
 
-n_para_asymp_plot <- ggplot(n_para_comp[1:15,], aes(x=n_para, y=1-asymp_prob))+
+n_para_asymp_plot <- ggplot(n_para_comp, aes(x=n_para, y=1-asymp_prob))+
   geom_point(color="darkred")+
   theme_minimal()+
   # geom_ribbon(data=prd, aes(x=n_para, ymin = exp(lci), ymax = exp(uci)),
   #             alpha = 0.2, inherit.aes = FALSE)+
   # geom_function(fun = comp_model_fun, colour="black")+
   # facet_wrap(~study)+
-  geom_text(aes(y=0.8, label= paste0("frac(",asymptomatic, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  geom_text(aes(y=0.75, label= paste0("frac(",asymptomatic, ",", total_infections,")")),parse = TRUE, size=2.5)+
   geom_smooth(method="lm", color="black")+
   # scale_x_continuous(breaks = 1:50, limits=c(1,15))+
   # scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
   xlab("Order of Infection")+
   ylab("Risk of Symtoms Given Parasitemia")+
-  ggtitle("827 children, aged 8 weeks - 2 years
-3181 parasitemic episodes; at least one malaria episode")
+  ggtitle(paste(n_kids, "children, aged 2 -", max_age, "months\n", 
+total_n_para, "parasitemic episodes; at least one malaria episode"))
 
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_para_impact_promote_and_micdrop_asymp_plot.png", n_para_asymp_plot, height = 4.5, width=7.5, dpi=444, bg="white")
 
 
 
-age_para <- all_malaria %>%
+age_para <- combo_data %>%
   filter(pardens!=0)%>%
   mutate(agebins=cut(as.numeric(age), breaks = seq(min(0), max(as.numeric(age)), by=30)))%>%
   ggplot(aes(x=as.numeric(agebins), y=pardens+0.1))+
@@ -247,8 +262,8 @@ age_para <- all_malaria %>%
   # see::geom_violindot(aes(fill=factor(agebins)))+
   geom_boxplot(aes(fill=factor(agebins)), outlier.shape = NA)+
   scale_y_log10()+
-  scale_x_continuous(breaks=seq(0, 24, by=3), minor_breaks = seq(0, 12))+
-  scale_fill_manual(values=colorspace::sequential_hcl(n=26, palette = "Lajolla"))+
+  scale_x_continuous(breaks=seq(0, 32, by=3), minor_breaks = seq(0, 12))+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=32, palette = "Lajolla"))+
   xlab("age in months")+
   ylab("parasites / μL")+
   theme(#axis.text.x = element_text(angle=90),
@@ -256,7 +271,7 @@ age_para <- all_malaria %>%
 
 
 n_infection_para <- all_malaria %>%
-  filter(n_para<15)%>%
+  # filter(n_para<15)%>%
   # filter(pardens>=500)%>%
   # mutate(quarter=cut(as.numeric(factor(agebins)),breaks = seq(0, 24, by=3)))%>%
   ggplot(aes(x=n_para, y=pardens+0.1))+
@@ -265,7 +280,7 @@ n_infection_para <- all_malaria %>%
   scale_y_log10()+
   # geom_smooth(method="lm", formula = y~x+I(x^2))+
   # facet_wrap(~age_at_second_bins)+
-  scale_fill_manual(values=colorspace::sequential_hcl(n=25, palette = "Lajolla"))+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=27, palette = "Lajolla"))+
   xlab("order of parasitemic event")+
   ylab("parasites / μL")+
   theme(#axis.text.x = element_text(angle=90),
@@ -295,7 +310,7 @@ comp_model_age_fun <- function(x){
 
 #calculate SE for plotting
 prd <- data.frame(age_months = seq(from = 1, to = 24, length.out = 100))
-err <- predict(comp_model, newdata = prd, se.fit = TRUE)
+err <- predict(comp_model_age, newdata = prd, se.fit = TRUE)
 
 prd$lci <- err$fit - 1.96 * err$se.fit
 prd$fit <- err$fit
@@ -732,4 +747,164 @@ only_malaria%>%
 )
 
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/micdrop_only_comp_cases_age_para.png", comp_cases_age, width = 8, height=5, bg="white")
+
+
+# malaria as episode
+
+n_malaria_comp <- all_malaria %>%
+  filter(!is.na(n_malaria))%>%
+  group_by(disease, n_malaria)%>%
+  summarise("n"=n())%>%
+  pivot_wider(names_from = disease, values_from = n)%>%
+  mutate(complicated=if_else(is.na(complicated), 0, complicated),
+         total_infections=complicated+uncomplicated,
+         risk=complicated/total_infections,
+         # asymp_prob=asymptomatic/total_infections
+  )
+
+comp_model <- glm(risk~n_malaria+I(n_malaria^2), family = "binomial", weights = total_infections, data = n_malaria_comp)
+
+comp_model_fun <- function(x){
+  exp(comp_model$coefficients[1])*
+    exp(comp_model$coefficients[2])^x*
+    exp(comp_model$coefficients[3])^x^2}
+
+#calculate SE for plotting
+prd <- data.frame(n_malaria = seq(from = 1, to = 19, length.out = 100))
+err <- predict(comp_model, newdata = prd, se.fit = TRUE)
+
+prd$lci <- err$fit - 1.96 * err$se.fit
+prd$fit <- err$fit
+prd$uci <- err$fit + 1.96 * err$se.fit
+
+n_malaria_comp_plot <- ggplot(n_malaria_comp, aes(x=n_malaria, y=risk))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  geom_ribbon(data=prd, aes(x=n_malaria, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_function(fun = comp_model_fun, colour="black")+
+  geom_text(aes(y=0.12, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  scale_x_continuous(breaks = 1:50, limits=c(1,16))+
+  # scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated")+
+  ggtitle(paste(n_kids, "MICDROP children, aged 8 weeks -", max_age, "\n", total_n_malaria,
+                "malaria episodes"))
+
+ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_impact_promote_and_micdrop_n_malaria_comp_plot.png", n_malaria_comp_plot, height = 4.5, width=7.5, dpi=444, bg="white")
+
+
+
+age_malaria <- all_malaria %>%
+  filter(mstatus!=0, pardens!=0)%>%
+  mutate(agebins=cut(as.numeric(age), breaks = seq(min(0), max(as.numeric(age)), by=30)))%>%
+  ggplot(aes(x=as.numeric(agebins), y=pardens+0.1))+
+  geom_point()+
+  # see::geom_violindot(aes(fill=factor(agebins)))+
+  geom_boxplot(aes(fill=factor(agebins)), outlier.shape = NA)+
+  scale_y_log10()+
+  scale_x_continuous(breaks=seq(0, 32, by=3), minor_breaks = seq(0, 12))+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=32, palette = "Lajolla"))+
+  xlab("age in months")+
+  ylab("parasites / μL")+
+  theme(#axis.text.x = element_text(angle=90),
+    legend.position = "none")
+
+
+n_infection_malaria <- all_malaria %>%
+  # filter(n_malaria<15)%>%
+  # filter(pardens>=500)%>%
+  # mutate(quarter=cut(as.numeric(factor(agebins)),breaks = seq(0, 24, by=3)))%>%
+  ggplot(aes(x=n_malaria, y=pardens+0.1))+
+  # geom_point(aes(color=age_at_second_bins))+
+  geom_boxplot(aes(fill=factor(n_malaria)), outlier.shape = NA)+
+  scale_y_log10()+
+  # geom_smooth(method="lm", formula = y~x+I(x^2))+
+  # facet_wrap(~age_at_second_bins)+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=27, palette = "Lajolla"))+
+  xlab("order of malaria episode")+
+  ylab("parasites / μL")+
+  theme(#axis.text.x = element_text(angle=90),
+    legend.position = "none")
+
+n_infection_age_malaria <- cowplot::plot_grid(age_malaria, n_infection_malaria, nrow = 1)
+ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/n_malaria_infection_age_load.png", n_infection_age_malaria, width=8, height=4)
+n_malaria_comp <- all_malaria %>%
+  filter(!is.na(n_malaria))%>%
+  group_by(disease, n_malaria)%>%
+  summarise("n"=n())%>%
+  pivot_wider(names_from = disease, values_from = n)%>%
+  mutate(complicated=if_else(is.na(complicated), 0, complicated),
+         total_infections=complicated+uncomplicated,
+         risk=complicated/total_infections,
+         # asymp_prob=asymptomatic/total_infections
+  )
+
+comp_model <- glm(risk~n_malaria+I(n_malaria^2), family = "binomial", weights = total_infections, data = n_malaria_comp)
+
+comp_model_fun <- function(x){
+  exp(comp_model$coefficients[1])*
+    exp(comp_model$coefficients[2])^x*
+    exp(comp_model$coefficients[3])^x^2}
+
+#calculate SE for plotting
+prd <- data.frame(n_malaria = seq(from = 1, to = 19, length.out = 100))
+err <- predict(comp_model, newdata = prd, se.fit = TRUE)
+
+prd$lci <- err$fit - 1.96 * err$se.fit
+prd$fit <- err$fit
+prd$uci <- err$fit + 1.96 * err$se.fit
+
+n_malaria_comp_plot <- ggplot(n_malaria_comp, aes(x=n_malaria, y=risk))+
+  geom_point(color="darkred")+
+  theme_minimal()+
+  geom_ribbon(data=prd, aes(x=n_malaria, ymin = exp(lci), ymax = exp(uci)),
+              alpha = 0.2, inherit.aes = FALSE)+
+  geom_function(fun = comp_model_fun, colour="black")+
+  geom_text(aes(y=0.12, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  scale_x_continuous(breaks = 1:50, limits=c(1,16))+
+  # scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
+  xlab("Order of Infection")+
+  ylab("Risk of Complicated")+
+  ggtitle(paste(n_kids, "MICDROP children, aged 8 weeks -", max_age, "\n", total_n_malaria,
+                "malaria episodes"))
+
+ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_impact_promote_and_micdrop_n_malaria_comp_plot.png", n_malaria_comp_plot, height = 4.5, width=7.5, dpi=444, bg="white")
+
+
+
+age_malaria <- all_malaria %>%
+  filter(mstatus!=0, pardens!=0)%>%
+  mutate(agebins=cut(as.numeric(age), breaks = seq(min(0), max(as.numeric(age)), by=30)))%>%
+  ggplot(aes(x=as.numeric(agebins), y=pardens+0.1))+
+  geom_point()+
+  # see::geom_violindot(aes(fill=factor(agebins)))+
+  geom_boxplot(aes(fill=factor(agebins)), outlier.shape = NA)+
+  scale_y_log10()+
+  scale_x_continuous(breaks=seq(0, 32, by=3), minor_breaks = seq(0, 12))+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=32, palette = "Lajolla"))+
+  xlab("age in months")+
+  ylab("parasites / μL")+
+  theme(#axis.text.x = element_text(angle=90),
+    legend.position = "none")
+
+
+n_infection_malaria <- all_malaria %>%
+  # filter(n_malaria<15)%>%
+  # filter(pardens>=500)%>%
+  # mutate(quarter=cut(as.numeric(factor(agebins)),breaks = seq(0, 24, by=3)))%>%
+  ggplot(aes(x=n_malaria, y=pardens+0.1))+
+  # geom_point(aes(color=age_at_second_bins))+
+  geom_boxplot(aes(fill=factor(n_malaria)), outlier.shape = NA)+
+  scale_y_log10()+
+  # geom_smooth(method="lm", formula = y~x+I(x^2))+
+  # facet_wrap(~age_at_second_bins)+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=27, palette = "Lajolla"))+
+  xlab("order of malaria episode")+
+  ylab("parasites / μL")+
+  theme(#axis.text.x = element_text(angle=90),
+    legend.position = "none")
+
+n_infection_age_malaria <- cowplot::plot_grid(age_malaria, n_infection_malaria, nrow = 1)
+ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/n_malaria_infection_age_load.png", n_infection_age_malaria, width=8, height=4)
 

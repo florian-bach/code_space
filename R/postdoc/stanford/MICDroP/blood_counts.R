@@ -44,6 +44,10 @@ blood_counts <- mic_drop %>%
 blood_counts%>%
   filter(cell_type!="hb")%>%
   arrange(ever_comp)%>%
+  group_by(id) %>%
+  add_count(name="total_n_infection") %>%
+  arrange(AGE) %>%
+  mutate(n_infection = seq(1, max(total_n_infection)))%>%
   ggplot(., aes(x=factor(Timepoint_in_weeks), y=cell_freq))+
     geom_violin(aes(fill=factor(Timepoint_in_weeks)), draw_quantiles = c(0.25, 0.5, 0.75))+
     # geom_point(aes(alpha=factor(ever_comp), colour = disease))+

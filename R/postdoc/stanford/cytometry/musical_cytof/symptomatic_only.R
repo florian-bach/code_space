@@ -105,7 +105,7 @@ sce <- CATALYST::cluster(sce,
                          xdim = 12, ydim = 12, maxK = 50, seed = 1234)
 
 # phenotypic heatmaps & UMAPs####
-  ##remove putative doublets ####
+  ## remove putative doublets ####
 sce <- filterSCE(sce, cluster_id %notin% c(25, 22), k="meta45")
 
 complex_merge <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/complex_merge.csv", header = TRUE)

@@ -5,8 +5,6 @@ library(dplyr)
 
 # data generation ####
 ## reading in pilot data ####
-
-
 musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
 random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/id_date_code.csv")
 random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
@@ -111,8 +109,9 @@ big_df1 <- big_df %>%
 
 combo_data <- bind_rows(big_df1, pilot_nulisa)%>%
   mutate(id=paste(study, id, sep="_"),
-         timepoint=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), 
+         # timepoint=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), 
          qpcr=as.numeric(qpcr),
+         log_qpcr = log10(qpcr+0.01),
          qpcr_cat=case_when(qpcr==0~"0", 
                             qpcr>0 & qpcr<10~ ">1",
                             qpcr>10 & qpcr<100~ ">10",
@@ -125,14 +124,14 @@ combo_data <- bind_rows(big_df1, pilot_nulisa)%>%
          qpcr_cat=factor(qpcr_cat, levels=c("0", ">1", ">10", ">10e2", ">10e3", ">10e4", ">10e5", ">10e6", ">10e7")),
          temperature = as.numeric(temperature),
          temperature_cat = case_when(temperature < 38 ~ "<38",
-                                     temperature >38 & temperature <39 ~ ">38",
+                                     temperature >=38 & temperature <39 ~ ">=38",
                                      temperature >39 & temperature <40 ~ ">39",
                                      temperature >40 & temperature <41 ~ ">40",
                                      temperature >41 & temperature <42 ~ ">41"))
 
 
 qpcr_cat_at_day0 <- combo_data %>%
-  filter(class %in% c("A", "S"), !is.na(qpcr_cat), timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
+  filter(class %in% c("A", "S"), !is.na(qpcr_cat))%>%
   group_by(class, id)%>%
   reframe("day0_qpcr_cat"=qpcr_cat[timepoint=="day0"],
           "day0_qpcr"=log10(qpcr+0.1)[timepoint=="day0"])%>%
@@ -158,7 +157,8 @@ clean_data <- unclean_data %>%
   #                            "X 176 S_t7 D1VFF7",
   #                            "X219_S.1_D1C4ZM",
   #                            "X132_S0_D1AUZD"))%>%
-  filter(barcode %notin% c("D19E2G", "D1FK67", "D1SSPJ"))
+  filter(barcode %notin% c("D19E2G", "D1FK67", "D1SSPJ"))%>%
+  filter(sample_id %notin% c("X317_S.1_D1RTFU", "X316_S.1_D12FNR"))
 
 
 write.csv(clean_data, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv", row.names = FALSE)
