@@ -80,6 +80,8 @@ sig_base_zero_infectiontype <- results_table%>%
   filter(base_zero_infectiontype_padj<fdr_cutoff)%>%
   arrange(base_zero_infectiontype_padj)
 
+write.csv(sig_base_zero_infectiontype, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/differential_abundance/sig_base_zero_infectiontype.csv", row.names = F)
+
 #39
 sig_base_zero <- results_table%>%
   filter(base_zero_padj<fdr_cutoff)%>%

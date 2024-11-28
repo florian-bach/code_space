@@ -306,3 +306,31 @@ list_for_kenneth <- long_specimen_data %>%
 
 write.csv(list_for_kenneth, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/list_for_kenneth.csv", row.names = F)
 
+
+# MSD mesoscale ####
+
+grant_list <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/Samples selected for Florian Nov 7 2024.dta")
+
+grant_list_subset <- grant_list%>%
+  filter(subset==1)
+
+samples_to_pick_for_mesoscale <- long_specimen_data %>%
+  filter(id %in% grant_list_subset$id[], Specimen_Type=="Plasma")%>%
+  filter(Specimen_ID!="", flo_age_in_wks<54, flo_age_in_wks %in% sample_ranges)%>%
+  select(id, , date, BoxNumber3, PositionColumn3, PositionRow3)%>%
+  arrange(BoxNumber3)%>%
+  mutate("new column"=rep_len(1:9, 210), "new row"=rep_len(rep(1:9,each=9), 210))
+
+write.csv(samples_to_pick_for_mesoscale, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/samples_to_pick_for_mesoscale.csv", row.names = F)
+
+grant_list_rest <- grant_list%>%
+  filter(subset==0)
+
+rest_of_samples_to_pick <- long_specimen_data %>%
+  filter(id %in% grant_list_rest$id, Specimen_Type=="Plasma")%>%
+  filter(Specimen_ID!="", flo_age_in_wks<104, flo_age_in_wks %in% sample_ranges)%>%
+  select(id, flo_age_in_wks, date, BoxNumber3, PositionColumn3, PositionRow3)%>%
+  arrange(BoxNumber3)%>%
+  mutate("new column"=rep_len(1:9, nrow(.)), "new row"=rep_len(rep(1:9,each=9), nrow(.)))
+
+write.csv(samples_to_pick_for_mesoscale, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/samples_to_pick_for_mesoscale.csv", row.names = F)

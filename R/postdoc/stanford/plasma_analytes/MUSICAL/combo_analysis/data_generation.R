@@ -51,7 +51,7 @@ pilot_nulisa <- wide_nulisa %>%
 
 
 ## reading in big batch data ####
-metadata <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/Immunology List _MUSICAL.xlsx")
+metadata <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/fixed_musical_metadata_final.csv")
 
 list_of_files <- list.files(path = "~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/", pattern = "Report.csv", full.names = TRUE)
 

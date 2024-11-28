@@ -170,7 +170,7 @@ loop_data <- unclean_pca_plot_data %>%
 
 plot_list <- list()
 
-for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number")){
+for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number", "qpcr_cat")){
   for(i in seq(1,7, by=2)){
     
     xvar <- paste("PC", i, sep="")
@@ -330,7 +330,7 @@ ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/infectiontype_p
 
 qpcr_pca_plot <- pca_plot_data %>%
   filter(timepoint %notin% c("day28", "bad_baseline"))%>%
-  mutate("over_six"=if_else(ageyrs>6, "over 6y", "under 6y"))%>%
+  mutate(qpcr_cat=factor(qpcr_cat, levels=c("0", ">1", ">10", ">10e2", ">10e3", ">10e4", ">10e5")))%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
   ggplot(., aes(x=PC1, y=PC2, color=qpcr_cat))+
   geom_point()+
@@ -342,18 +342,20 @@ qpcr_pca_plot <- pca_plot_data %>%
   theme(legend.title = element_blank(),
         axis.text = element_blank())
 
-ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/age_pca_plot.png", age_pca_plot, width=4, height=4, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/qpcr_pca_plot.png", qpcr_pca_plot, width=4, height=4, bg="white", dpi=444)
 
 ### PC || covariate examination####
 
 loop_data <- pca_plot_data %>%
   filter(timepoint %notin% c("day28", "bad_baseline"))%>%
   mutate("over_six"=if_else(ageyrs>6, "over 6y", "under 6y"))%>%
-  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  mutate(qpcr_cat=factor(qpcr_cat, levels=c("0", ">1", ">10", ">10e2", ">10e3", ">10e4", ">10e5")))
+  
 
 plot_list <- list()
 
-for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number")){
+for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number", "qpcr_cat")){
   for(i in seq(1,7, by=2)){
     
     xvar <- paste("PC", i, sep="")

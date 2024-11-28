@@ -160,3 +160,56 @@ ggplot(aes(x=qpcr+0.1, y=parasitedensity+0.1))+
   # facet_wrap(~infectiontype)+
   theme_minimal()+
   theme(legend.position = "none")
+
+
+
+
+
+# sanchita
+
+
+metadata <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/Immunology List _MUSICAL.xlsx")
+
+pilot_data <- metadata %>%
+  filter(id %in% c(268, 324, 137, 176, 353, 161, 363, 571))%>%
+  # mutate(timepoint = factor(timepoint, levels=c("bad_baseline", "baseline", "day0", "day7", "day14", "day28")))%>%
+  # filter(grepl("pilot", id))%>%
+  distinct(id, timepoint_imm, infectiontype, qpcr, parasitedensity, fever, temperature)%>%
+  mutate(qpcr=as.numeric(qpcr),
+         timepoint_imm=factor(timepoint_imm), 
+         temperature=as.numeric(temperature),
+         parasitedensity=as.numeric(parasitedensity))
+
+
+pilot_data%>%
+  filter(infectiontype%in%c("A", "S"), timepoint_imm %in% c(-1, 0, 7, 14))%>%
+  ggplot(., aes(x=timepoint_imm, y=qpcr+0.1, group=factor(id)))+
+  geom_point()+
+  geom_line()+
+  scale_y_log10()+
+  ggtitle("qPCR")+
+  facet_wrap(~infectiontype)+
+  theme_minimal()
+
+
+pilot_data%>%
+  filter(infectiontype%in%c("A", "S"), timepoint_imm %in% c(-1, 0, 7, 14))%>%
+  ggplot(., aes(x=timepoint_imm, y=parasitedensity+0.1, group=factor(id)))+
+  geom_point()+
+  geom_line()+
+  scale_y_log10()+
+  ggtitle("blood smear")+
+  facet_wrap(~infectiontype)+
+  theme_minimal()
+
+
+summary_table <- pilot_data%>%
+  filter(infectiontype%in%c("A", "S"), timepoint_imm %in% c(-1, 0, 7, 14))%>%
+  group_by(infectiontype, timepoint_imm)%>%
+  summarise("mean_qpcr"=mean(qpcr),
+            "sd_qpcr"=sd(qpcr),
+            "mean_pardens"=mean(parasitedensity),
+            "sd_pardens"=sd(parasitedensity),
+            "n_fever"=sum(as.numeric(fever)))
+
+write.csv(summary_table, "~/Downloads/summary_table_pilot.csv")
