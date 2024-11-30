@@ -542,8 +542,36 @@ clean_data %>%
   
 
 # sandbox ####
-# 
-# library(ggstats)
+split_a_data <- clean_data %>%
+   group_by(id, infectiontype)%>%
+   mutate(class2=if_else(timepoint=="day14" & parasitedensity > 10, "parasitemic_day14", "no_parasites_day14"))
+
+ split_a_data%>%
+   filter(infectiontype %in% c("A"), !is.na(parasitedensity), timepoint %notin% c("day28", "bad_baseline"))%>%
+   filter(targetName %in% c("CXCL10", "IFNG", "TNF", "IL10", "LAG3", "GZMA", "IL6", "CRP", "TNFSF14"))%>%
+   ggplot(., aes(x=timepoint, y= concentration, fill=class2))+
+   geom_boxplot()+
+   theme_minimal()+
+   # ggpubr::stat_compare_means()+
+   facet_wrap(~targetName)+
+   da_boxplot_theme+
+   theme(legend.position = "right",
+         legend.title = element_blank())
+ 
+ split_a_data%>%
+   filter(infectiontype %in% c("A"), !is.na(parasitedensity), timepoint %notin% c("day28", "bad_baseline"))%>%
+   filter(targetName %in% c("GZMA", "IL10", "LAG3"))%>%
+   ggplot(., aes(x=timepoint, y= concentration, fill=class2))+
+   geom_boxplot()+
+   theme_minimal()+
+   # ggpubr::stat_compare_means()+
+   facet_wrap(~targetName)+
+   da_boxplot_theme+
+   theme(legend.position = "right",
+         legend.title = element_blank())+
+   scale_fill_manual(values= viridis::viridis(n=3)[-1])
+# library(ggstats)# library(ggstats)viridis()
+ 
 # 
 # 
 # # plot linear regression final results ####

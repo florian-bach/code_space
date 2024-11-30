@@ -115,5 +115,8 @@ ggcyto(gs, subset = "live_singlets", aes(x = "Nd142Di", y = "Nd150Di"))+
 # ggcyto(fr, aes(x = "Nd143Di", y = "Nd150Di"))+
 #   geom_hex(bins=128)+
 #   theme_minimal()
+path_to_fcs <- "/Users/fbach/postdoc/stanford/cytometry/CyTOF/MUSICAL/redownload_pilot75/sandbox/"
+files_to_read <- list.files(path_to_fcs, full.names = TRUE, pattern = "*.fcs$")
 
+fs <- ncdfFlow::read.ncdfFlowSet(files = files_to_read)
  
