@@ -19,12 +19,12 @@ clean_data <- clean_data %>%
 
 # emmeans ####
 combo_as_purff <- clean_data %>%
-  filter(infectiontype%in%c("A", "S"), timepoint %notin% c("day7", "day28"), timepoint!="bad_baseline")%>%
+  filter(infectiontype%in%c("A", "S"), timepoint %notin% c("day28"), timepoint!="bad_baseline")%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
   group_by(targetName)%>%
   nest() %>%
-  #mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id), data=.))) %>%
-  mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id), data=.))) %>%
+  #mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id_cat), data=.))) %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id_cat), data=.))) %>%
   mutate(summary=map(model, ~summary(.))) %>%
   # mutate(emm=map(model, ~emmeans(., specs = ~ timepoint:infectiontype)))%>%
   mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint | infectiontype)))%>%
@@ -36,14 +36,25 @@ combo_as_purff <- clean_data %>%
   mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
   mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
   
-  mutate("baseline A - baseline S"=map(emm_contrast_summary2, ~.$p.value[1])) %>%
-  mutate("baseline A - day0 A"=map(emm_contrast_summary, ~.$p.value[1])) %>%
-  mutate("baseline A - day14 A"=map(emm_contrast_summary, ~.$p.value[2])) %>%
-  mutate("baseline S - day0 S"=map(emm_contrast_summary, ~.$p.value[4])) %>%
-  mutate("baseline S - day14 S"=map(emm_contrast_summary, ~.$p.value[5]))%>%
+  mutate("baseline A - baseline S"=map_dbl(emm_contrast_summary2, ~.$p.value[1])) %>%
+  mutate("baseline A - day0 A"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("baseline A - day14 A"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  mutate("baseline S - day0 S"=map_dbl(emm_contrast_summary, ~.$p.value[7])) %>%
+  mutate("baseline S - day7 S"=map_dbl(emm_contrast_summary, ~.$p.value[8])) %>%
+  mutate("baseline S - day14 S"=map_dbl(emm_contrast_summary, ~.$p.value[9]))%>%
+  mutate("coef baseline A - baseline S"=map_dbl(emm_contrast_summary2, ~.$estimate[1])) %>%
+  mutate("coef baseline A - day0 A"=map_dbl(emm_contrast_summary, ~.$estimate[1])) %>%
+  mutate("coef baseline A - day14 A"=map_dbl(emm_contrast_summary, ~.$estimate[3])) %>%
+  mutate("coef baseline S - day0 S"=map_dbl(emm_contrast_summary, ~.$estimate[7])) %>%
+  mutate("coef baseline S - day7 S"=map_dbl(emm_contrast_summary, ~.$estimate[8])) %>%
+  mutate("coef baseline S - day14 S"=map_dbl(emm_contrast_summary, ~.$estimate[9]))%>%
   pivot_longer(cols=starts_with("baseline"), names_to = "contrast", values_to = "p")%>%
   group_by(contrast)%>%
-  mutate(padj = p.adjust(p, method="fdr"))
+  mutate(padj = p.adjust(p, method="fdr"))%>%
+  ungroup()%>%
+  pivot_longer(cols=starts_with("coef"), names_to = "coef_name", values_to = "coef")%>%
+  rowwise()%>%
+  filter(grepl(contrast, coef_name))
   
 
 # incorporate fold change cuttoff?
@@ -53,8 +64,14 @@ combo_as_purff%>%
 
 sig_base_day0_s <-combo_as_purff%>%
   filter(padj<0.05 & contrast=="baseline S - day0 S")%>%
+  select(targetName, contrast, "coef baseline S - day0 S", padj)%>%
   arrange(padj)
 
+combo_as_results <- combo_as_purff %>%
+  select(targetName, contrast, coef_name, coef, padj)%>%
+  arrange(padj)
+ 
+write.csv(combo_as_results, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/differential_abundance/combo_as_purff.csv", row.names = FALSE)
 # plot differences ####
 ## baseline day 0  S ####
 
@@ -146,11 +163,11 @@ for(i in 1:ceiling(nrow(sig_base_day14_a)/16)){
     mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "non_controller", "controller"))%>%
     filter(targetName %in% sig_base_day14_a$targetName[seq((i-1)*16+1, i*16)])%>%
     mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
-    ggplot(aes(x=factor(timepoint), y=concentration, fill=class2))+
+    ggplot(aes(x=factor(timepoint), y=concentration, fill=timepoint))+
     geom_line(aes(group=id), alpha=0.2)+
     geom_boxplot(outliers = FALSE)+
     facet_wrap(~targetName, scales = "free")+
-    scale_fill_manual(values=viridis::magma(3))+
+    scale_fill_manual(values=viridis::magma(5))+
     theme_minimal()+
     theme(legend.title = element_blank(),
           legend.position = "right")
@@ -171,14 +188,14 @@ sig_base_day0_a$targetName [sig_base_day0_a$targetName %notin% sig_base_day14_a$
 
 day14_a_purff <- clean_data %>%
   filter(infectiontype%in%c("A"), timepoint %notin% c("day7", "day28"), timepoint!="bad_baseline")%>%
-  mutate(day14_para=if_else(timepoint=="day14" & parasitedensity > 10, "parasitemic_day14", "no_parasites_day14"))%>%
+  mutate(day14_para=if_else(timepoint=="day14" & parasitedensity > 1, "parasitemic_day14", "no_parasites_day14"))%>%
   group_by(id)%>%
   mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "non_controller", "controller"))%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
   group_by(targetName)%>%
   nest() %>%
-  #mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id), data=.))) %>%
-  mutate(model=map(data, ~lme4::lmer(concentration~timepoint*class2+ageyrs+gender_categorical+(1|id), data=.))) %>%
+  #mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id_cat), data=.))) %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~timepoint*class2+ageyrs+gender_categorical+(1|id_cat), data=.))) %>%
   mutate(summary=map(model, ~summary(.))) %>%
   # mutate(emm=map(model, ~emmeans(., specs = ~ timepoint:infectiontype)))%>%
   # mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint | infectiontype)))%>%
@@ -190,33 +207,91 @@ day14_a_purff <- clean_data %>%
   # mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
   mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
   
-  mutate(p=map_dbl(emm_contrast_summary2, ~.$p.value[1])) %>%
+  mutate(base_p=map_dbl(emm_contrast_summary2, ~.$p.value[1]),
+         day0_p=map_dbl(emm_contrast_summary2, ~.$p.value[2]),
+         day14_p=map_dbl(emm_contrast_summary2, ~.$p.value[3]))%>%
   # mutate("baseline A - day0 A"=map(emm_contrast_summary, ~.$p.value[1])) %>%
   # mutate("baseline A - day14 A"=map(emm_contrast_summary, ~.$p.value[2])) %>%
   # mutate("baseline S - day0 S"=map(emm_contrast_summary, ~.$p.value[4])) %>%
   # mutate("baseline S - day14 S"=map(emm_contrast_summary, ~.$p.value[5]))%>%
-  # pivot_longer(cols=starts_with("baseline"), names_to = "contrast", values_to = "p")%>%
-  ungroup()%>%
+  pivot_longer(cols=ends_with("_p"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
-sig_ctrl <- day14_a_purff %>%
-  filter(p<0.05)%>%
+sig_base_control <- day14_a_purff %>%
+  filter(contrast=="base_p", p<0.05)%>%
+  select(targetName, p, padj)%>%
   arrange(p)
 
-clean_data %>%
+sig_day14_control <- day14_a_purff %>%
+  filter(contrast=="day14_p", p<0.05)%>%
+  select(targetName, p, padj)%>%
+  arrange(p)
+
+day14_a_purff%>%
+  group_by(contrast)%>%
+  summarise("n"=sum(p<0.05))
+
+
+#Anything greater than 0.001 based on the qPCR should be considered a true positive; although values below 0.1
+#should not be considered accurate in terms of quantification we still believe they represent true positives.
+#In other words, 0.1 is the limit of quantification and LOD is likely around 0.02 or so,
+#but values below 0.1 and above 0.001 are qualitatively positive
+
+ctrL_plot <- clean_data %>%
   filter(infectiontype %in% c("A"), timepoint!="day28", timepoint!="bad_baseline")%>%
-  mutate(day14_para=if_else(timepoint=="day14" & parasitedensity > 10, "parasitemic_day14", "no_parasites_day14"))%>%
+  mutate(day14_para=if_else(timepoint=="day14" & qpcr > 1, "parasitemic_day14", "no_parasites_day14"))%>%
   group_by(id)%>%
   mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "non_controller", "controller"))%>%
-  filter(targetName %in% sig_ctrl$targetName)%>%#[seq((i-1)*16+1, i*16)])%>%
-  filter(timepoint=="baseline")%>%
+  # filter(targetName %in% sig_ctrl$targetName)%>%
+  filter(targetName %in% c("IL1R2", "IFNB1", "VEGFA", "FGF21", "CD40LG", "IL5RA"))%>%#[seq((i-1)*16+1, i*16)])%>%
+  filter(class2 %in% c("non_controller", "controller"))%>%
   mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
   ggplot(aes(x=factor(timepoint), y=concentration, fill=class2))+
   # geom_line(aes(group=id), alpha=0.2)+
   geom_boxplot(outliers = FALSE)+
-  facet_wrap(~targetName, scales = "free")+
-  scale_fill_manual(values=viridis::magma(3))+
+  facet_wrap(~targetName, scales = "free", nrow=2)+
+  scale_fill_manual(values=viridis::magma(n=3))+
   theme_minimal()+
   theme(legend.title = element_blank(),
-        legend.position = "right")
+        legend.position = "right",
+        axis.title = element_blank())
 da_boxplot_theme
+
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/model_plots/ctrl_plot.png", ctrL_plot, height=5.33, width=8, dpi=444, bg="white")
+
+
+# parasitemia only model ####
+
+combo_as_purff2 <- clean_data %>%
+  filter(infectiontype%in%c("A", "S"), timepoint %notin% c("day7", "day28"), timepoint!="bad_baseline")%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  group_by(targetName)%>%
+  nest() %>%
+  #mutate(model=map(data, ~lme4::lmer(concentration~timepoint*infectiontype+ageyrs+gender_categorical+(1|id_cat), data=.))) %>%
+  mutate(model=map(data, ~lme4::lmer(concentration~infectiontype*log_qpcr+ageyrs+gender_categorical+(1|id_cat), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  # mutate(emm=map(model, ~emmeans(., specs = ~ timepoint:infectiontype)))%>%
+  # mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint:log_qpcr)))%>%
+  mutate(emm2=map(model, ~emmeans(., specs = pairwise ~ log_qpcr | infectiontype)))%>%
+  
+  # mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise")))%>%
+  
+  # mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  
+  mutate("baseline A - baseline S"=map(emm_contrast_summary2, ~.$p.value[1])) %>%
+  mutate("baseline A - day0 A"=map(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("baseline A - day14 A"=map(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("baseline S - day0 S"=map(emm_contrast_summary, ~.$p.value[4])) %>%
+  mutate("baseline S - day14 S"=map(emm_contrast_summary, ~.$p.value[5]))%>%
+  pivot_longer(cols=starts_with("baseline"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+
+# incorporate fold change cuttoff?
+combo_as_purff%>%
+  group_by(contrast)%>%
+  summarise("n"=sum(padj<0.05))

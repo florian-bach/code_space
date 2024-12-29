@@ -16,7 +16,7 @@ random_codes$date <- as.Date(random_codes$date)
 slim_musical_metadata <- musical_metadata %>%
   mutate(day_annotation=if_else(day_annotation==84, -1, day_annotation))%>%
   select(combined_id, combined_date, enrolltype, day_annotation, gender_categorical, ageyrs, qpcr, TEMP)%>%
-  mutate(id=combined_id, date=combined_date, class=enrolltype, timepoint=paste("t", day_annotation, sep=""), temperature=TEMP)%>%
+  mutate(id=combined_id, date=combined_date, infectiontype=enrolltype, timepoint=paste("t", day_annotation, sep=""), temperature=TEMP)%>%
   select(-combined_id, -combined_date, -enrolltype, -day_annotation)%>%
   mutate("study"="MUSICAL", date=as.Date(date), plate_number="pilot")
 
@@ -31,7 +31,7 @@ wide_nulisa <- nulisa %>%
 wide_nulisa <- inner_join(wide_nulisa, combo_frame2, by="plasma.barcode")
 
 pilot_nulisa <- wide_nulisa %>%
-  mutate("time_class"=paste(class, timepoint, sep='_'),
+  mutate("time_class"=paste(infectiontype, timepoint, sep='_'),
          "age_class"=if_else(.$id %in% c(268, 324, 137, 176, 353, 161, 363, 571, 10766, 10794, 10842), "child", "adult"),
          id=factor(id))%>%
   filter(age_class=="child")%>%
@@ -47,7 +47,7 @@ pilot_nulisa <- wide_nulisa %>%
   ungroup()%>%
   group_by(sample_id)%>%
   mutate("mean_z_conc"=mean(z_conc), "median_z_conc"=median(z_conc), study="pilot")%>%
-  select(targetName, sample_id, concentration, barcode, id, gender_categorical, class, timepoint, z_conc, mean_z_conc, ageyrs, study, qpcr, temperature, plate_number)
+  select(targetName, sample_id, concentration, barcode, id, gender_categorical, infectiontype, timepoint, z_conc, mean_z_conc, ageyrs, study, qpcr, temperature, plate_number)
 
 
 ## reading in big batch data ####
@@ -78,14 +78,15 @@ big_df1 <- big_df %>%
   mutate(barcode= substr(sample_id, nchar(sample_id)-5, nchar(sample_id)),
          id=factor(metadata$id[match(barcode, metadata$plasma1_barcode)]),
          gender_categorical=factor(metadata$gender_categorical[match(barcode, metadata$plasma1_barcode)]),
-         class=metadata$infectiontype[match(barcode, metadata$plasma1_barcode)],
+         infectiontype=metadata$infectiontype[match(barcode, metadata$plasma1_barcode)],
          ageyrs=metadata$ageyrs[match(barcode, metadata$plasma1_barcode)],
          timepoint_imm=metadata$timepoint_imm[match(barcode, metadata$plasma1_barcode)],
          qpcr=as.numeric(metadata$qpcr[match(barcode, metadata$plasma1_barcode)]),
          temperature=as.numeric(metadata$temperature[match(barcode, metadata$plasma1_barcode)])
   )%>%
   filter(barcode != "Repeat")%>%
-  mutate("timepoint"=case_when(timepoint_imm==-2~"bad_baseline",
+  mutate("timepoint"=case_when(timepoint_imm==-2 & id %notin% c(176, 363, 577) ~"bad_baseline",
+                               timepoint_imm==-2 & id %in% c(176, 363, 577) ~"baseline",
                                timepoint_imm==-1~"baseline",
                                timepoint_imm==0~"day0",
                                timepoint_imm==7~"day7",
@@ -108,7 +109,7 @@ big_df1 <- big_df %>%
 ## putting in parasitemia data####
 
 combo_data <- bind_rows(big_df1, pilot_nulisa)%>%
-  mutate(id=paste(study, id, sep="_"),
+  mutate(id_cat=paste(study, id, sep="_"),
          # timepoint=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), 
          qpcr=as.numeric(qpcr),
          log_qpcr = log10(qpcr+0.01),
@@ -131,14 +132,14 @@ combo_data <- bind_rows(big_df1, pilot_nulisa)%>%
 
 
 qpcr_cat_at_day0 <- combo_data %>%
-  filter(class %in% c("A", "S"), !is.na(qpcr_cat))%>%
-  group_by(class, id)%>%
+  filter(infectiontype %in% c("A", "S"), !is.na(qpcr_cat))%>%
+  group_by(infectiontype, id)%>%
   reframe("day0_qpcr_cat"=qpcr_cat[timepoint=="day0"],
           "day0_qpcr"=log10(qpcr+0.1)[timepoint=="day0"])%>%
   distinct()
 
 unclean_data <- combo_data%>%
-  left_join(., qpcr_cat_at_day0, by=c("class", "id"))
+  left_join(., qpcr_cat_at_day0, by=c("infectiontype", "id"))
 
 ## putting it all together ####
 

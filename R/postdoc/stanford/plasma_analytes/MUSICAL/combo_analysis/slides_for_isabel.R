@@ -149,11 +149,14 @@ hi <- clean_data %>%
 
 hi2 <- dplyr::left_join(hi, pcr_redo, by=c("cohortid", "date"))
 
-ggplot(aes(x=qpcr+0.1, y=parasitedensity+0.1))+
+
+
+clean_data%>%
+  filter(timepoint=="day0", infectiontype%in% c("A", "S"))%>%
+  ggplot(., aes(x=qpcr+0.1, y=parasitedensity+0.1))+
   geom_point(aes(color=infectiontype))+
   ggpubr::stat_cor()+
   geom_smooth(method="lm")+
-  ggtitle("symptomatic parasitemia")+
   scale_color_manual(values=viridis::magma(3))+
   scale_y_log10(limits=c(0.1, 10^6))+
   scale_x_log10(limits=c(0.1, 10^6))+

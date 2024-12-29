@@ -8,7 +8,7 @@ library(dplyr)
 pilot_nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/nulisa_data.csv")
 
 long_pilot_nulisa <- pilot_nulisa %>%
-  pivot_longer(cols = colnames(nulisa)[2:ncol(nulisa)], names_to = "plasma1_barcode", values_to = "concentration")%>%
+  pivot_longer(cols = colnames(pilot_nulisa)[2:ncol(pilot_nulisa)], names_to = "plasma1_barcode", values_to = "concentration")%>%
   mutate(plasma1_barcode = case_when(plasma1_barcode=="D1_PN8A"~"D1PN8A",
                                     plasma1_barcode=="DIJLGS"~"D1JLGS",
                                     plasma1_barcode=="D1_KWT2"~"D1KWT2",
@@ -46,25 +46,26 @@ combo_batch <- rbind(big_batch, long_pilot_nulisa)
 
 # add metadata ####
 # one sample that we ran during NULISA pilot is missing from the big metadata file: 363 S day14 D1XM73; need to fix
-metadata <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/Immunology List _MUSICAL.xlsx")
+metadata <- read.csv("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/fixed_musical_metadata_final.csv")
 
 combo_with_meta <- inner_join(combo_batch, metadata, by = "plasma1_barcode")
 
 # add z scores, tidy up
 unclean_data <- combo_with_meta %>%
-  mutate("timepoint"= case_when(timepoint_imm==-2~"bad_baseline",
-                             timepoint_imm==-1~"baseline",
-                             timepoint_imm==0~"day0",
-                             timepoint_imm==7~"day7",
-                             timepoint_imm==14~"day14",
-                             timepoint_imm==28~"day28"))%>%
+  mutate("timepoint"=case_when(timepoint_imm==-2 & id %notin% c(176, 363, 577) ~"bad_baseline",
+                               timepoint_imm==-2 & id %in% c(176, 363, 577) ~"baseline",
+                               timepoint_imm==-1~"baseline",
+                               timepoint_imm==0~"day0",
+                               timepoint_imm==7~"day7",
+                               timepoint_imm==14~"day14",
+                               timepoint_imm==28~"day28"))%>%
   mutate(sample_id=paste(id, timepoint, infectiontype))%>%
   group_by(targetName) %>%
   mutate(z_conc=scale(concentration))%>%
   ungroup()%>%
   group_by(plasma1_barcode)%>%
   mutate(mean_z_conc=mean(z_conc), median_z_conc=median(z_conc))%>%
-  mutate(id=paste(plate_number, id, sep="_"),
+  mutate(id_cat=paste(plate_number, id, sep="_"),
          timepoint=factor(timepoint, levels=c("bad_baseline", "baseline", "day0", "day7", "day14", "day28")), 
          qpcr=as.numeric(qpcr),
          log_qpcr = log10(qpcr+0.01),
@@ -96,6 +97,7 @@ clean_data <- unclean_data %>%
                              "164 day7 NM",
                              "132 day0 S",
                              "495 day14 A",
+                             "410 baseline A",
                              "219 baseline S",
                              "176 day7 S",
                              "495 day0 S",
@@ -118,4 +120,3 @@ clean_data <- unclean_data %>%
 
 write.csv(clean_data, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv", row.names = FALSE)
 
-write.csv(unclean_data, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/unclean_musical_combo_with_metadata.csv", row.names = FALSE)

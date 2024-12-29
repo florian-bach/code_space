@@ -170,7 +170,7 @@ loop_data <- unclean_pca_plot_data %>%
 
 plot_list <- list()
 
-for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number", "qpcr_cat")){
+for(color_by in c("gender_categorical", "infectiontype", "timepoint", "over_six", "plate_number", "qpcr_cat")){
   for(i in seq(1,7, by=2)){
     
     xvar <- paste("PC", i, sep="")
@@ -285,6 +285,7 @@ time_pca_plot <- pca_plot_data %>%
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
+  facet_wrap(~infectiontype)+
   scale_color_manual(values=viridis::magma(5))+
   # facet_wrap(~timepoint)+
   theme(legend.title = element_blank(),
@@ -355,7 +356,7 @@ loop_data <- pca_plot_data %>%
 
 plot_list <- list()
 
-for(color_by in c("gender_categorical", "infectiontype", "over_six", "plate_number", "qpcr_cat")){
+for(color_by in c("gender_categorical", "timepoint", "infectiontype", "over_six", "plate_number", "qpcr_cat")){
   for(i in seq(1,7, by=2)){
     
     xvar <- paste("PC", i, sep="")

@@ -4,8 +4,13 @@ library(dplyr)
 library(ggplot2)
 library(ComplexHeatmap)
 
-clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv")
-sig_base_zero_infectiontype <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/differential_abundance/sig_base_zero_infectiontype.csv")
+combo_as_results <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/differential_abundance/combo_as_purff.csv", check.names = FALSE)
+
+sig_base_zero_infectiontype <- combo_as_results %>%
+  filter(padj<0.05, contrast %in% c("baseline S - day0 S", "baseline A - day0 A", "baseline A - day14 A"))%>%
+  distinct(targetName)
+
+# sig_base_zero_infectiontype <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/differential_abundance/sig_base_zero_infectiontype.csv")
 
 col_fun_pearson <- circlize::colorRamp2(c(-1, 0, 1), c("#0859C6", "black", "#FFA500"))
 
@@ -44,7 +49,7 @@ S_day0_cor_heatmap <- Heatmap(matrix = S_day0_cor_matrix,
                            col = col_fun_pearson,
                            column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/s_day0_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/s_day0_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(S_day0_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
@@ -81,7 +86,7 @@ A_day0_cor_heatmap <- Heatmap(matrix = A_day0_cor_matrix,
                               col = col_fun_pearson,
                               column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/A_day0_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/A_day0_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(A_day0_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
@@ -125,7 +130,7 @@ S_baseline_cor_heatmap <- Heatmap(matrix = S_baseline_cor_matrix,
                                col = col_fun_pearson,
                               column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/s_baseline_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/s_baseline_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(S_baseline_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
@@ -136,13 +141,13 @@ dev.off()
 A_baseline <- clean_data %>%
   filter(timepoint %in% c("baseline"), infectiontype=="A")%>%
   filter(targetName %in% sig_base_zero_infectiontype$targetName)%>%
-  pivot_wider(names_from = targetName, values_from = concentration, id_cols = c(id))
+  pivot_wider(names_from = targetName, values_from = concentration, id_cols = c(id, parasitedensity))
 
 A_baseline_cor <- cor(A_baseline[,2:ncol(A_baseline)], method = "spearman")
 
 # A_baseline_cor_matrix <- as.matrix(A_baseline_cor)
-A_baseline_cor_matrix <- as.matrix(A_baseline_cor[rownames(S_baseline_cor)[rev(baseline_hclust$order)[-70]],
-                                                  colnames(S_baseline_cor)[rev(baseline_hclust$order)[-70]]])
+A_baseline_cor_matrix <- as.matrix(A_baseline_cor[rownames(S_baseline_cor)[rev(baseline_hclust$order)],
+                                                  colnames(S_baseline_cor)[rev(baseline_hclust$order)]])
 
 
 
@@ -160,7 +165,7 @@ A_baseline_cor_heatmap <- Heatmap(matrix = A_baseline_cor_matrix,
                               col = col_fun_pearson,
                               column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/A_baseline_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/A_baseline_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(A_baseline_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
@@ -198,7 +203,7 @@ overall_cor_heatmap <- Heatmap(matrix = overall_cor_matrix,
                               col = col_fun_pearson,
                               column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/overall_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/overall_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(overall_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
@@ -234,7 +239,7 @@ overall_S_cor_heatmap <- Heatmap(matrix = overall_S_cor_matrix,
                                col = col_fun_pearson,
                                column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/overall_S_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/overall_S_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(overall_S_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()
 
@@ -269,6 +274,6 @@ overall_A_cor_heatmap <- Heatmap(matrix = overall_A_cor_matrix,
                                  col = col_fun_pearson,
                                  column_names_rot = 90)
 
-png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/overall_A_big_heat.png", height=10, width = 10, units = "in", res=444)
+png("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/overall_A_big_heat.png", height=12, width = 12, units = "in", res=444)
 draw(overall_A_cor_heatmap, padding=unit(c(2,2,2,2), "mm"))
 dev.off()

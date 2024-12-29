@@ -60,8 +60,8 @@ long_combo_data%>%
 long_combo_data%>%
   filter(cibersort_pop %in% c(unique(grep("B.cells", long_combo_data$cibersort_pop, value=T)),
                               unique(grep("T.cells", long_combo_data$cibersort_pop, value=T)),
-                              unique(grep("Dendritic.cells", long_combo_data$cibersort_pop, value=T)),
-                              unique(grep("Monocytes", long_combo_data$cibersort_pop, value=T)),
+                              # unique(grep("Dendritic.cells", long_combo_data$cibersort_pop, value=T)),
+                              # unique(grep("Monocytes", long_combo_data$cibersort_pop, value=T)),
                               unique(grep("NK.cells", long_combo_data$cibersort_pop, value=T)),
                               unique(grep("Plasma.cells", long_combo_data$cibersort_pop, value=T))
                               

@@ -4,7 +4,27 @@ library(dplyr)
 library(ggplot2)
 library(ComplexHeatmap)
 
-clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv")
+
+`%notin%` <- Negate(`%in%`)
+
+time_cols <- list("baseline"="#E4DEBD",
+                  "day0" = "#C03F3E",
+                  "day7" = "#D87E1F",
+                  "day14" = "#E6B85F")
+
+
+metadata <- read.csv("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/fixed_musical_metadata_final.csv")
+
+metadata <- metadata%>%
+  mutate("timepoint"=case_when(timepoint_imm==-2 & id %notin% c(176, 363, 577) ~"bad_baseline",
+                                          timepoint_imm==-2 & id %in% c(176, 363, 577) ~"baseline",
+                                          timepoint_imm==-1~"baseline",
+                                          timepoint_imm==0~"day0",
+                                          timepoint_imm==7~"day7",
+                                          timepoint_imm==14~"day14",
+                                          timepoint_imm==28~"day28"))
+
+#subset to only include musical folks
 
 blood_counts <- readxl::read_xls("~/postdoc/stanford/clinical_data/MUSICAL/PRISMBC LYMPHOCYTE TRUCOUNTS.xls")
 
@@ -15,36 +35,20 @@ slim_blood_counts <- blood_counts%>%
   select(-`Draw date`, -Id)
 
 
-clean_data_with_cell_counts <- clean_data %>%
-  mutate(id=as.character(substr(id, nchar(id)-2,nchar(id))))%>%
-  mutate(date=as.Date(date))%>%
+clean_data_with_cell_counts <- metadata %>%
+  mutate(date=as.Date(date), id=as.character(id))%>%
   left_join(., slim_blood_counts, by=c("id", "date"))%>%
   pivot_longer(cols=c( `CD3+  cells/ul blood`, `lymphocytes/ul blood`), names_to = "blood_count", values_to = "cbc_per_ul")
 
-na_counts <- clean_data_with_cell_counts%>%
-  filter(is.na(cbc_per_ul))
-
-n_distinct(na_counts$sample_id)
-
-na_counts_for_kenneth <- na_counts%>%
-  distinct(id, date, timepoint)
-
-write.csv(na_counts_for_kenneth,"~/Downloads/visits_without_cbc.csv", row.names = F)
-
-good_counts <- clean_data_with_cell_counts%>%
-  filter(!is.na(cbc_per_ul))
-
-n_distinct(good_counts$sample_id)
 
 
 cbc_boxplot <- clean_data_with_cell_counts %>%
-  filter(infectiontype %in% c("S", "A"), timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
-  ggplot(., aes(x=infectiontype, y=cbc_per_ul, fill=timepoint))+
+  filter(infectiontype %in% c("S", "A"))%>%
+  ggplot(., aes(x=infectiontype, y=cbc_per_ul, fill=factor(timepoint_imm)))+
   geom_boxplot(outliers = F)+
   facet_wrap(~blood_count)+
   theme_minimal()+
-  scale_fill_manual(values=viridis::magma(n=5))+
-  da_boxplot_theme
+  scale_fill_manual(values=viridis::magma(n=6))
 
 ggsave("~/postdoc/stanford/clinical_data/MUSICAL/cbc_boxplot.png", cbc_boxplot, height = 6, width = 8, dpi=444, bg="white")  
 
@@ -84,7 +88,7 @@ clean_data_with_cell_counts %>%
 
 # add flow cytometry data ####
 
-jason_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/jason_cytometry_241124.csv")
+jason_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/mus1_mus6_flow_data.csv")
 
 jason_data <- jason_data %>%
   mutate(id=as.character(cohortid), timepoint_imm=as.numeric(timepoint), infectiontype=case_when(inf_type=="asymp"~"A",
@@ -95,37 +99,39 @@ jason_data <- jason_data %>%
 
 combo_data <- clean_data_with_cell_counts%>%
   filter(!is.na(cbc_per_ul))%>%
-  inner_join(., jason_data, by = c("id", "timepoint_imm", "infectiontype"))
+  right_join(., jason_data, by = c("id", "timepoint_imm", "infectiontype"))
 
 
 cell_count_data <- combo_data%>%
-  filter(blood_count=="CD3+  cells/ul blood")%>%
-  # distinct(id, infectiontype, timepoint,parasitedensity, qpcr, blood_count, cbc_per_ul, CD4_T_Cell_Frequency, Tr1_Frequency)%>%
-  mutate(Tr1_count=cbc_per_ul*CD4_T_Cell_Frequency/100*Tr1_Frequency/100,
-         Tr1_IFNg_count=Tr1_count*Tr1_IFNg_Frequency/100,
-         Tr1_IL10_count=Tr1_count*Tr1_IL10_Frequency/100
-         )%>%
-  filter(!is.na(Tr1_count), !is.na(Tr1_IFNg_count), !is.na(Tr1_IL10_count))%>%
-  pivot_longer(cols=c(Tr1_count, Tr1_IFNg_count, Tr1_IL10_count), names_to = "cell_pop", values_to = "cell_count")%>%
-  distinct(id, infectiontype, timepoint,parasitedensity, qpcr, stim, blood_count, cbc_per_ul, cell_count, cell_pop)
+  filter(blood_count=="CD3+  cells/ul blood" | is.na(blood_count))%>%
+  mutate("absolute_Tr1"=cbc_per_ul*CD4_T_Cell_Frequency/100*Tr1_Frequency/100)%>%
+  pivot_longer(cols = ends_with("Frequency"), names_to = "gate", values_to = "freq")%>%
+  mutate(count = ifelse(grepl("Tr1", gate), absolute_Tr1*freq/100, NA))
 
+write.csv(cell_count_data, "~/postdoc/stanford/manuscripts/jason_tr1_2/t_cell_cytometry_count_data.csv", row.names = F)
 
 tr1_freq_plot <- cell_count_data %>%
-  filter(infectiontype %in% c("S", "A"), timepoint!="bad_baseline", stim=="unstim", cell_pop=="Tr1_count")%>%
-  ggplot(., aes(x=timepoint, y=cell_count*1000, fill=timepoint))+
-  geom_point()+
-  geom_line(aes(group=id))+
+  filter(infectiontype %in% c("S", "A"), timepoint!="bad_baseline", stim=="unstim")%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=absolute_Tr1*1000, fill=timepoint))+
+  geom_line(aes(group=id), alpha=0.2)+
   geom_boxplot(outliers = F)+
-  theme_minimal()+
   # scale_y_log10()+
   ylab("Tr1 cells / mL")+
-  facet_wrap(~infectiontype, scales = "free")+
-  scale_fill_manual(values=viridis::magma(n=5))
+  facet_wrap(~infectiontype, scales = "free_x")+
+  scale_fill_manual(values=time_cols)+
+  theme_minimal()+
+  theme(axis.title.x = element_blank(),
+        legend.position = "none")
   
+ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/tr1_freq_plot.png", tr1_freq_plot, width = 5.3333, height=3, dpi=444, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_freq_plot.png", tr1_freq_plot, width =5.3333333, height=3, dpi=444, bg="white")
+
 
 tr1_function_plot <- cell_count_data%>%
   filter(infectiontype %in% c("S", "A"), timepoint!="bad_baseline", stim!="unstim", cell_pop!="Tr1_count")%>%
-  ggplot(., aes(x=timepoint, y=cell_count*1000, fill=timepoint))+
+  mutate(cell_pop=case_when(cell_pop=="Tr1_IFNg_count"~ "IFNy",
+                            cell_pop=="Tr1_IL10_count"~"IL10"))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=cell_count*1000, fill=timepoint))+
   geom_point()+
   geom_line(aes(group=id))+
   geom_boxplot(outliers = F)+
@@ -133,6 +139,82 @@ tr1_function_plot <- cell_count_data%>%
   # scale_y_log10()+
   ylab("cyotkine+ Tr1 cells / mL")+
   facet_wrap(~infectiontype+cell_pop+stim, scales = "free", ncol=4)+
-  scale_fill_manual(values=viridis::magma(n=5))
+  scale_fill_manual(values=time_cols)+
+  theme(axis.title.x = element_blank(),
+        legend.position = "none",
+        axis.text.x = element_text(size=7))
 
-day_
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_cytokine.png", tr1_function_plot, width =8, height=5.333333, dpi=444, bg="white")
+
+# sandbox####
+# 
+# long_combo%>%
+#   filter(gate=="Tr1_IFNg_Frequency")%>%
+#   distinct(id, infectiontype, timepoint, stim, freq)%>%
+#   filter(infectiontype%in%c("A", "S"), timepoint!="bad_baseline")%>%
+#   ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=freq, fill=timepoint))+
+#   ggtitle("IFNg+ Tr1 Percentage")+
+#   geom_boxplot()+
+#   theme_minimal()+
+#   facet_wrap(~infectiontype+stim, ncol=3)+
+#   scale_fill_manual(values=viridis::magma(n=5))+
+#   da_boxplot_theme
+# 
+# cell_count_data%>%
+#   filter(infectiontype %in% c("S", "A"), timepoint!="bad_baseline", cell_pop=="Tr1_IFNg_count")%>%
+#   ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=cell_count*1000, fill=timepoint))+
+#   geom_point()+
+#   geom_line(aes(group=id))+
+#   geom_boxplot(outliers = F)+
+#   theme_minimal()+
+#   ylab("cyotkine+ Tr1 cells / mL")+
+#   ggtitle("IFNg+ Tr1 Count")+
+#   facet_wrap(~infectiontype+stim, scales = "free", ncol=3)+
+#   scale_fill_manual(values=viridis::magma(n=5))+
+#   theme(axis.title.x = element_blank())
+# 
+# 
+# 
+# 
+# 
+# long_combo%>%
+#   filter(gate=="Tr1_IL10_Frequency")%>%
+#   distinct(id, infectiontype, timepoint, stim, freq)%>%
+#   filter(infectiontype%in%c("A", "S"), timepoint!="bad_baseline")%>%
+#   ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=freq, fill=timepoint))+
+#   ggtitle("IL10+ Tr1 Percentage")+
+#   geom_boxplot()+
+#   theme_minimal()+
+#   facet_wrap(~infectiontype+stim, ncol=3)+
+#   scale_fill_manual(values=viridis::magma(n=5))+
+#   da_boxplot_theme
+# 
+# cell_count_data%>%
+#   filter(infectiontype %in% c("S", "A"), timepoint!="bad_baseline", cell_pop=="Tr1_IL10_count")%>%
+#   ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=cell_count*1000, fill=timepoint))+
+#   geom_point()+
+#   geom_line(aes(group=id))+
+#   geom_boxplot(outliers = F)+
+#   theme_minimal()+
+#   ylab("cyotkine+ Tr1 cells / mL")+
+#   ggtitle("IL10+ Tr1 Count")+
+#   facet_wrap(~infectiontype+stim, scales = "free", ncol=3)+
+#   scale_fill_manual(values=viridis::magma(n=5))+
+#   theme(axis.title.x = element_blank())
+# 
+
+# 
+# na_counts <- clean_data_with_cell_counts%>%
+#   filter(is.na(cbc_per_ul))
+# 
+# n_distinct(na_counts$sample_id)
+# 
+# na_counts_for_kenneth <- na_counts%>%
+#   distinct(id, date, timepoint_imm)
+# 
+# write.csv(na_counts_for_kenneth,"~/Downloads/visits_without_cbc.csv", row.names = F)
+# 
+# good_counts <- clean_data_with_cell_counts%>%
+#   filter(!is.na(cbc_per_ul))
+# 
+# n_distinct(good_counts$sample_id)

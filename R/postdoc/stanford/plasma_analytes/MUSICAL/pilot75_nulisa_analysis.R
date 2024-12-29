@@ -4,7 +4,7 @@ library(dplyr)
 `%notin%` <- Negate(`%in%`)
 
 musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
-random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/id_date_code.csv")
+random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/id_date_code.csv")
 random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1JLGS", "DIJLGS", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1KWT2", "D1_KWT2", random_codes$plasma.barcode)
@@ -23,7 +23,7 @@ micdrop_codes$plasma.barcode <- gsub("QF9VI", "X426NI", micdrop_codes$plasma.bar
 
 slim_musical_metadata <- musical_metadata %>%
   mutate(day_annotation=if_else(day_annotation==84, -1, day_annotation))%>%
-  select(combined_id, combined_date, enrolltype, day_annotation)%>%
+  # select(combined_id, combined_date, enrolltype, day_annotation)%>%
   mutate(id=combined_id, date=combined_date, class=enrolltype, timepoint=paste("t", day_annotation, sep=""))%>%
   select(-combined_id, -combined_date, -enrolltype, -day_annotation)%>%
   mutate("study"="MUSICAL")

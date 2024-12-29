@@ -10,24 +10,26 @@ names(stim_palette) <- c("iRBCs", "PMA", "unstim")
 `%notin%` <- Negate(`%in%`)
 
 # data generation ####
-nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/unclean_musical_combo_with_metadata.csv")
-nulisa_data <- nulisa_data %>%
-  mutate(id = as.numeric(substr(sample_id, 1, 3)))
+nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv")
+slim_nulisa_data <- nulisa_data %>%
+  mutate(id=as.character(id))%>%
+  select(id, timepoint, timepoint_imm, infectiontype, targetName, concentration)
 
-jason_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/jason_cytometry_241124.csv")
+cell_count_data <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/t_cell_cytometry_count_data.csv")
+slim_cell_count_data <- cell_count_data%>%
+  select(id, timepoint, timepoint_imm, infectiontype, gate, stim, freq, count)
 
-jason_data <- jason_data %>%
-  mutate(id=as.numeric(cohortid), timepoint_imm=as.numeric(timepoint), infectiontype=case_when(inf_type=="asymp"~"A",
-                                                                                   inf_type=="symp"~"S",
-                                                                                   inf_type=="nmf"~"NM"))%>%
-  select(-timepoint)%>%
-  filter(!is.na(cohortid))
+long_combo <- full_join(slim_nulisa_data, slim_cell_count_data, by = c("id", "timepoint_imm", "infectiontype"))%>%
+  mutate(timepoint=timepoint.x)%>%
+  select(-timepoint.x, -timepoint.y)
+#   
+# long_combo%>%
+#   filter(infectiontype=="S",
+#          timepoint_imm==7,
+#          stim=="unstim",
+#          gate=="Tr1_Frequency",
+#          targetName=="AGER")
 
-combo_data <- inner_join(jason_data, nulisa_data, by = c("id", "timepoint_imm", "infectiontype"))
-
-long_combo <- combo_data %>%
-  pivot_longer(cols=ends_with("Frequency"), names_to = "gate", values_to = "freq")
-  
 
 # disjointed timepoints, absolute values ####
 day0_concs <- long_combo %>%
@@ -62,6 +64,28 @@ day14_freqs <- long_combo%>%
 
 
 
+base_counts <- long_combo%>%
+  filter(infectiontype%in% c("S", "A"))%>%
+  filter(timepoint=="baseline")%>%
+  distinct(gate, count, stim, id, timepoint, infectiontype)
+
+day0_counts <- long_combo%>%
+  filter(infectiontype%in% c("S", "A"))%>%
+  filter(timepoint=="day0")%>%
+  distinct(gate, count, stim, id, timepoint, infectiontype)
+
+day7_counts <- long_combo%>%
+  filter(infectiontype%in% c("S", "A"))%>%
+  filter(infectiontype=="S", timepoint=="day7")%>%
+  distinct(gate, count, stim, id, timepoint, infectiontype)
+
+day14_counts <- long_combo%>%
+  filter(infectiontype%in% c("S", "A"))%>%
+  filter(timepoint=="day14")%>%
+  distinct(gate, count, stim, id, timepoint, infectiontype)
+
+
+
 base_freq_base_conc <- inner_join(base_concs, base_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
 
 base_freq_day0_conc <- inner_join(day0_concs, base_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
@@ -70,9 +94,27 @@ conc_freq_0 <- inner_join(day0_concs, day0_freqs, by=c("id", "infectiontype"), r
 
 conc_freq_014 <- inner_join(day0_concs, day14_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
 
+
+
+base_count_base_conc <- inner_join(base_concs, base_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+
+base_count_day0_conc <- inner_join(day0_concs, base_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+
+conc_count_0 <- inner_join(day0_concs, day0_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+
+conc_count_014 <- inner_join(day0_concs, day14_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+
+
+
+
+
 conc_freq_07 <- day0_concs%>%
   filter(infectiontype=="S")%>%
   inner_join(day7_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
+
+conc_count_07 <- day0_concs%>%
+  filter(infectiontype=="S")%>%
+  inner_join(day7_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
 
 freq_freq_base_0 <- inner_join(base_freqs, day0_freqs, by=c("id", "gate", "stim", "infectiontype"), relationship = "many-to-many")
 
@@ -81,6 +123,8 @@ conc_freq_0_corr <- conc_freq_0%>%
   filter(!is.na(freq))%>%
   group_by(gate, stim, targetName, infectiontype)%>%
   nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
   mutate(correlation=map(data, ~cor.test(.$concentration, .$freq, method = "spearman")))%>%
   mutate(p=map_dbl(correlation, ~.$p.value),
          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
@@ -88,15 +132,51 @@ conc_freq_0_corr <- conc_freq_0%>%
   group_by(infectiontype)%>%
   mutate(padj=p.adjust(p))
 
+
 conc_freq_07_corr <- conc_freq_07%>%
   filter(!is.na(freq))%>%
   group_by(gate, stim, targetName)%>%
   nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
   mutate(correlation=map(data, ~cor.test(.$concentration, .$freq, method = "spearman")))%>%
   mutate(p=map_dbl(correlation, ~.$p.value),
          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
   ungroup()%>%
   mutate(padj=p.adjust(p))
+
+
+
+
+conc_count_0_corr <- conc_count_0%>%
+  filter(!is.na(count))%>%
+  group_by(gate, stim, targetName, infectiontype)%>%
+  nest()%>% 
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
+  mutate(correlation=map(data, ~cor.test(.$concentration, .$count, method = "spearman")))%>%
+  mutate(p=map_dbl(correlation, ~.$p.value),
+         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$count, method="spearman")))%>%
+  ungroup()%>%
+  group_by(infectiontype)%>%
+  mutate(padj=p.adjust(p))
+
+
+
+conc_count_07_corr <- conc_count_07%>%
+  filter(!is.na(count))%>%
+  group_by(gate, stim, targetName)%>%
+  nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
+  mutate(correlation=map(data, ~cor.test(.$concentration, .$count, method = "spearman")))%>%
+  mutate(p=map_dbl(correlation, ~.$p.value),
+         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$count, method="spearman")))%>%
+  ungroup()%>%
+  mutate(padj=p.adjust(p))
+
+
+
 
 remove_from_conc_freq_014 <- conc_freq_014 %>%
   filter(gate == "CD4_Lymphocyte_Frequency", stim == "PMA", infectiontype == "A")
@@ -105,8 +185,11 @@ conc_freq_014_corr <- conc_freq_014%>%
   filter(gate %notin% c("Memory_CD4_T_Cell_Frequency",
                       "CD4_Lymphocyte_Frequency",
                       unique(grep("FOXP3", gate, value=TRUE))))%>%
+  filter(!is.na(gate))%>%
   group_by(gate, stim, targetName, infectiontype)%>%
   nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
   mutate(correlation=map(data, ~cor.test(.$concentration, .$freq, method = "spearman")))%>%
   mutate(p=map_dbl(correlation, ~.$p.value),
          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
@@ -122,6 +205,8 @@ freq_freq_base_0_corr <- freq_freq_base_0%>%
                         unique(grep("FOXP3", gate, value=TRUE))))%>%
   group_by(gate, stim, infectiontype)%>%
   nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
   mutate(correlation=map(data, ~cor.test(.$freq.x, .$freq.y, method = "spearman")))%>%
   mutate(p=map_dbl(correlation, ~.$p.value),
          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
@@ -136,6 +221,8 @@ base_freq_day0_conc_cor <- base_freq_day0_conc%>%
                         unique(grep("FOXP3", gate, value=TRUE))))%>%
   group_by(gate, stim, infectiontype)%>%
   nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
   mutate(correlation=map(data, ~cor.test(.$concentration, .$freq, method = "spearman")))%>%
   mutate(p=map_dbl(correlation, ~.$p.value),
          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
@@ -150,6 +237,8 @@ base_freq_base_conc_cor <- base_freq_base_conc%>%
                         unique(grep("FOXP3", gate, value=TRUE))))%>%
   group_by(gate, stim, targetName)%>%
   nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
   mutate(correlation=map(data, ~cor.test(.$concentration, .$freq, method = "spearman")))%>%
   mutate(p=map_dbl(correlation, ~.$p.value),
          rho=map_dbl(correlation, ~.$estimate))%>%
@@ -157,7 +246,7 @@ base_freq_base_conc_cor <- base_freq_base_conc%>%
   mutate(padj=p.adjust(p))
 
 
-
+fdr_cutoff=0.05
 
 
 sig_conc_freq_0_corr <- conc_freq_0_corr%>%
@@ -176,55 +265,88 @@ sig_base_freq_day0_conc_cor <- base_freq_day0_conc_cor%>%
   filter(padj<fdr_cutoff)
 
 
+sig_conc_count_0_corr <-  conc_count_0_corr%>%
+  filter(padj<fdr_cutoff)
+
+sig_conc_count_07_corr <- conc_count_07_corr%>%
+  filter(padj<fdr_cutoff)
+
 
 sig_base_freq_base_conc_cor <- base_freq_base_conc_cor%>%
   filter(padj<fdr_cutoff)
+# 
+# for_jason <- base_freq_base_conc_cor%>%
+#   select(-data, -correlation)
+# 
+# write.csv(for_jason, "~/Downloads/base_freq_base_conc_cor.csv", row.names = F)
 
-for_jason <- base_freq_base_conc_cor%>%
-  select(-data, -correlation)
 
-write.csv(for_jason, "~/Downloads/base_freq_base_conc_cor.csv", row.names = F)
-
-
-conc_freq_07_corr %>%
-  filter(targetName %in% c("GZMA", "LAG3", "IL10", "CTLA4", "LILRB2", "IL6"), gate %in% c("Tr1_Frequency", "IL10_Frequency"))%>%
-  filter(stim %in% c("iRBCs"))%>%
+sig_conc_freq_07_corr_plot <- conc_freq_07_corr %>%
+  # filter(targetName %in% c("GZMA", "LAG3", "IL10", "CTLA4", "LILRB2", "IL6"), gate %in% c("Tr1_Frequency", "IL10_Frequency"))%>%
+  filter(targetName %in% "GZMA", gate %in% c("IL10_Frequency"))%>%
+  filter(stim %in% c("unstim", "iRBCs"))%>%
   unnest(data)%>%
+  mutate(gate=gsub("_", " ", gate, fixed=TRUE))%>%
   ggplot(., aes(x=freq, y=concentration, color=stim))+
   geom_point()+
-  facet_wrap(~gate+targetName+stim, ncol=6, scales="free")+
+  facet_wrap(~gate+stim+targetName, ncol=4, scales="free")+
   geom_smooth(method="lm")+
   ggpubr::stat_cor(method="spearman")+
-  ggtitle("plasma concentration at day0 correlates with\nfrequency of IL10+ cells")+
+  ggtitle("GMZMA concentration at day 0 correlates with\n IL10 secretion cells at day7")+
   geom_smooth(method="lm")+
+  xlab("Concentration")+
+  ylab("Percentage")+
   scale_color_manual(values=stim_palette)+
   theme_minimal()
 
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/GZMA_IL10_corr.png", sig_conc_freq_07_corr_plot, width=5.3333, height=5.333, bg="white")
 
-conc_freq_014_corr %>%
-  filter(targetName %in% c("CXCL11", "ANGPT2"), gate %in% c("Tregs_CD25_Frequency"))%>%
+
+
+cxcl11_angpt2_treg_corr_plot <- conc_freq_014_corr %>%
+  filter(targetName %in% c("CXCL11", "ANGPT2"), gate %in% c("Tregs_CD25_Frequency"), infectiontype=="S")%>%
   unnest(data)%>%
   filter(stim =="unstim")%>%
   ggplot(., aes(x=freq, y=concentration))+
   geom_point()+
-  facet_wrap(~gate+targetName)+
+  facet_wrap(~gate+targetName, scales="free")+
   ggpubr::stat_cor(method="spearman")+
-  ggtitle("plasma concentration of CXCL11 at day0 correlates with\nCD25 expression on Tregs")+
+  ggtitle("plasma concentration of CXCL11 and ANGPT2 at day0 correlates with\nCD25 expression on Tregs at day14")+
   geom_smooth(method="lm")+
   scale_color_manual(values=c("darkred", "darkblue", "white"))+
   theme_minimal()
 
-freq_freq_base_0 %>%
-  filter(gate.x %in% sig_freq_freq_base_0$gate.x)%>%
-  distinct(freq.x, freq.y, stim.x, gate.x, id, timepoint.x, infectiontype)%>%
-  ggplot(., aes(x=freq.x, y=freq.y, color=stim.x))+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/cxcl11_angpt2_treg_corr.png", cxcl11_angpt2_treg_corr_plot, width=5.3333, height=5.333, bg="white")
+
+
+
+TNFSF10_tr1_il21_corr_plot <- conc_freq_014_corr %>%
+  filter(targetName %in% c("TNFSF10"), gate %in% c("Tr1_IL21_Frequency"), infectiontype=="A")%>%
+  unnest(data)%>%
+  filter(stim =="PMA")%>%
+  ggplot(., aes(x=freq, y=concentration))+
   geom_point()+
-  geom_smooth()+
-  facet_wrap(~gate.x+infectiontype)+
+  facet_wrap(~gate+targetName, scales="free")+
   ggpubr::stat_cor(method="spearman")+
+  ggtitle("plasma concentration of TNSF10 day0 correlates with\nIL12 expression by Tr1 at day14")+
   geom_smooth(method="lm")+
   scale_color_manual(values=c("darkred", "darkblue", "white"))+
   theme_minimal()
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/cxcl11_angpt2_treg_corr.png", cxcl11_angpt2_treg_corr_plot, width=5.3333, height=5.333, bg="white")
+
+
+# freq_freq_base_0 %>%
+#   filter(gate %in% sig_freq_freq_base_0$gate)%>%
+#   distinct(freq.x, freq.y, stim, gate, id, timepoint.x, infectiontype)%>%
+#   ggplot(., aes(x=freq.x, y=freq.y, color=stim))+
+#   geom_point()+
+#   geom_smooth()+
+#   facet_wrap(~gate+infectiontype)+
+#   ggpubr::stat_cor(method="spearman")+
+#   geom_smooth(method="lm")+
+#   scale_color_manual(values=c("darkred", "darkblue", "white"))+
+#   theme_minimal()
   
 
 # fold changes ####
@@ -233,9 +355,9 @@ freq_freq_base_0 %>%
 # need to fix because otherwise p value calculation is garbage.
 
 wide_concs <-  long_combo %>%
-  select(targetName, concentration, id, infectiontype, timepoint, sample_id)%>%
+  select(targetName, concentration, id, infectiontype, timepoint)%>%
   filter(infectiontype!="nmf", timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
-  distinct(targetName, concentration, id, infectiontype, timepoint, sample_id)%>%
+  distinct(targetName, concentration, id, infectiontype, timepoint)%>%
   pivot_wider(names_from = timepoint, values_from = c(concentration), id_cols=c(targetName, id, infectiontype), names_prefix = "conc_")%>%
   group_by(infectiontype)%>%
   mutate(conc_base_d0_fc=conc_day0/conc_baseline,
@@ -250,15 +372,28 @@ wide_freqs <-  long_combo %>%
   #        #!(stim=="unstim" & grepl("_[^_]+_", gate)),
   #        #!(stim=="PMA" & gate=="CD4_T_Cell_Frequency")
   #        )%>%
-  select(gate, stim, freq, id, infectiontype, timepoint, sample_id)%>%
+  select(gate, stim, freq, id, infectiontype, timepoint)%>%
   filter(infectiontype!="NM", timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
-  distinct(gate, stim, freq, id, infectiontype, timepoint, sample_id)%>%
+  distinct(gate, stim, freq, id, infectiontype, timepoint)%>%
   pivot_wider(names_from = timepoint, values_from = c(freq), id_cols=c(gate, stim, id, infectiontype), names_prefix = "freq_")%>%
   group_by(infectiontype)%>%
   mutate(freq_base_d0_fc=freq_day0/freq_baseline,
          freq_base_d7_fc=freq_day7/freq_baseline,
          freq_base_d14_fc=freq_day14/freq_baseline)%>%
   distinct(gate, stim, id, infectiontype, freq_base_d0_fc, freq_base_d7_fc, freq_base_d14_fc)
+
+
+wide_counts <-  long_combo %>%
+  select(gate, stim, count, id, infectiontype, timepoint)%>%
+  filter(infectiontype!="NM", timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
+  distinct(gate, stim, count, id, infectiontype, timepoint)%>%
+  pivot_wider(names_from = timepoint, values_from = c(count), id_cols=c(gate, stim, id, infectiontype), names_prefix = "count_")%>%
+  group_by(infectiontype)%>%
+  mutate(count_base_d0_fc=count_day0/count_baseline,
+         count_base_d7_fc=count_day7/count_baseline,
+         count_base_d14_fc=count_day14/count_baseline)%>%
+  distinct(gate, stim, id, infectiontype, count_base_d0_fc, count_base_d7_fc, count_base_d14_fc)
+
 
 
 fc_combo_frame <- inner_join(wide_freqs, wide_concs, by=c("id", "infectiontype"))%>%
@@ -339,18 +474,70 @@ tr1_gzma <- fc_combo_frame %>%
 
 ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/tr1_gzma_fc_corr_day0_day14.png", tr1_gzma, height = 6, width=6, dpi=444, bg="white")
 
+tr1_sigs <- sig_fc_corr_purr %>%
+  filter(grepl("Tr1", gate), base_d7_padj<0.05)%>%
+  select(gate, stim, targetName, base_d7_padj, base_d7_rho)
 
 
-fc_combo_frame %>%
-  filter(gate%in%c("Tr1_IL10_Frequency"), targetName%in%c("LTA"), infectiontype=="A")%>%
-  ggplot(., aes(x=freq_base_d14_fc, y=conc_base_d14_fc, color=stim))+
+tr1_il10_freq_cor_plot <- fc_combo_frame %>%
+  filter(gate %in% tr1_sigs$gate[tr1_sigs$gate=="Tr1_IL10_Frequency"],
+         targetName %in% tr1_sigs$targetName[tr1_sigs$gate=="Tr1_IL10_Frequency"],
+         infectiontype=="S",
+         stim=="iRBCs")%>%
+  ggplot(., aes(x=freq_base_d7_fc, y=conc_base_d0_fc, color=stim))+
   geom_point()+
-  ggpubr::stat_cor(method = "spearman")+
-  ggtitle("fold change in Tr1 Frequency & PD1 expression vs. fold change in Tr1 proteins")+
+  ggpubr::stat_cor(method = "spearman", label.y = 0.7)+
+  xlab("fold change in Tr1 proteins baseline vs day 0")+
+  ylab("fold change in Tr1 IL10 expression baseline vs day 7")+
   geom_smooth(method="lm")+
-  # scale_color_manual(values =stim_palette)+
-  facet_wrap(gate~targetName+stim)+
-  theme_minimal()
+  ylim(c(0.65, NA))+
+  scale_color_manual(values =stim_palette)+
+  facet_wrap(~targetName, scales="free", nrow=2)+
+  theme_minimal()+
+  theme(legend.position = "bottom")
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_il10_freq_cor_plot.png", tr1_il10_freq_cor_plot, width=8, height=5.33, bg="white", dpi=444)
+
+tr1_ifng_freq_cor_plot <- fc_combo_frame %>%
+  filter(gate == "Tr1_IFNg_Frequency",
+         targetName %in% tr1_sigs$targetName[tr1_sigs$gate=="Tr1_IFNg_Frequency" &tr1_sigs$stim=="PMA"],
+         infectiontype=="S",
+         stim=="PMA")%>%
+  ggplot(., aes(x=freq_base_d7_fc, y=conc_base_d0_fc, color=stim))+
+  geom_point()+
+  ggpubr::stat_cor(method = "spearman", label.y = 0.7)+
+  xlab("fold change in Tr1 proteins baseline vs day 0")+
+  ylab(expression(paste("fold change in Tr1 IFN", gamma, sep="")))+
+  geom_smooth(method="lm")+
+  ylim(c(0.65, NA))+
+  scale_color_manual(values =stim_palette)+
+  facet_wrap(~targetName, scales="free")+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_ifng_freq_cor_plot.png", tr1_ifng_freq_cor_plot, width=5.33, height=3, bg="white", dpi=444)
+
+
+tr1_freq_cor_plot <- fc_combo_frame %>%
+  filter(gate %in% tr1_sigs$gate[tr1_sigs$gate=="Tr1_Frequency"],
+         targetName %in% tr1_sigs$targetName[tr1_sigs$gate=="Tr1_Frequency"],
+         infectiontype=="S",
+         stim=="unstim")%>%
+  ggplot(., aes(x=freq_base_d7_fc, y=conc_base_d0_fc, color=stim))+
+  geom_point()+
+  ggpubr::stat_cor(method = "spearman", label.y = 0.7)+
+  xlab("fold change in Tr1 proteins baseline vs day 0")+
+  ylab("fold change in Tr1 % baseline vs day 7")+
+  geom_smooth(method="lm")+
+  ylim(c(0.65, NA))+
+  scale_color_manual(values =stim_palette)+
+  facet_wrap(~targetName, scales="free")+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_freq_cor_plot.png", tr1_freq_cor_plot, width=5.33, height=3, bg="white", dpi=444)
+
+
 
 
 sig_fc_corr_purr7 <- fc_corr_purr%>%
@@ -757,4 +944,5 @@ base_freq_day0_conc <- inner_join(day0_concs, base_freqs, by=c("id", "infectiont
    theme_minimal()
  
  ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/all_tr1_freq_base_day0_conc.png", width = 9, height=4.5, dpi=444, bg="white")
+ 
  

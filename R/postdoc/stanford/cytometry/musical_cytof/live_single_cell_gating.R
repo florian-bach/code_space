@@ -13,7 +13,6 @@ files_to_read <- list.files(path_to_fcs, full.names = TRUE, pattern = "*.fcs$")
 fs <- read.ncdfFlowSet(files = files_to_read)
 
 asinhTrans <- flowCore::arcsinhTransform(transformationId="defaultArcsinhTransform", a=0, b=1/5, c=0)
-# asinhTrans <- flowCore::arcsinhTransform(transformationId="defaultArcsinhTransform", a=1, b=1, c=0)
 
 
 translist <- transformList(mass_channels, asinhTrans)
@@ -96,27 +95,10 @@ write.flowSet(cleaned_fs,
               outdir = "/Users/fbach/postdoc/stanford/cytometry/CyTOF/MUSICAL/redownload_pilot75/sandbox/")
 
 
-# 
-# chnl <- c("Ir193Di", "Ce140Di")
 
-fr <- gh_pop_get_data(gs, "live_singlets", returnType = "flowFrame")
-# # g1 <- openCyto:::.flowClust.2d(fr, channels = chnl, K=2, target=c(6, 0), quantile=0.95)
-# 
-ggcyto(gs, subset = "live_singlets", aes(x = "Nd142Di", y = "Nd150Di"))+
-  geom_hex(bins=128)+
-  theme_minimal()
-# 
-# 
-# other_default <- ggcyto(fr, aes(x = "Ir193Di", y = "Ce140Di"))+
-#   geom_hex(bins=128)+
-#   theme_minimal()
-# 
-# 
-# ggcyto(fr, aes(x = "Nd143Di", y = "Nd150Di"))+
-#   geom_hex(bins=128)+
-#   theme_minimal()
+# check on the gated populations ####
 path_to_fcs <- "/Users/fbach/postdoc/stanford/cytometry/CyTOF/MUSICAL/redownload_pilot75/sandbox/"
 files_to_read <- list.files(path_to_fcs, full.names = TRUE, pattern = "*.fcs$")
 
 fs <- ncdfFlow::read.ncdfFlowSet(files = files_to_read)
- 
+flowCore::fsApply(fs, nrow)
