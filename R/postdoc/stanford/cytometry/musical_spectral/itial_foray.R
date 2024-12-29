@@ -43,7 +43,7 @@ co_factors <- read.csv("~/postdoc/stanford/cytometry/spectral/MUSICAL/trans_coef
 
 trans_musical_flowset <- flowSpecs::arcTrans(musical_flowset,  transCoFacs = co_factors$coef, transNames = colnames(musical_flowset)[8:38])
 
-sce <- prepData(trans_musical_flowset,
+sce <- prepData(musical_flowset,
                 FACS = T,
                 musical_panel,
                 metadata_to_read,

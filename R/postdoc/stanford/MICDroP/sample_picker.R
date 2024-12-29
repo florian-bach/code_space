@@ -364,29 +364,31 @@ grant_list_rest <- grant_list %>%
 
 # grant_and_comp <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/all_209_for_project.csv")
 
+
+
+write.csv(samples_to_pick_for_mesoscale, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/samples_to_pick_for_mesoscale.csv", row.names = F)
+
+# 200 individuals for Nulisa ####
+grant_and_comp <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/all_209_for_project.csv")
+samples_to_pick_for_mesoscale <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/samples_to_pick_for_mesoscale.csv")
+
+# micdrop_samples_to_pick_for_nulisa <- long_specimen_data %>%
+#   # filter(id %in% grant_list$id | id %in% kids_with_comp$id, Specimen_Type=="Plasma")%>%
+#   filter(id %in% grant_and_comp$id,  Specimen_Type=="Plasma")%>%
+#   filter(Specimen_ID!="", flo_age_in_wks<54, flo_age_in_wks %in% sample_ranges)%>%
+#   select(id, date, Timepoint_in_weeks)
+
 rest_of_samples_to_pick <- long_specimen_data %>%
   filter(id %notin% samples_to_pick_for_mesoscale$id & id %in% grant_and_comp$id, Specimen_Type=="Plasma")%>%
   filter(Specimen_ID!="", flo_age_in_wks<54, flo_age_in_wks %in% sample_ranges)%>%
   select(id, flo_age_in_wks, date, BoxNumber3, PositionColumn3, PositionRow3)%>%
   arrange(BoxNumber3)%>%
-  mutate("new column"=rep_len(1:9, nrow(.)), "new row"=rep_len(rep(1:9,each=9), nrow(.)))
-
-write.csv(samples_to_pick_for_mesoscale, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/samples_to_pick_for_mesoscale.csv", row.names = F)
-
-# 200 individuals for Nulisa ####
-grant_list <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/Samples selected for Florian Nov 7 2024.dta")
-
-micdrop_samples_to_pick_for_nulisa <- long_specimen_data %>%
-  # filter(id %in% grant_list$id | id %in% kids_with_comp$id, Specimen_Type=="Plasma")%>%
-  filter(id %in% grant_and_comp$id,  Specimen_Type=="Plasma")%>%
-  filter(Specimen_ID!="", flo_age_in_wks<54, flo_age_in_wks %in% sample_ranges)%>%
-  select(id, date, Timepoint_in_weeks)
-
-neuro_cog <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/neurocog_19092024.xlsx")
-
-(sum(unique(micdrop_samples_to_pick_for_nulisa$id) %in% neuro_cog$ID)*2)+nrow(micdrop_samples_to_pick_for_nulisa)
-
+  mutate("new column"=rep_len(1:9, nrow(.)),
+         "new row"=rep_len(rep(1:9,each=9), nrow(.)),
+         "new box"=rep_len(rep(1:9, each=81), nrow(.)))
   
+write.csv(rest_of_samples_to_pick, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/rest_of_samples_to_pick_for_NULISA.csv", row.names = F)
+
 # DPSP mums for Kattria####
 
 neuro_cog <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/neurocog_19092024.xlsx")
