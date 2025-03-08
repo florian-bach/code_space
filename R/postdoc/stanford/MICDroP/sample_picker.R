@@ -18,9 +18,10 @@ sample_ranges <- sort(c(sample_ages, sample_ages_minus, sample_ages_plus))
 #turn the data into long format, include a couple of convenience variables, drop irrelevant columns
 long_specimen_data <- raw_data %>%
   mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
-    select(id, dob, date, flo_age_in_wks, mstatus, qPCRparsdens, ageinwks, SampleDate, starts_with(c("BoxNumber", "PositionColumn", "PositionRow", "RandomNumber")), PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, visittype, withdrawaldate) %>%
+  mutate(stool=ifelse(stool==1, "ordered", "not"))%>%
+  select(id, dob, date, flo_age_in_wks, mstatus, qPCRparsdens, ageinwks, SampleDate, starts_with(c("BoxNumber", "PositionColumn", "PositionRow", "RandomNumber")), PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, stool, qPCR, visittype, withdrawaldate) %>%
   mutate("visit_id"=paste(id, date, sep="_"))%>%
-  pivot_longer(cols = c(PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
+  pivot_longer(cols = c(PBMC, Paxgene, Plasma, PlasmaPK, CellStabilizer, qPCR, stool), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
   mutate(subject_id=id)%>%
   #Specimen_IDs are shared between specimen types, so let's create a unique code
   mutate(Specimen_ID_ID=paste(Specimen_Type, visit_id, sep="_"))%>%
@@ -127,7 +128,6 @@ mic_drop %>%
   theme_minimal()+
   geom_vline(xintercept = 24)+
   geom_vline(xintercept = 52, linetype="dashed")+
-  
   # scale_shape_manual(values=c(16,15))+
   # scale_color_manual(values=mstatus_pal)+
   guides(color=guide_legend(title=""))+
@@ -142,7 +142,7 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/figures
 # need 100 24 week samples where 8 week samples exist
 
 
-mic_drop_clin <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_04/MICDROP expanded database through April 30th 2024.dta")
+mic_drop_clin <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_09/MICDROP expanded database through September 30th 2024.dta")
 
 kids_with_comp <- mic_drop_clin %>%
   filter(mstatus==2)%>%
@@ -389,6 +389,45 @@ rest_of_samples_to_pick <- long_specimen_data %>%
   
 write.csv(rest_of_samples_to_pick, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/rest_of_samples_to_pick_for_NULISA.csv", row.names = F)
 
+reordered_rest_of_samples_to_pick <- rest_of_samples_to_pick%>%
+  select(id, `new column`, `new row`, `new box`)%>%
+  arrange(id)%>%
+  mutate("reorder column"=rep_len(1:9, nrow(.)),
+          "reorder row"=rep_len(rep(1:9,each=9), nrow(.)),
+          "reorder box"=rep_len(rep(1:9, each=81), nrow(.)),
+         "nulisa plate"=rep_len(rep(4:9, each=84), nrow(.)))
+
+write.csv(reordered_rest_of_samples_to_pick, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/reordered_rest_of_samples_to_pick_for_NULISA.csv", row.names = F)
+
+
+
+label_maker <- long_specimen_data %>%
+  filter(id %notin% samples_to_pick_for_mesoscale$id & id %in% grant_and_comp$id, Specimen_Type=="Plasma")%>%
+  filter(Specimen_ID!="", flo_age_in_wks<54, flo_age_in_wks %in% sample_ranges)%>%
+  select(id, date, RandomNumber3)%>%
+  arrange(id)
+
+label_maker_with_space <- label_maker[rep(1:nrow(label_maker), each = 2), ]
+label_maker_with_space$id <- as.character(label_maker_with_space$id)
+label_maker_with_space$date <- as.character(label_maker_with_space$date)
+label_maker_with_space[1:nrow(label_maker_with_space) %% 2 == 0, ] <- " "
+
+write.csv(label_maker_with_space, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/rest_of_samples_label_maker_with_space.csv", row.names = F)
+
+
+
+non_msd_plate_map <- rest_of_samples_to_pick%>%
+  select(id, date, flo_age_in_wks)%>%
+  add_row(id=10852, date=as.Date("2023-09-22"), flo_age_in_wks=68)%>%
+  arrange(id)%>%
+  mutate("plate_number"=rep_len(rep(4:12, each=84), nrow(.)))%>%
+  mutate("plate_column"=rep_len(rep(1:12, 7), nrow(.)))%>%
+  mutate("plate_row"=rep_len(rep(LETTERS[1:7], each=12), nrow(.)))
+
+write.csv(non_msd_plate_map, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/plate_map_for_non_msd.csv", row.names = F)
+
+
+
 # DPSP mums for Kattria####
 
 neuro_cog <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/neurocog_19092024.xlsx")
@@ -397,7 +436,7 @@ dpsp_clin <- haven::read_dta("~/postdoc/stanford/clinical_data/DPSP/DPSPSpecimen
 dpsp_specimen <- haven::read_dta("~/Downloads/DPSPSpecimenBoxJul24_withclinical_plasmapbmc.dta")
 #dpsp samples in stanfod
 
-# dpsp_samples <- readxl::read_excel("~/postdoc/stanford/clinical_data/DPSP/tblBoxDetails_immunology.xlsx")
+dpsp_samples <- readxl::read_excel("~/postdoc/stanford/clinical_data/DPSP/tblBoxDetails_immunology.xlsx")
 
 new_db <- haven::read_dta("~/Downloads/DPSPSpecimenBoxJul24_withclinical_plasmapbmc.dta")
 
@@ -421,13 +460,55 @@ kattria_sample_locations <- samples_to_pick%>%
          "new row"=rep_len(rep(1:9,each=9), nrow(.)),
          "new box"=rep_len(rep(1:9, each=81), nrow(.)))
 
+write.csv(kattria_sample_locations, "~/postdoc/stanford/clinical_data/DPSP/kattria_sample_locations.csv", row.names = F)
+
+
+kattria_reorder_sample_locations <- kattria_sample_locations%>%
+  mutate("column"=new.column, "row"=new.row, "box"=new.box)%>%
+  select(id, date, column, row, box)%>%
+  arrange(id)%>%
+  mutate("new column"=rep_len(1:9, nrow(.)),
+         "new row"=rep_len(rep(1:9,each=9), nrow(.)),
+         "new box"=rep_len(rep(1:9, each=81), nrow(.)))
+
+write.csv(kattria_reorder_sample_locations, "~/postdoc/stanford/clinical_data/DPSP/reorder_kattria_sample_locations.csv", row.names = F)
+
+kattria_sample_locations <- read.csv("~/Downloads/kattria_sample_locations.csv")
+
+kattria_label_maker <- kattria_sample_locations%>%
+  filter()
+  select(id, date, RandomNumber9)%>%
+  arrange(id)
+
+  
+kattria_label_maker_with_space <- kattria_label_maker[rep(1:nrow(label_maker), each = 2), ]
+kattria_label_maker_with_space$id <- as.character(kattria_label_maker_with_space$id)
+kattria_label_maker_with_space$date <- as.character(kattria_label_maker_with_space$date)
+kattria_label_maker_with_space[1:nrow(kattria_label_maker_with_space) %% 2 == 0, ] <- " "
+
+write.csv(kattria_label_maker_with_space, "~/postdoc/stanford/clinical_data/DPSP/kattria_label_maker_with_space.csv", row.names = F)
+
+
 write.csv(kattria_sample_locations, "~/Downloads/kattria_sample_locations.csv", row.names = F)
+
+
+kattria_reorder_sample_locations <- read.csv("~/postdoc/stanford/clinical_data/DPSP/reorder_kattria_sample_locations.csv")
+
+dpsp_platemap <- kattria_reorder_sample_locations %>%
+  # filter(!(id==508 & date =="2022-01-27"))%>%
+  select(id, date)%>%
+  mutate("plate_number"=rep_len(rep(9:11, each=84), nrow(.)))%>%
+  mutate("plate_column"=rep_len(rep(1:12, 7), nrow(.)))%>%
+  mutate("plate_row"=rep_len(rep(LETTERS[1:7], each=12), nrow(.)))
+
+write.csv(dpsp_platemap, "~/postdoc/stanford/clinical_data/DPSP/dpsp_plate_map.csv", row.names = F)
+
 
 # DROPPED BOX 19
 
-box19 <- dpsp_specimen %>%
-  filter(BoxNumber9=="DPSP-1019")%>%
-  select(id, date, RandomNumber9, BoxNumber9, PositionRow9, PositionColumn9)
+# box19 <- dpsp_specimen %>%
+#   filter(BoxNumber9=="DPSP-1019")%>%
+#   select(id, date, RandomNumber9, BoxNumber9, PositionRow9, PositionColumn9)
 
 
 # extra 24 NULISA ####
@@ -442,7 +523,7 @@ day0_plasmas <- long_specimen_data %>%
          days_since_malaria = date-most_recent_malaria)%>%
   # filter(Specimen_Type=="PBMC", Specimen_ID!="", days_since_malaria > 3 & days_since_malaria<14)%>%
   filter(Specimen_Type%in%c("Plasma"), Specimen_ID!="", days_since_malaria==0)%>%
-  select(id, date, flo_age_in_wks, malaria_episode_id, mstatus, Specimen_ID, days_since_malaria)
+  select(id, date, flo_age_in_wks, malaria_episode_id, mstatus, Specimen_ID, days_since_malaria, qPCRparsdens)
 
 day0_plasmas_not_grant <- day0_plasmas%>%
   filter(id %notin% grant_and_comp$id)%>%

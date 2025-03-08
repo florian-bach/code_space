@@ -305,7 +305,9 @@ ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/
 
 # tfh incidence stuff ####
 
-tfh_clin <- inner_join(infs, tfh_combo_batch, by="id")%>%
+tfh_clin <- tfh_combo_batch%>%
+  mutate(id=factor(id))%>%
+  left_join(., infs, by="id")%>%
   pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive"), names_to = "cell_pop", values_to = "cell_freq")%>%
   pivot_longer(cols = matches("symp|inf"), names_to = "incidence_type", values_to = "incidence_value")
 

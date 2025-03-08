@@ -1,5 +1,5 @@
 
-mic_drop <-  haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_04/MICDROP expanded database through April 30th 2024.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP expanded database through November 30th 2024.dta")
 
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
@@ -24,6 +24,7 @@ mic_drop_data <- mic_drop %>%
                         1~"HbAA",
                         2~"HbAS",
                         3~"HbSS"))
+
 
 mic_drop_for_merge <- mic_drop_data %>%
   dplyr::select(id, date, dob, hbs, mstatus, qPCRparsdens, total_n_visits, total_n_para, total_n_malaria, n_para, n_malaria, temp)%>%
@@ -60,7 +61,8 @@ n_para_comp <- all_malaria %>%
   mutate(complicated=if_else(is.na(complicated), 0, complicated),
          total_infections=complicated+uncomplicated+asymptomatic,
          risk=complicated/total_infections,
-         asymp_prob=asymptomatic/total_infections)
+         asymp_prob=asymptomatic/total_infections)%>%
+  filter(n_para>0 & n_para <12)
 
 
 comp_model <- glm(risk~n_para+I(n_para^2), family = "binomial", weights = total_infections, data = n_para_comp)

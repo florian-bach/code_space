@@ -33,16 +33,26 @@ three_six_three <- big_musical_metadata%>%
 
 pras_metadata2 <- bind_rows(pras_metadata, three_six_three)
 
-write.csv(pras_metadata2, "~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/fixed_musical_metadata_final.csv", row.names = F)
 
+#update parsitemia
+prism_metadata <- haven::read_dta("/Users/fbach/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Cohort data/PRISM Border Cohort Study all visits database_FINAL.dta")
+new_parasitemias <- prism_metadata%>%
+  mutate(id=cohortid, new_qpcr=qpcr, new_parasitedensity=parasitedensity)%>%
+  select(id, date, new_qpcr, new_parasitedensity)
 
-# work in progress
+pras_metadata3 <- left_join(pras_metadata2, new_parasitemias, by=c("id", "date"))
+
+write.csv(pras_metadata3, "~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/musical_metadata_new_qpcr.csv", row.names = F)
+write.csv(pras_metadata3, "~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/musical_metadata_new_qpcr.csv", row.names = F)
+
+# work in progress ####
 # filter to only include nulisa samples
 
 nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv")
 
-pras_metadata2 <- pras_metadata2 %>%
-  filter(id %in%)
+# pras_metadata2 <- pras_metadata2 %>%
+#   filter(id %in%)
 
 # write.csv(pras_metadata2, "~/postdoc/stanford/plasma_analytes/MUSICAL/big_data/fixed_musical_metadata_final.csv", row.names = F)
 
+# sandbox

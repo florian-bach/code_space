@@ -1,6 +1,7 @@
 library(CATALYST)
 library(tidyr)
 library(dplyr)
+set.seed(1234)
 
 `%notin%` <- Negate(`%in%`)
 
@@ -12,8 +13,11 @@ hard_downsample <- function(fs, event_number){
   })
 }
 
-fcs_files <- list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/fcs/", pattern = ".fcs")
-full_paths <-  list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/fcs", pattern = ".fcs", full.names = TRUE)
+# fcs_files <- list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/fcs/", pattern = ".fcs")
+# full_paths <-  list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/fcs", pattern = ".fcs", full.names = TRUE)
+
+fcs_files <- list.files("~/postdoc/stanford/cytometry/spectral/MUSICAL/lrs_all_leukocytes/", pattern = ".fcs")
+full_paths <-  list.files("~/postdoc/stanford/cytometry/spectral/MUSICAL/lrs_all_leukocytes/", pattern = ".fcs", full.names = TRUE)
 
 musical_panel <- readxl::read_excel("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/MUSICALSpectralFlowPanel.xlsx")
 musical_panel$class <- "type"
@@ -30,14 +34,14 @@ kylie_metadata$live_name <- gsub(".fcs", "_Live Cells.fcs", kylie_metadata$live_
 #   filter(live_name %in% fcs_files)%>%
 #   filter(!grepl("lrs", id), !is.na(file_name), )
 
-weird_files <- c("mus6_D4 Well_040_Live Cells.fcs",
-                 "mus6_D5 Well_041_Live Cells.fcs",
-                 "mus7_D8 Well_044_Live Cells.fcs",
-                 "mus7_D9 Well_045_Live Cells.fcs",
-                 "mus7_D10 Well_046_Live Cells.fcs")
+# weird_files <- c("mus6_D4 Well_040_Live Cells.fcs",
+#                  "mus6_D5 Well_041_Live Cells.fcs",
+#                  "mus7_D8 Well_044_Live Cells.fcs",
+#                  "mus7_D9 Well_045_Live Cells.fcs",
+#                  "mus7_D10 Well_046_Live Cells.fcs")
 
 metadata_to_read <- kylie_metadata%>%
-  filter(live_name %notin% weird_files)%>%
+  # filter(live_name %notin% weird_files)%>%
   filter(grepl("lrs", id), !is.na(file_name), experiment %notin% c("mus5"))
 
 metadata_to_read$file_path <- full_paths[match(metadata_to_read$live_name, fcs_files)]
@@ -45,14 +49,14 @@ metadata_to_read$file_path <- full_paths[match(metadata_to_read$live_name, fcs_f
 
 
 musical_flowset <- flowCore::read.flowSet(files = metadata_to_read$file_path, truncate_max_range = FALSE)
-# set.seed(1234)
-musical_flowset <- hard_downsample(musical_flowset, event_number = 10000)
+# # set.seed(1234)
+# musical_flowset <- hard_downsample(musical_flowset, event_number = 10000)
+# 
+# co_factors <- read.csv("~/postdoc/stanford/cytometry/spectral/MUSICAL/trans_coefs.csv")
+# 
+# trans_musical_flowset <- flowSpecs::arcTrans(musical_flowset,  transCoFacs = co_factors$coef, transNames = colnames(musical_flowset)[8:38])
 
-co_factors <- read.csv("~/postdoc/stanford/cytometry/spectral/MUSICAL/trans_coefs.csv")
-
-trans_musical_flowset <- flowSpecs::arcTrans(musical_flowset,  transCoFacs = co_factors$coef, transNames = colnames(musical_flowset)[8:38])
-
-sce <- prepData(trans_musical_flowset,
+sce <- prepData(musical_flowset,
                 FACS = T,
                 musical_panel,
                 metadata_to_read,
@@ -84,17 +88,44 @@ plotting_markers <- c("CD19", "CD20", "IgG", "IgM", "IgD", "CD21", "CD27", "HLA 
                                     by="cluster_id",
                                     assay = "exprs",
                                     fun="median",
-                                    k="meta40",
+                                    k="meta35",
                                     row_anno = TRUE,
                                     bars = T,
                                     perc = TRUE,
                                     scale = "first",
                                     q=0.05,
-                                    features=plotting_markers[-c(5, 20)],
+                                    features=plotting_markers[-c(20)],
                                     row_clust = TRUE,
                                     hm_pal = viridis::inferno(n=5),
                                     col_clust = FALSE))
 
+png("~/postdoc/stanford/cytometry/spectral/MUSICAL/omiq_normed/no_correction_clustered_heatmap_meta35.png", width=12, height=8, units="in", res=444)
+ComplexHeatmap::draw(unclean_heatmap)
+dev.off()
+
+first_merge <- readxl::read_excel("~/postdoc/stanford/cytometry/spectral/MUSICAL/lrs_all_leukocytes/first_merge.xlsx", sheet = 2)
+first_merge$new <- gsub("__", "", first_merge$new)
+first_merge$new <- gsub("^_", "", first_merge$new)
+first_merge$new <- gsub("___", "_", first_merge$new)
+
+sce <- mergeClusters(sce, k="meta40", first_merge, "first_merge")
 
 
-plotMultiHeatmap(sce, hm1 = "type", hm2="abundances", k="meta40", bars=T, perc=T, row_clust = TRUE, col_clust = TRUE)
+(first_merge_heatmap <- plotExprHeatmap(sce,
+                                    by="cluster_id",
+                                    assay = "exprs",
+                                    fun="median",
+                                    k="first_merge",
+                                    row_anno = TRUE,
+                                    bars = T,
+                                    perc = TRUE,
+                                    scale = "first",
+                                    q=0.05,
+                                    features=plotting_markers[-c(20)],
+                                    row_clust = TRUE,
+                                    hm_pal = viridis::inferno(n=5),
+                                    col_clust = FALSE))
+
+png("~/postdoc/stanford/cytometry/spectral/MUSICAL/omiq_normed/first_merge_heatmap.png", width=12, height=7, units="in", res=444)
+ComplexHeatmap::draw(first_merge_heatmap)
+dev.off()

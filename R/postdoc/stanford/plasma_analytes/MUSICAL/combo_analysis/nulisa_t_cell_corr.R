@@ -15,11 +15,25 @@ slim_nulisa_data <- nulisa_data %>%
   mutate(id=as.character(id))%>%
   select(id, timepoint, timepoint_imm, infectiontype, targetName, concentration)
 
-cell_count_data <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/t_cell_cytometry_count_data.csv")
-slim_cell_count_data <- cell_count_data%>%
-  select(id, timepoint, timepoint_imm, infectiontype, gate, stim, freq, count)
+# cell_count_data <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/t_cell_cytometry_count_data.csv")
+cell_count_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/df_jason_analysis.csv")
 
-long_combo <- full_join(slim_nulisa_data, slim_cell_count_data, by = c("id", "timepoint_imm", "infectiontype"))%>%
+slim_cell_count_data <- cell_count_data%>%
+  pivot_longer(cols = ends_with("Frequency"), names_to = "gate", values_to = "freq")%>%
+  mutate(timepoint_imm=timepoint)%>%
+  mutate("timepoint"=case_when(timepoint_imm==-2 & id %notin% c(176, 363, 577) ~"bad_baseline",
+                               timepoint_imm==-2 & id %in% c(176, 363, 577) ~"baseline",
+                               timepoint_imm==-1~"baseline",
+                               timepoint_imm==0~"day0",
+                               timepoint_imm==7~"day7",
+                               timepoint_imm==14~"day14",
+                               timepoint_imm==28~"day28"))%>%
+  select(id, timepoint, timepoint_imm, infectiontype, gate, stim, freq)
+
+
+long_combo <- slim_nulisa_data%>%
+  mutate(id=as.integer(id))%>%
+  full_join(., slim_cell_count_data, by = c("id", "timepoint_imm", "infectiontype"))%>%
   mutate(timepoint=timepoint.x)%>%
   select(-timepoint.x, -timepoint.y)
 #   
@@ -63,27 +77,27 @@ day14_freqs <- long_combo%>%
   distinct(gate, freq, stim, id, timepoint, infectiontype)
 
 
-
-base_counts <- long_combo%>%
-  filter(infectiontype%in% c("S", "A"))%>%
-  filter(timepoint=="baseline")%>%
-  distinct(gate, count, stim, id, timepoint, infectiontype)
-
-day0_counts <- long_combo%>%
-  filter(infectiontype%in% c("S", "A"))%>%
-  filter(timepoint=="day0")%>%
-  distinct(gate, count, stim, id, timepoint, infectiontype)
-
-day7_counts <- long_combo%>%
-  filter(infectiontype%in% c("S", "A"))%>%
-  filter(infectiontype=="S", timepoint=="day7")%>%
-  distinct(gate, count, stim, id, timepoint, infectiontype)
-
-day14_counts <- long_combo%>%
-  filter(infectiontype%in% c("S", "A"))%>%
-  filter(timepoint=="day14")%>%
-  distinct(gate, count, stim, id, timepoint, infectiontype)
-
+# 
+# base_counts <- long_combo%>%
+#   filter(infectiontype%in% c("S", "A"))%>%
+#   filter(timepoint=="baseline")%>%
+#   distinct(gate, count, stim, id, timepoint, infectiontype)
+# 
+# day0_counts <- long_combo%>%
+#   filter(infectiontype%in% c("S", "A"))%>%
+#   filter(timepoint=="day0")%>%
+#   distinct(gate, count, stim, id, timepoint, infectiontype)
+# 
+# day7_counts <- long_combo%>%
+#   filter(infectiontype%in% c("S", "A"))%>%
+#   filter(infectiontype=="S", timepoint=="day7")%>%
+#   distinct(gate, count, stim, id, timepoint, infectiontype)
+# 
+# day14_counts <- long_combo%>%
+#   filter(infectiontype%in% c("S", "A"))%>%
+#   filter(timepoint=="day14")%>%
+#   distinct(gate, count, stim, id, timepoint, infectiontype)
+# 
 
 
 base_freq_base_conc <- inner_join(base_concs, base_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
@@ -96,13 +110,13 @@ conc_freq_014 <- inner_join(day0_concs, day14_freqs, by=c("id", "infectiontype")
 
 
 
-base_count_base_conc <- inner_join(base_concs, base_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
-
-base_count_day0_conc <- inner_join(day0_concs, base_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
-
-conc_count_0 <- inner_join(day0_concs, day0_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
-
-conc_count_014 <- inner_join(day0_concs, day14_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+# base_count_base_conc <- inner_join(base_concs, base_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+# 
+# base_count_day0_conc <- inner_join(day0_concs, base_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+# 
+# conc_count_0 <- inner_join(day0_concs, day0_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+# 
+# conc_count_014 <- inner_join(day0_concs, day14_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
 
 
 
@@ -111,10 +125,10 @@ conc_count_014 <- inner_join(day0_concs, day14_counts, by=c("id", "infectiontype
 conc_freq_07 <- day0_concs%>%
   filter(infectiontype=="S")%>%
   inner_join(day7_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
-
-conc_count_07 <- day0_concs%>%
-  filter(infectiontype=="S")%>%
-  inner_join(day7_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
+# 
+# conc_count_07 <- day0_concs%>%
+#   filter(infectiontype=="S")%>%
+#   inner_join(day7_counts, by=c("id", "infectiontype"), relationship = "many-to-many")
 
 freq_freq_base_0 <- inner_join(base_freqs, day0_freqs, by=c("id", "gate", "stim", "infectiontype"), relationship = "many-to-many")
 
@@ -146,35 +160,35 @@ conc_freq_07_corr <- conc_freq_07%>%
   mutate(padj=p.adjust(p))
 
 
-
-
-conc_count_0_corr <- conc_count_0%>%
-  filter(!is.na(count))%>%
-  group_by(gate, stim, targetName, infectiontype)%>%
-  nest()%>% 
-  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
-  filter(nrows>1)%>%
-  mutate(correlation=map(data, ~cor.test(.$concentration, .$count, method = "spearman")))%>%
-  mutate(p=map_dbl(correlation, ~.$p.value),
-         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$count, method="spearman")))%>%
-  ungroup()%>%
-  group_by(infectiontype)%>%
-  mutate(padj=p.adjust(p))
-
-
-
-conc_count_07_corr <- conc_count_07%>%
-  filter(!is.na(count))%>%
-  group_by(gate, stim, targetName)%>%
-  nest()%>%
-  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
-  filter(nrows>1)%>%
-  mutate(correlation=map(data, ~cor.test(.$concentration, .$count, method = "spearman")))%>%
-  mutate(p=map_dbl(correlation, ~.$p.value),
-         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$count, method="spearman")))%>%
-  ungroup()%>%
-  mutate(padj=p.adjust(p))
-
+# 
+# 
+# conc_count_0_corr <- conc_count_0%>%
+#   filter(!is.na(count))%>%
+#   group_by(gate, stim, targetName, infectiontype)%>%
+#   nest()%>% 
+#   mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+#   filter(nrows>1)%>%
+#   mutate(correlation=map(data, ~cor.test(.$concentration, .$count, method = "spearman")))%>%
+#   mutate(p=map_dbl(correlation, ~.$p.value),
+#          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$count, method="spearman")))%>%
+#   ungroup()%>%
+#   group_by(infectiontype)%>%
+#   mutate(padj=p.adjust(p))
+# 
+# 
+# 
+# conc_count_07_corr <- conc_count_07%>%
+#   filter(!is.na(count))%>%
+#   group_by(gate, stim, targetName)%>%
+#   nest()%>%
+#   mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+#   filter(nrows>1)%>%
+#   mutate(correlation=map(data, ~cor.test(.$concentration, .$count, method = "spearman")))%>%
+#   mutate(p=map_dbl(correlation, ~.$p.value),
+#          rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$count, method="spearman")))%>%
+#   ungroup()%>%
+#   mutate(padj=p.adjust(p))
+# 
 
 
 
@@ -383,17 +397,17 @@ wide_freqs <-  long_combo %>%
   distinct(gate, stim, id, infectiontype, freq_base_d0_fc, freq_base_d7_fc, freq_base_d14_fc)
 
 
-wide_counts <-  long_combo %>%
-  select(gate, stim, count, id, infectiontype, timepoint)%>%
-  filter(infectiontype!="NM", timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
-  distinct(gate, stim, count, id, infectiontype, timepoint)%>%
-  pivot_wider(names_from = timepoint, values_from = c(count), id_cols=c(gate, stim, id, infectiontype), names_prefix = "count_")%>%
-  group_by(infectiontype)%>%
-  mutate(count_base_d0_fc=count_day0/count_baseline,
-         count_base_d7_fc=count_day7/count_baseline,
-         count_base_d14_fc=count_day14/count_baseline)%>%
-  distinct(gate, stim, id, infectiontype, count_base_d0_fc, count_base_d7_fc, count_base_d14_fc)
-
+# wide_counts <-  long_combo %>%
+#   select(gate, stim, count, id, infectiontype, timepoint)%>%
+#   filter(infectiontype!="NM", timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
+#   distinct(gate, stim, count, id, infectiontype, timepoint)%>%
+#   pivot_wider(names_from = timepoint, values_from = c(count), id_cols=c(gate, stim, id, infectiontype), names_prefix = "count_")%>%
+#   group_by(infectiontype)%>%
+#   mutate(count_base_d0_fc=count_day0/count_baseline,
+#          count_base_d7_fc=count_day7/count_baseline,
+#          count_base_d14_fc=count_day14/count_baseline)%>%
+#   distinct(gate, stim, id, infectiontype, count_base_d0_fc, count_base_d7_fc, count_base_d14_fc)
+# 
 
 
 fc_combo_frame <- inner_join(wide_freqs, wide_concs, by=c("id", "infectiontype"))%>%
@@ -404,8 +418,11 @@ fc_combo_frame <- inner_join(wide_freqs, wide_concs, by=c("id", "infectiontype")
 
 
 fc_corr_purr_S <- fc_combo_frame %>%
+  filter(targetName!="CTSS")%>%
   filter(infectiontype%in%c("S"), gate%notin%c("Memory_CD4_T_Cell_Frequency",
                                           "CD4_Lymphocyte_Frequency",
+                                          "CCR4_P_CXCR6_N_IFNg_Frequency",
+                                          "CCR4_P_CXCR6_N_IL21_Frequency",
                                           unique(grep("FOXP3", gate, value=TRUE))))%>%
   # filter(!is.infinite(freq_base_d7_fc), !is.infinite(freq_base_d14_fc), !is.infinite(conc_base_d0_fc))%>%
   # filter(!is.na(freq_base_d7_fc), !is.na(freq_base_d14_fc), !is.na(conc_base_d0_fc))%>%
@@ -431,6 +448,7 @@ fc_corr_purr_S <- fc_combo_frame %>%
 fc_corr_purr_A <- fc_combo_frame %>%
   filter(infectiontype%in%c("A"), gate %notin% c("Memory_CD4_T_Cell_Frequency",
                                                "CD4_Lymphocyte_Frequency",
+                                               "CCR4_P_CXCR6_N_IFNg_Frequency",
                                                unique(grep("FOXP3", gate, value=TRUE))))%>%
   # filter(!is.infinite(freq_base_d7_fc), !is.infinite(freq_base_d14_fc), !is.infinite(conc_base_d0_fc))%>%
   # filter(!is.na(freq_base_d7_fc), !is.na(freq_base_d14_fc), !is.na(conc_base_d0_fc))%>%
@@ -653,6 +671,35 @@ ggsave("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/figures/sig_fc_corr_day
 
 # sandbox####
 
+
+
+fc_combo_frame %>%
+  filter(gate%in%c("IFNg_Frequency", "IL10_Frequency"),
+         stim=="iRBCs",
+         targetName %in% c("TNFRSF17", "FLT1", "LILRB2"),
+         infectiontype=="A")%>%
+  ggplot(., aes(x=freq_base_d0_fc, y=conc_base_d0_fc, color=stim))+
+  geom_point()+
+  ggpubr::stat_cor(method = "spearman")+
+  ggtitle("fold change in Tr1 Frequency & PD1 expression vs. fold change in Tr1 proteins")+
+  geom_smooth(method="lm")+
+  # scale_color_manual(values =stim_palette)+
+  facet_wrap(gate~targetName, scales = "free")+
+  theme_minimal()
+
+
+cytometry_plot <- long_combo%>%
+  filter(gate %in% c("IFNg_Frequency", "IL10_Frequency", "Tr1_IL10_Frequency", "Tr1_IFNg_Frequency"),
+         infectiontype %in% c("A", "S"),
+         #stim=="PMA",
+         timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
+  distinct(timepoint, freq, gate, stim, infectiontype)%>%
+  ggplot(., aes(x=timepoint, y=freq, fill=infectiontype))+
+  geom_boxplot(outliers = F)+
+  facet_wrap(~gate+stim, scales="free")+
+  theme_minimal()
+
+ggsave("~/Downloads/cytometry_plot.png", width=12, height=12, bg="white")
 combo_data %>%
   filter(gate=="CD4_T_Cell_Frequency", infectiontype!="nmf", targetName=="CXCL10")%>%
   group_by(infectiontype, timepoint.x)%>%

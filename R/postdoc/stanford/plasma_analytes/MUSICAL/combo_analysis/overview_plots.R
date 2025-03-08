@@ -571,6 +571,36 @@ split_a_data <- clean_data %>%
    theme(legend.position = "right",
          legend.title = element_blank())+
    scale_fill_manual(values= viridis::viridis(n=3)[-1])
+ 
+ 
+ 
+ clean_data%>%
+   filter(targetName%in% base_d0_ifng_a_irbc_sigs, timepoint!="bad_baseline", infectiontype%in%c("A"))%>%
+   ggplot(., aes(x=timepoint, y=concentration, fill=infectiontype))+
+  # geom_point()+
+   geom_line(alpha=0.3, aes(group=id))+
+   geom_boxplot()+
+   facet_wrap(~targetName+infectiontype, scales = "free")+
+   theme_minimal()
+ 
+ 
+  clean_data%>%
+    filter(infectiontype %in% c("A"), timepoint!="day28", timepoint!="bad_baseline")%>%
+    mutate(day14_para=if_else(timepoint=="day14" & qpcr > 1, "parasitemic_day14", "no_parasites_day14"))%>%
+    group_by(id)%>%
+    mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "TBS positive\n at day 14", "TBS negative\n at day 14"))%>%
+    
+   filter(targetName%in% base_d0_ifng_a_irbc_sigs, timepoint!="bad_baseline", infectiontype%in%c("A"))%>%
+   ggplot(., aes(x=timepoint, y=concentration, fill=infectiontype))+
+  # geom_point()+
+   geom_line(alpha=0.3, aes(group=id))+
+   geom_boxplot()+
+   facet_wrap(~targetName+infectiontype, scales = "free")+
+   theme_minimal()
+ 
+ 
+ 
+'
 # library(ggstats)# library(ggstats)viridis()
  
 # 

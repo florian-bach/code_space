@@ -41,6 +41,8 @@ combo_nulisa <- rbind(long_nulisa_part1, long_nulisa_part2)%>%
   mutate(z_conc=scale(concentration, center = TRUE, scale = TRUE))%>%
   group_by(sample_id)%>%
   mutate(mean_z_conc=mean(z_conc))
+
+write.csv(combo_nulisa, "~/postdoc/stanford/plasma_analytes/MICDROP/extra_24/combined_pilot_data.csv")
 # add more metadata ####
 raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta")
 

@@ -357,3 +357,10 @@ ggsave("~/postdoc/stanford/plasma_analytes/dpsp/dpsp_pool_plot.png", height = 40
 #   theme_minimal()+
 #   symp_time_theme+
 #   theme(legend.title = element_blank())
+
+simple_metadata <- wide_nulisa%>%
+  filter(study=="MICDROP")%>%
+  ungroup()%>%
+  distinct(plasma.barcode, id, timepoint)
+
+write.csv("~/postdoc/stanford/plasma_analytes/MICDROP/pilot_metadata.csv")

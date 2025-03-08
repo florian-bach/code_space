@@ -236,7 +236,7 @@ placental_antigens <- c("GEXP", "TT", "AMA1", "HYP2", "SEA")
 
 library(ggvenn)
 
-feli_data <- list("Malaria Serology"=kids_with_complete_timecourses$id,
+feli_data <- list("Malaria Serology"=combo_data$id,
                   "T Cell Cytometry"=tfh_combo_batch$id,
                   "B Cell Cytometry"=abc_combo_batch$id)
 # make data a list (of assyas) of lists (of individuals) 
@@ -256,28 +256,31 @@ ggsave("~/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/sample_set_
 # Ab responses of no-inf kids and effects later on
 
 gestages_cord <- combo_data %>%
-  filter(!is.na(gestage), !is.na(matmal), antigen %in% placental_antigens, timepointf=="Cord Blood")%>%
+  filter(!is.na(gestage), !is.na(matmal), antigen %in% c("GEXP", "HYP2", "GLURP", "AMA1", "HSP40"), timepointf=="Cord Blood")%>%
   mutate(gestagef=factor(if_else(gestage<28, "<28", 
                                  if_else(gestage>=28 & gestage<32, "28-32", 
                                          if_else(gestage>=32 & gestage<37, "32-37", 
                                                  if_else(gestage>=37, ">37", "whoops")))), levels=c("<28", "28-32", "32-37", ">37")))%>%
-  ggplot(., aes(x=gestagef, y=conc))+
-  geom_hline(data=filter(cutoff_df, antigen %in% placental_antigens), aes(yintercept = max_below_standard), linetype="dashed")+
-  geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=gestagef), outlier.shape = NA)+
+  ggplot(., aes(x=gestage, y=conc))+
+  geom_hline(data=filter(cutoff_df, antigen %in% c("GEXP", "HYP2", "GLURP", "AMA1", "HSP40")), aes(yintercept = max_below_standard), linetype="dashed")+
+  geom_point(alpha=0.35)+
+  geom_smooth(method="lm", aes(color=antigen))+
+  # geom_boxplot(aes(fill=gestagef), outlier.shape = NA)+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "fixed", nrow=1)+
   # ggtitle("Higher Gestational Age Facilitates Transfer of Protective Antibodies")+
   xlab("\n Gestational Age in Weeks")+
   ylab("Cord Blood Concentration [AU]")+
+  ggpubr::stat_cor(method = "spearman", size=2.3)+
+  scale_x_continuous(breaks = seq(32, 42, by=2))+
   scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, 2.5))+
   theme_minimal()+
   theme(#panel.grid = element_blank(),
     legend.position = "none",
     axis.text.x = element_text(angle = 90, hjust=1),
     strip.text = element_text())+
-  scale_fill_manual(values=gestage_pal)
+  scale_color_manual(values=pc1_cols)
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/gestages_cord.png", gestages_cord, height = 2.7, width=5, bg="white", limitsize = FALSE)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/gestages_cord_scatter.png", gestages_cord, height = 2.7, width=5, bg="white", limitsize = FALSE)
 
 
 cord_blood_matmal <- combo_data %>%
@@ -727,10 +730,10 @@ all_gestages_cord <- combo_data %>%
                                  if_else(gestage>=28 & gestage<32, "28-32", 
                                          if_else(gestage>=32 & gestage<37, "32-37", 
                                                  if_else(gestage>=37, ">37", "whoops")))), levels=c("<28", "28-32", "32-37", ">37")))%>%
-  ggplot(., aes(x=gestagef, y=log10(conc)))+
+  ggplot(., aes(x=gestage, y=log10(conc)))+
   geom_hline(data=filter(cutoff_df), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
   geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=gestagef, group=gestagef), outlier.shape = NA)+
+  # geom_boxplot(aes(fill=gestagef, group=gestagef), outlier.shape = NA)+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=3)+
   ggtitle("Higher Gestational Age Facilitates Transfer of Antibodies")+
   xlab("\n Gestational Age in Weeks")+

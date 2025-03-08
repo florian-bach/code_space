@@ -300,3 +300,95 @@ ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_proteins_asymp_plot.png",
 
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tr1_proteins_parasite_ctrl_plot.png", ctrl_tr1_plot, height=5.33, width=5.33, dpi=444, bg="white")
 
+
+brain_and_bone_stuff <- clean_data %>%
+  filter(infectiontype %in% c("A", "S"), timepoint%notin%c("day28","bad_baseline", "day7"))%>%
+  mutate(day14_para=if_else(timepoint=="day14" & qpcr > 1, "parasitemic_day14", "no_parasites_day14"))%>%
+  group_by(id)%>%
+  mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "non_controller", "controller"))%>%
+  # filter(targetName %in% sig_ctrl$targetName)%>%
+  filter(targetName %in% c("VSNL1", "GFAP", "GDF2", "SPP1"))%>%#[seq((i-1)*16+1, i*16)])%>%
+  filter(class2 %in% c("non_controller", "controller"))%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  ggplot(aes(x=factor(timepoint), y=concentration, fill=factor(timepoint)))+
+  geom_line(aes(group=id), alpha=0.2)+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetName, scales = "free", nrow=2)+
+  scale_fill_manual(values=time_cols)+
+  theme_minimal()+
+  theme(legend.title = element_blank(),
+        legend.position = "none",
+        axis.title = element_blank())
+da_boxplot_theme
+
+ggsave("~/Downloads/brain_and_bone_stuff.png", width=5.3333, height=5.3333, dpi=444, bg="white")
+
+
+
+controller_stuff <- clean_data %>%
+  filter(infectiontype %in% c("A", "S"), timepoint%notin%c("day28","bad_baseline", "day7"))%>%
+  mutate(day14_para=if_else(timepoint=="day14" & qpcr > 1, "parasitemic_day14", "no_parasites_day14"))%>%
+  group_by(id)%>%
+  mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "non_controller", "controller"))%>%
+  # filter(targetName %in% sig_ctrl$targetName)%>%
+  filter(targetName %in% c("IL10", "CRP", "IL15", "CCL22"))%>%#[seq((i-1)*16+1, i*16)])%>%
+  filter(class2 %in% c("non_controller", "controller"))%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))%>%
+  ggplot(aes(x=factor(timepoint), y=concentration, fill=factor(class2)))+
+  geom_line(aes(group=id), alpha=0.2)+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetName, scales = "free", nrow=2)+
+  # scale_fill_manual(values=time_cols)+
+  theme_minimal()+
+  theme(legend.title = element_blank(),
+        legend.position = "none",
+        axis.title = element_blank())
+da_boxplot_theme
+
+ggsave("~/Downloads/brain_and_bone_stuff.png", width=5.3333, height=5.3333, dpi=444, bg="white")
+
+
+
+
+infection_overview <- clean_data%>%
+  distinct(id, timepoint, infectiontype, parasitedensity, new_qpcr)%>%
+  filter(timepoint %in% c("baseline", "day0", "day14"),
+         infectiontype %in% c("A", "S"))%>%
+  mutate(day14_para=if_else(timepoint=="day14" & parasitedensity > 10 &infectiontype=="A", "parasitemic_day14", "no_parasites_day14"))%>%
+  group_by(id)%>%
+  mutate(class2= if_else(any(day14_para=="parasitemic_day14"), "non_controller", "controller"))
+
+
+
+infection_overview%>%
+  ggplot(., aes(x=timepoint, y=new_qpcr+0.01, fill=day14_para))+
+  geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  theme_minimal()+
+  facet_wrap(~infectiontype)
+
+
+
+
+para_plot <- infection_overview%>%
+  ggplot(., aes(x=timepoint, y=parasitedensity+0.01, fill=interaction(day14_para, infectiontype)))+
+  geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = F)+
+  # annotation_logticks(sides="l")+
+  facet_wrap(~infectiontype, scales = 'fixed')+
+  scale_fill_manual(values=c("lightgrey", "darkgrey", "darkred"))+
+  # theme_minimal()+
+  ylab("parasites /  μL")+
+  scale_y_log10(guide = "axis_logticks")+
+  theme(legend.position = "none",
+        panel.grid = element_line(color="#f0f0f0"),
+        strip.background = element_blank(),
+        axis.title.x = element_blank(),
+        # panel.border = element_blank(),
+        panel.background = element_blank()
+  )
+
+ggsave("~/Downloads/para_plot.png", para_plot, width=4.3333, height=4.3333, dpi=444, bg="white")

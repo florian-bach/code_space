@@ -3,6 +3,7 @@ library(flowCore)
 library(tidyr)
 library(dplyr)
 
+`%notin%` <- Negate(`%in%`)
 
 hard_downsample <- function(fs, event_number){
   flowCore::fsApply(fs, function(ff){
@@ -13,14 +14,14 @@ hard_downsample <- function(fs, event_number){
 
 # fcs_files <- list.files("~/Downloads/fcs-selected", pattern = ".fcs")
 # full_paths <-  list.files("~/Downloads/fcs-selected", pattern = ".fcs", full.names = TRUE)
-fcs_files <- list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/FCSFilesLiveSinglets", pattern = ".fcs")
-full_paths <-  list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/FCSFilesLiveSinglets", pattern = ".fcs", full.names = TRUE)
+fcs_files <- list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/fcs", pattern = ".fcs")
+full_paths <-  list.files("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/fcs", pattern = ".fcs", full.names = TRUE)
 
-musical_panel <- readxl::read_excel("~/Downloads/MUSICALSpectralFlowPanel.xlsx")
+musical_panel <- readxl::read_excel("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/MUSICALSpectralFlowPanel.xlsx")
 musical_panel$class <- "type"
 musical_panel$Fluorophore <- paste(musical_panel$Fluorophore, "A", sep="-")
 
-kylie_metadata <- readxl::read_excel("~/Downloads/MUSICALSpectralFlowMetadata.xlsx")
+kylie_metadata <- readxl::read_excel("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/MUSICALSpectralFlowMetadata.xlsx")
 colnames(kylie_metadata)[1] <- "file_name" 
 
 kylie_metadata$live_name <- paste(kylie_metadata$experiment, kylie_metadata$file_name, sep="_")
@@ -32,6 +33,19 @@ metadata_to_read <- kylie_metadata%>%
   dplyr::filter(grepl("^lrs", id))
 
 metadata_to_read$file_path <-  full_paths[match(metadata_to_read$live_name, fcs_files)]
+
+# remove files with different colnames
+weird_files <- c("mus6_D4 Well_040_Live Cells.fcs",
+                 "mus6_D5 Well_041_Live Cells.fcs",
+                 "mus7_D8 Well_044_Live Cells.fcs",
+                 "mus7_D9 Well_045_Live Cells.fcs",
+                 "mus7_D10 Well_046_Live Cells.fcs")
+
+metadata_to_read <- metadata_to_read %>%
+  dplyr::filter(live_name %notin% weird_files)%>%
+  # filter(experiment != "mus5")
+  filter(experiment %in% c("mus1", "mus2", "mus3", "mus4"))
+
 # set.seed(1234)
 # musical_flowset <- hard_downsample(musical_flowset, event_number = 10000)
 
@@ -65,7 +79,7 @@ co_factors$coef[co_factors$Marker=="CD24"] <- 6000
 co_factors$coef[co_factors$Marker=="CD56"] <- 3000
 co_factors$coef[co_factors$Marker=="CD16"] <- 1000
 co_factors$coef[co_factors$Marker=="TCR VD1"] <- 12000
-trans_coefs <- write.csv("~/postdoc/stanford/cytometry/spectral/MUSICAL/trans_coefs.csv", row.names = FALSE)
+# trans_coefs <- write.csv("~/postdoc/stanford/cytometry/spectral/MUSICAL/trans_coefs.csv", row.names = FALSE)
 
 trans_musical_flowset <- flowSpecs::arcTrans(musical_flowset,  transCoFacs = co_factors$coef, transNames = colnames(musical_flowset)[8:38])
 
@@ -121,7 +135,7 @@ no_trans <- ggplot(long_musical_flowset, aes(x=expression, color=experiment))+
   scale_x_continuous(labels = scales::label_scientific())+
   histogram_theme
 
-ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/no_trans_histogram.png", no_trans, width=12, height=12, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/final_data/no_trans_histogram.png", no_trans, width=12, height=12, bg="white", dpi=444)
 
 uni_trans <- ggplot(long_equal_trans_musical_flowset, aes(x=expression, color=experiment))+
   geom_density()+
@@ -131,7 +145,7 @@ uni_trans <- ggplot(long_equal_trans_musical_flowset, aes(x=expression, color=ex
   scale_x_continuous(labels = scales::label_scientific(digits = 0, ))+
   histogram_theme
 
-ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/average_uni_trans_histogram.png", uni_trans, width=12, height=12, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/final_data/average_uni_trans_histogram.png", uni_trans, width=12, height=12, bg="white", dpi=444)
 
 multi_trans <- ggplot(long_trans_musical_flowset, aes(x=expression, color=experiment))+
   geom_density()+
@@ -141,13 +155,13 @@ multi_trans <- ggplot(long_trans_musical_flowset, aes(x=expression, color=experi
   scale_x_continuous(labels = scales::label_scientific())+
   histogram_theme
 
-ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/average_multi_trans_histogram.png", multi_trans, width=12, height=12, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/final_data/average_multi_trans_histogram.png", multi_trans, width=12, height=12, bg="white", dpi=444)
 
 
 
 
 
-interaction_colors <- c(colorspace::sequential_hcl("Greens", n=5)[1:4], colorspace::sequential_hcl("Blues", n=5)[1:4], colorspace::sequential_hcl("Magenta", n=5)[1:4])
+interaction_colors <- c(colorspace::sequential_hcl("Greens", n=7)[1:6], colorspace::sequential_hcl("Blues", n=7)[1:6], colorspace::sequential_hcl("Magenta", n=7)[1:6])
 
 uni_trans <- ggplot(long_equal_trans_musical_flowset, aes(x=expression, color=interaction(experiment, id)))+
   geom_density()+
@@ -158,7 +172,7 @@ uni_trans <- ggplot(long_equal_trans_musical_flowset, aes(x=expression, color=in
   scale_x_continuous(labels = scales::label_scientific())+
   histogram_theme
 
-ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/indie_uni_trans_histogram.png", uni_trans, width=24, height=40, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/final_data/indie_uni_trans_histogram.png", uni_trans, width=24, height=40, bg="white", dpi=444)
 
 multi_trans <- ggplot(long_trans_musical_flowset, aes(x=expression, color=interaction(experiment, id)))+
   geom_density()+
@@ -169,7 +183,7 @@ multi_trans <- ggplot(long_trans_musical_flowset, aes(x=expression, color=intera
   scale_x_continuous(labels = scales::label_scientific())+
   histogram_theme
 
-ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/indie_multi_trans_histogram.png", multi_trans, width=24, height=40, bg="white", dpi=444)
+ggsave("~/postdoc/stanford/cytometry/spectral/MUSICAL/final_data/indie_multi_trans_histogram.png", multi_trans, width=24, height=40, bg="white", dpi=444)
 
 
 

@@ -51,7 +51,7 @@ picked_samples <- dpsp_sample_locations$RandomNumber[1:16]
 try <- dpsp_specimen %>%
   filter(RandomNumber %in% picked_samples)%>%
   select(SpecimenID)
-
+ 
 #find random number of plasma samples
 plasma_rn <- dpsp_specimen %>%
   filter(SpecimenID %in% try$SpecimenID, SpecimenType=="Plasma")%>%

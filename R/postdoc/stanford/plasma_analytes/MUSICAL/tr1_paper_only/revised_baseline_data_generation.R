@@ -52,9 +52,9 @@ combo_with_meta <- inner_join(combo_batch, metadata, by = "plasma1_barcode")
 
 # add z scores, tidy up
 unclean_data <- combo_with_meta %>%
-  mutate("timepoint"=case_when(timepoint_imm==-2 & id %notin% c(176, 363, 577) ~"bad_baseline",
-                               timepoint_imm==-2 & id %in% c(176, 363, 577) ~"baseline",
-                               timepoint_imm==-1~"baseline",
+  mutate("timepoint"=case_when(timepoint_imm==-2 & id %in% c(134, 164, 176, 317, 331, 363, 379, 398, 402, 442, 577) ~"baseline",
+                               timepoint_imm==-1 & id %notin% c(134, 164, 176, 317, 331, 363, 379, 398, 402, 442, 577) ~"baseline",
+                               timepoint_imm==-1 & infectiontype %in% c("A", "S") & id %in% c(134, 164, 176, 317, 331, 363, 379, 398, 402, 442, 577) ~"bad_baseline",
                                timepoint_imm==0~"day0",
                                timepoint_imm==7~"day7",
                                timepoint_imm==14~"day14",
@@ -90,23 +90,33 @@ clean_data <- unclean_data %>%
   # filter(mean_z_conc > (-1.3))%>%
   # filter(plasma1_barcode %notin% c("D19E2G", "D1FK67", "D1SSPJ"))%>%
   # filter(sample_id %notin% c("X317_S.1_D1RTFU", "X316_S.1_D12FNR"))%>%
+  # filter(sample_id %notin% c("164 day0 NM",
+  #                            "316 baseline S",
+  #                            "744 baseline A",
+  #                            "164 day7 NM",
+  #                            "495 day0 NM",
+  #                            "495 baseline S",
+  #                            "323 day14 A",
+  #                            "410 baseline A",
+  #                            "667 day7 NM",
+  #                            "410 baseline A"
+  #                            )%>%
   filter(sample_id %notin% c("164 day0 NM",
-                             "316 baseline S",
-                             "317 baseline S",
-                             "410 basleine A",
-                             "164 day7 NM",
-                             "132 day0 S",
-                             "495 day14 A",
-                             "410 baseline A",
-                             "219 baseline S",
-                             "176 day7 S",
-                             "495 day0 S",
-                             "176 day14 S",
-                             "323 day14 A",
-                             "324 day7 S",
-                             "744 baseline A",
-                             "384 baseline S")
-                             )
+                                      "316 baseline S",
+                                      "317 bad_baseline S",
+                                      "410 basleine A",
+                                      "164 day7 NM",
+                                      "132 day0 S",
+                                      "495 day14 A",
+                                      "410 baseline A",
+                                      "219 baseline S",
+                                      "176 day7 S",
+                                      "495 day0 S",
+                                      "176 day14 S",
+                                      "323 day14 A",
+                                      "324 day7 S",
+                                      "744 baseline A",
+                                      "384 baseline S"))
 
 
 # barcodes that are in the new combodata that werent in the previous: not sure why were missing
@@ -118,5 +128,18 @@ clean_data <- unclean_data %>%
 # [1] "D1_KWT2" "D1_PN8A" "D1XM73"  "DIJLGS" 
 
 
-write.csv(clean_data, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/clean_musical_combo_with_metadata.csv", row.names = FALSE)
+write.csv(clean_data, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/tr1_paper/revised_baseline_clean_musical_combo_with_metadata.csv", row.names = FALSE)
+write.csv(unclean_data, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/tr1_paper/revised_baseline_unclean_musical_combo_with_metadata.csv", row.names = FALSE)
 
+
+# 
+# date_reshuffle <- nulisa_data%>%
+#   distinct(id, date, timepoint_imm, timepoint, sample_id, infectiontype)%>%
+#   mutate(date=as.Date(date), timepoint_imm=as.character(timepoint_imm))%>%
+#   pivot_wider(names_from = timepoint_imm, values_from = date, id_cols=c(id, infectiontype), names_prefix = "t_")%>%
+#   mutate(most_recent_baseline_date=ifelse(`t_-2` > `t_-1`, `t_-2`, `t_-1`))%>%
+#   mutate(most_recent_baseline_date=as.Date(most_recent_baseline_date))%>%
+#   mutate()
+# 
+# kids_with_t2 <- date_reshuffle%>%
+#   filter(!is.na(`t_-2`))

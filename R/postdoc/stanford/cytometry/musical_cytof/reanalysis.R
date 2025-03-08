@@ -248,8 +248,11 @@ cell_freq_purrf <- cell_freqs %>%
   mutate(model=map(data, ~lm(cell_freq~timepoint*class+subject_id, data=.)))%>%
   mutate(summary=map(model, ~summary(.))) %>%
   mutate(base_zero_p=map_dbl(summary, ~coef(.)[55])) %>%
+  mutate(base_14_p=map_dbl(summary, ~coef(.)[56])) %>%
+  
   ungroup()%>%
-  mutate(base_zero_padj=p.adjust(base_zero_p, method="BH"))
+  mutate(base_zero_padj=p.adjust(base_zero_p, method="BH"),
+         base_14_padj=p.adjust(base_14_p, method="BH"))
   
 sig_freq <- cell_freq_purrf %>%
   filter(base_zero_p < 0.1)
@@ -257,13 +260,14 @@ sig_freq <- cell_freq_purrf %>%
 
 sig_box <- cell_freqs%>%
   filter(cluster_id %in% sig_freq$cluster_id)%>%
-  filter(timepoint %in% c("baseline", "day 0"))%>%
-  ggplot(., aes(x=timepoint, y=cell_freq, fill=class))+
+  filter(timepoint %in% c("baseline", "day 0", "day 7", "day 14"))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day 0", "day 7", "day 14")), y=cell_freq, fill=class))+
   geom_boxplot(outliers = F)+
   scale_y_continuous(labels = scales::label_percent())+
   facet_wrap(~cluster_id, scales = "free")+
   theme_minimal()+
-  scale_fill_manual(values = viridis::magma(n=3))
+  scale_fill_manual(values = viridis::magma(n=3))+
+  theme(axis.title.x = element_blank())
 
-ggplot2::ggsave("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/figures/reanalysis/sig_box.png", activated_box, height = 8, width=8, bg="white")
+ggplot2::ggsave("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/figures/reanalysis/sig_box.png", sig_box, height = 8, width=8, bg="white")
 
