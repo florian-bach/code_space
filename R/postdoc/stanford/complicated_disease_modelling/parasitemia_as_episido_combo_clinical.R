@@ -33,7 +33,6 @@ side_by_side_theme <- theme(axis.text = element_text(size = 20),
                             axis.title = element_text(size = 22))
 
 # promote ####
-
 promote <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL.dta")
 bc3 <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL_withIncidentNMF.dta")
 
@@ -61,7 +60,7 @@ promote_data <- promote %>%
 
 # mic drop ####
 
-mic_drop <-  haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_09/MICDROP expanded database through September 30th 2024.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
 
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
@@ -89,7 +88,7 @@ mic_drop_data <- mic_drop %>%
 
 # impact ####
 
-impact <- haven::read_dta("~/postdoc/stanford/clinical_data/IMPACT/IMPACT expanded database through July 31st 2024.dta")
+impact <- haven::read_dta("~/Library/CloudStorage/Box-Box/IMPACT Study (Busia)/Data/Specimens/Mar25/IMPASpecimenBoxMar25_withclinical.dta")
 
 impact_data <- impact %>%
   filter(!is.na(pardens), !is.na(mstatus))%>%
@@ -134,18 +133,19 @@ three_month_labels <- paste0(seq(0, 21, by=3), " to ", seq(3, 24, by=3), " month
 
 all_malaria <- combo_data %>%
   ungroup()%>%
-  filter(total_n_malaria>=1)%>%
+  filter(total_n_para>=1, !is.na(n_para))%>%
   group_by(id)%>%
-  mutate("age_at_second"=ifelse(any(n_malaria==2), age[n_malaria==2], NULL))%>%
+  mutate(age_at_first=age[n_para==1])%>%
   ungroup()%>%
   mutate("treatment_failure"=if_else(mstatus%in% c("quinine for AL failure", "Q/AS failure"), 1, 0))%>%
   mutate(agebins=cut(as.numeric(age), breaks = seq(0, max(as.numeric(age)), by=30)))%>%
-  mutate(age_at_second_bins=cut(as.numeric(age_at_second), breaks = seq(0, 730, by=90), labels = three_month_labels))%>%
+  mutate(age_at_first_bins=cut(as.numeric(age_at_first), breaks = seq(0, 730, by=90), labels = three_month_labels))%>%
   mutate(disease=if_else(mstatus=="complicated", "complicated", if_else(mstatus=="no malaria", "asymptomatic", "uncomplicated")),
          complicated=if_else(mstatus=="complicated", 1, 0), 
          symptoms=if_else(disease != "asymptomatic", 1, 0))%>%
   mutate(id=as.character(id),
          age=as.numeric(age),
+         ageyrs=age/365,
          age_months=as.numeric(factor(agebins)),
          log_pardens=log10(pardens+0.1),
          birth_month=data.table::month(dob),
@@ -197,7 +197,7 @@ comp_model <- glm(risk~n_para+I(n_para^2), family = "binomial", weights = total_
 
 comp_model2 <- glm(complicated~n_para+age, family = "binomial", data = all_malaria)
 
-comp_model3 <- lme4::glmer(complicated~n_para+I(n_para^2)+(1|id), family = "binomial", data = all_malaria)
+comp_model3 <- lme4::glmer(complicated~n_para+I(n_para^2)+ageyrs+(1|id), family = "binomial", data = all_malaria)
 
   ## risk~n_infection ####
 
@@ -208,7 +208,7 @@ comp_model_fun <- function(x){
     exp(comp_model$coefficients[3])^x^2}
 
 #calculate SE for plotting
-prd <- data.frame(n_para = seq(from = 1, to = 19, length.out = 100))
+prd <- data.frame(n_para = seq(from = 1, to = 30, length.out = 300))
 err <- predict(comp_model, newdata = prd, se.fit = TRUE)
 
 prd$lci <- err$fit - 1.96 * err$se.fit
@@ -223,9 +223,10 @@ n_para_comp_plot <- ggplot(n_para_comp, aes(x=n_para, y=risk))+
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = comp_model_fun, colour="black")+
   geom_text(aes(y=0.10, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
-  scale_x_continuous(breaks = 1:50, limits=c(1,19))+
-  scale_y_continuous(limits = c(0,0.12), labels = scales::label_percent())+
-  xlab("Order of Infection")+
+  scale_x_continuous(breaks = 1:50, limits=c(1,23))+
+  scale_y_continuous(labels = scales::label_percent())+
+  # coord_cartesian(ylim = c(0,0.12))+
+  xlab("Order of Parasitemia")+
   ylab("Risk of Complicated Malaria When Parasitemic")+
   ggtitle(paste(n_kids, " children, aged 2-", max_age, " months\n", total_n_para,
 "parasitemic episodes", sep = ""))
@@ -386,11 +387,11 @@ combo_clin <- all_malaria %>%
 
 
 combo_clin_age <- all_malaria %>%
-  group_by(disease, agebins)%>%
+  group_by(disease, age_months)%>%
   summarise("n"=n())%>%
   pivot_wider(names_from = disease, values_from = n)%>%
   # group_by(disease)%>%
-  group_by(agebins)%>%
+  group_by(age_months)%>%
   mutate(complicated=if_else(is.na(complicated), 0, complicated),
          total_infections=sum(c(complicated,uncomplicated,asymptomatic),na.rm = TRUE),
          risk=sum(c(complicated,uncomplicated, na.rm = TRUE))/total_infections
@@ -449,31 +450,34 @@ prd$uci <- err$fit + 1.96 * err$se.fit
 
 
 clin_n_infection <- ggplot(combo_clin, aes(x=n_para, y=risk))+
+  geom_smooth(method="lm", color="black")+
   geom_point(color="darkred")+
   theme_minimal()+
   # geom_ribbon(data=prd, aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
   #             alpha = 0.2, inherit.aes = FALSE)+
   # geom_function(fun = clin_model_fun, colour="black")+
-  geom_smooth(method="lm", color="black")+
   # geom_text(aes(y=0.19, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
-  scale_x_continuous(breaks = 1:50, limits=c(1,10))+
+  scale_x_continuous(breaks = 1:50, limits=c(1,13))+
   scale_y_continuous(labels = scales::label_percent(), limits = c(0, NA))+
+  # ggpubr::stat_cor(method="pearson")+
   # facet_wrap(~age)+
   xlab("Order of Parasitemic Episode")+
   ylab("Risk of Malaria When Parasitemic")+
-  ggtitle("903 children, aged 8 weeks - 2 years\n3438 parsitemic episodes")
+  ggtitle(paste(n_distinct(all_malaria$id), " children, aged 8 weeks - ", max(all_malaria$age_months, na.rm = T), " months \n", sum(combo_clin$total_infections),
+                " parasitemic episodes", sep=""))
+  
 
 
 clin_n_age <- ggplot(combo_clin_age, aes(x=age_months, y=risk))+
-  geom_point(color="darkred")+
   theme_minimal()+
   # geom_ribbon(data=prd, aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
   #             alpha = 0.2, inherit.aes = FALSE)+
   # geom_function(fun = clin_model_fun, colour="black")+
   geom_smooth(method="lm", color="black")+
+  geom_point(color="darkred")+
   # geom_text(aes(y=0.19, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
-  scale_x_continuous(breaks = 1:50, limits=c(1,18))+
-  scale_y_continuous(labels = scales::label_percent(), limits = c(0, NA))+
+  # scale_x_continuous(breaks = 1:50, limits=c(1,18))+
+  scale_y_continuous(labels = scales::label_percent(), limits = c(0, 1))+
   # facet_wrap(~hbs)+
   xlab("Age in Months")+
   ylab("Risk of Malaria When Parasitemic")+
@@ -487,10 +491,10 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/symptoms_per_n_infe
 
 combo_clin_hbs %>%
   filter(hbs != "HbSS")%>%
-  ggplot(aes(x=n_infection, y=risk))+
+  ggplot(aes(x=n_para, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
-  geom_smooth(method="glm", method.args=list(family="binomial", weights=no_hbss$total_infections))+
+  # geom_smooth(method="glm", method.args=list(family="binomial", weights=no_hbss$total_infections))+
   facet_wrap(~hbs)+
   scale_x_continuous(breaks = 1:50, limits=c(1,10))+
   scale_y_continuous(labels = scales::label_percent(), limits = c(0, NA))+
@@ -501,8 +505,7 @@ combo_clin_hbs %>%
 
 
   ## probability of symptoms by order of infection given any parasitemia ####
-
-combo_clin_hbs_study <- all_malaria %>%
+ combo_clin_hbs_study <- all_malaria %>%
   filter(!is.na(hbs), pardens>50)%>%
   group_by(disease, n_infection, hbs, study)%>%
   summarise("n"=n())%>%
@@ -908,3 +911,30 @@ n_infection_malaria <- all_malaria %>%
 n_infection_age_malaria <- cowplot::plot_grid(age_malaria, n_infection_malaria, nrow = 1)
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/n_malaria_infection_age_load.png", n_infection_age_malaria, width=8, height=4)
 
+
+
+
+# does age at first infection matter####
+
+
+#let's do stats; micdrop vs all studies doesn't matter
+model_df <- all_malaria%>%
+  filter(mstatus %in% c("complicated", "uncomplicated"), study=="micdrop")%>%
+  mutate(age_at_first_over12 = age_at_first>365)%>%
+  mutate(mstatus=if_else(mstatus=="complicated", 1, 0),
+         age_at_first_over12=if_else(age_at_first_over12==TRUE, "over 12 months", "under 12 months"))%>%
+  select(age_at_first_over12, mstatus)
+
+#whether age at first is over or under 12 months doesn't matter; 
+model <- glm(mstatus~age_at_first_over12, data=model_df, family = "binomial")
+
+model_df <- all_malaria%>%
+  # filter(study=="micdrop")%>%
+  mutate(mstatus=if_else(mstatus=="complicated", 1, 0),
+         age_at_first_bins=case_when(age_at_first<180~"0-6",
+                                     age_at_first>180 & age_at_first<365 ~ "6-12",
+                                     age_at_first>365 ~ "over 12"))%>%
+  select(age_at_first_bins,age_at_first, mstatus)
+
+#three month age bins no interaction; six month age bins no interaction
+model <- glm(mstatus~age_at_first_bins, data=model_df, family = "binomial")

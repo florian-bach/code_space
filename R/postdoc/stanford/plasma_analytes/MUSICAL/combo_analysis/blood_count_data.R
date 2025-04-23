@@ -126,8 +126,10 @@ combo_data <- clean_data_with_cell_counts%>%
 cell_count_data <- combo_data%>%
   filter(blood_count=="CD3+  cells/ul blood" | is.na(blood_count))%>%
   mutate("absolute_Tr1"=cbc_per_ul*CD4_T_Cell_Frequency/100* Memory_CD4_T_Cell_Frequency/100 *Tr1_Frequency/100)%>%
+  mutate("absolute_CD4_memory"=cbc_per_ul*CD4_T_Cell_Frequency/100* Memory_CD4_T_Cell_Frequency/100)%>%
   pivot_longer(cols = ends_with("Frequency"), names_to = "gate", values_to = "freq")%>%
-  mutate(count = ifelse(grepl("Tr1", gate), absolute_Tr1*freq/100, NA))
+  mutate(count = ifelse(grepl("Tr1", gate), absolute_Tr1*freq/100, 
+                        ifelse(gate %in% c("IFNg_Frequency","IL10_Frequency", "IL21_Frequency"), absolute_CD4_memory*freq/100, NA)))
 
 write.csv(cell_count_data, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/t_cell_cytometry_count_data.csv", row.names = F)
 

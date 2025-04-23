@@ -1,5 +1,5 @@
 
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP expanded database through November 30th 2024.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
 
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
@@ -8,8 +8,8 @@ mic_drop_data <- mic_drop %>%
   group_by(id) %>%
   add_count(name="total_n_visits") %>%
   mutate(n_visit = seq(1, max(total_n_visits)))%>%
-  mutate("total_n_para"=sum(qPCRparsdens!=0),
-         "total_n_malaria"=sum(qPCRparsdens!=0),
+  mutate("total_n_para"=sum(qPCRparsdens!=0, na.rm = T),
+         "total_n_malaria"=sum(qPCRparsdens!=0, na.rm = T),
          "n_para"=if_else(pardens!=0, cumsum(qPCRparsdens!=0), NA),
          "n_malaria"=if_else(mstatus!=0, cumsum(qPCRparsdens!=0), NA))%>%
   mutate(mstatus = case_match(mstatus,

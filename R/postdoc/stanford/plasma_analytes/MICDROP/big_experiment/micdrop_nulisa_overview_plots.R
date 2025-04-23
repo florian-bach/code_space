@@ -33,7 +33,7 @@ big_palette_hex <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#00
 #   rgb(x[1], x[2], x[3], maxColorValue=255))
 
 
-id_columns <- c("sample", "qc_failed",  "plate", "id", "gender", "ageinwks", "timepoint", "log_qpcr", "total_n_malaria_12", "mstatus", "febrile", "fever")
+id_columns <- c("sample", "qc_failed",  "plate", "id", "gender", "ageinwks", "timepoint", "log_qpcr", "total_n_malaria_12", "mstatus", "febrile", "fever", "rogerson", "SGA")
 
 wide_df2 <- clean_data %>%
   filter(targetName %notin% c("IFNA2", "CTSS", "LTA|LTB"))%>%

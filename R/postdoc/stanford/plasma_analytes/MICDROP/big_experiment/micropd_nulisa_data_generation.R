@@ -62,17 +62,14 @@ micdrop_nulisa <- very_big_data%>%
   mutate(timepoint_num=as.numeric(substr(timepoint, 1, 2)))
 
 
-dpsp_nulisa <- very_big_data%>%
-  filter(study=="DPSP")
-
-write.csv(dpsp_nulisa, "~/postdoc/stanford/plasma_analytes/DPSP/dpsp_nulisa_data.csv", row.names = F)
-
 # read in metadata####
 ## clinical data####
 raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Nov24/MICDSpecimenBoxNov24_withclinical.dta")
 
 master_plate_map <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/master_plate_map.xlsx", col_types = c("numeric", "date", "numeric", "text", "guess", "guess", "guess"))
   
+mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
+
 big_experiment_samples <- master_plate_map%>%
   select(id, date)%>%
   filter(!is.na(id))%>%
@@ -86,10 +83,18 @@ pilot_samples <- raw_data%>%
   filter(sample %in% unique(pilot_nulisa_edit$sample))%>%
   add_row(id=10766, date=as.Date("2022-11-04"), ageinwks=25, Plasma="10766-AB", sample="10766_tp24")
 
-all_samples <- bind_rows(pilot_samples, big_experiment_samples)%>%
-  select(id, date)
 
-metadata_columns <- c("id", "dob", "date", "ageinwks", "gender", "mstatus", "qPCRparsdens", "visittype", "fever", "febrile")
+all_samples <- bind_rows(pilot_samples, big_experiment_samples)%>%
+  select(id, date)%>%
+  mutate(hbs=mic_drop_hbs$HbS[match(as.numeric(id), mic_drop_hbs$id)],
+         hbs=case_match(hbs,
+                        1~"HbAA",
+                        2~"HbAS",
+                        3~"HbSS"))
+
+# write.csv(all_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/all_samples.csv", row.names = F)
+
+metadata_columns <- c("id", "dob", "date", "ageinwks", "gender", "mstatus", "qPCRparsdens", "visittype", "fever", "febrile", "rogerson", "anyHP", "GAcomputed", "gi", "SGA", "qPCRdich", "mqPCRparsdens")
 
 #merge based on id and date
 metadata <- raw_data%>%
@@ -104,11 +109,13 @@ infs_and_meta <- raw_data%>%
   group_by(id) %>%
   mutate("total_n_para_12"=sum(qPCRparsdens>1&ageinwks<53, na.rm=TRUE),
          "total_n_malaria_12"=sum(mstatus!=0&ageinwks<53, na.rm=TRUE),
+         "total_n_para_24"=sum(qPCRparsdens>1&ageinwks<105, na.rm=TRUE),
+         "total_n_malaria_24"=sum(mstatus!=0&ageinwks<105, na.rm=TRUE),
          "total_n_para_6"=sum(qPCRparsdens>1&ageinwks<27, na.rm=TRUE),
          "total_n_malaria_6"=sum(mstatus!=0&ageinwks<27, na.rm=TRUE),
          "any_malar_6"=if_else(total_n_malaria_6==0, FALSE, TRUE),
          "any_malar_12"=if_else(total_n_malaria_12==0, FALSE, TRUE))%>%
-  select(id, date, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, -gender)%>%
+  select(id, date, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, total_n_para_24, total_n_malaria_24, -gender)%>%
   right_join(., metadata, by=c("id", "date"))%>%
   group_by(id)%>%
   mutate(total_n_para=max(total_n_para_12, na.rm = T),
@@ -126,98 +133,18 @@ qc_results <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experimen
 #duplciation happens here?
 micdrop_nulisa_with_meta <- micdrop_nulisa%>%
   inner_join(., infs_and_meta, by=c("id", "timepoint_num"), multiple = "first")%>%
-  mutate(qc_failed=if_else(sample %in% qc_results$sample_id, TRUE, FALSE))
+  mutate(qc_failed=if_else(sample %in% qc_results$sample_id, TRUE, FALSE))%>%
+  mutate(gender_categorical=if_else(gender==1, "male", "female"))
 
 #13% dropout; 642 - 86 samples; mostly plate 8 (37)
 
 write.csv(micdrop_nulisa_with_meta, "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv", row.names = F)
 
 
-# bigass figure ####
+dpsp_nulisa <- very_big_data%>%
+  filter(study=="DPSP")
 
-micdrop_nulisa_with_meta%>%
-  filter(mstatus==0)%>%
-  filter(targetName%in%c("IL10", "IFNG", "TNF"))%>%
-  ggplot(., aes(x=timepoint, y=conc, fill=factor(total_n_para)))+
-  geom_boxplot()+
-  facet_wrap(~targetName, nrow = 16, scales="free")+
-  # geom_smooth(method="lm")+
-  viridis::scale_fill_viridis(discrete = T)+
-  theme_minimal()
-
-micdrop_nulisa_with_meta%>%
-  filter(qPCRparsdens==0)%>%
-  filter(targetName%in%c("IL10", "IFNG", "TNF"))%>%
-  ggplot(., aes(x=timepoint, y=conc, fill=factor(total_n_para)))+
-  geom_boxplot(outliers = F)+
-  facet_wrap(~targetName, nrow = 16, scales="free")+
-  # geom_smooth(method="lm")+
-  viridis::scale_fill_viridis(discrete = T)+
-  theme_minimal()
-
-micdrop_nulisa_with_meta%>%
-  # filter(mstatus==0)%>%
-  filter(targetName%in%c("IL10", "IFNG", "TNF"))%>%
-  ggplot(., aes(x=qPCRparsdens+0.01, y=conc, color=total_n_para))+
-  geom_point(aes(shape=factor(mstatus)))+
-  facet_wrap(~targetName, nrow = 16, scales="free")+
-  # geom_smooth(method="lm")+
-  scale_x_log10()+
-  viridis::scale_color_viridis(discrete = F)+
-  theme_minimal()
-
-big_ass_figure2 <- micdrop_nulisa_with_meta%>%
-  filter(qPCRparsdens==0, timepoint=="52 weeks")%>%
-  # filter(targetName%in%c("IL10", "IFNG", "TNF", "GZMA", "LAG3", "LILRB2"))%>%
-  ggplot(., aes(x=total_n_para, y=conc))+
-  facet_wrap(~targetName+timepoint, scales="free")+
-  geom_point()+
-  ggpubr::stat_cor(method="spearman", size=2, color="red")+
-  geom_smooth(method="lm")+
-  viridis::scale_fill_viridis(discrete = T)+
-  theme_minimal()
-# 
-ggsave("~/Downloads/big_ass_figure2.png", big_ass_figure2, width=24, height=24, dpi=444, bg="white")
-
-big_ass_figure3 <- micdrop_nulisa_with_meta%>%
-  filter(qPCRparsdens==0, timepoint=="52 weeks")%>%
-  # filter(targetName%in%c("IL10", "IFNG", "TNF", "GZMA", "LAG3", "LILRB2"))%>%
-  ggplot(., aes(x=total_n_malaria, y=conc))+
-  facet_wrap(~targetName+timepoint, scales="free")+
-  geom_point()+
-  ggpubr::stat_cor(method="spearman", size=2, color="red")+
-  geom_smooth(method="lm")+
-  viridis::scale_fill_viridis(discrete = T)+
-  theme_minimal()
-# 
-ggsave("~/Downloads/big_ass_figure3.png", big_ass_figure3, width=24, height=24, dpi=444, bg="white")
-
-micdrop_nulisa_with_meta%>%
-  # filter(qPCRparsdens==0, timepoint=="52 weeks")%>%
-  filter(mstatus==0, timepoint=="52 weeks")%>%
-  filter(targetName%in%c("CXCL1"))%>%
-  ggplot(., aes(x=total_n_malar_12, y=conc))+
-  facet_wrap(~targetName+timepoint, scales="free")+
-  geom_point()+
-  ggpubr::stat_cor(method="spearman", size=2, color="red")+
-  geom_smooth(method="lm")+
-  viridis::scale_fill_viridis(discrete = T)+
-  theme_minimal()
-
-
-
-clean_data %>%
-  filter(targetName %in% c("IL10", "LAG3", "IL2", "GZMA"),
-         timepoint!="68 weeks")%>%
-  ggplot(aes(x=factor(timepoint_num), y=conc, fill=timepoint))+
-  geom_line(aes(group=id), alpha=0.2)+
-  geom_boxplot(outliers = FALSE)+
-  facet_wrap(~targetName, scales = "free")+
-  scale_fill_manual(values=viridis::magma(3))+
-  xlab("age in weeks")+
-  theme_minimal()+
-  theme(legend.position = "none",
-        axis.title.y = element_blank())
+write.csv(dpsp_nulisa, "~/postdoc/stanford/plasma_analytes/DPSP/dpsp_nulisa_data.csv", row.names = F)
 
 # 
 # micdrop_nulisa%>%

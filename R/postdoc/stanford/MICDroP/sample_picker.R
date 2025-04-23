@@ -6,7 +6,12 @@ library(ggplot2)
 `%notin%` <- Negate(`%in%`)
 is.blank <- function(x){sapply(x, function(y) {ifelse(y=="", TRUE, FALSE)})}
 
-raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta")
+# all except lavstsen plasmas were done with this
+# raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta")
+
+
+raw_data <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
+
 
 # for finding putative sampling visits we'll filter the database to only include visits around the proper sampling timepoint dates, with a week plus/minus
 sample_ages <- c(8, 24, 52, 68, 84, 104, 120)
@@ -140,8 +145,6 @@ ggsave("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2023_07/figures
 
 # fei gao hla typing ####
 # need 100 24 week samples where 8 week samples exist
-
-
 mic_drop_clin <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_09/MICDROP expanded database through September 30th 2024.dta")
 
 kids_with_comp <- mic_drop_clin %>%
@@ -170,7 +173,6 @@ forty_more <- pbmc_samples %>%
 write.csv(forty_more,"~/postdoc/stanford/clinical_data/MICDROP/forty_more.csv")  
 
 # validation of DRB11 hits against neurocognitive testing ####
-
 library(tidyr)
 library(dplyr)
 
@@ -330,7 +332,8 @@ reorganise_samples <- samples_to_pick_for_mesoscale%>%
   select(id, date, Timepoint_in_weeks, "new column", "new row", new.box)%>%
   arrange(id)
 
-write.csv(reorganise_samples, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/reorganise_for_mesoscale.csv", row.names = F)
+#write.csv(reorganise_samples, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/msd/reorganise_for_mesoscale.csv", row.names = F)
+write.csv(reorganise_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/msd_map_edit.csv", row.names = F)
 
 
 plate_map <- reorganise_samples%>%
@@ -390,14 +393,15 @@ rest_of_samples_to_pick <- long_specimen_data %>%
 write.csv(rest_of_samples_to_pick, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/rest_of_samples_to_pick_for_NULISA.csv", row.names = F)
 
 reordered_rest_of_samples_to_pick <- rest_of_samples_to_pick%>%
-  select(id, `new column`, `new row`, `new box`)%>%
+  select(id, date, flo_age_in_wks, `new column`, `new row`, `new box`)%>%
   arrange(id)%>%
   mutate("reorder column"=rep_len(1:9, nrow(.)),
           "reorder row"=rep_len(rep(1:9,each=9), nrow(.)),
           "reorder box"=rep_len(rep(1:9, each=81), nrow(.)),
          "nulisa plate"=rep_len(rep(4:9, each=84), nrow(.)))
 
-write.csv(reordered_rest_of_samples_to_pick, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/reordered_rest_of_samples_to_pick_for_NULISA.csv", row.names = F)
+# write.csv(reordered_rest_of_samples_to_pick, "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/reordered_rest_of_samples_to_pick_for_NULISA.csv", row.names = F)
+write.csv(reordered_rest_of_samples_to_pick, "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/non_msd_edit.csv", row.names = F)
 
 
 
@@ -604,3 +608,6 @@ write.csv(extra_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/extra_24/ex
 # 10950 complete
 # 11622 complete
 # 11651 complete
+
+# 100 for lavstsen
+

@@ -17,7 +17,7 @@ time_purf <- clean_data%>%
   filter(mstatus==0)%>%
   group_by(targetName)%>%
   nest()%>%
-  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint+log_qpcr+(1|id), data=.))) %>%
+  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint+gender_categorical+log_qpcr+(1|id), data=.))) %>%
   mutate(summary=map(time_model, ~summary(.))) %>%
   mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ timepoint)))%>%
   mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
@@ -163,7 +163,6 @@ for(i in 1:ceiling(length(unique_sigs)/16)){
 age_change_mstatus_plot <- clean_data %>%
   filter(targetName %in% c("CD70", "IL18", "CTLA4", "LAG3", "GZMA", "IFNG", "CCL2", "CCL8", "IL10 "),
          timepoint!="68 weeks")%>%
-  mutate(targetNamef=factor(targetName, levels=unique_sigs[seq((i-1)*16+1, i*16)]))%>%
   ggplot(aes(x=factor(timepoint_num), y=conc, fill=factor(mstatus)))+
   geom_boxplot(outliers = FALSE)+
   facet_wrap(~targetName, scales = "free", nrow=2)+
@@ -174,6 +173,69 @@ age_change_mstatus_plot <- clean_data %>%
         axis.title.y = element_blank())
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_change_mstatus_plot.png", age_change_mstatus_plot, height=4, width=8, dpi=444, bg="white")
+infections <- clean_data%>%
+  filter(mstatus==1)%>%
+  distinct(id, date, ageinwks)
+
+
+# add n_infection etc
+
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
+
+mic_drop_data <- mic_drop %>%
+  filter(mstatus != 0, !is.na(mstatus))%>%
+  group_by(id) %>%
+  add_count(name="total_n_infection") %>%
+  mutate(n_infection = seq(1, max(total_n_infection)),
+         mstatus = case_match(mstatus,
+                              0~"no malaria",
+                              1~"uncomplicated",
+                              2~"complicated",
+                              3~"quinine for AL failure",
+                              4~"Q/AS failure"))%>%
+  mutate(date=as.character(date))%>%
+  select(id, date, n_infection)
+
+n_infections <- left_join(infections, mic_drop_data, by=c("id", "date"))
+
+
+analytes <- unique(clean_data$targetName)
+
+nulisa_to_show <- clean_data %>%
+  left_join(., n_infections, by=c("id", "date"))%>%
+  mutate(n_infection=ifelse(n_infection>=4, "4+", n_infection))%>%
+  filter(targetName %in% c("CTLA4", "CD274", "CD80", "PDCD1"),
+         mstatus==1)%>%
+  mutate(targetNamef=factor(targetName, levels=c("CTLA4", "CD274", "CD80", "PDCD1")))%>%
+  ggplot(aes(x=factor(n_infection), y=conc, fill=factor(n_infection)))+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free", nrow=2)+
+  scale_fill_manual(values=viridis::rocket(n = 5))+
+  xlab("Order of infection")+
+  ylab("Concentration in Blood")+
+  theme_minimal(base_size = 16)+
+  theme(legend.position = "none")
+
+ggsave("~/Downloads/nulisa_for_malaria_day.png", nulisa_to_show, height=6, width=6, dpi = 444, bg="white")
+
+
+
+nulisa_to_show2 <- clean_data %>%
+  left_join(., n_infections, by=c("id", "date"))%>%
+  mutate(n_infection=ifelse(n_infection>=4, "4+", n_infection))%>%
+  filter(targetName %in% c("CTLA4", "CD274", "CD80", "PDCD1"))%>%
+  mutate(targetNamef=factor(targetName, levels=c("CTLA4", "CD274", "CD80", "PDCD1")))%>%
+  ggplot(aes(x=factor(timepoint_num), y=conc, fill=factor(mstatus)))+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free", nrow=2)+
+  scale_fill_manual(values=c("black", "darkred"))+
+  xlab("age in weeks")+
+  ylab("Concentration in Blood")+
+  theme_minimal(base_size = 16)+
+  theme(legend.position = "none")
+
+nulisa_to_show2+nulisa_to_show
+
 
 ## change through infection history####
 ### negative binomial; this is needed for para because variance = 4 and mean =1 ####
@@ -181,16 +243,16 @@ purf_52 <- clean_data%>%
   filter(mstatus==0, timepoint=="52 weeks")%>%
   group_by(targetName)%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12~conc, data=.))) %>%
-  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12~conc, data=.))) %>%
+  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12~conc+log_qpcr+gender_categorical, data=.))) %>%
+  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12~conc+log_qpcr+gender_categorical, data=.))) %>%
   # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
   #11 when additional covariate is included
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[8]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[8]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[14]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
@@ -269,12 +331,12 @@ purf_52_bino <- clean_data%>%
   mutate(any_malaria=ifelse(total_n_malaria_12==0, 0, 1))%>%
   mutate(any_para=ifelse(total_n_para_12==0, 0, 1))%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~glm(any_malaria~conc, data=., family="binomial"))) %>%
-  mutate(n_para_model=map(data, ~glm(any_para~conc, data=., family="binomial"))) %>%
+  mutate(n_malaria_model=map(data, ~glm(any_malaria~conc+gender_categorical, data=., family="binomial"))) %>%
+  mutate(n_para_model=map(data, ~glm(any_para~conc+gender_categorical, data=., family="binomial"))) %>%
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[8]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[8]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))

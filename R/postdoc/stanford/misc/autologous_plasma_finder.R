@@ -20,6 +20,7 @@ dpsp <- haven::read_dta("~/postdoc/stanford/clinical_data/DPSP/DPSPSpecimenBoxOc
 # 
 smaller_dpsp <- dpsp %>%
   filter(dod>"2023-01-01")%>%
+  filter(gravidcat==2)%>%
   select(id, dob, dod, enrolldate)
 
 list_of_mothers <- unique(smaller_dpsp$id)

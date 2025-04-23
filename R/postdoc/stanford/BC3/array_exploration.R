@@ -60,14 +60,14 @@ pca_theme <- theme(legend.title = element_text(size=15),
                    axis.title = element_text(size=15),
                    axis.text = element_text(size=12))
 
-ggplot(pca_plot_data, aes(x=PC1, y=PC2, fill=factor(gender)))+
+ggplot(pca_plot_data, aes(x=PC1, y=PC2, fill=factor(firstmalaria)))+
   geom_point(shape=21, size=2)+
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   # geom_density_2d(aes(color=Txarm))+
   theme_minimal()+
-  pca_theme+
-  theme(legend.position = "none")
+  stat_ellipse(aes(color=factor(firstmalaria)))+
+  pca_theme
 
 
 
@@ -76,13 +76,13 @@ long_combo_data <- cbind(long_data, demographic_data[match(long_data$id, demogra
 purrrf <- long_combo_data %>%
   group_by(antigen) %>%
   nest() %>%
-  mutate(model=map(data, ~lm(concentration~Txarm+gender, data=.))) %>%
+  mutate(model=map(data, ~lm(concentration~Txarm, data=.))) %>%
   # mutate(summary=map(model, ~summary(.))) %>%
   mutate(raw_p=map_dbl(model, ~summary(.)$coefficients[11]))%>%
   ungroup()%>%
   mutate(padj=p.adjust(raw_p))
 
-sigs <- filter(purrrf, raw_p<0.01)
+sigs <- filter(purrrf, padj<0.1)
 
 
 long_combo_data %>%

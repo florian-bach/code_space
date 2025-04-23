@@ -20,34 +20,40 @@ time_cols <- list("baseline"="#E4DEBD",
 
 # data generation ####
 nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/tr1_paper/revised_baseline_clean_musical_combo_with_metadata.csv")
+nulisa_data <- nulisa_data%>%
+  mutate(infectiontype=substr(infectiontype, 1, 1))
+  
+
 slim_nulisa_data <- nulisa_data %>%
   mutate(id=as.character(id))%>%
-  select(id, timepoint, timepoint_imm, infectiontype, targetName, concentration, log_qpcr)%>%
+  select(id, date, timepoint, timepoint_imm, infectiontype, targetName, concentration, log_qpcr, ageyrs, gender_categorical)%>%
   filter(timepoint!="bad_baseline")%>%
   mutate(timepoint_imm=if_else(timepoint=="baseline", -1, timepoint_imm))
 
 # cell_count_data <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/t_cell_cytometry_count_data.csv")
-cell_count_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/df_jason_analysis.csv")
+slim_cell_count_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/df_jason_analysis.csv")
 
-slim_cell_count_data <- cell_count_data%>%
+slim_cell_count_data <- slim_cell_count_data%>%
   pivot_longer(cols = ends_with("Frequency"), names_to = "gate", values_to = "freq")%>%
   mutate(timepoint_imm=timepoint)%>%
+  mutate(infectiontype=substr(infectiontype, 1, 1))%>%
   mutate("timepoint"=case_when(
     timepoint_imm==-1~"baseline",
     timepoint_imm==0~"day0",
     timepoint_imm==7~"day7",
     timepoint_imm==14~"day14",
     timepoint_imm==28~"day28"))%>%
-  select(id, timepoint, timepoint_imm, infectiontype, gate, stim, freq)
+  select(id, date, timepoint, timepoint_imm, infectiontype, gate, stim, freq)
 
 
 long_combo <- slim_nulisa_data%>%
   mutate(id=as.integer(id))%>%
-  full_join(., slim_cell_count_data, by = c("id", "timepoint_imm", "infectiontype"))%>%
+  full_join(., slim_cell_count_data, by = c("id", "infectiontype", "timepoint_imm"))%>%
   mutate(timepoint=timepoint.x)%>%
-  select(-timepoint.x, -timepoint.y)
+  select(-timepoint.x, -timepoint.y)%>%
+  filter(!is.na(freq))
 
-write.csv(long_combo, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/cell_freqs_and_nulisa.csv", col.names = F)
+# write.csv(long_combo, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/cell_freqs_and_nulisa.csv", col.names = F)
 
 # grand correlation 
 
@@ -63,7 +69,10 @@ grand_cor <- long_combo%>%
 
 
 real_count_data <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/t_cell_cytometry_count_data.csv")
-
+real_count_data <- real_count_data%>%
+  mutate(infectiontype=toupper(substr(infectiontype, 1, 1)))
+  
+  
 count_nulisa_combo <- slim_nulisa_data%>%
   mutate(id=as.integer(id))%>%
   full_join(., real_count_data, by = c("id", "timepoint", "infectiontype"))
@@ -91,7 +100,12 @@ day0_concs <- long_combo %>%
   filter(infectiontype%in% c("S", "A"))%>%
   filter(timepoint=="day0")%>%
   distinct(targetName, concentration, id, timepoint, infectiontype)
-  
+
+day7_concs <- long_combo %>%
+  filter(infectiontype%in% c("S", "A"))%>%
+  filter(timepoint=="day7")%>%
+  distinct(targetName, concentration, id, timepoint, infectiontype)
+
 base_concs <- long_combo %>%
   filter(infectiontype%in% c("S", "A"))%>%
   filter(timepoint=="baseline")%>%
@@ -134,6 +148,11 @@ conc_freq_07 <- day0_concs%>%
   filter(infectiontype=="S")%>%
   inner_join(day7_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
 
+
+conc_freq_77 <- day7_concs%>%
+  filter(infectiontype=="S")%>%
+  inner_join(day7_freqs, by=c("id", "infectiontype"), relationship = "many-to-many")
+
 freq_freq_base_0 <- inner_join(base_freqs, day0_freqs, by=c("id", "gate", "stim", "infectiontype"), relationship = "many-to-many")
 
 
@@ -153,6 +172,18 @@ conc_freq_0_corr <- conc_freq_0%>%
 
 #CALCA & CXCL10 significnat!
 conc_freq_07_corr <- conc_freq_07%>%
+  filter(!is.na(freq), infectiontype=="S")%>%
+  group_by(gate, stim, targetName)%>%
+  nest()%>%
+  mutate(nrows=map_dbl(data, ~nrow(.)))%>%
+  filter(nrows>1)%>%
+  mutate(correlation=map(data, ~cor.test(.$concentration, .$freq, method = "spearman")))%>%
+  mutate(p=map_dbl(correlation, ~.$p.value),
+         rho=map_dbl(correlation, ~.$estimate))%>%# do(broom::tidy(cor.test(.$concentration, .$freq, method="spearman")))%>%
+  ungroup()%>%
+  mutate(padj=p.adjust(p))
+
+conc_freq_77_corr <- conc_freq_77%>%
   filter(!is.na(freq), infectiontype=="S")%>%
   group_by(gate, stim, targetName)%>%
   nest()%>%
@@ -235,8 +266,9 @@ wide_concs <-  long_combo %>%
   pivot_wider(names_from = timepoint, values_from = c(concentration), id_cols=c(targetName, id, infectiontype), names_prefix = "conc_")%>%
   group_by(infectiontype)%>%
   mutate(conc_base_d0_fc=conc_day0-conc_baseline,
+         conc_base_d7_fc=conc_day7-conc_baseline,
          conc_base_d14_fc=conc_day14-conc_baseline)%>%
-  distinct(targetName, id, infectiontype, conc_base_d0_fc, conc_base_d14_fc)
+  distinct(targetName, id, infectiontype, conc_base_d0_fc, conc_base_d14_fc, conc_base_d7_fc)
   
 
 wide_freqs <-  long_combo %>%
@@ -246,7 +278,7 @@ wide_freqs <-  long_combo %>%
   #        #!(stim=="unstim" & grepl("_[^_]+_", gate)),
   #        #!(stim=="PMA" & gate=="CD4_T_Cell_Frequency")
   #        )%>%
-  filter(gate%in%c("Tr1_Frequency", "Tr1_IL10_Frequency", "Tr1_IFNg_Frequency", "IFNg_Frequency", "IL10_Frequency"))%>%
+  filter(gate%in%c("Tr1_Frequency", "Tr1_IL21_Frequency", "Tr1_IL10_Frequency", "Tr1_IFNg_Frequency", "IFNg_Frequency", "IL10_Frequency", "IL21_Frequency"))%>%
   select(gate, stim, freq, id, infectiontype, timepoint)%>%
   filter(infectiontype!="NM", timepoint %in% c("baseline", "day0", "day7", "day14"))%>%
   distinct(gate, stim, freq, id, infectiontype, timepoint)%>%
@@ -280,11 +312,14 @@ fc_corr_purr_S <- fc_combo_frame %>%
   # filter(!is.na(freq_base_d7_fc), !is.na(freq_base_d14_fc), !is.na(conc_base_d0_fc))%>%
   group_by(infectiontype, stim, gate, targetName)%>%
   nest()%>%
-  # mutate(base7_correlation=if_else(all(is.na(data$freq_day7)), map(data, ~cor.test(.$freq_base7_fc, .$conc_base0_fc, method = "spearman"))))%>%
+  mutate(base77_correlation=map(data, ~cor.test(.$freq_base_d7_fc, .$conc_base_d7_fc, method = "spearman")))%>%
   mutate(base0_correlation=map(data, ~cor.test(.$freq_base_d0_fc, .$conc_base_d0_fc, method = "spearman")))%>%
   mutate(base7_correlation=map(data, ~cor.test(.$freq_base_d7_fc, .$conc_base_d0_fc, method = "spearman")))%>%
   mutate(base14_correlation=map(data, ~cor.test(.$freq_base_d14_fc, .$conc_base_d0_fc, method = "spearman")))%>%
   mutate(
+    base77_p=map_dbl(base77_correlation, ~.$p.value),
+    base77_rho=map_dbl(base77_correlation, ~.$estimate),
+    
     base0_p=map_dbl(base0_correlation, ~.$p.value),
     base0_rho=map_dbl(base0_correlation, ~.$estimate),
     base7_p=map_dbl(base7_correlation, ~.$p.value),
@@ -292,7 +327,8 @@ fc_corr_purr_S <- fc_combo_frame %>%
     base14_p=map_dbl(base14_correlation, ~.$p.value),
     base14_rho=map_dbl(base14_correlation, ~.$estimate))%>%
   group_by(infectiontype, stim, targetName)%>%
-  mutate(base14_padj=p.adjust(base14_p),
+  mutate(base77_padj=p.adjust(base77_p),
+         base14_padj=p.adjust(base14_p),
          base7_padj=p.adjust(base7_p),
          base0_padj=p.adjust(base0_p))%>%
   pivot_longer(cols=ends_with(c("padj", "rho")), names_to = c("Var", ".value"), names_sep  = "_")
@@ -329,7 +365,7 @@ fc_corr_purr <- bind_rows(fc_corr_purr_A, fc_corr_purr_S)
 sig_fc_corr_purr <- fc_corr_purr%>%
   select(gate, stim, infectiontype, targetName, Var, rho, padj)%>%
   # filter(!duplicated)
-  filter(padj<0.05)
+  filter(padj<0.1)
 
 ## day 0 fold change plots ####
 ### Tr1 frequency ####
@@ -778,20 +814,21 @@ base_d14_tr1_il10_a_irbc_sigs <- sig_fc_corr_purr$targetName[sig_fc_corr_purr$ga
 
 
 base_d14_tr1_il10_a_pma_sigs_plot <- fc_combo_frame %>%
-  filter(gate %in% c("Tr1_IL10_Frequency"), stim=="PMA", targetName%in%base_d14_tr1_il10_a_pma_sigs, infectiontype=="A")%>%
+  filter(gate %in% c("Tr1_IL10_Frequency"), stim=="PMA", targetName%in%base_d14_tr1_il10_a_pma_sigs[1:18], infectiontype=="A")%>%
   ggplot(., aes(x=freq_base_d14_fc, y=conc_base_d14_fc, color=stim))+
   geom_point()+
   ggpubr::stat_cor(method = "spearman")+
-  ggtitle("Asymptomatic")+
+  # ggtitle("Asymptomatic")+
   geom_smooth(method="lm")+
   xlab("fold change in IL10+ Tr1 frequency from baseline to day 14")+
   ylab("fold change in plasma protein from baseline to day 14")+
   scale_color_manual(values =stim_palette)+
   scale_x_continuous(trans="log2")+
-  facet_wrap(~targetName, ncol=6, scales="free")+
-  theme_minimal()
+  facet_wrap(~targetName, ncol=9, scales="free")+
+  theme_minimal(13)+
+  theme(legend.title = element_blank())
 
-ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/base_d14_tr1_il10_a_pma_sigs_plot.png", base_d14_tr1_il10_a_pma_sigs_plot, height = 8, width=12, dpi=444, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/base_d14_tr1_il10_a_pma_sigs_plot.png", base_d14_tr1_il10_a_pma_sigs_plot, height = 6, width=18, dpi=444, bg="white")
 
 ### ifng frequency ####
 
@@ -1187,5 +1224,28 @@ base_freq_day0_conc <- inner_join(day0_concs, base_freqs, by=c("id", "infectiont
    theme_minimal()
  
  ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/all_tr1_freq_base_day0_conc.png", width = 9, height=4.5, dpi=444, bg="white")
+
+ 
+ individuals_with_cleaner_baseline <- nulisa_data%>%
+   filter(timepoint=="bad_baseline")%>%
+   distinct(id)
+   
+ 
+ nulisa_data%>%
+   filter(id %in% individuals_with_cleaner_baseline$id)%>%
+   distinct(id, timepoint, log_qpcr, parasitedensity, infectiontype, new_qpcr)%>%
+   mutate(timepoint2=if_else(timepoint=="bad_baseline", "cleaner baseline", "most recent baseline"))%>%
+   filter(infectiontype%in%c("S", "A"), timepoint%in%c("bad_baseline", "baseline"))%>%
+   ggplot(., aes(x=timepoint2, y=new_qpcr+0.001, fill=timepoint2))+
+   geom_label(aes(label=id))+
+   scale_y_log10()+
+   ylab("qPCR parasites / μL")+
+   xlab("")+
+   geom_point(position = position_jitter(width = 0.2))+
+   facet_wrap(~infectiontype, scales="free")+
+   ggpubr::stat_cor(method="spearman", label.y = 17.5)+
+   theme_minimal()+
+   theme(legend.position = "none")
+
  
  
