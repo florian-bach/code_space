@@ -50,13 +50,13 @@ combo_as_results <- nulisa_data %>%
   # mutate(emm=map(model, ~emmeans(., specs = ~ timepoint:infectiontype)))%>%
   mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint | infectiontype)))%>%
   mutate(emm2=map(model, ~emmeans(., specs = pairwise ~ infectiontype | timepoint)))%>%
-  
+
   mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
   mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise")))%>%
-  
+
   mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
   mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
-  
+
   mutate("baseline A - baseline S"=map_dbl(emm_contrast_summary2, ~.$p.value[1])) %>%
   mutate("baseline A - day0 A"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
   mutate("baseline A - day14 A"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
@@ -76,27 +76,28 @@ combo_as_results <- nulisa_data %>%
   pivot_longer(cols=starts_with("coef"), names_to = "coef_name", values_to = "coef")%>%
   rowwise()%>%
   filter(grepl(contrast, coef_name))
+# 
+# fc_data <- nulisa_data %>%
+#   filter(infectiontype%notin%c("P", "N"))%>%
+#   pivot_wider(names_from = timepoint, values_from = c(concentration), id_cols=c(targetName, id, infectiontype), names_prefix = "conc_")%>%
+#   group_by(targetName, infectiontype)%>%
+#   mutate(conc_base_d0_fc=conc_day0-conc_baseline,
+#          conc_base_d14_fc=conc_day14-conc_baseline,
+#          conc_base_d7_fc=conc_day7-conc_baseline)%>%
+#   distinct(targetName, id, infectiontype, conc_base_d0_fc, conc_base_d14_fc, conc_base_d7_fc)%>%
+#   group_by(targetName, infectiontype)%>%
+#   summarise("mean_conc_base_d0_fc"=mean(conc_base_d0_fc, na.rm = T),
+#             "mean_conc_base_d14_fc"=mean(conc_base_d14_fc, na.rm = T),
+#             "mean_conc_base_d7_fc"=mean(conc_base_d7_fc, na.rm = T))
+# 
+# combo_as_results_with_fc <- combo_as_results%>%
+#   left_join(., fc_data, by="targetName")%>%
+#   distinct(targetName, contrast, padj, infectiontype, mean_conc_base_d0_fc, mean_conc_base_d14_fc, mean_conc_base_d7_fc)%>%
+#   filter(substr(contrast, nchar(contrast), nchar(contrast))==infectiontype)
+# 
+# write.csv(combo_as_results_with_fc, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/tr1_paper/combo_as_results_with_fc.csv", row.names = F)
 
-fc_data <- nulisa_data %>%
-  filter(infectiontype%notin%c("P", "N"))%>%
-  pivot_wider(names_from = timepoint, values_from = c(concentration), id_cols=c(targetName, id, infectiontype), names_prefix = "conc_")%>%
-  group_by(targetName, infectiontype)%>%
-  mutate(conc_base_d0_fc=conc_day0-conc_baseline,
-         conc_base_d14_fc=conc_day14-conc_baseline,
-         conc_base_d7_fc=conc_day7-conc_baseline)%>%
-  distinct(targetName, id, infectiontype, conc_base_d0_fc, conc_base_d14_fc, conc_base_d7_fc)%>%
-  group_by(targetName, infectiontype)%>%
-  summarise("mean_conc_base_d0_fc"=mean(conc_base_d0_fc, na.rm = T),
-            "mean_conc_base_d14_fc"=mean(conc_base_d14_fc, na.rm = T),
-            "mean_conc_base_d7_fc"=mean(conc_base_d7_fc, na.rm = T))
-
-combo_as_results_with_fc <- combo_as_results%>%
-  left_join(., fc_data, by="targetName")%>%
-  distinct(targetName, contrast, padj, infectiontype, mean_conc_base_d0_fc, mean_conc_base_d14_fc, mean_conc_base_d7_fc)%>%
-  filter(substr(contrast, nchar(contrast), nchar(contrast))==infectiontype)
-
-write.csv(combo_as_results_with_fc, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/tr1_paper/combo_as_results_with_fc.csv", row.names = F)
-
+combo_as_results_with_fc <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/combo/tr1_paper/combo_as_results_with_fc.csv")
 # Panel C ####
 analytes_of_interest <- c("IL10", "LAG3", "GZMA", "IL27", "IL6", "TNF", "IFNG", "CTLA4", "LILRB2", "CRP", "CCL24", "IL7R", "CX3CL1", "KDR", "TNFSF11")
 
@@ -125,6 +126,11 @@ ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/base_day0_s
 
 
 # Panel D ####
+pvals <- combo_as_results_with_fc%>%
+  filter(targetName %in% c("IL10", "LAG3", "GZMA", "IFNG"),
+         contrast%in%c("baseline S - day0 S"))%>%
+  select(targetName, contrast, padj)
+write.csv(pvals, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/adj_pvalues_panel_D.csv")
 
 tr1_proteins_symp_plot <- nulisa_data %>%
   filter(targetName %in% c("IL10", "LAG3", "GZMA", "IFNG"),
@@ -138,7 +144,7 @@ tr1_proteins_symp_plot <- nulisa_data %>%
   theme_minimal()+
   da_boxplot_theme
 
-ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_proteins_symp_plot.png", tr1_proteins_symp_plot, width = 5.33333, height = 5.3333, dpi=444, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_proteins_symp_plot.pdf", tr1_proteins_symp_plot, width = 5.33333, height = 5.3333, dpi=444, bg="white")
 
 
 # Panel E ####
@@ -169,10 +175,12 @@ tr1_freq_plot <- cell_count_data %>%
   mutate(class2= if_else(any(day14_para=="parasitemic_day14"), ">1 parasites / μL on day 14", "no parasites day14"))%>%
   distinct(id, infectiontype, timepoint, absolute_Tr1, class2)%>%
   ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=absolute_Tr1, fill=timepoint))+
+  geom_line(aes(group=id), alpha=0.2)+
   geom_boxplot(outliers = F)+
   # geom_point(position = position_dodge(width = 0.75))+
   # scale_y_log10()+
-  ylab("Tr1 cells / μL")+
+  ggpubr::stat_compare_means()+
+  ylab(expression(Tr1~cells/~mu~L))+
   facet_wrap(~infectiontype, scales = "free_x")+
   scale_fill_manual(values=time_cols)+
   scale_color_manual(values=c("darkred", "black"))+
@@ -182,7 +190,18 @@ tr1_freq_plot <- cell_count_data %>%
         legend.position = "bottom")
 
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_plot.png", tr1_freq_plot, width =5.3333333, height=3, dpi=444, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_plot.pdf", tr1_freq_plot, width =5.3333333, height=3, dpi=444, bg="white")
 
+model <- tr1_counts%>%
+  nest()%>%
+  mutate(model=map(data, ~lme4::lmer(absolute_Tr1~timepoint*infectiontype+(1|id), data=.)))%>%
+  # mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint | infectiontype)))%>%
+  # mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm=map(model, ~emmeans(., ~ timepoint | infectiontype))) %>%
+  mutate(emm_contrast=map(emm, ~contrast(., method="pairwise", adjust="none")))
+
+pvalues <- data.frame(model$emm_contrast)
+write.csv(pvalues, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_p.csv")
 # Panel F ####
 
 long_combo <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/cell_freqs_and_nulisa.csv")

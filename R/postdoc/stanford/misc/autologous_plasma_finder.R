@@ -19,7 +19,7 @@ dpsp <- haven::read_dta("~/postdoc/stanford/clinical_data/DPSP/DPSPSpecimenBoxOc
 
 # 
 smaller_dpsp <- dpsp %>%
-  filter(dod>"2023-01-01")%>%
+  filter(dod>"2023-01-01", )%>%
   filter(gravidcat==2)%>%
   select(id, dob, dod, enrolldate)
 
@@ -40,8 +40,9 @@ small_dpsp_specimen <- dpsp_specimen %>%
 dpsp_samples <- readxl::read_excel("~/postdoc/stanford/clinical_data/DPSP/tblBoxDetails_immunology.xlsx")
 
 dpsp_sample_locations <- dpsp_samples %>%
-  filter(RandomNumber %in% small_dpsp_specimen$RandomNumber)%>%
-  filter(Entrydate>"2023-01-01")
+  filter(RandomNumber %in% small_dpsp_specimen$RandomNumber, SpecimenType=="Plasma")%>%
+  filter(Entrydate>"2023-01-01")%>%
+  arrange(BoxNumber)
 
 unique(dpsp_sample_locations$BoxNumber)
 
@@ -61,3 +62,10 @@ plasma_rn <- dpsp_specimen %>%
 # find sample location of plasma samples
 dpsp_samples %>%
   filter(RandomNumber %in% plasma_rn$RandomNumber)
+
+
+
+dpsp_specimen %>%
+  filter(SpecimenType=="Plasma", SubjectID %in% list_of_mothers_without_children)%>%
+  arrange()
+

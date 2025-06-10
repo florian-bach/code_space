@@ -481,8 +481,8 @@ clin_n_age <- ggplot(combo_clin_age, aes(x=age_months, y=risk))+
   # facet_wrap(~hbs)+
   xlab("Age in Months")+
   ylab("Risk of Malaria When Parasitemic")+
-  ggtitle("903 children, aged 8 weeks - 2 years\n3438 parsitemic episodes")
-
+  ggtitle(paste(n_distinct(all_malaria$id), " children, aged 8 weeks - ", max(all_malaria$age_months, na.rm = T), " months \n", sum(combo_clin$total_infections),
+                " parasitemic episodes", sep=""))
 
 clin_n_infection_age <- cowplot::plot_grid(clin_n_age, clin_n_infection, nrow = 1)
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/symptoms_per_n_infection_age.png", clin_n_infection_age, width=8, height=4, bg="white")

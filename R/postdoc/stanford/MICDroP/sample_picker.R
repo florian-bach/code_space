@@ -243,7 +243,7 @@ kids_without_full_one_year <- routine_visits %>%
   distinct()
 
 
-mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
+mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
 
 # merge parasitemia data so that qPCR takes precedent when both slide and qPCR are present
 mic_drop <- mic_drop %>%
@@ -260,7 +260,7 @@ mic_drop <- mic_drop %>%
 
 counter <- mic_drop %>%
   select(id, date, AGE, dob, mstatus, any_parsdens, parasitaemia_method)%>%
-  filter(mstatus!="no malaria", AGE<=52)%>%
+  filter(mstatus!="no malaria", AGE<=104)%>%
   filter(id %in% kids_without_full_one_year$id)%>%
   group_by(id) %>%
   add_count(name="number_of_episodes_in_year1")%>%
@@ -278,8 +278,10 @@ mic_drop %>%
 
 samples_for_scott <- long_specimen_data %>%
   filter(id %in% counter$id)%>%
-  filter(Timepoint_in_weeks %in% c(52),
-         Specimen_ID!="", Specimen_Type %in% c("PBMC", "Paxgene"))%>%
+  filter(id %notin% grant_and_comp$id)%>%
+  filter(Timepoint_in_weeks %in% c(104),
+         Specimen_ID!="", Specimen_Type %in% c("PBMC"))%>%
+  # filter(!is.na(withdrawaldate))%>%
   arrange(id, Specimen_Type)%>%
   select(id, Timepoint_in_weeks, BoxNumber1, PositionColumn1, PositionRow1, BoxNumber2, PositionColumn2, PositionRow2)
 
@@ -609,5 +611,5 @@ write.csv(extra_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/extra_24/ex
 # 11622 complete
 # 11651 complete
 
-# 100 for lavstsen
+
 

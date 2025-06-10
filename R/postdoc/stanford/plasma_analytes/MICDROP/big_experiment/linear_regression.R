@@ -106,7 +106,7 @@ for(i in 1:ceiling(nrow(sig_24_52)/16)){
   
 }
 
-## change through with mstatus ####
+## change through mstatus ####
 mstatus_purf <- clean_data%>%
   filter(ageinwks<60, targetName %notin% c("CTSS", "LTA|LTB", "IFNA2"))%>%
   group_by(targetName)%>%
@@ -173,17 +173,15 @@ age_change_mstatus_plot <- clean_data %>%
         axis.title.y = element_blank())
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_change_mstatus_plot.png", age_change_mstatus_plot, height=4, width=8, dpi=444, bg="white")
-infections <- clean_data%>%
-  filter(mstatus==1)%>%
-  distinct(id, date, ageinwks)
 
 
-# add n_infection etc
 
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
+# add n_infection etc ###
+
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
 
 mic_drop_data <- mic_drop %>%
-  filter(mstatus != 0, !is.na(mstatus))%>%
+  filter(mstatus != 0, !is.na(mstatus), incidentmalaria==1 | is.na(incidentmalaria) & mstatus==2 | incidentmalaria==0 & mstatus==2)%>%
   group_by(id) %>%
   add_count(name="total_n_infection") %>%
   mutate(n_infection = seq(1, max(total_n_infection)),
@@ -196,6 +194,11 @@ mic_drop_data <- mic_drop %>%
   mutate(date=as.character(date))%>%
   select(id, date, n_infection)
 
+infections <- clean_data%>%
+  filter(mstatus==1)%>%
+  distinct(id, date, ageinwks)
+
+
 n_infections <- left_join(infections, mic_drop_data, by=c("id", "date"))
 
 
@@ -204,10 +207,9 @@ analytes <- unique(clean_data$targetName)
 nulisa_to_show <- clean_data %>%
   left_join(., n_infections, by=c("id", "date"))%>%
   mutate(n_infection=ifelse(n_infection>=4, "4+", n_infection))%>%
-  filter(targetName %in% c("CTLA4", "CD274", "CD80", "PDCD1"),
-         mstatus==1)%>%
+  filter(targetName %in% c("CTLA4", "CD274", "CD80", "PDCD1"))%>%
   mutate(targetNamef=factor(targetName, levels=c("CTLA4", "CD274", "CD80", "PDCD1")))%>%
-  ggplot(aes(x=factor(n_infection), y=conc, fill=factor(n_infection)))+
+  ggplot(aes(x=factor(n_infection), y=conc, fill=factor(mstatus)))+
   geom_boxplot(outliers = FALSE)+
   facet_wrap(~targetNamef, scales = "free", nrow=2)+
   scale_fill_manual(values=viridis::rocket(n = 5))+
@@ -223,19 +225,102 @@ ggsave("~/Downloads/nulisa_for_malaria_day.png", nulisa_to_show, height=6, width
 nulisa_to_show2 <- clean_data %>%
   left_join(., n_infections, by=c("id", "date"))%>%
   mutate(n_infection=ifelse(n_infection>=4, "4+", n_infection))%>%
-  filter(targetName %in% c("CTLA4", "CD274", "CD80", "PDCD1"))%>%
-  mutate(targetNamef=factor(targetName, levels=c("CTLA4", "CD274", "CD80", "PDCD1")))%>%
-  ggplot(aes(x=factor(timepoint_num), y=conc, fill=factor(mstatus)))+
+  filter(!is.na(n_infection))%>%
+  filter(targetName %in% c("CD70", "IL18", "CTLA4", "LAG3", "GZMA", "IFNG", "CCL2", "CCL8", "IL10 "))%>%
+  # mutate(targetNamef=factor(targetName, levels=c("CD70", "IL18", "CTLA4", "LAG3", "GZMA", "IFNG", "CCL2", "CCL8", "IL10 ")))%>%
+  ggplot(aes(x=factor(n_infection), y=conc, fill=factor(mstatus)))+
   geom_boxplot(outliers = FALSE)+
-  facet_wrap(~targetNamef, scales = "free", nrow=2)+
-  scale_fill_manual(values=c("black", "darkred"))+
-  xlab("age in weeks")+
-  ylab("Concentration in Blood")+
+  facet_wrap(~targetName, scales = "free", nrow=2)+
+  scale_fill_manual(values=c("darkred"))+
+  xlab("order of malaria episode")+
+  ylab("concentration in blood")+
   theme_minimal(base_size = 16)+
   theme(legend.position = "none")
 
-nulisa_to_show2+nulisa_to_show
+ggsave("~/Downloads/nulisa_for_boyd_lab.png", nulisa_to_show2, height=4, width=8, dpi = 444, bg="white")
 
+
+n_infection_purf <- clean_data%>%
+  left_join(., n_infections, by=c("id", "date"))%>%
+  filter(mstatus==1, targetName %notin% c("CTSS", "LTA|LTB", "IFNA2"))%>%
+  mutate(n_infection_cat=case_when(n_infection<4~as.character(n_infection),
+                                   n_infection>3~"4+"))%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lm(conc~factor(n_infection_cat), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ n_infection_cat)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate("1 vs 2"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("1 vs 3"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("1 vs 4+"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=starts_with("1"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+n_infection_sigs <-n_infection_purf%>%
+  filter(p<0.01)%>%
+  arrange(p)
+
+
+clean_data%>%
+  left_join(., n_infections, by=c("id", "date"))%>%
+  filter(targetName %in% grep("^IL*", n_infection_purf$targetName, value=T),
+         mstatus==1)%>%
+  mutate(n_infection_cat=case_when(n_infection<4~as.character(n_infection),
+                                   n_infection>3~"4+"))%>%
+  mutate(targetNamef=factor(targetName))%>%
+  ggplot(aes(x=factor(n_infection_cat), y=conc, fill=factor(n_infection_cat)))+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free")+
+  viridis::scale_fill_viridis(discrete = T)+
+  xlab("number of malaria episodes")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+
+# IL10, IL22, CTLA4, CD70, CD274, PDCD1
+mstatus_targets_of_interest <- c("IL18", "IL27", "IFNG",
+                                 "IL18BP", "NTF3", "FASLG")
+
+analytes_during_malaria_n_infection <- clean_data%>%
+  left_join(., n_infections, by=c("id", "date"))%>%
+  filter(targetName %in% mstatus_targets_of_interest,
+         mstatus==1)%>%
+  mutate(n_infection_cat=case_when(n_infection<4~as.character(n_infection),
+                                   n_infection>3~"4+"))%>%
+  mutate(targetNamef=factor(targetName, levels=mstatus_targets_of_interest))%>%
+  ggplot(aes(x=factor(n_infection_cat), y=conc, fill=factor(n_infection_cat)))+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free")+
+  viridis::scale_fill_viridis(discrete = T)+
+  xlab("number of malaria episodes")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/analytes_during_malaria_n_infection.png", analytes_during_malaria_n_infection, height=4, width=8, dpi=444, bg="white")
+
+
+analytes_during_malaria_age <- clean_data%>%
+  filter(targetName %in% mstatus_targets_of_interest,
+         , timepoint!="68 weeks")%>%
+  mutate(targetNamef=factor(targetName, levels=mstatus_targets_of_interest))%>%
+  ggplot(aes(x=factor(timepoint), y=conc, fill=factor(mstatus)))+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free")+
+  scale_fill_manual(values=c("darkgrey", "darkred"))+
+  xlab("age")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/analytes_during_malaria_age.png", analytes_during_malaria_age, height=4, width=8, dpi=444, bg="white")
 
 ## change through infection history####
 ### negative binomial; this is needed for para because variance = 4 and mean =1 ####
@@ -361,7 +446,7 @@ clean_data%>%
   theme(legend.position = "none")
 
 ggsave("~/Downloads/any_malar.png", width=8, height=4, dpi=444)
- ### poisson; this is OK for malaria because variance = 0.28 and mean =0.22####
+### poisson; this is OK for malaria because variance = 0.28 and mean =0.22####
 purf_52_poisson <- clean_data%>%
   filter(mstatus==0, timepoint=="52 weeks")%>%
   group_by(targetName)%>%
@@ -393,3 +478,54 @@ clean_data%>%
   theme(legend.position = "none")
 
 
+
+## treatment arm ####
+
+mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
+
+clean_data <- clean_data%>%
+  mutate(treatmentarm=mic_drop_key$treatmentarm[match(as.numeric(id), mic_drop_key$id)],
+         anyDP=if_else(treatmentarm==1, "no", "yes"),
+         treatmentarm=case_match(treatmentarm,
+                    1~"Placebo",
+                    2~"DP 1 year",
+                    3~"DP 2 years"))
+
+treatment_purf <- clean_data%>%
+  filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*treatmentarm+gender_categorical+(1|id), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ treatmentarm | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | treatmentarm)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+sigs <- treatment_purf%>%
+  filter(padj<0.05)%>%
+  filter(contrast!="24 weeks")
+
+time_treatment_plot <- clean_data%>%
+  filter(treatmentarm!="DP 2 years", timepoint!="68 weeks")%>%
+  filter(targetName %in% sigs$targetName)%>%
+  ggplot(aes(x=factor(timepoint_num), y=conc, fill=treatmentarm))+
+  geom_boxplot(outliers=F)+
+  # stat_summary(aes(group=c(treatmentarm)), geom="cro", fun.y=median, colour="white")+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  facet_wrap(~targetName, scales="free", nrow=2)+
+  scale_fill_manual(values=c("darkred", "#00555A"))+
+  theme_minimal()+
+  theme(legend.title = element_blank(),
+        axis.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/time_treatment_plot.png", width=8, height=4, dpi=444, bg="white")

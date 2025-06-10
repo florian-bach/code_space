@@ -5,7 +5,7 @@ library(dplyr)
 library(ggplot2)
 
 
-
+`%notin%`=Negate(`%in%`)
 
 da_boxplot_theme <- theme(legend.position = "none",
                           axis.title = element_blank())
@@ -148,6 +148,22 @@ for(i in 1:ceiling(nrow(sig_base_base)/16)){
 }
 
 
+sig_base_as <- combo_as_purff%>%
+  filter(contrast=="baseline A - baseline S", padj <0.1)%>%
+  distinct(targetName)
+
+clean_data%>%
+  mutate(inf_type_dich=ifelse(grepl("^S",infectiontype), "S", ifelse(grepl("^A", infectiontype), "A", infectiontype)))%>%
+  filter(timepoint=="baseline", inf_type_dich%in%c("A", "S"), targetName %in% sig_base_as$targetName)%>%
+  ggplot(., aes(x=inf_type_dich, y=concentration, fill=inf_type_dich))+
+  geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = F)+
+  facet_wrap(~targetName, scales="free")+
+  scale_fill_manual(values=c("darkgrey", "darkred"))+
+  theme_minimal()+
+  ggtitle("baseline")+
+  xlab("Asymptomatic / Symptomatic")+
+  theme(legend.position = "none")
 
 
 ## baseline day 14  A ####

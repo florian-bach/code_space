@@ -10,7 +10,7 @@ comp_pal <- c("no malaria"="lightgrey",
               "Q/AS failure"="purple")
 
 
-mic_drop <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/visit_databases/2024_07/MICDROP expanded database through July 31st 2024.dta")
+mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP expanded database through April 30th 2025.dta")
 
 
 sample_ages <- c(8, 24, 52, 68, 84, 104, 120)
@@ -37,7 +37,14 @@ blood_counts <- mic_drop %>%
                            mstatus==0 ~ "no malaria"),
          ever_comp=if_else(id %in% kids_with_comp$id, "complicated", "never complicated"))%>%
   pivot_longer(cols=c(plt, wbc, hb, eosino, mono, lymph, neutro), names_to = "cell_type", values_to = "cell_freq")%>%
-  filter(!is.na(cell_freq), Timepoint_in_weeks %in% sample_ages)
+  filter(!is.na(cell_freq))%>%
+  mutate(treatmentarm=mic_drop_key$treatmentarm[match(id, mic_drop_key$id)])%>%
+  mutate(treatmentarm=case_match(treatmentarm,
+                                 1~"No DP",
+                                 2~"DP 1 year",
+                                 3~"DP 2 years"))%>%
+  mutate(hb_less_than_eight =ifelse(hb<8, TRUE, FALSE))
+
   
 
  
@@ -79,15 +86,32 @@ blood_counts%>%
 blood_counts %>%
   filter(cell_type=="hb")%>%
   arrange(disease)%>%
-  ggplot(., aes(x=qPCRparsdens+0.01, y=cell_freq))+
-  geom_point(aes(color=factor(disease)))+
-  geom_boxplot(aes(fill=factor(Timepoint_in_weeks)), outliers = FALSE)+
+  ggplot(., aes(x=factor(mstatus), y=cell_freq))+
+  # geom_point(aes(color=factor(disease)))+
+  geom_boxplot(aes(fill=factor(mstatus)), outliers = FALSE)+
   # geom_line(aes(group=id))+
   # facet_wrap(~cell_type, scales="free")+
-  scale_x_log10()+
+  # scale_x_log10()+
   scale_fill_manual(values=colorspace::sequential_hcl(n = 7, palette="LaJolla"))+
   scale_color_manual(values=comp_pal)+
   theme_minimal()
+
+
+
+blood_counts %>%
+  filter(cell_type=="hb")%>%
+  filter(cell_freq<100)%>%
+  arrange(mstatus)%>%
+  ggplot(., aes(x=flo_age_in_wks, y=cell_freq))+
+  geom_point(aes(color=factor(disease)))+
+  # geom_boxplot(aes(fill=factor(mstatus)), outliers = FALSE)+
+  # geom_line(aes(group=id))+
+  facet_wrap(~treatmentarm, scales="fixed")+
+  # scale_x_log10()+
+  scale_fill_manual(values=colorspace::sequential_hcl(n = 7, palette="LaJolla"))+
+  scale_color_manual(values=comp_pal)+
+  theme_minimal()
+
 
 blood_count_qpcr_purrr <- blood_counts %>%
   mutate(log_pd=log10(qPCRparsdens+0.01), 
