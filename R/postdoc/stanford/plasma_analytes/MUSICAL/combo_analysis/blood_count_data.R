@@ -39,7 +39,8 @@ slim_blood_counts <- blood_counts%>%
 clean_data_with_cell_counts <- metadata %>%
   mutate(date=as.Date(date), id=as.character(id))%>%
   left_join(., slim_blood_counts, by=c("id", "date"))%>%
-  pivot_longer(cols=c( `CD3+  cells/ul blood`, `lymphocytes/ul blood`), names_to = "blood_count", values_to = "cbc_per_ul")
+  pivot_longer(cols=c( `CD3+  cells/ul blood`, `lymphocytes/ul blood`), names_to = "blood_count", values_to = "cbc_per_ul")%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))
 
 
 
@@ -53,6 +54,23 @@ cbc_boxplot <- clean_data_with_cell_counts %>%
   scale_fill_manual(values=time_cols)
 
 ggsave("~/postdoc/stanford/clinical_data/MUSICAL/cbc_boxplot.png", cbc_boxplot, height = 6, width = 8, dpi=444, bg="white")  
+
+lymph_count_for_paper <-  clean_data_with_cell_counts %>%
+  filter(infectiontype %in% c("S", "A"),
+         timepoint %in% c("baseline", "day0", "day7", "day14"),
+         blood_count!="lymphocytes/ul blood")%>%
+  ggplot(., aes(x=timepoint,y=cbc_per_ul, fill=timepoint))+
+  geom_boxplot(outliers = F)+
+  # ggpubr::stat_compare_means(paired = T, ref.group = ".all.")+
+  facet_wrap(~infectiontype, scales='free_x')+
+  theme_minimal()+
+  ylab("T cells / μL")+
+  scale_fill_manual(values=time_cols)+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/tcounts.pdf", lymph_count_for_paper, height = 3, width = 6, bg="white", device = cairo_pdf)  
+
 
 
 cbc_boxplot2 <- clean_data_with_cell_counts %>%
@@ -132,6 +150,9 @@ cell_count_data <- combo_data%>%
                         ifelse(gate %in% c("IFNg_Frequency","IL10_Frequency", "IL21_Frequency"), absolute_CD4_memory*freq/100, NA)))
 
 write.csv(cell_count_data, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/t_cell_cytometry_count_data.csv", row.names = F)
+
+
+
 
 tr1_freq_plot <- cell_count_data %>%
   filter(infectiontype %in% c("S", "A"), timepoint!="bad_baseline")%>%

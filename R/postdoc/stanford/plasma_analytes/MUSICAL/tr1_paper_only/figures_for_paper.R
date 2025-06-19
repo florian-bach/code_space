@@ -165,6 +165,24 @@ tr1_count_plot <- cell_count_data %>%
         legend.position = "none")
 
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_count_plot.png", tr1_count_plot, width =5.3333333, height=3, dpi=444, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_count_plot.pdf", tr1_count_plot, width =5.3333333, height=3, bg="white", device = cairo_pdf)
+
+
+lymph_count_plot <-  clean_data_with_cell_counts %>%
+  filter(infectiontype %in% c("S"),
+         timepoint %in% c("baseline", "day0", "day7", "day14"),
+         blood_count=="lymphocytes/ul blood")%>%
+  ggplot(., aes(x=timepoint,y=cbc_per_ul, fill=timepoint))+
+  geom_boxplot(outliers = F)+
+  # ggpubr::stat_compare_means(paired = T, ref.group = ".all.")+
+  facet_wrap(~infectiontype, scales='free_x')+
+  theme_minimal()+
+  ylab("Lymphocytes / μL")+
+  scale_fill_manual(values=time_cols)+
+  theme(legend.position = "none",
+        axis.title.x = element_blank())
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/lymph_counts.pdf", lymph_count_plot, height = 3, width = 3.3, bg="white", device = cairo_pdf)  
 
 
 
@@ -202,8 +220,8 @@ model <- tr1_counts%>%
 
 pvalues <- data.frame(model$emm_contrast)
 write.csv(pvalues, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_p.csv")
-# Panel F ####
 
+# Panel F ####
 long_combo <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/cell_freqs_and_nulisa.csv")
 
 
@@ -235,7 +253,8 @@ target_cor_plot <- long_combo%>%
   guides(fill=guide_none())+
   theme_minimal()
 
-ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_tr1_proteins.png", target_cor_plot, width=5.33333, height=5.33333, bg="white")
+# ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_tr1_proteins.png", target_cor_plot, width=5.33333, height=5.33333, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_tr1_proteins.pdf", target_cor_plot, width=5.33333, height=5.33333, bg="white")
 
 
 base_target_cor_plot <- long_combo%>%

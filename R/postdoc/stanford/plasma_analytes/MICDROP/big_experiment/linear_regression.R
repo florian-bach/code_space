@@ -109,6 +109,7 @@ for(i in 1:ceiling(nrow(sig_24_52)/16)){
 ## change through mstatus ####
 mstatus_purf <- clean_data%>%
   filter(ageinwks<60, targetName %notin% c("CTSS", "LTA|LTB", "IFNA2"))%>%
+  mutate(mstatus=factor(if_else(mstatus==0&qPCRparsdens>1, 0.5, mstatus)))%>%
   group_by(targetName)%>%
   nest()%>%
   mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*mstatus+(1|id), data=.))) %>%
@@ -116,16 +117,25 @@ mstatus_purf <- clean_data%>%
   mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ mstatus | timepoint)))%>%
   mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
   mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
-  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
-  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
-  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  mutate("malaria 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("malaria 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
+  mutate("malaria 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[8])) %>%
+  mutate("asymp 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("asymp 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[4])) %>%
+  mutate("asymp 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[7])) %>%
   pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
   group_by(contrast)%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
 
-sig_mstatus <- mstatus_purf%>%
-  filter(padj < 0.05)
+sig_malaria <- mstatus_purf%>%
+  filter(padj < 0.05, grepl("^malaria", contrast))
+
+sig_asymp <- mstatus_purf%>%
+  filter(padj < 0.05, grepl("^asymp", contrast))
+
+asymp_specific <- unique(sig_asymp$targetName)[unique(sig_asymp$targetName) %notin% unique(sig_malaria$targetName)]
+
 # 
 # sig_8 <- sig_mstatus%>%
 #   filter(contrast=="8 weeks")%>%
@@ -174,6 +184,22 @@ age_change_mstatus_plot <- clean_data %>%
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_change_mstatus_plot.png", age_change_mstatus_plot, height=4, width=8, dpi=444, bg="white")
 
+#chemokine decreases = unmoved during asymp; result of lack of consumption by T cells?
+age_change_asymp_plot <- clean_data %>%
+  filter(targetName %in% asymp_specific,
+         #c("SDC1", "LILRB2", "IL10", "VCAM1", "LAG3"),
+         timepoint!="68 weeks")%>%
+  mutate(mstatus=if_else(mstatus==0&qPCRparsdens>1, 0.5, mstatus))%>%
+  ggplot(aes(x=factor(timepoint_num), y=conc, fill=factor(mstatus)))+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetName, scales = "free", nrow=4)+
+  scale_fill_manual(values=c("darkgrey", "tan1", "darkred"))+
+  xlab("age in weeks")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_change_mstatus_plot.png", age_change_mstatus_plot, height=4, width=8, dpi=444, bg="white")
 
 
 # add n_infection etc ###

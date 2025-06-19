@@ -204,7 +204,7 @@ sig_base_day0_a$targetName [sig_base_day0_a$targetName %notin% sig_base_day14_a$
 
 # are parasite controlllers different ####
 
-day14_a_purff <- nulisa_data %>%
+day14_a_purff <- clean_data %>%
   filter(infectiontype%in%c("A"), timepoint %notin% c("day7", "day28", "bad_baseline"))%>%
   mutate(day14_para=if_else(timepoint=="day14" & parasitedensity > 1, "parasitemic_day14", "no_parasites_day14"))%>%
   group_by(id)%>%

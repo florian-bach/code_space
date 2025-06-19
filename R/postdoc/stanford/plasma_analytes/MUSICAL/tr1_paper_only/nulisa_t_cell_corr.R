@@ -53,7 +53,7 @@ long_combo <- slim_nulisa_data%>%
   select(-timepoint.x, -timepoint.y)%>%
   filter(!is.na(freq))
 
-# write.csv(long_combo, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/cell_freqs_and_nulisa.csv", col.names = F)
+write.csv(long_combo, "~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/cell_freqs_and_nulisa.csv", col.names = F)
 
 # grand correlation 
 
