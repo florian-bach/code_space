@@ -168,22 +168,80 @@ ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_count_p
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_count_plot.pdf", tr1_count_plot, width =5.3333333, height=3, bg="white", device = cairo_pdf)
 
 
+blood_counts <- readxl::read_xls("~/postdoc/stanford/clinical_data/MUSICAL/PRISMBC LYMPHOCYTE TRUCOUNTS.xls")
+metadata <- read.csv("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/musical_metadata_new_qpcr.csv")
+
+metadata <- read.csv("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/musical_metadata_new_qpcr.csv")
+
+
+metadata <- metadata%>%
+  mutate("timepoint"=case_when(timepoint_imm==-2 & id %in% c(134, 164, 176, 317, 331, 363, 379, 398, 402, 442, 577) ~"baseline",
+                               timepoint_imm==-1 & id %notin% c(134, 164, 176, 317, 331, 363, 379, 398, 402, 442, 577) ~"baseline",
+                               timepoint_imm==-1 & infectiontype %in% c("A", "S") & id %in% c(134, 164, 176, 317, 331, 363, 379, 398, 402, 442, 577) ~"bad_baseline",
+                               timepoint_imm==0~"day0",
+                               timepoint_imm==7~"day7",
+                               timepoint_imm==14~"day14",
+                               timepoint_imm==28~"day28"))
+
+#subset to only include musical folks
+
+blood_counts <- readxl::read_xls("~/postdoc/stanford/clinical_data/MUSICAL/PRISMBC LYMPHOCYTE TRUCOUNTS.xls")
+
+slim_blood_counts <- blood_counts%>%
+  select(Id, `Draw date`, `CD3+  cells/ul blood`, `lymphocytes/ul blood`)%>%
+  filter(!is.na(Id))%>%
+  mutate(date=as.Date(`Draw date`), id=as.character(Id))%>%
+  select(-`Draw date`, -Id)
+
+
+clean_data_with_cell_counts <- metadata %>%
+  mutate(date=as.Date(date), id=as.character(id))%>%
+  left_join(., slim_blood_counts, by=c("id", "date"))%>%
+  pivot_longer(cols=c( `CD3+  cells/ul blood`, `lymphocytes/ul blood`), names_to = "blood_count", values_to = "cbc_per_ul")%>%
+  mutate(timepoint = factor(timepoint, levels=c("baseline", "day0", "day7", "day14")))
+
+
+
 lymph_count_plot <-  clean_data_with_cell_counts %>%
   filter(infectiontype %in% c("S"),
          timepoint %in% c("baseline", "day0", "day7", "day14"),
          blood_count=="lymphocytes/ul blood")%>%
   ggplot(., aes(x=timepoint,y=cbc_per_ul, fill=timepoint))+
   geom_boxplot(outliers = F)+
-  # ggpubr::stat_compare_means(paired = T, ref.group = ".all.")+
+  # ggpubr::stat_compare_means(ref.group = "baseline")+
   facet_wrap(~infectiontype, scales='free_x')+
+  # scale_y_continuous(trans="log10")+
   theme_minimal()+
   ylab("Lymphocytes / μL")+
   scale_fill_manual(values=time_cols)+
   theme(legend.position = "none",
         axis.title.x = element_blank())
 
-ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/lymph_counts.pdf", lymph_count_plot, height = 3, width = 3.3, bg="white", device = cairo_pdf)  
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/lymph_counts2.pdf", lymph_count_plot, height = 3, width = 3.3, bg="white", device = cairo_pdf)  
 
+# lm_data <- clean_data_with_cell_counts %>%
+#   filter(infectiontype %in% c("S", "A"),
+#          timepoint %in% c("baseline", "day0", "day7", "day14"),
+#          blood_count=="lymphocytes/ul blood")%>%
+#   mutate(log_cbc_per_ul=log10(cbc_per_ul))
+# 
+# 
+# m1 <- lme4::lmer(log_cbc_per_ul~timepoint*infectiontype+(1|id), data=lm_data)
+# emm=emmeans(m1, ~ timepoint | infectiontype)
+# emm_contrast=contrast(emm, method="pairwise", adjust="none")
+# 
+# 
+# testable_data <- clean_data_with_cell_counts %>%
+#   filter(infectiontype %in% c("S"), !is.na(cbc_per_ul),
+#          timepoint %in% c("baseline", "day0"),
+#          blood_count=="lymphocytes/ul blood")%>%
+#   group_by(id)%>%
+#   # filter(n()==2)%>%
+#   mutate(log_cbc_per_ul=log10(cbc_per_ul))
+# 
+# with(testable_data, wilcox.test(cbc_per_ul[timepoint == "baseline"], cbc_per_ul[timepoint == "day0"], paired=F))
+# with(testable_data, t.test(log_cbc_per_ul[timepoint == "baseline"], log_cbc_per_ul[timepoint == "day0"], paired=T))
+# 
 
 
 tr1_freq_plot <- cell_count_data %>%

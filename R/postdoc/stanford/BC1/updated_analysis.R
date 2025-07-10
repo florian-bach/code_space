@@ -490,7 +490,7 @@ ggsave(filename = paste("~/postdoc/stanford/clinical_data/BC1/figures_for_paper/
 # regular concentration~incidence ##
 
 ab_clin <- long_raw_dfff%>%
-  # mutate(id=as.numeric(as.character(id)))%>%
+  mutate(id=as.numeric(as.character(id)))%>%
   # filter(timepoint==3)%>%
   inner_join(., infs, by="id")%>%
   dplyr::select(-matches("any"))%>%
@@ -530,7 +530,7 @@ ab_incidence_purf <- ab_clin %>%
   # mutate(nb_cell_incidence_model_summary_p=map_dbl(nb_cell_incidence_model_summary, ~coef(.)[11]))%>%
   # 
   # MASS poisson model
-  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ log10(conc), random = ~1 | id, family=poisson)))%>%
+  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., incidence_value ~ conc, random = ~1 | id, family=poisson)))%>%
   # lme4 poisson model
   # mutate(cell_incidence_model=map(data, ~lme4::glmer(data=., incidence_value ~ log10(conc) + (1 | id), family="poisson")))%>%
   
@@ -542,7 +542,7 @@ ab_incidence_purf <- ab_clin %>%
   ungroup()%>%
   group_by(timepoint)%>%
   # mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="BH"))
-  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p))
+  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="fdr"))
 
 
 

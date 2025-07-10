@@ -64,7 +64,7 @@ micdrop_nulisa <- very_big_data%>%
 
 # read in metadata####
 ## clinical data####
-raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Nov24/MICDSpecimenBoxNov24_withclinical.dta")
+raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
 
 master_plate_map <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/master_plate_map.xlsx", col_types = c("numeric", "date", "numeric", "text", "guess", "guess", "guess"))
   
@@ -153,3 +153,17 @@ write.csv(dpsp_nulisa, "~/postdoc/stanford/plasma_analytes/DPSP/dpsp_nulisa_data
 # 
 # write.csv(micdrop_nulisa_metadata, "~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Immunology/NULISA/micdrop_nulisa_metadata.csv")
 # 
+
+# 
+# clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv")
+# data_for_petter <- clean_data%>%
+#   select(-dob, -date, -gi, -file_name, -timepoint2, -gender, -qPCRdich, -mqPCRparsdens, -total_n_para, -total_n_malaria)
+# 
+# write.csv(data_for_petter, "~/Downloads/data_for_petter.csv", row.names = F)
+# 
+# col_names <- data_for_petter%>%
+#   filter(id=="h")
+# 
+# write.csv(col_names, "~/Downloads/col_names.csv", row.names = F)
+# 
+

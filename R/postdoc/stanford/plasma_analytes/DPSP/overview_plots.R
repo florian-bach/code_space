@@ -4,8 +4,15 @@ library(ggplot2)
 library(purrr)
 library(emmeans)
 
-
+maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
 dpsp_nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/DPSP/dpsp_nulisa_data.csv")
+dpsp_nulisa <- dpsp_nulisa%>%
+  mutate(mom_rx=maternal_treatment_arms$treatmentarm[match(id, maternal_treatment_arms$id)],
+         mom_rx=case_match(mom_rx,
+                           1~"SP",
+                           2~"DP",
+                           3~"DPSP"))
+
 
 fc_data <- dpsp_nulisa %>%
   filter(sample!="1094_pregnant_1")%>%
@@ -255,4 +262,46 @@ linear_lms <- nulisa_plus_neuro %>%
 
 
 
+
+
+# maternal treatment ####
+
+
+nulisa_rx_purf <- dpsp_nulisa%>%
+  filter(timepoint2!="post")%>%
+  group_by(targetName)%>%
+  mutate(id_cat=as.character(id))%>%
+  nest()%>%
+  mutate(model=map(data, ~lme4::lmer(conc~timepoint2*mom_rx+(1|id_cat), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(emm=map(model, ~emmeans(., specs = pairwise ~ mom_rx | timepoint2)))%>%
+  mutate(emm2=map(model, ~emmeans(., specs = pairwise ~ timepoint2 | mom_rx)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("delivery DP - DPSP"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("delivery DP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("delivery DPSP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  mutate("pregnant DP - DPSP"=map_dbl(emm_contrast_summary, ~.$p.value[4])) %>%
+  mutate("pregnant DP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
+  mutate("pregnant DPSP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[6])) %>%
+  pivot_longer(cols=ends_with("- DPSP") | ends_with("- SP"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+nulisa_rx_sigs <- nulisa_rx_purf%>%
+  filter(padj<0.1)%>%
+  select(targetName, contrast, p, padj)
+
+
+dpsp_nulisa%>%
+  filter(timepoint2!="post")%>%
+  mutate(id_cat=as.character(id))%>%
+  filter(targetName%in%nulisa_rx_sigs$targetName)%>%
+  ggplot(., aes(x=factor(timepoint2), y=conc, fill=mom_rx))+
+  # geom_line(aes(group=id_cat), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetName, scales = "free")+
+  theme_minimal()
 

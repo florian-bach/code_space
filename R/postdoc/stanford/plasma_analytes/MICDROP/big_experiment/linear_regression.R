@@ -555,3 +555,38 @@ time_treatment_plot <- clean_data%>%
         axis.title = element_blank())
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/time_treatment_plot.png", width=8, height=4, dpi=444, bg="white")
+
+
+# sickle trait ####
+sickle_purf <- clean_data%>%
+  filter(mstatus==0, timepoint!="68 weeks", hbs!="HbSS")%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*hbs+(1|id), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ hbs | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | hbs)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+sigs <- sickle_purf%>%
+  filter(padj<0.1)
+
+
+clean_data%>%
+  filter(mstatus==0, timepoint!="68 weeks", hbs!="HbSS")%>%
+  filter(targetName%in%c(sigs$targetName))%>%
+  ggplot(., aes(x=timepoint, y=conc, fill=hbs))+
+  ggpubr::stat_compare_means()+
+  geom_point(position=position_dodge(width=0.75), alpha=0.1)+
+  geom_boxplot(outliers = F)+
+  theme_minimal()
+

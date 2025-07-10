@@ -10,10 +10,11 @@ comp_pal <- c("no malaria"="lightgrey",
               "Q/AS failure"="purple")
 
 
-mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP expanded database through April 30th 2025.dta")
+mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through May 31st 2025.dta")
+mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 
-sample_ages <- c(8, 24, 52, 68, 84, 104, 120)
+sample_ages <- c(8, 24, 52, 68, 84, 104, 120, 136, 156)
 sample_ages_minus <- sample_ages-1
 sample_ages_plus <- sample_ages+1
 
@@ -26,7 +27,8 @@ kids_with_comp <- mic_drop %>%
 
 
 blood_counts <- mic_drop %>%
-  mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
+  mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7,
+         "flow_age_in_integer_years"=(floor(flo_age_in_wks/52))+1)%>%
   mutate("Timepoint_in_weeks"=if_else(
     flo_age_in_wks %in% sample_ages, flo_age_in_wks, ifelse(
       flo_age_in_wks %in% sample_ages_minus, flo_age_in_wks+1, if_else(
@@ -36,14 +38,15 @@ blood_counts <- mic_drop %>%
                            mstatus==1 ~ "uncomplicated",
                            mstatus==0 ~ "no malaria"),
          ever_comp=if_else(id %in% kids_with_comp$id, "complicated", "never complicated"))%>%
+  mutate(hb_less_than_eight =ifelse(hb<8, TRUE, FALSE))%>%
   pivot_longer(cols=c(plt, wbc, hb, eosino, mono, lymph, neutro), names_to = "cell_type", values_to = "cell_freq")%>%
   filter(!is.na(cell_freq))%>%
   mutate(treatmentarm=mic_drop_key$treatmentarm[match(id, mic_drop_key$id)])%>%
   mutate(treatmentarm=case_match(treatmentarm,
                                  1~"No DP",
                                  2~"DP 1 year",
-                                 3~"DP 2 years"))%>%
-  mutate(hb_less_than_eight =ifelse(hb<8, TRUE, FALSE))
+                                 3~"DP 2 years"))
+  
 
   
 
@@ -62,7 +65,7 @@ blood_counts%>%
     # geom_line(aes(group=id))+
     facet_wrap(~cell_type, scales="free")+
     scale_y_log10()+
-    scale_fill_manual(values=colorspace::sequential_hcl(n = 7, palette="LaJolla"))+
+    scale_fill_manual(values=colorspace::sequential_hcl(n = 8, palette="LaJolla"))+
     scale_alpha_manual(values = c(1,0))+
     scale_color_manual(values=comp_pal)+
     theme_minimal()

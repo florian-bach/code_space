@@ -3,9 +3,15 @@ library(dplyr)
 library(xlsx)
 library(ggplot2)
 library(purrr)
+library(emmeans)
 
 nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
+maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
+
+vaccines = c("Diptheria",     "Measles" ,      "Mumps",         "Pertussis",     "Polio",
+             "Rotavirus" ,    "Rubella",       "Tetanus", "Pneumo.1.4.14")
+
 
 nulisa_data <- nulisa_data%>%
   mutate(treatmentarm=mic_drop_key$treatmentarm[match(as.numeric(id), mic_drop_key$id)],
@@ -25,7 +31,12 @@ epi_data <- nulisa_data%>%
          treatmentarm=case_match(treatmentarm,
                                  1~"Placebo",
                                  2~"DP 1 year",
-                                 3~"DP 2 years"))
+                                 3~"DP 2 years"),
+         mom_rx=maternal_treatment_arms$treatmentarm[match(id-10000, maternal_treatment_arms$id)],
+         mom_rx=case_match(mom_rx,
+                           1~"SP",
+                           2~"DP",
+                           3~"DPSP"))
 
 msd_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/batch_one.csv")
 
@@ -45,7 +56,7 @@ antibodies_and_nulisa <-  nulisa_data%>%
 
 
 antibodies_and_epi%>%
-  filter(timepoint=="24 weeks", !is.na(anyHP))%>%
+  filter(timepoint=="8 weeks", !is.na(anyHP))%>%
   mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
          any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
   ggplot(., aes(x=factor(anyHP), y=titer))+
@@ -452,8 +463,157 @@ antibodies_and_epi%>%
   theme(axis.title=element_blank())
 
 # treatmentarm analysis ####
+## child treatment arm ####
+
+treatment_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(id_cat=factor(id.x))%>%
+  # filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(log_titer~timepoint*treatmentarm+gender_categorical+(1|id_cat), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ treatmentarm | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | treatmentarm)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+kinda_sigs <- treatment_purf %>%
+  filter(padj<0.2)
 
 
+antibodies_and_epi%>%
+  filter(!antigen%in%vaccines)%>%
+  ggplot(., aes(x=factor(timepoint), y=titer, fill=treatmentarm))+
+  geom_point(position=position_dodge(width=0.75))+
+  # geom_violin(draw_quantiles = c(seq(0,1,by=0.25)), color="white", )+
+  geom_boxplot(outliers=F)+
+  scale_y_log10()+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  
+  # ggrepel::geom_label_repel(aes(label=sample_label))+
+  ggpubr::stat_compare_means()+
+  scale_fill_manual(values=c("darkred", "#00555A"))+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()+
+  theme(axis.title=element_blank(),
+        legend.title = element_blank(),
+  )
+
+## maternal treatment arm ####
+mom_treatment_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(id_cat=factor(id.x))%>%
+  # filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(log_titer~timepoint*mom_rx+(1|id_cat), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ mom_rx | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | mom_rx)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks DP - DPSP"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("8 weeks DP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("8 weeks DPSP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  mutate("24 weeks DP - DPSP"=map_dbl(emm_contrast_summary, ~.$p.value[4])) %>%
+  mutate("24 weeks DP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
+  mutate("24 weeks DPSP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[6])) %>%
+  mutate("52 weeks DP - DPSP"=map_dbl(emm_contrast_summary, ~.$p.value[7])) %>%
+  mutate("52 weeks DP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[8])) %>%
+  mutate("52 weeks DPSP - SP"=map_dbl(emm_contrast_summary, ~.$p.value[9])) %>%
+  pivot_longer(cols=ends_with("SP"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+kinda_sigs <- mom_treatment_purf %>%
+  filter(padj<0.1)
+
+
+antibodies_and_epi%>%
+  # filter(antigen%in%vaccines)%>%
+  ggplot(., aes(x=factor(timepoint), y=titer, fill=mom_rx))+
+  # geom_point(position=position_dodge(width=0.75))+
+  # geom_violin(draw_quantiles = c(seq(0,1,by=0.25)), color="white", )+
+  geom_boxplot(outliers=F)+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  scale_y_log10()+
+  facet_wrap(~antigen)+
+  viridis::scale_fill_viridis(option = "cividis", discrete = T, direction = 1)+
+  theme_minimal()
+  
+momrx_8week_plot <- antibodies_and_epi%>%
+  filter(timepoint=="8 weeks")%>%
+  ggplot(., aes(x=factor(timepoint), y=titer, fill=mom_rx))+
+  # geom_point(position=position_dodge(width=0.75))+
+  # geom_violin(draw_quantiles = c(seq(0,1,by=0.25)), color="white", )+
+  geom_boxplot(outliers=F)+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  scale_y_log10()+
+  facet_wrap(~antigen)+
+  viridis::scale_fill_viridis(option = "cividis", discrete = T, direction = 1)+
+  ggtitle("8 weeks")+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/momrx_8week_plot.png", momrx_8week_plot, width=8, height=8, dpi=444, bg="white")
+
+## anyhp ####
+anyhp_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(id_cat=factor(id.x))%>%
+  # filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(log_titer~timepoint*anyHP+(1|id_cat), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ anyHP | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | anyHP)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+kinda_sigs <- anyhp_purf %>%
+  filter(padj<0.1)
+
+anyhp_8week_plot <- antibodies_and_epi%>%
+  filter(timepoint=="8 weeks", !is.na(anyHP))%>%
+  mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
+         any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
+  ggplot(., aes(x=factor(anyHP), y=titer, fill=factor(anyHP)))+
+  geom_violin(draw_quantiles = seq(0,1,0.25))+
+  scale_y_log10()+
+  facet_wrap(~antigen)+
+  viridis::scale_fill_viridis(option = "cividis", discrete = T, direction = 1)+
+  ggtitle("8 weeks")+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/anyhp_8week_plot.png", anyhp_8week_plot, width=8, height=8, dpi=444, bg="white")
+
+## child treatment arm ####
 treatment_purf <- antibodies_and_epi%>%
   mutate(log_titer=log10(titer))%>%
   mutate(id_cat=factor(id.x))%>%
@@ -500,8 +660,6 @@ antibodies_and_epi%>%
 
 # high responder vs low responder
 
-vaccines = c("Diptheria",     "Measles" ,      "Mumps",         "Pertussis",     "Polio",
-             "Rotavirus" ,    "Rubella",       "Tetanus", "Pneumo.1.4.14")
 
 scaled_msd <- antibodies_and_epi %>%
   filter(sample!="NA_tpNA", antigen %in% vaccines)%>%
@@ -561,3 +719,69 @@ antibodies_and_nulisa%>%
   theme_minimal()
 
 
+
+
+# attempt at mixture models ####
+
+# credit Kenneth & Alyssa for code below this line
+
+seroprev_est_df <- data.table()
+
+for(v in viruses[c(1,3:16)]){
+  
+  concentration_values <- infections_abs$titer[infections_abs$antigen %in% c(v)]
+  log_serotype_vector <- log10(concentration_values)
+  
+  ### fit initial mixutre model with 2 components
+  k <- 2 #number of components 
+  fmm_model <- Mclust(log_serotype_vector, G = k, modelNames = "V") 
+  
+  
+  # Extract parameters
+  means <- fmm_model$parameters$mean
+  sds <- sqrt(fmm_model$parameters$variance$sigmasq)
+  props <- fmm_model$parameters$pro
+  
+  # Create density curves for each component
+  x_vals <- seq(min(log_serotype_vector), max(log_serotype_vector), length.out = 1000)
+  
+  dens_df <- data.frame(
+    x = rep(x_vals, 2),
+    density = c(
+      dnorm(x_vals, mean = means[1], sd = sds[1]) * props[1],
+      dnorm(x_vals, mean = means[2], sd = sds[2]) * props[2]
+    ),
+    component = factor(rep(1:2, each = length(x_vals)))
+  )
+  
+  # Plot histogram + density curves
+  gg_density <- ggplot() +
+    geom_histogram(aes(x = log_serotype_vector, y = after_stat(density)), 
+                   bins = 50, fill = "gray80", color = "white") +
+    geom_line(data = dens_df, aes(x = x, y = density, color = component), size = 1.2) +
+    geom_vline(aes(xintercept=log(0.35))) + 
+    labs(title = "FMM: Mixture of 2 Components",
+         subtitle=paste0("Serotype: ", v),
+         x = "log(concentration)", y = "Density") +
+    scale_color_manual(values = c("blue", "red")) +
+    theme_minimal()
+  
+  ggsave(paste0("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/fmm_2components_",v,".png"),gg_density, width = 8, height = 4, dpi = 444)
+  
+  # Step 1: Out of the 2 components, we identify which distribution has a higher mean, and assume that is the seropositive component
+  component_means <- fmm_model$parameters$mean
+  seropositive_component <- which.max(component_means)
+  
+  # Step 4: Get the posterior probabilities for each sample
+  posteriors <- fmm_model$z  #For each sample, this is the probability of the component being in the first component or second component
+  seropositive_probs <- posteriors[, seropositive_component] #this pulls out just the probability of each sample being seropositive
+  
+  # Step 5: Estimate seroprevalence
+  sqrtestimated_seroprevalence <- mean(seropositive_probs) #the mean of all the probabilities will be equal to the overall population seroprevalence
+  
+  # Step 6: Report as percentage
+  to_add <- cbind(v, estimated_seroprevalence, length(which(concentration_values >=0.35)) / length(concentration_values))
+  
+  seroprev_est_df <- rbind(seroprev_est_df, to_add)
+  
+}
