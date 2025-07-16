@@ -1,13 +1,13 @@
 library(dplyr)
 
-omiq_metadata <- read.csv("~/Downloads/OMIQ_metadata-MUSICAL new unmixed 2.csv", header=T)
+omiq_metadata <- read.csv("~/Downloads/OMIQ_metadata-MUSICAL new unmixed 3.csv", header=T)
 slim_omiq_metadata <- omiq_metadata%>%
   select(OmiqID, Filename, OriginalFileName, Upload.Folder)
 
 kylie_metadata <- readxl::read_excel("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/MUSICALSpectralFlowMetadata.xlsx")
 
 ungated_omiq_metadata <- kylie_metadata%>%
-  mutate(OriginalFileName=paste(toupper(experiment), " unmixed new_", `Sample:`, sep=""),
+  mutate(OriginalFileName=if_else(experiment!="mus5", paste(toupper(experiment), " unmixed new_", `Sample:`, sep=""), `Sample:`),
          infectiontype=case_when(grepl("^a", timepoint)~"A",
                                  grepl("^s", timepoint)~"S",
                                  grepl("^n", timepoint)~"NM"),
@@ -16,7 +16,7 @@ ungated_omiq_metadata <- kylie_metadata%>%
   select(-`Sample:`)%>%
   left_join(slim_omiq_metadata, ., by="OriginalFileName")
 
-write.csv(ungated_omiq_metadata, "~/postdoc/stanford/cytometry/spectral/MUSICAL/big_experiment/ungated/new_unmixed_omiq_metadata_no_duds.csv", row.names = F)
+write.csv(ungated_omiq_metadata, "~/postdoc/stanford/cytometry/spectral/MUSICAL/big_experiment/ungated/new_unmixed_omiq_metadata_no_duds_with5.csv", row.names = F)
 
 
 musical_panel <- readxl::read_excel("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/Aurora Spectral Flow/For Arefin/MUSICALSpectralFlowPanel.xlsx")
