@@ -67,8 +67,8 @@ wide_long_msd <-  long_msd %>%
   mutate("z_fc_8_24"=scale(log2fc_8_24, center = T))%>%
   pivot_longer(cols = c("8 weeks", "24 weeks","52 weeks"), names_to = "timepoint", values_to = "titer")%>%
   pivot_longer(cols = c("log2fc_8_24", "log2fc_24_52"), names_to = "fc_flavour", values_to = "log2fc")%>%
-  mutate(conversion=case_when(timepoint=="52 weeks" & fc_flavour=="log2fc_24_52" & log2fc > 3.321928 ~ "converts 24 to 52",
-                              timepoint=="24 weeks" & fc_flavour=="log2fc_8_24" & z_fc_8_24 > mean(z_fc_8_24)+2 | 
+  mutate(conversion=case_when(timepoint=="52 weeks" & fc_flavour=="log2fc_24_52" & log2fc > 2 ~ "converts 24 to 52",
+                              timepoint=="24 weeks" & fc_flavour=="log2fc_8_24" & z_fc_8_24 > 2 | 
                               timepoint=="24 weeks" & fc_flavour=="log2fc_8_24" & log2fc > 1 ~ "converts 8 to 24",
                               .default="nothing"))
 
@@ -93,7 +93,7 @@ line_data <- wide_long_msd %>%
   mutate(timepoint=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")))
 
 
-wide_long_msd%>%
+big_plot <- wide_long_msd%>%
   arrange(desc(conversion))%>%
   ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
   geom_segment(data = filter(line_data, next_color=="nothing"), aes(x = timepoint, y = titer, xend = next_x, yend = next_y, color = next_color)) +
@@ -101,8 +101,75 @@ wide_long_msd%>%
   geom_point(aes(color=conversion))+
   scale_y_continuous(trans='log10')+
   scale_color_manual(values = c("black", "red", "orange"))+
-    theme_minimal()+
-    facet_wrap(~antigen, scales="free")
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/big_seroconversion_plot.png", big_plot, width=15, height=9, dpi=444, bg="white")
+
+
+converters_only824 <- wide_long_msd%>%
+  group_by(id, antigen)%>%
+  filter(any(conversion=="converts 8 to 24"))%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
+  geom_line(aes(group=id), color="red")+
+  scale_y_continuous(trans='log10')+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/big_seroconverters824_only_plot.png", converters_only824, width=15, height=9, dpi=444, bg="white")
+
+
+converters_only2452 <- wide_long_msd%>%
+  group_by(id, antigen)%>%
+  filter(any(conversion=="converts 24 to 52"))%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
+  geom_line(aes(group=id), color="orange")+
+  scale_y_continuous(trans='log10')+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/big_seroconverters2452_only.png", converters_only2452, width=15, height=9, dpi=444, bg="white")
+
+
+non_converters <- wide_long_msd%>%
+  group_by(id, antigen)%>%
+  filter(all(conversion=="nothing"))%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
+  geom_line(aes(group=id), color="black")+
+  scale_y_continuous(trans='log10')+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/big_serononconverters_only.png", non_converters, width=15, height=9, dpi=444, bg="white")
+
+
+any_converters <- wide_long_msd%>%
+  group_by(id, antigen)%>%
+  filter(any(conversion!="nothing"))%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
+  geom_line(aes(group=id, color=conversion))+
+  scale_color_manual(values = c("black", "orange", "red"))+
+  scale_y_continuous(trans='log10')+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.position = "none")
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/big_any_serononconverters_only.png", any_converters, width=15, height=9, dpi=444, bg="white")
+
+
 
 
 serconversion_df <- wide_long_msd%>%
@@ -110,6 +177,13 @@ serconversion_df <- wide_long_msd%>%
   mutate(conversion=gsub("nothing", "no", conversion))%>%
   distinct(id, antigen, timepoint, conversion)%>%
   pivot_wider(names_from =antigen , values_from = conversion, values_fill = "no")
+
+
+serconversion_df2 <- wide_long_msd%>%
+  # filter(if (n()>1) conversion!="nothing" else TRUE)%>%
+  mutate(conversion=gsub("nothing", "no", conversion))%>%
+  distinct(id, antigen, conversion)%>%
+  pivot_wider(names_from = antigen , values_from = conversion)
 
 antigens <- colnames(serconversion_df)[3:ncol(serconversion_df)]
 timepoints <- c("8 weeks", "24 weeks", "52 weeks")
@@ -150,40 +224,107 @@ purf <- nulisa_and_seroconversion%>%
   group_by(timepoint, targetName)%>%
   mutate(padj=p.adjust(p, method="fdr"))
 
-purf%>%
-  filter(padj<0.2)
+sig_purf_conversion_nulisa <- purf%>%
+  filter(padj<0.15)
 
-nulisa_and_seroconversion%>%
-  filter(targetName %in% "IL36B", timepoint=="52 weeks")%>%
+polio_analytes <- purf%>%
+  filter(padj<0.15, antigen=="Polio")
+
+seroconverter_hits <- nulisa_and_seroconversion%>%
+  semi_join(., sig_purf_conversion_nulisa, by=c("targetName", "antigen"))%>%
+  # filter(targetName %in% polio_analytes$targetName)%>%
+  # filter(antigen=="Polio")%>%
   ggplot(., aes(x=timepoint, y=conc, fill=conversion))+
   geom_boxplot(outliers = F)+
-  facet_wrap(~antigen, scales="free")+
+  ggpubr::stat_compare_means(label="p.format", size=2, vjust=.3)+
+  facet_wrap(~targetName+antigen, scales="free", nrow=2)+
   scale_fill_manual(values = c("orange", "red", "black"))+
-  theme_minimal()
+  theme_minimal()+
+  theme(legend.position = "bottom")
   
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/seroconverter_nulisa_sigs.png", seroconverter_hits, width=8, height=4, bg="white", dpi=444)
 
 # treatment effect
 
 converter_table <- wide_long_msd%>%
   filter(if (n()>1) conversion!="nothing" else TRUE)%>%
   mutate(conversion=gsub("nothing", "no", conversion))%>%
-  filter(antigen%notin% vaccines)%>%
+  filter(antigen %in% vaccines)%>%
   distinct(id, antigen, conversion)%>%
   group_by(id)%>%
   summarise("8 to 24 weeks"=sum(conversion=="converts 8 to 24"),
             "24 to 52 weeks"=sum(conversion=="converts 24 to 52"))%>%
   pivot_longer(cols=c("8 to 24 weeks", "24 to 52 weeks"), names_to = "time_window", values_to = "seroconversions")%>%
   left_join(., mic_drop_key, by="id")%>%
+  left_join(., df_clusters, by="id")%>%
   mutate(treatmentarm=case_match(treatmentarm,
                           1~"Placebo",
                           2~"DP 1 year",
                           3~"DP 2 years"))
   
 converter_table%>%
-  ggplot(., aes(x=time_window, y=seroconversions, fill=treatmentarm))+
-  geom_boxplot()+
+  ggplot(., aes(x=time_window, y=seroconversions, fill=Cluster))+
+  geom_violin(draw_quantiles = seq(0,1,0.25), color="white")+
   geom_point(position = position_jitterdodge(dodge.width = 0.75, jitter.height = 0.1))+
   theme_minimal()+
+  ggpubr::stat_compare_means(label = "p.format")+
+  ggtitle("seroconversion to any vaccine antigen(s)")+
   theme(legend.position = "right")
   
+
+
+long_msd <- msd_data%>%
+  mutate(sample=paste(SubjectID, "_", "tp", TimePt, sep=""))%>%
+  mutate(id=SubjectID, timepoint=paste(TimePt, "weeks"))%>%
+  mutate(timepoint=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")))%>%
+  select(-SubjectID, -TimePt)%>%
+  pivot_longer(cols=-c(sample, id, timepoint), names_to = "antigen", values_to = "titer")%>%
+  left_join(., df_clusters, by="id")
+
+long_msd%>%
+  filter(timepoint=="52 weeks")%>%
+  # mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
+  #        any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
+  ggplot(., aes(x=factor(timepoint), y=titer, fill=factor(Cluster)))+
+  # geom_violin(draw_quantiles = seq(0,1,0.25))+
+  geom_boxplot()+
+  scale_y_continuous(trans="log10")+
+  ggpubr::stat_compare_means(vjust = 0.5)+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()
+
+
+trajectory_antibodies <- long_msd%>%
+  filter(timepoint=="52 weeks", antigen %in% c("Flu.A.H1", "Mumps", "PIV.4", "hMPV"))%>%
+  # mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
+  #        any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
+  ggplot(., aes(x=factor(timepoint), y=titer, fill=factor(Cluster)))+
+  geom_violin(draw_quantiles = seq(0,1,0.25))+
+  # geom_boxplot()+
+  scale_y_continuous(trans="log10")+
+  ggpubr::stat_compare_means(vjust = -0.2, label = "p.format")+
+  facet_wrap(~antigen, scales="free", nrow=1)+
+  theme_minimal()+
+  theme(legend.title = element_blank(),
+        axis.title = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/trajectory_antibodies.png",trajectory_antibodies, width=8, height=4 , bg="white")
+
+
+
+
+serconversion_df3 <- wide_long_msd%>%
+  filter(if (n()>1) conversion!="nothing" else TRUE)%>%
+  left_join(., df_clusters, by="id")%>%
+  mutate(conversion=gsub("nothing", "no", conversion))%>%
+  distinct(id, antigen, timepoint, conversion, Cluster)%>%
+  group_by(antigen, Cluster, conversion)%>%
+  summarise("n"=n())
+# pivot_wider(names_from = antigen , values_from = conversion, values_fill = "no")
+
+ggplot(serconversion_df3, aes(x=factor(Cluster), y=n, fill=conversion))+
+  geom_bar(stat="identity")+
+  facet_wrap(~antigen)+
+  scale_fill_manual(values=c("orange", "red", "black"))+
+  theme_minimal()
   

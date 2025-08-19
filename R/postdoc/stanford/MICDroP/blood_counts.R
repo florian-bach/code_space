@@ -10,7 +10,7 @@ comp_pal <- c("no malaria"="lightgrey",
               "Q/AS failure"="purple")
 
 
-mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through May 31st 2025.dta")
+mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through June 30th 2025.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 
@@ -52,20 +52,17 @@ blood_counts <- mic_drop %>%
 
  
 blood_counts%>%
-  filter(cell_type!="hb")%>%
-  arrange(ever_comp)%>%
-  group_by(id) %>%
-  add_count(name="total_n_infection") %>%
-  arrange(AGE) %>%
-  mutate(n_infection = seq(1, max(total_n_infection)))%>%
-  ggplot(., aes(x=factor(Timepoint_in_weeks), y=cell_freq))+
-    geom_violin(aes(fill=factor(Timepoint_in_weeks)), draw_quantiles = c(0.25, 0.5, 0.75))+
+  filter(cell_type%in%c("mono", "plt", "hb"), Timepoint_in_weeks<53, mstatus==0)%>%
+  mutate(anyDP=if_else(treatmentarm=="No DP", "no DP", "DP"))%>%
+  ggplot(., aes(x=factor(Timepoint_in_weeks), y=cell_freq,  fill = anyDP))+
+    geom_boxplot(outliers = F)+
     # geom_point(aes(alpha=factor(ever_comp), colour = disease))+
     # geom_boxplot(aes(fill=factor(Timepoint_in_weeks)), outliers = FALSE)+
     # geom_line(aes(group=id))+
     facet_wrap(~cell_type, scales="free")+
     scale_y_log10()+
-    scale_fill_manual(values=colorspace::sequential_hcl(n = 8, palette="LaJolla"))+
+  ggpubr::stat_compare_means(size=3, label = "p.format")+
+    # scale_fill_manual(values=colorspace::sequential_hcl(n = 9, palette="LaJolla"))+
     scale_alpha_manual(values = c(1,0))+
     scale_color_manual(values=comp_pal)+
     theme_minimal()

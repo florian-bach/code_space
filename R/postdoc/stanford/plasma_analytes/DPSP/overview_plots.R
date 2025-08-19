@@ -4,6 +4,8 @@ library(ggplot2)
 library(purrr)
 library(emmeans)
 
+`%notin%` <-Negate(`%in%`)
+
 maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
 dpsp_nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/DPSP/dpsp_nulisa_data.csv")
 dpsp_nulisa <- dpsp_nulisa%>%
@@ -28,7 +30,7 @@ neuro_cog <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/neurocognitive/N
 maternal_neuro_cog_edit <- neuro_cog%>%
   mutate(id=subjid-10000)
 
-nulisa_plus_neuro <- left_join(maternal_data, maternal_neuro_cog_edit, by="id")
+nulisa_plus_neuro <- left_join(dpsp_nulisa, maternal_neuro_cog_edit, by="id")
 
 
 
@@ -255,7 +257,7 @@ linear_lms <- nulisa_plus_neuro %>%
   nest() %>%
   mutate(model=map(data, ~lm(conc~composite_score+factor(Olevel), data=.))) %>%
   mutate(summary=map(model, ~summary(.)))%>%
-  mutate(p=map_dbl(summary, ~coef(.)[8]))%>%
+  mutate(p=map_dbl(summary, ~coef(.)[11]))%>%
   group_by(composite_kind,timepoint2)%>%
   mutate(padj=p.adjust(p, method="fdr"))
 

@@ -9,7 +9,7 @@ var_luminex <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/sli
 plate_map <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/final_plate_map.csv")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
-raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
+raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
 
 
 plate_map <- plate_map%>%
@@ -30,9 +30,6 @@ maternal_gravid_cat <-  haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP st
 
 maternal_malaria_cat <-  haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP individual level analysis database_FINAL.dta")%>%
   distinct(id, gravidcat)
-
-raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
-
 # write.csv(all_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/all_samples.csv", row.names = F)
 
 # add epi data ####
@@ -55,21 +52,30 @@ metadata <- raw_data%>%
          gravidcat=maternal_gravid_cat$gravidcat[match(id-10000, maternal_gravid_cat$id)],)
 
 ## infection data ####
+
+# fix birthdays, email Timothy
+
+dobs <- raw_data%>%
+  filter(!is.na(dob))%>%
+  distinct(id, dob)
+
 infs_and_meta <- raw_data%>%
+  mutate(dob2=dobs$dob[match(id, dobs$id)])%>%
+  mutate("flo_age_in_wks"=as.numeric(date-dob2)%/%7)%>%
   # filter(ageinwks<54)%>%
   group_by(id) %>%
-  mutate("total_n_para_12"=sum(pardens>1&ageinwks<53, na.rm=TRUE),
-         "total_n_malaria_12"=sum(mstatus!=0&ageinwks<53, na.rm=TRUE),
-         "total_n_para_24"=sum(pardens>1&ageinwks<105, na.rm=TRUE),
-         "total_n_malaria_24"=sum(mstatus!=0&ageinwks<105, na.rm=TRUE),
-         "total_n_para_12_24"=sum(pardens>1&ageinwks<105&ageinwks>52, na.rm=TRUE),
-         "total_n_malaria_12_24"=sum(mstatus!=0&ageinwks<105&ageinwks>52, na.rm=TRUE),
-         "total_n_para_6"=sum(qPCRparsdens>1&ageinwks<27, na.rm=TRUE),
-         "total_n_malaria_6"=sum(mstatus!=0&ageinwks<27, na.rm=TRUE),
+  mutate("total_n_para_12"=sum(pardens>1&flo_age_in_wks<53, na.rm=TRUE),
+         "total_n_malaria_12"=sum(mstatus!=0&flo_age_in_wks<53, na.rm=TRUE),
+         "total_n_para_24"=sum(pardens>1&flo_age_in_wks<105, na.rm=TRUE),
+         "total_n_malaria_24"=sum(mstatus!=0&flo_age_in_wks<105, na.rm=TRUE),
+         "total_n_para_12_24"=sum(pardens>1&flo_age_in_wks<105&flo_age_in_wks>52, na.rm=TRUE),
+         "total_n_malaria_12_24"=sum(mstatus!=0&flo_age_in_wks<105&flo_age_in_wks>52, na.rm=TRUE),
+         "total_n_para_6"=sum(pardens>1&flo_age_in_wks<27, na.rm=TRUE),
+         "total_n_malaria_6"=sum(mstatus!=0&flo_age_in_wks<27, na.rm=TRUE),
          "any_malar_6"=if_else(total_n_malaria_6==0, FALSE, TRUE),
          "any_malar_12"=if_else(total_n_malaria_12==0, FALSE, TRUE))%>%
   select(id, date, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, total_n_para_24, total_n_malaria_24, total_n_para_12_24, total_n_malaria_12_24, -gender)%>%
-  right_join(., metadata, by=c("id", "date"))%>%
+  inner_join(., metadata, by=c("id", "date"))%>%
   group_by(id)%>%
   mutate(total_n_para=max(total_n_para_12, na.rm = T),
          total_n_malaria=max(total_n_malaria_12, na.rm = T))%>%
@@ -98,6 +104,7 @@ long_luminex <- var_luminex%>%
   mutate(antigen=gsub("_", " ", antigen),
          id_cat=as.character(id))
 
+write.csv(long_luminex, "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/long_luminex.csv", row.names = F)
 
 # overview plot ####
 large_plot <- long_luminex %>%
@@ -178,6 +185,9 @@ sigs_52_104 <- treatment_purf%>%
   filter(padj<0.05, contrast%in%c("Placebo boost 52 - 104 weeks", "DP boost 52 - 104 weeks"))%>%
   select(antigen, contrast, p, padj)
 
+treatment_purf%>%
+  select(antigen, contrast, p, padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/var_gene_treatment_regression.csv")
 
 
 sig_52_plot1 <- long_luminex %>%
@@ -412,6 +422,9 @@ inf_sigs_52 <- inf_purf_52%>%
   select(antigen,n_para_padj, n_malaria_padj )%>%
   arrange(n_para_padj)
 
+inf_purf_52%>%
+  select(antigen,n_para_padj, n_malaria_padj )%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/inf_purf_52.csv")
 
 
 n_para_sigs_52_1 <- long_luminex %>%

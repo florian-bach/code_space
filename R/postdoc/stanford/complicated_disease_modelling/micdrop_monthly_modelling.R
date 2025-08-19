@@ -80,7 +80,7 @@ promote_data <- promote %>%
   select(id, date, flo_age_in_wks, flo_age_in_months, mstatus, pardens, study, treatmentarm)
   
 ## mic drop ####
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 mic_drop_data <- mic_drop %>%

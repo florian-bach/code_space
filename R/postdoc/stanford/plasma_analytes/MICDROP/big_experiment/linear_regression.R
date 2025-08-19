@@ -109,30 +109,40 @@ for(i in 1:ceiling(nrow(sig_24_52)/16)){
 ## change through mstatus ####
 mstatus_purf <- clean_data%>%
   filter(ageinwks<60, targetName %notin% c("CTSS", "LTA|LTB", "IFNA2"))%>%
-  mutate(mstatus=factor(if_else(mstatus==0&qPCRparsdens>1, 0.5, mstatus)))%>%
+  mutate(mstatusf=factor(case_when(mstatus==0&qPCRparsdens>0.5~"asymptomatic",
+                                   mstatus==0&qPCRparsdens==0 ~"uninfected",
+                                   mstatus==1~"symptomatic", .default = "unsure"
+                                   )))%>%
+  filter(mstatusf !="unsure")%>%
   group_by(targetName)%>%
   nest()%>%
-  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*mstatus+(1|id), data=.))) %>%
+  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*mstatusf+gender_categorical+(1|id), data=.))) %>%
   mutate(summary=map(time_model, ~summary(.))) %>%
-  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ mstatus | timepoint)))%>%
-  mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ mstatusf | timepoint)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
   mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
-  mutate("malaria 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
-  mutate("malaria 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
-  mutate("malaria 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[8])) %>%
-  mutate("asymp 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
-  mutate("asymp 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[4])) %>%
-  mutate("asymp 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[7])) %>%
+  mutate("symp vs uninfected 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  mutate("symp vs uninfected 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[6])) %>%
+  mutate("symp vs uninfected 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[9])) %>%
+  mutate("asymp vs uninfected 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("asymp vs uninfected 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
+  mutate("asymp vs uninfected 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[8])) %>%
+  mutate("asymp vs symp 8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("asymp vs symp 24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[4])) %>%
+  mutate("asymp vs symp 52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[7])) %>%
   pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
   group_by(contrast)%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
+# mstatus_purf%>%
+#   select(targetName, contrast, p, padj)%>%
+#   write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/mstatus_purf.csv", row.names = F)
 
 sig_malaria <- mstatus_purf%>%
-  filter(padj < 0.05, grepl("^malaria", contrast))
+  filter(padj < 0.05, grepl("^symp", contrast))
 
 sig_asymp <- mstatus_purf%>%
-  filter(padj < 0.05, grepl("^asymp", contrast))
+  filter(padj < 0.05, grepl("^asymp vs uninfected", contrast))
 
 asymp_specific <- unique(sig_asymp$targetName)[unique(sig_asymp$targetName) %notin% unique(sig_malaria$targetName)]
 
@@ -204,7 +214,7 @@ ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_ch
 
 # add n_infection etc ###
 
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
 
 mic_drop_data <- mic_drop %>%
   filter(mstatus != 0, !is.na(mstatus), incidentmalaria==1 | is.na(incidentmalaria) & mstatus==2 | incidentmalaria==0 & mstatus==2)%>%
@@ -354,19 +364,23 @@ purf_52 <- clean_data%>%
   filter(mstatus==0, timepoint=="52 weeks")%>%
   group_by(targetName)%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12~conc+log_qpcr+gender_categorical, data=.))) %>%
-  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12~conc+log_qpcr+gender_categorical, data=.))) %>%
+  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12~conc+gender_categorical, data=.))) %>%
+  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12~conc+gender_categorical, data=.))) %>%
   # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
   #11 when additional covariate is included
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[14]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
+
+purf_52%>%
+  select(targetName, n_malaria_padj, n_para_padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/n_infection_purf.csv", row.names = F)
 
 sig_mala_12 <- purf_52%>%
   filter(n_malaria_padj<0.1)
@@ -472,6 +486,95 @@ clean_data%>%
   theme(legend.position = "none")
 
 ggsave("~/Downloads/any_malar.png", width=8, height=4, dpi=444)
+### normal timepoint model with infection history as categorical variable ####
+any_para_purf <- clean_data%>%
+  filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  mutate(any_para=ifelse(total_n_para_12==0, 0, 1))%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*any_para+(1|id), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ any_para | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | any_para)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+
+any_para_nulisa_fc_data <- clean_data %>%
+  mutate(any_para=ifelse(total_n_para_12==0, "none", "some"))%>%
+  filter(treatmentarm != "DP 2 years", timepoint !=c("68 weeks"))%>%
+  group_by(targetName, timepoint, any_para)%>%
+  summarise("mean_conc"=mean(conc, na.rm = T))%>%
+  pivot_wider(names_from = any_para, values_from = mean_conc)%>%
+  mutate(fc=some-none)
+
+
+
+any_para_nulisa_purf_fc <- any_para_purf%>%
+  mutate("timepoint"=contrast)%>%
+  left_join(., any_para_nulisa_fc_data, by=c("targetName", "timepoint"))%>%
+  mutate(contrast=factor(contrast, levels=c("8 weeks", "24 weeks", "52 weeks")))
+
+any_para_nulisa_purf_fc%>%
+  select(targetName, contrast, fc, p, padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/any_para_regression.csv")
+
+treatment_nulisa_sigs2 <- any_para_nulisa_purf_fc %>%
+  filter(padj<0.1 & abs(fc)>=0.5)%>%
+  select(targetName, contrast, p, padj)
+
+
+any_mala_purf <- clean_data%>%
+  filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  mutate(any_malaria=ifelse(total_n_malaria_12==0, 0, 1))%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(conc~timepoint*any_malaria+(1|id), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ any_malaria | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | any_malaria)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+
+
+any_mala_nulisa_fc_data <- clean_data %>%
+  mutate(any_malaria=ifelse(total_n_malaria_12==0, "none", "some"))%>%
+  filter(treatmentarm != "DP 2 years", timepoint !=c("68 weeks"))%>%
+  group_by(targetName, timepoint, any_malaria)%>%
+  summarise("mean_conc"=mean(conc, na.rm = T))%>%
+  pivot_wider(names_from = any_malaria, values_from = mean_conc)%>%
+  mutate(fc=some-none)
+
+
+any_mala_purf_fc <- any_mala_purf%>%
+  mutate("timepoint"=contrast)%>%
+  left_join(., any_mala_nulisa_fc_data, by=c("targetName", "timepoint"))%>%
+  mutate(contrast=factor(contrast, levels=c("8 weeks", "24 weeks", "52 weeks")))
+
+any_mala_purf_fc%>%
+  select(targetName, contrast, fc, p, padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/any_malaria_regression.csv")
+
+
+any_mala_sigs <- treatment_nulisa_purf_fc2 %>%
+  filter(padj<0.1 & abs(fc)>=0.5 )
 ### poisson; this is OK for malaria because variance = 0.28 and mean =0.22####
 purf_52_poisson <- clean_data%>%
   filter(mstatus==0, timepoint=="52 weeks")%>%
@@ -525,8 +628,8 @@ treatment_purf <- clean_data%>%
   mutate(summary=map(time_model, ~summary(.))) %>%
   mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ treatmentarm | timepoint)))%>%
   mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | treatmentarm)))%>%
-  mutate(emm_contrast=map(emm, ~contrast(., "pairwise")))%>%
-  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise")))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
   mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
   mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
   mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
@@ -537,25 +640,31 @@ treatment_purf <- clean_data%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
 sigs <- treatment_purf%>%
-  filter(padj<0.05)%>%
-  filter(contrast!="24 weeks")
+  filter(padj<0.1)%>%
+  filter(contrast=="52 weeks")
 
 time_treatment_plot <- clean_data%>%
-  filter(treatmentarm!="DP 2 years", timepoint!="68 weeks")%>%
+  filter(treatmentarm!="DP 2 years", timepoint=="52 weeks", mstatus==0)%>%
   filter(targetName %in% sigs$targetName)%>%
   ggplot(aes(x=factor(timepoint_num), y=conc, fill=treatmentarm))+
-  geom_boxplot(outliers=F)+
-  # stat_summary(aes(group=c(treatmentarm)), geom="cro", fun.y=median, colour="white")+
-  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
-               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  geom_violin(draw_quantiles = seq(0,1,0.25), color="white")+
+  ggpubr::stat_compare_means(size=2, )+
+  # geom_boxplot(outliers=F)+
+  # # stat_summary(aes(group=c(treatmentarm)), geom="cro", fun.y=median, colour="white")+
+  # stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+  #              geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
   facet_wrap(~targetName, scales="free", nrow=2)+
   scale_fill_manual(values=c("darkred", "#00555A"))+
   theme_minimal()+
   theme(legend.title = element_blank(),
         axis.title = element_blank())
+  
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/time_treatment_plot.png", width=8, height=4, dpi=444, bg="white")
 
+treatment_purf%>%
+  select(targetName, contrast, p, padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/nulisa_treatment_regression.csv")
 
 # sickle trait ####
 sickle_purf <- clean_data%>%
@@ -589,4 +698,7 @@ clean_data%>%
   geom_point(position=position_dodge(width=0.75), alpha=0.1)+
   geom_boxplot(outliers = F)+
   theme_minimal()
+
+
+# hierarchical clustering ####
 

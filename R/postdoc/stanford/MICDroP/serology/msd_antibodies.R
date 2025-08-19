@@ -4,7 +4,7 @@ library(xlsx)
 library(ggplot2)
 library(purrr)
 library(data.table)
-library(mclust)
+# library(mclust)
 library(emmeans)
 
 nulisa_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv")
@@ -267,8 +267,6 @@ slim_nulisa_with_antibody_fc_purrf%>%
  
 
 # linear regression ####
-
-
 treatment_purf <- antibodies_and_epi%>%
   filter(mstatus==0, treatmentarm!="DP 2 years")%>%
   mutate(id=factor(id.x))%>%
@@ -288,6 +286,10 @@ treatment_purf <- antibodies_and_epi%>%
   pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
   group_by(contrast)%>%
   mutate(padj = p.adjust(p, method="fdr"))
+
+treatment_purf%>%
+  select(antigen, contrast, p, padj)%>%
+write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/msd_antibodies_treatment_regression.csv", row.names = F)
 
 
 sigs <- treatment_purf%>%
@@ -553,7 +555,7 @@ antibodies_and_epi%>%
   stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
                geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
   scale_y_log10()+
-  facet_wrap(~antigen)+
+  facet_wrap(~antigen, scales="free")+
   viridis::scale_fill_viridis(option = "cividis", discrete = T, direction = 1)+
   theme_minimal()
   
@@ -566,7 +568,7 @@ momrx_8week_plot <- antibodies_and_epi%>%
   stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
                geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
   scale_y_log10()+
-  facet_wrap(~antigen)+
+  facet_wrap(~antigen, scales="free")+
   viridis::scale_fill_viridis(option = "cividis", discrete = T, direction = 1)+
   ggtitle("8 weeks")+
   theme_minimal()+
@@ -574,6 +576,71 @@ momrx_8week_plot <- antibodies_and_epi%>%
         legend.title = element_blank())
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/momrx_8week_plot.png", momrx_8week_plot, width=8, height=8, dpi=444, bg="white")
+
+## any infection ####
+
+
+any_para_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(id_cat=factor(id.x))%>%
+  mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
+         any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
+  # filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(log_titer~timepoint*any_para+(1|id_cat), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ any_para | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | any_para)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+any_para_kinda_sigs <- any_para_purf %>%
+  filter(padj<0.1)
+
+any_para_purf%>%
+  select(antigen, contrast, p, padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/msd_antibodies_any_para_regression.csv", row.names = F)
+
+
+any_malaria_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(id_cat=factor(id.x))%>%
+  mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
+         any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
+  # filter(mstatus==0, treatmentarm!="DP 2 years")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(time_model=map(data, ~lme4::lmer(log_titer~timepoint*any_malaria+(1|id_cat), data=.))) %>%
+  mutate(summary=map(time_model, ~summary(.))) %>%
+  mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ any_malaria | timepoint)))%>%
+  mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | any_malaria)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  pivot_longer(cols=ends_with("weeks"), names_to = "contrast", values_to = "p")%>%
+  group_by(contrast)%>%
+  mutate(padj = p.adjust(p, method="fdr"))
+
+any_malaria_purf_sigs <- any_malaria_purf %>%
+  filter(padj<0.1)%>%
+  select(antigen, contrast, p, padj)
+
+any_malaria_purf%>%
+  select(antigen, contrast, p, padj)%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/msd_antibodies_any_malaria_regression.csv", row.names = F)
 
 ## anyhp ####
 anyhp_purf <- antibodies_and_epi%>%
@@ -605,9 +672,10 @@ anyhp_8week_plot <- antibodies_and_epi%>%
   mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
          any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
   ggplot(., aes(x=factor(anyHP), y=titer, fill=factor(anyHP)))+
-  geom_violin(draw_quantiles = seq(0,1,0.25))+
+  geom_boxplot()+
+  # geom_violin(draw_quantiles = seq(0,1,0.25))+
   scale_y_log10()+
-  facet_wrap(~antigen)+
+  facet_wrap(~antigen, scales="free")+
   viridis::scale_fill_viridis(option = "cividis", discrete = T, direction = 1)+
   ggtitle("8 weeks")+
   theme_minimal()+
@@ -739,7 +807,7 @@ for(v in vaccines){
   
   ### fit initial mixutre model with 2 components
   k <- 2 #number of components 
-  fmm_model <- Mclust(log_serotype_vector, G = k, modelNames = "V") 
+  fmm_model <- mclust::Mclust(log_serotype_vector, G = k, modelNames = "V") 
   
   if(is.null(fmm_model)) next
   
