@@ -1,3 +1,4 @@
+# bakars new data ####
 
 stool_samples1 <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/microbiome/micdrop_stool_samples_dec_2025.csv")
 
@@ -7,7 +8,7 @@ bdays <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2
 bdays <- bdays[!duplicated(bdays),]
 
 
-full_stools <- stool_samples%>%
+full_stools <- stool_samples1%>%
   mutate(Date = as.Date(lubridate::parse_date_time(.$Date, orders="%m/%d/%y")))%>%
   bind_rows(., stool_samples2)%>%
   select(SubjectID, Date, RandomNumber, BoxNumber, PositionRow, PositionColumn)%>%

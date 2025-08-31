@@ -10,7 +10,7 @@ is.blank <- function(x){sapply(x, function(y) {ifelse(y=="", TRUE, FALSE)})}
 # raw_data <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta")
 
 
-raw_data <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
+raw_data <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
 
 
 # for finding putative sampling visits we'll filter the database to only include visits around the proper sampling timepoint dates, with a week plus/minus
@@ -71,10 +71,10 @@ ex_vivo <- long_specimen_data %>%
          # malaria_episode_dich = if_else(mstatus != 0, 1, 0))%>%
          most_recent_malaria = as.Date(cummax(malaria_episode_num_date)),
          malaria_episode_id = paste(id, most_recent_malaria,sep="_"),
-         days_since_malaria = date-most_recent_malaria)%>%
+         days_since_malaria = date-most_recent_malaria)
   # filter(Specimen_Type=="PBMC", Specimen_ID!="", days_since_malaria > 3 & days_since_malaria<14)%>%
   # filter(Specimen_Type=="Plasma", Specimen_ID!="", days_since_malaria==0)%>%
-  select(id, date, flo_age_in_wks, malaria_episode_id, mstatus, Specimen_ID, days_since_malaria)
+  # select(id, date, flo_age_in_wks, malaria_episode_id, mstatus, Specimen_ID, days_since_malaria)
   
 
 # 

@@ -1,3 +1,11 @@
+#BoxNumber1=PBMC
+#BoxNumber2=Paxgene
+#BoxNumber3=Plasma
+#BoxNumber4=PlasmaPK
+#BoxNumber5=CellStabiliser
+#BoxNumber7=CellStabiliser
+
+
 msd_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/batch_one.csv")
 
 long_luminex <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/long_luminex.csv")%>%

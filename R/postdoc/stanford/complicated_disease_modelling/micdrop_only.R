@@ -3,7 +3,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2); theme_set(theme_minimal())
 library(patchwork)
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Mar25/MICDSpecimenBoxMar25_withclinical.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
 
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
@@ -141,7 +141,7 @@ placebo_n_para_comp_plot <- ggplot(para_placebo_summary, aes(x=n_para, y=risk))+
   theme_minimal()+
   geom_ribbon(data=para_placebo_model_prd, aes(x=n_para, ymin = exp(lci), ymax = exp(uci)),
               alpha = 0.2, inherit.aes = FALSE)+
-  geom_function(fun = placebo_comp_model_fun, colour="black")+
+  geom_function(fun = para_placebo_model_fun, colour="black")+
   geom_text(aes(y=0.10, label= paste0("frac(",complicated, ",", total_infections,")")),parse = TRUE, size=2.5)+
   scale_x_continuous(breaks = 1:50, limits=c(1,10))+
   scale_y_continuous(limits = c(0,0.22), labels = scales::label_percent())+
@@ -281,11 +281,11 @@ dp_comp_model_prd$uci <- dp_comp_model_err$fit + 1.96 * dp_comp_model_err$se.fit
 placebo_n_malaria_comp_plot <- ggplot(placebo_summary, aes(x=n_malaria, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
-  geom_ribbon(data=placebo_comp_model_prd, aes(x=n_malaria, ymin = exp(lci), ymax = exp(uci)),
-              alpha = 0.2, inherit.aes = FALSE)+
+  # geom_ribbon(data=placebo_comp_model_prd, aes(x=n_malaria, ymin = exp(lci), ymax = exp(uci)),
+  #             alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = placebo_comp_model_fun, colour="black")+
   geom_text(aes(y=0.10, label= paste0("frac(",complicated, ",", total_n_malaria,")")),parse = TRUE, size=2.5)+
-  scale_x_continuous(breaks = 1:50, limits=c(1,10))+
+  scale_x_continuous(breaks = 1:50, limits=c(1,20))+
   scale_y_continuous(limits = c(0,0.22), labels = scales::label_percent())+
   ggtitle("Placebo")+
   xlab("Order of Infection")+

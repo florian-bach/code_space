@@ -613,7 +613,8 @@ ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_malaria_si
 id_columns <- c("id", "Plate", "location", "treatmentarm", "timepoint", "gender")
 
 wide_df2 <- long_luminex %>%
-  pivot_wider(names_from = antigen, values_from = log_mfi, id_cols = all_of(id_columns))%>%
+  select(-treatmentarm)%>%
+  pivot_wider(names_from = antigen, values_from = log_mfi)%>%
   na.omit()
 rownames(wide_df2) <- paste(wide_df2$location)
 
@@ -742,3 +743,10 @@ plt <- long_luminex %>%
 ggsave(paste("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/individual_plots/indie_", file_name, ".png",sep=""), plt, width=6, height=4, bg="white", dpi=444)
 
   }
+
+
+wide_df3 <- long_luminex %>%
+  select(-treatmentarm, -MFI)%>%
+  pivot_wider(names_from = antigen, values_from = log_mfi)
+
+write.csv(wide_df3, "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/wide_micdrop_luminex_df.csv", row.names = F)
