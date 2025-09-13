@@ -364,16 +364,16 @@ purf_52 <- clean_data%>%
   filter(mstatus==0, timepoint=="52 weeks")%>%
   group_by(targetName)%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12~conc+gender_categorical, data=.))) %>%
-  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12~conc+gender_categorical, data=.))) %>%
+  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12~conc+gender_categorical+log_qpcr, data=.))) %>%
+  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12~conc+gender_categorical+log_qpcr, data=.))) %>%
   # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
   #11 when additional covariate is included
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[14]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
@@ -386,7 +386,28 @@ sig_mala_12 <- purf_52%>%
   filter(n_malaria_padj<0.1)
 
 sig_para_12 <- purf_52%>%
-  filter(n_para_padj<0.1)
+  filter(n_para_padj<0.15)
+
+
+tlr_plot <- clean_data %>%
+  filter(targetName %in% "TLR3",
+         timepoint=="52 weeks",
+         log_qpcr<0.001)%>%
+  mutate(pardens_dich = if_else(log_qpcr>0.001, "some", "none"))%>%
+  mutate(targetNamef=factor(targetName, levels=sig_mala_12$targetName))%>%
+  ggplot(aes(x=factor(total_n_para_12), y=conc, fill=factor(total_n_para_12)))+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free")+
+  viridis::scale_fill_viridis(discrete = T)+
+  xlab("number of parasitemic episodes")+
+  facet_wrap(~targetName)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/tlr_plot.png", tlr_plot, height=3, width=4.5, dpi=444, bg="white")
+
 
 for(i in 1:ceiling(length(sig_mala_12)/16)){
   

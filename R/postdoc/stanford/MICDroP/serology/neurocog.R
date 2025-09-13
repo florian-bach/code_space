@@ -148,7 +148,6 @@ nulisa_plus_neuro <- left_join(maternal_data, maternal_neuro_cog_edit, by="id")
 
 
 # other modelling approach ####
-
 infant_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv")
 
 neuro_cog <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/neurocognitive/NCT_infants_share032025.csv")

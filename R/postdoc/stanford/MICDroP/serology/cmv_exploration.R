@@ -46,10 +46,10 @@ long_msd <- long_msd%>%
 
 
 cmv_elisa_purrf <- nulisa_data %>%
-  filter(!is.na(CMV), timepoint %in% c("8 weeks", "24 weeks", "52 weeks"))%>%
+  filter(!is.na(CMV), mstatus==0, timepoint %in% c("8 weeks", "24 weeks", "52 weeks"))%>%
   group_by(targetName)%>%
   nest() %>%
-  mutate(time_model=purrr::map(data, ~lme4::lmer(conc~timepoint*CMV+(1|id_cat), data=.))) %>%
+  mutate(time_model=purrr::map(data, ~lme4::lmer(conc~timepoint*CMV+log_qpcr+gender+hbs+(1|id_cat), data=.))) %>%
   mutate(summary=map(time_model, ~summary(.))) %>%
   mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ CMV | timepoint)))%>%
   mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | CMV)))%>%
@@ -69,7 +69,7 @@ cmv_sigs <- cmv_elisa_purrf%>%
   select(targetName, contrast, padj)
 
 
-clean_data%>%
+nulisa_data%>%
   mutate(CMV=if_else(is.na(CMV), "UNKNOWN", CMV))%>%
   mutate(CMV=factor(CMV, levels=c("Negative", "Positive", "UNKNOWN")))%>%
   filter(timepoint %in% c("8 weeks", "24 weeks", "52 weeks"))%>%

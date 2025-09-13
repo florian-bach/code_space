@@ -185,6 +185,10 @@ sigs_52_104 <- treatment_purf%>%
   filter(padj<0.05, contrast%in%c("Placebo boost 52 - 104 weeks", "DP boost 52 - 104 weeks"))%>%
   select(antigen, contrast, p, padj)
 
+
+
+
+
 treatment_purf%>%
   select(antigen, contrast, p, padj)%>%
   write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/var_gene_treatment_regression.csv")
@@ -750,3 +754,27 @@ wide_df3 <- long_luminex %>%
   pivot_wider(names_from = antigen, values_from = log_mfi)
 
 write.csv(wide_df3, "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/wide_micdrop_luminex_df.csv", row.names = F)
+
+
+
+long_luminex%>%
+  filter(#antigen %in% c("schizont"),
+    timepoint=="52 weeks", 
+    treatmentarm!="DP 2 years")%>%
+  ggplot(aes(x=log_qpcr, y=log_mfi, color=antigen))+
+  ggpubr::stat_cor(method="spearman", na.rm = T)+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_smooth(method="lm")+
+  geom_point(alpha=0.5)+
+  facet_wrap(~targetName, scales = "free")+
+  viridis::scale_fill_viridis(discrete = T)+
+  xlab("log10 parasites per microlitre")+
+  facet_wrap(~antigen, scales = "free")+
+  scale_color_viridis_d(option = "D")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+)
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/pardens_nulisa_cor_plot.png", pardens_nulisa_cor_plot, width=8, height=4, dpi=444, bg="white")
+

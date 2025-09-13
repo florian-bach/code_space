@@ -999,3 +999,54 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_para_symp_summa
     xlab("Months with any parasitemia")+
     ylab("Probability of Symptoms"))
 
+
+
+# plots for Bill G
+
+tlr3_plot <- clean_data%>%
+filter(timepoint=="52 weeks", mstatus==0)%>%
+  filter(targetName=="TLR3", log_qpcr<0.1)%>%
+  mutate(total_n_para_12=ifelse(total_n_para_12<5, total_n_para_12, "5+"))%>%
+  ggplot(aes(x=factor(total_n_para_12), y=conc, fill=factor(total_n_para_12)))+
+  # geom_violin(draw_quantiles = seq(0,1,0.25), color="white")+
+  # ggpubr::stat_compare_means(size=2, )+
+  geom_boxplot(outliers=F)+
+  # stat_summary(aes(group=c(treatmentarm)), geom="cro", fun.y=median, colour="white")+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  facet_wrap(~targetName, scales="free", nrow=2)+
+  scale_fill_manual(values=viridis::viridis(n=6, option = "D"))+
+  theme_minimal()+
+  xlab("\nnumber of parasitemic episodes\nin first year of life")+
+  theme(legend.title = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x =  element_text(size=12, hjust = 0),
+        strip.text = element_text(size=12),
+        legend.position = "none",
+        legend.direction = "horizontal")
+
+ggsave("~/Downloads/tlr_n_para_plot.png", tlr3_plot, height=4, width = 2.7, dpi=444, bg="white")
+
+IL10_plot <- clean_data%>%
+  filter(timepoint=="52 weeks", mstatus==0)%>%
+  filter(targetName=="IL10")%>%
+  mutate(total_n_para_12=ifelse(total_n_para_12<5, total_n_para_12, "5+"))%>%
+  ggplot(aes(x=factor(total_n_para_12), y=conc, fill=factor(total_n_para_12)))+
+  # geom_violin(draw_quantiles = seq(0,1,0.25), color="white")+
+  # ggpubr::stat_compare_means(size=2, )+
+  geom_boxplot(outliers=F)+
+  # stat_summary(aes(group=c(treatmentarm)), geom="cro", fun.y=median, colour="white")+
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
+               geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
+  facet_wrap(~targetName, scales="free", nrow=2)+
+  scale_fill_manual(values=viridis::viridis(n=6, option = "D"))+
+  theme_minimal()+
+  xlab("\nnumber of parasitemic episodes\nin first year of life")+
+  theme(legend.title = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x =  element_text(size=12, hjust = 0),
+        strip.text = element_text(size=12),
+        legend.position = "none",
+        legend.direction = "horizontal")
+
+ggsave("~/Downloads/il10_n_para_plot.png", IL10_plot, height=4, width = 2.7, dpi=444, bg="white")

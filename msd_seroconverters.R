@@ -70,9 +70,14 @@ wide_long_msd <-  long_msd %>%
   mutate(conversion=case_when(timepoint=="52 weeks" & fc_flavour=="log2fc_24_52" & log2fc > 2 ~ "converts 24 to 52",
                               timepoint=="24 weeks" & fc_flavour=="log2fc_8_24" & z_fc_8_24 > 2 | 
                               timepoint=="24 weeks" & fc_flavour=="log2fc_8_24" & log2fc > 1 ~ "converts 8 to 24",
-                              .default="nothing"))
-
-
+                              .default="nothing"))%>%
+  mutate(mom_rx=maternal_treatment_arms$treatmentarm[match(id-10000, maternal_treatment_arms$id)],
+         mom_rx=case_match(mom_rx,
+                           1~"SP",
+                           2~"DP",
+                           3~"DPSP"))
+  
+table(wide_long_msd$conversion)
 # two_sigma_cutoff <- wide_msd%>%
 #   group_by(antigen)%>%
 #   filter(z_fc_8_24>2)
@@ -212,6 +217,108 @@ for(a in antigens){
   
 }
 
+# defining seropositivity ####
+# mixture models didn't converge, so we can define seropositivity as the lowest level of what we have called
+# seroconverters; also, Nguyen-Tran et al. have defined thresholds in their paper
+
+seropositivity_thresholds <- wide_long_msd%>%
+  filter(conversion=="converts 8 to 24" & timepoint=="24 weeks" | conversion=="converts 24 to 52" & timepoint=="52 weeks")%>%
+  filter(log2fc>=0.5)%>%
+  group_by(antigen)%>%
+  slice_min(n = 1, with_ties = F, order_by = titer)%>%
+  mutate("method"="sero_conversion")
+
+seropositivity_thresholds2 <- seropositivity_thresholds %>%
+  mutate(titer=case_when(antigen=="EV.D68"~1219, 
+            antigen=="EV.71"~5275, 
+            antigen=="hMPV"~4096,
+            antigen=="RSV"~2724,
+            antigen=="Flu.Mix"~2070,
+            antigen=="RV.C"~166,
+            antigen=="PIV.Mix"~1257,
+            antigen=="Flu.A.H1"~9490,
+            antigen=="Flu.A.H3"~13498,
+            antigen=="Flu.B"~8209,
+            antigen=="PIV.1"~21190,
+            antigen=="PIV.2"~7992,
+            antigen=="PIV.3"~18371,
+            antigen=="PIV.4"~26057, .default = NA))%>%
+  mutate("method"="nguyen-tran_et_al")%>%
+  filter(!is.na(titer))
+
+
+seroprev_est_df <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/mixture_model_df.csv")
+
+colnames(seroprev_est_df) <- c("antigen", "prevalence", "titer")
+seroprev_est_df$method="mixture_model"
+seroprev_est_df <- subset(seroprev_est_df, !is.na(titer))
+seroprev_est_df$titer <- 10^seroprev_est_df$titer
+
+wide_long_msd%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
+  geom_hline(data=seropositivity_thresholds, aes(yintercept = titer), linetype="dashed", color="blue")+
+  geom_hline(data=seropositivity_thresholds2, aes(yintercept = titer), linetype="dotted", color="blue")+
+  geom_hline(data=seroprev_est_df, aes(yintercept = titer), linetype="solid", color="blue")+
+  geom_segment(data = filter(line_data, next_color=="nothing"), aes(x = timepoint, y = titer, xend = next_x, yend = next_y, color = next_color)) +
+  geom_segment(data = filter(line_data, next_color!="nothing"), aes(x = timepoint, y = titer, xend = next_x, yend = next_y, color = next_color)) +
+  geom_point(aes(color=conversion))+
+  scale_y_continuous(trans='log10')+
+  scale_color_manual(values = c("black", "red", "orange"))+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+
+wide_long_msd%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(fill=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), x=titer))+
+  geom_vline(data=seropositivity_thresholds, aes(xintercept = titer), linetype="dashed", color="red")+
+  geom_vline(data=seropositivity_thresholds2, aes(xintercept = titer), linetype="dotted", color="red")+
+  geom_vline(data=seroprev_est_df, aes(xintercept = titer), linetype="solid", color="red")+
+  geom_histogram()+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=4, "RdPu")[1:3])+
+  scale_x_continuous(trans="log10")+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+final_cutoff_frame <- bind_rows(seropositivity_thresholds, seropositivity_thresholds2, seroprev_est_df)%>%
+  select(antigen, titer, method)%>%
+  group_by(antigen)%>%
+  filter( min_rank(case_when(
+    method == "mixture_model" ~ 1,
+    method == "nguyen-tran_et_al" ~ 2,
+    TRUE ~ 3
+  )) == 1)
+
+write.csv(final_cutoff_frame, "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/final_cutoff_frame.csv", row.names = F)
+
+
+
+
+
+
+
+
+
+wide_long_msd%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(fill=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), x=titer))+
+  geom_vline(data=seropositivity_thresholds, aes(xintercept = titer), linetype="dashed", color="red")+
+  geom_vline(data=seropositivity_thresholds2, aes(xintercept = titer), linetype="dotted", color="red")+
+  geom_vline(data=seroprev_est_df, aes(xintercept = titer), linetype="solid", color="red")+
+  geom_histogram()+
+  scale_fill_manual(values=colorspace::sequential_hcl(n=4, "RdPu")[1:3])+
+  scale_x_continuous(trans="log10")+
+  theme_minimal()+
+  facet_wrap(~antigen, scales="free")+
+  theme(axis.title = element_blank(),
+        legend.title = element_blank())
+
+
 # pairwise comparisons stats ####
 
 purf <- nulisa_and_seroconversion%>%
@@ -328,3 +435,83 @@ ggplot(serconversion_df3, aes(x=factor(Cluster), y=n, fill=conversion))+
   scale_fill_manual(values=c("orange", "red", "black"))+
   theme_minimal()
   
+
+# maternal rx ####
+serconversion_df <- wide_long_msd%>%
+  distinct(id, conversion, antigen, mom_rx)
+
+serconversion_df%>%
+  group_by(conversion, antigen, mom_rx)%>%
+  summarise("n"=n(), "freq"=n/70)%>%
+  ggplot(., aes(x=antigen, y=freq, fill=mom_rx))+
+  geom_bar(stat="identity")+
+  facet_wrap(~conversion)
+
+#tbd
+serocon_momrx_chisq <- serconversion_df %>%
+  group_by(antigen) %>%
+  nest() %>%
+  mutate(
+    test = map(
+      data,
+      ~ {
+        tbl <- with(.x, table(conversion, mom_rx))
+        chisq.test(tbl)
+      }
+    ),
+    tidied = map(test, broom::tidy)
+  ) %>%
+  unnest(tidied) %>%
+  ungroup() %>%
+  mutate(p_adj = p.adjust(p.value, method = "fdr"))
+
+
+neuro_cog <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/neurocognitive/NCT_infants_share032025.csv")
+neuro_cog_edit <- neuro_cog%>%
+  mutate(id=subjid, date=as.Date(vdate))%>%
+  select(-gender, -GAcomputed, -SGA, -date, -dob)%>%
+  pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")
+
+seroconv_plus_neuro <- left_join(serconversion_df, neuro_cog_edit, by="id")
+
+
+seropos_neuro_cog_purrr <- seroconv_plus_neuro%>%
+  filter(!is.na(composite_kind))%>%
+  mutate(conversion=factor(conversion, levels=c("nothing", "converts 8 to 24", "converts 24 to 52")))%>%
+  group_by(antigen, composite_kind)%>%
+  nest()%>%
+  mutate(model = purrr::map(data, ~glm(composite_score~conversion, data=.)))%>%
+  mutate(model_summary=purrr::map(model, ~summary(.)))%>%
+  mutate(p24=purrr::map(model_summary, ~coef(.)[11]))%>%
+  mutate(p52=purrr::map(model_summary, ~coef(.)[12]))%>%
+  ungroup(antigen)%>%
+  mutate(padj24=p.adjust(p24, method="fdr"))%>%
+  mutate(padj52=p.adjust(p52, method="fdr"))
+
+seropos_neuro_cog_purrr%>%
+  filter(padj24<0.05 | padj52<0.05)
+
+
+# get all levels of conversion
+df <- seroconv_plus_neuro%>%
+  filter(!is.na(composite_kind))%>%
+  filter(antigen=="PIV.Mix")%>%
+  mutate(conversion=factor(conversion))
+  
+conv_levels <- levels(df$conversion)
+# define comparisons vs "nothing"
+
+comparisons <- lapply(setdiff(conv_levels, "nothing"), function(x) c("nothing", x))
+
+seroconv_plus_neuro%>%
+  filter(!is.na(composite_kind))%>%
+  filter(antigen=="PIV.Mix")%>%
+  ggplot(., aes(x=composite_kind, y=composite_score, fill=factor(conversion)))+
+  geom_boxplot(outliers = F)+
+  theme_minimal()+
+  ggpubr::stat_compare_means()
+
+
+
+
+

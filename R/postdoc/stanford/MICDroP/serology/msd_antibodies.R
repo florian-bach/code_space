@@ -795,22 +795,21 @@ antibodies_and_nulisa%>%
 # attempt at mixture models ####
 
 # credit Kenneth & Alyssa for code below this line
-timepoints = c("8 weeks", "24 weeks", "52 weeks")
-  
+library(mclust)
+
 seroprev_est_df <- data.table()
 
-for(v in vaccines){
-  for(t in timepoints){
+for(v in unique(long_msd$antigen)){
   fmm_model=NULL
-  concentration_values <- long_msd$titer[long_msd$antigen==v&long_msd$timepoint==t&!is.na(long_msd$titer)]
+  concentration_values <- long_msd$titer[long_msd$antigen==v&!is.na(long_msd$titer)]
   log_serotype_vector <- log10(concentration_values)
-  
+  print(v)
   ### fit initial mixutre model with 2 components
   k <- 2 #number of components 
   fmm_model <- mclust::Mclust(log_serotype_vector, G = k, modelNames = "V") 
   
+  if(is.null(fmm_model)) print(paste(v, "failed")) 
   if(is.null(fmm_model)) next
-  
   # Extract parameters
   means <- fmm_model$parameters$mean
   sds <- sqrt(fmm_model$parameters$variance$sigmasq)
@@ -828,20 +827,25 @@ for(v in vaccines){
     component = factor(rep(1:2, each = length(x_vals)))
   )
   
+  seropos_threshold <- dens_df%>%
+    pivot_wider(names_from = component, names_prefix = "component_", values_from = density)%>%
+    filter(component_1/component_2>0.99 &component_1/component_2<1.01)
+  
   # Plot histogram + density curves
   gg_density <- ggplot() +
     geom_histogram(aes(x = log_serotype_vector, y = after_stat(density)), 
                    bins = 50, fill = "gray80", color = "white") +
     geom_line(data = dens_df, aes(x = x, y = density, color = component), size = 1.2) +
+    geom_vline(xintercept = seropos_threshold$x)+
     scale_x_continuous(limits = c(0, NA))+
     labs(title = "FMM: Mixture of 2 Components",
-         subtitle=paste0("Serotype: ", v, " at ", t),
+         subtitle=paste0("Serotype: ", v),
          x = "log(concentration)", y = "Density") +
     scale_color_manual(values = c("blue", "red")) +
     theme_minimal()+
     theme(legend.position = "none")
   
-  ggsave(paste0("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/fmm_2components_",v, "_", t, ".png", sep=""),gg_density, width = 8, height = 4, dpi = 444, bg="white")
+  ggsave(paste0("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/fmm_2components_",v, ".png", sep=""),gg_density, width = 8, height = 4, dpi = 444, bg="white")
   
   # Step 1: Out of the 2 components, we identify which distribution has a higher mean, and assume that is the seropositive component
   component_means <- fmm_model$parameters$mean
@@ -855,10 +859,12 @@ for(v in vaccines){
   estimated_seroprevalence <- mean(seropositive_probs) #the mean of all the probabilities will be equal to the overall population seroprevalence
   
   # Step 6: Report as percentage
-  to_add <- cbind(v, estimated_seroprevalence, t)
+  to_add <- cbind(v, estimated_seroprevalence, seropos_threshold$x[1])
   
   seroprev_est_df <- rbind(seroprev_est_df, to_add)
   
-  }}
+}
+
+write.csv(seroprev_est_df, "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/mixture_model_df.csv", row.names = F)
 
 View(seroprev_est_df)
