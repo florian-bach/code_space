@@ -107,15 +107,19 @@ metadata <- raw_data%>%
 infs_and_meta <- raw_data%>%
 # filter(ageinwks<54)%>%
   group_by(id) %>%
-  mutate("total_n_para_12"=sum(qPCRparsdens>1&ageinwks<53, na.rm=TRUE),
+  mutate("total_n_para_12"=sum(pardens>1&ageinwks<53, na.rm=TRUE),
          "total_n_malaria_12"=sum(mstatus!=0&ageinwks<53, na.rm=TRUE),
-         "total_n_para_24"=sum(qPCRparsdens>1&ageinwks<105, na.rm=TRUE),
+         "total_n_para_24"=sum(pardens>1&ageinwks<105, na.rm=TRUE),
          "total_n_malaria_24"=sum(mstatus!=0&ageinwks<105, na.rm=TRUE),
-         "total_n_para_6"=sum(qPCRparsdens>1&ageinwks<27, na.rm=TRUE),
+         "total_n_para_12_24"=sum(pardens>1&ageinwks<105&ageinwks>52, na.rm=TRUE),
+         "total_n_malaria_12_24"=sum(mstatus!=0&ageinwks<105&ageinwks>52, na.rm=TRUE),
+         "symp_prob_12_24"=total_n_malaria_12_24/total_n_para_12_24,
+         "total_n_para_6"=sum(pardens>1&ageinwks<27, na.rm=TRUE),
          "total_n_malaria_6"=sum(mstatus!=0&ageinwks<27, na.rm=TRUE),
          "any_malar_6"=if_else(total_n_malaria_6==0, FALSE, TRUE),
-         "any_malar_12"=if_else(total_n_malaria_12==0, FALSE, TRUE))%>%
-  select(id, date, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, total_n_para_24, total_n_malaria_24, -gender)%>%
+         "any_malar_12"=if_else(total_n_malaria_12==0, FALSE, TRUE),
+         "any_malar_12_24"=if_else(total_n_malaria_12_24==0, FALSE, TRUE))%>%
+  select(id, date, any_malar_6, any_malar_12, any_malar_12_24, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, total_n_para_24, total_n_malaria_24, total_n_para_12_24,total_n_malaria_12_24,symp_prob_12_24, -gender)%>%
   right_join(., metadata, by=c("id", "date"))%>%
   group_by(id)%>%
   mutate(total_n_para=max(total_n_para_12, na.rm = T),

@@ -1,3 +1,7 @@
+library(tidyr)
+library(dplyr)
+`%notin%`=Negate(`%in%`)
+
 #BoxNumber1=PBMC
 #BoxNumber2=Paxgene
 #BoxNumber3=Plasma
@@ -5,6 +9,9 @@
 #BoxNumber5=CellStabiliser
 #BoxNumber7=CellStabiliser
 
+raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
+
+mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 msd_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/batch_one.csv")
 
@@ -58,6 +65,15 @@ long_specimen_data <- specimen_database %>%
 dobs <- raw_data%>%
   filter(!is.na(dob))%>%
   distinct(id, dob)
+
+
+metadata_columns <- c("id", "dob", "date", "ageinwks", "gender", "mstatus", "qPCRparsdens", "visittype", "fever", "febrile", "rogerson", "anyHP", "GAcomputed", "gi", "SGA", "qPCRdich", "mqPCRparsdens")
+
+#merge based on id and date
+metadata <- raw_data%>%
+  select(all_of(metadata_columns))%>%
+  mutate(timepoint_num=as.numeric(ageinwks), id=as.numeric(id))%>%
+  mutate(log_qpcr=log10(qPCRparsdens+0.01))
 
 infs_and_meta <- specimen_database%>%
   mutate(dob2=dobs$dob[match(id, dobs$id)])%>%
@@ -155,7 +171,7 @@ paxgenes_to_pick <- long_specimen_data %>%
   select(id, date, RandomNumber2, BoxNumber2, PositionColumn1, PositionRow2)%>%
   arrange(BoxNumber2)
   
-write.csv(paxgenes_to_pick, "~/postdoc/stanford/rna_seq/micdrop/paxgenes_to_pick_aug25.csv", row.names = F)
+# write.csv(paxgenes_to_pick, "~/postdoc/stanford/rna_seq/micdrop/paxgenes_to_pick_aug25.csv", row.names = F)
 
 
 # venn diagrams ####
@@ -208,3 +224,36 @@ treatment_group_distribution <- mic_drop_key%>%
   filter(id %in% c(msd_samples$id, potential_msd$id))%>%
   group_by(treatmentarm)%>%
   summarise(n())
+
+# locate additional MSD plasma samples ####
+
+long_specimen_data %>%
+  filter(id %in% potential_msd$id)%>%
+  filter(Timepoint_in_weeks %in% c(8, 24, 52))%>%
+  filter(Specimen_ID!="")%>%
+  filter(Specimen_Type=="Plasma")%>%
+  select(id, date, RandomNumber3, BoxNumber3, PositionColumn3, PositionRow3)%>%
+  arrange(BoxNumber3) -> additional_MSD_to_pick
+
+write.csv(additional_MSD_to_pick, "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/additional_samples_for_msd.csv", row.names = F)
+
+
+
+
+potential_micdrop_sample_venn <- list("vaccination_and_viral_serology"=msd_with_additional,
+                                      "whole_blood_bulk_RNAseq"=full_hundred,
+                                      "Pf_EMP1_serology"=unique(var_samples$id)[unique(var_samples$id) %in% full_hundred],
+                                      "plasma_proteomics"=unique(micdrop_nulisa_with_meta$id)
+)
+
+immuno_df_for_anna <- data.frame("id"=unlist(potential_micdrop_sample_venn))
+immuno_df_for_anna$assay <- rownames(immuno_df_for_anna) 
+immuno_df_for_anna$assay <- gsub("[0-9]", "", immuno_df_for_anna$assay)
+
+existing_immunology_samples_for_anna.csv <- immuno_df_for_anna%>%
+  mutate(value=TRUE)%>%
+  pivot_wider(names_from = assay, values_from = value, values_fill=F)
+
+write.csv(existing_immunology_samples_for_anna.csv,
+          "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/existing_immunology_samples_for_anna.csv",
+          row.names = F)

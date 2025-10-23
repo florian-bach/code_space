@@ -84,13 +84,13 @@ pardens_mic_drop_data <- specimen_database %>%
                               3~"quinine for AL failure",
                               4~"Q/AS failure"))%>%
   ungroup()%>%
-  mutate(hbs=mic_drop_hbs$HbS[match(as.numeric(id), mic_drop_hbs$id)],
+  mutate(#hbs=mic_drop_hbs$HbS[match(as.numeric(id), mic_drop_hbs$id)],
          treatmentarm=mic_drop_key$treatmentarm[match(as.numeric(id), mic_drop_key$id)],
          anyDP=if_else(treatmentarm==1, "no", "yes"),
-         hbs=case_match(hbs,
-                        1~"HbAA",
-                        2~"HbAS",
-                        3~"HbSS"),
+         # hbs=case_match(hbs,
+         #                1~"HbAA",
+         #                2~"HbAS",
+         #                3~"HbSS"),
          treatmentarm=case_match(treatmentarm,
                                  1~"Placebo",
                                  2~"DP 1 year",
@@ -111,11 +111,21 @@ kids_with_comp_pk <- malaria_pk%>%
   filter(mstatus.x==2)
 
 kids_with_uncomp_timecourses <- malaria_pk%>%
-  filter(n_malaria%in%c(1,3,5) | n_malaria >=7)%>%
+  filter(n_malaria%in%c(1,3,5) | n_malaria >=6)%>%
   group_by(id)%>%
   slice_min(order_by = n_malaria, n = 4)%>%
   filter(n()==4)
 
+priority_list_for_bakar <- kids_with_uncomp_timecourses%>%
+  bind_rows(kids_with_comp_pk)%>%
+  select(id, date, RandomNumber4)
+
+rest_list_for_bakar <- malaria_pk%>%
+  select(id, date, RandomNumber4)%>%
+  filter(RandomNumber4 %notin% priority_list_for_bakar$RandomNumber4)
+
+write.csv(priority_list_for_bakar, "~/postdoc/stanford/plasma_analytes/MICDROP/mstatus_one/priority_list_for_bakar.csv", row.names = F)
+write.csv(rest_list_for_bakar, "~/postdoc/stanford/plasma_analytes/MICDROP/mstatus_one/rest_list_for_bakar.csv", row.names = F)
 
 # make new list with clinical only ####
 

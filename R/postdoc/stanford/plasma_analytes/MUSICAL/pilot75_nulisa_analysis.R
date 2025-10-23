@@ -3,7 +3,7 @@ library(tidyr)
 library(dplyr)
 `%notin%` <- Negate(`%in%`)
 
-musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
+musical_metadata <- read.csv("/Users/fbach/Library/CloudStorage/Box-Box/Florian Bach's Externally Shareable Files/stanford/cytometry/CyTOF/MUSICAL/pilot75/")
 random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/id_date_code.csv")
 random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1JLGS", "DIJLGS", random_codes$plasma.barcode)
@@ -31,7 +31,7 @@ slim_musical_metadata <- musical_metadata %>%
 combo_frame <- merge(slim_musical_metadata, random_codes, by=c("id", "date"))
 combo_frame2 <- rbind(combo_frame, micdrop_codes)
 
-nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/nulisa_data.csv")
+nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/nulisa_data.csv")
 
 wide_nulisa <- nulisa %>%
   pivot_longer(cols = colnames(nulisa)[2:ncol(nulisa)], names_to = "plasma.barcode", values_to = "concentration")

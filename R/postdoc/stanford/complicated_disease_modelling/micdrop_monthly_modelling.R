@@ -71,6 +71,8 @@ quadratic_glm_visualiser <- function(model, x_name, x_range){
 # load data ####
 meta_cols <- c("id", "date", "flo_age_in_wks", "flo_age_in_months", "mstatus", "pardens", "study", "gender", "treatmentarm")
 
+maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
+
 ## promote data  ####
 promote1 <- haven::read_dta("~/postdoc/stanford/clinical_data/PROMOTE/BC-3 childs all visit database FINAL.dta")
 promote2 <- haven::read_dta("~/Library/CloudStorage/Box-Box/BC3NaturalHistoryPaper/BC-3 children individual level database FINAL.dta")
@@ -974,6 +976,12 @@ any_dp_malaria_summary_model_prd <- quadratic_glm_visualiser(any_dp_malaria_summ
 
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/any_dp_uncomplicated_comp_plot.png", any_dp_malaria_comp_plot, width=4, height=4, dpi=444)
 
+
+# make graph showing incidence of clinical episodes over age;
+# make grpahs showing clsassic epi: incidence of infection, parasitemia, malaria
+# greater efficacy reduces cumultaive number of deaths averted
+# if less tahn 2 episodes per year then r21 worse negative efficacy
+# does duration of first/second infection matter?
 # sandbox ####
 
 all_mala_symp_summary <- all_para%>%

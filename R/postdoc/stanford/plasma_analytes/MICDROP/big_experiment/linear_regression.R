@@ -723,3 +723,105 @@ clean_data%>%
 
 # hierarchical clustering ####
 
+# sandbox; future modelling ####
+
+future_purf_52 <- clean_data%>%
+  filter(mstatus==0, timepoint=="52 weeks", treatmentarm!="DP 2 years")%>%
+  # mutate(total_n_malaria_12_24=if_else(total_n_malaria_12_24>6, 6, total_n_malaria_12_24))%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12_24~conc+treatmentarm+gender_categorical+log_qpcr, data=.))) %>%
+  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12_24~conc+treatmentarm+gender_categorical+log_qpcr, data=.))) %>%
+  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+  mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
+  #11 when additional covariate is included
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[17]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[17]))%>%
+  ungroup()%>%
+  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
+         n_para_padj=p.adjust(n_para_p, method="BH"))
+
+
+future_purf_52%>%
+  select(targetName, n_malaria_p, n_para_p, n_malaria_padj, n_para_padj)%>%
+  arrange(n_para_padj)
+
+future_purf_52%>%
+  select(targetName, n_malaria_p, n_para_p, n_malaria_padj, n_para_padj)%>%
+  arrange(n_malaria_padj)
+
+
+symp_prob_data <- clean_data%>%
+  ungroup()%>%
+  filter(mstatus==0, timepoint=="52 weeks", treatmentarm!="DP 2 years")%>%
+  mutate(treatmentarmf=factor(treatmentarm, levels = c("DP 1 year", "Placebo")))%>%
+  filter(!is.na(symp_prob_12_24), !is.na(conc), !is.na(treatmentarmf), !is.na(total_n_para_12_24))
+
+symp_prob_purf <- symp_prob_data %>%
+  group_by(targetName) %>%
+  nest() %>%
+  mutate(n_malaria_model = map(data, ~ {
+    df <- droplevels(.x)  # remove unused factor levels
+    if (nlevels(df$treatmentarmf) < 2) return(NULL)
+    glm(symp_prob_12_24 ~ conc + treatmentarmf, data = df,
+        family = "binomial", weights = total_n_para_12_24)
+  }),
+  # Safely summarize models
+  n_malaria_model_summary = map(n_malaria_model, ~ if (!is.null(.x)) summary(.x) else NULL),
+  # Safely extract p-values
+  n_malaria_p = map_dbl(n_malaria_model_summary, ~ if (!is.null(.x)) coef(.x)[11] else NA_real_)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    n_malaria_padj = p.adjust(n_malaria_p, method = "BH")
+  )
+
+# symp_prob_52 <- clean_data%>%
+#   mutate(treatmentarm=factor(treatmentarm))%>%
+#   ungroup()%>%
+#   filter(mstatus==0, timepoint=="52 weeks", treatmentarm!="DP 2 years")%>%
+#   group_by(targetName)%>%
+#   nest()%>%
+#   mutate(n_malaria_model=map(data, ~glm(any_malar_12_24~conc+treatmentarm, data=., family="binomial"))) %>%
+#   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+#   mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
+#   ungroup()%>%
+#   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"))
+# 
+
+kinda_sigs <- symp_prob_52%>%
+  filter(n_malaria_padj<0.15)
+
+
+clean_data%>%
+  filter(mstatus==0, timepoint=="52 weeks")%>%
+  filter(targetName %in%kinda_sigs$targetName)%>%
+  ggplot(., aes(x=symp_prob_12_24, y= conc))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  facet_wrap(~targetName, scales="free")+
+  scale_fill_viridis_d(option="F")+
+  theme_minimal()
+
+
+clean_data%>%
+  filter(mstatus==0, timepoint=="52 weeks")%>%
+  filter(targetName %in%kinda_sigs$targetName)%>%
+  filter(symp_prob_12_24==0 | symp_prob_12_24==1)%>%
+  ggplot(., aes(x=factor(symp_prob_12_24), y= conc))+
+  geom_boxplot()+
+  geom_smooth(method="lm")+
+  ggpubr::stat_compare_means()+
+  facet_wrap(~targetName, scales="free")+
+  scale_fill_viridis_d(option="F")+
+  theme_minimal()
+
+clean_data%>%
+  filter(mstatus==0, timepoint=="52 weeks")%>%
+  filter(targetName %in% c("BMP7", "TNFSF14"))%>%
+  ggplot(., aes(x=factor(total_n_para_12_24), y= conc, fill=factor(total_n_para_12_24)))+
+  geom_boxplot()+
+  facet_wrap(~targetName, scales="free")+
+  scale_fill_viridis_d(option="F")+
+  theme_minimal()
+

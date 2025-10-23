@@ -32,6 +32,7 @@ full_stool_details <- full_stools %>%
                                  2~"DP 1 year",
                                  3~"DP 2 years"))
 
+# write.csv(full_stool_details, "~/Downloads/stool_database_for_anna.csv", row.names = F)
 
 kids_with_8_24_52 <- full_stool_details %>%
   filter(age_in_weeks<60)%>%
@@ -52,6 +53,11 @@ kids_with_6_12_24 <- full_stool_details %>%
   filter(n_samples>=3)
 
 
+full_stool_details %>%
+  filter(age_in_weeks<14)%>%
+  group_by(SubjectID)%>%
+  add_count(name = "n_samples")%>%
+  filter(n_samples)
 
 
 

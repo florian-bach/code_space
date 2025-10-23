@@ -121,12 +121,14 @@ age_pca12 <- pca_plot_data %>%
   xlab(paste("PC1 ", data.frame(summary(big_pca)[6])[2,1]*100, "%", sep = ""))+
   ylab(paste("PC2 ", data.frame(summary(big_pca)[6])[2,2]*100, "%", sep = ""))+
   theme_minimal()+
-  viridis::scale_color_viridis(discrete = T, direction = -1)+
+  viridis::scale_color_viridis(discrete = T, direction = -1, option = "A", end = 0.85)+
   # viridis::scale_color_viridis(discrete = T)+
   theme(axis.text = element_blank(),
         legend.title = element_blank())
 
-ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_pca12.png", age_pca12, height=4, width = 6, bg="white")
+# ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/age_pca12.png", age_pca12, height=4, width = 6, bg="white")
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/skinny_age_pca12.png", age_pca12, height=4, width = 4, bg="white")
 
 
 

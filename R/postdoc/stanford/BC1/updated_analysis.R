@@ -497,7 +497,8 @@ ab_clin <- long_raw_dfff%>%
   pivot_longer(cols = matches("symp|inf"), names_to = "incidence_type", values_to = "incidence_value")%>%
   pivot_wider(names_from = timepoint, values_from = conc, names_prefix = "t_")%>%
   mutate("increases_6_12"=ifelse(10^t_3>10^t_2, 1, 0))%>%
-  pivot_longer(cols = c("t_1", "t_2", "t_3"), names_to = "timepoint", values_to = "conc", names_prefix = "t_")
+  pivot_longer(cols = c("t_1", "t_2", "t_3"), names_to = "timepoint", values_to = "conc", names_prefix = "t_")%>%
+  filter(id %notin% c(12015, 12028, 12337))
 
 
 
