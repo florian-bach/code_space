@@ -87,7 +87,7 @@ promote_data <- promote1 %>%
   select(all_of(meta_cols))
   
 ## mic drop ####
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through July 31st 2025.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through October 31st 2025.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 mic_drop_data <- mic_drop %>%
@@ -139,25 +139,32 @@ twelve_month_labels <- paste0(seq(0, 48, by=12), " to ", seq(12, 60, by=12), " m
 
 monthly_categories <- combo_data %>%
   filter(!is.na(mstatus), !is.na(flo_age_in_wks), mstatus!=3, mstatus!=4)%>%
-  mutate("four_week_increment"=floor(flo_age_in_wks/4))%>%
-  mutate(age_quarter=cut(flo_age_in_months, breaks = seq(0,60,by=3), labels=three_month_labels))%>%
-  mutate(age_semi=cut(flo_age_in_months, breaks = seq(0,60,by=6), labels=six_month_labels))%>%
+  mutate("four_week_increment"=floor(flo_age_in_months))%>%
+  mutate(age_quarter=cut(flo_age_in_wks, breaks = seq(0,60,by=3), labels=three_month_labels))%>%
+  mutate(age_semi=cut(flo_age_in_wks, breaks = seq(0,60,by=6), labels=six_month_labels))%>%
   arrange(id, four_week_increment)%>%
   group_by(id, four_week_increment)%>%
-  mutate(outcome=ifelse(any(mstatus==2), "complicated",
-                        ifelse(any(mstatus==1), "uncomplicated",
-                               #ifelse(any(mstatus%in%c(3,4)), "treatment_failure",
-                               ifelse(all(mstatus==0)&any(pardens>0), "asymptomatic",
-                                      ifelse(all(mstatus==0)&all(pardens==0 | is.na(pardens)), "nothing", "something_else")))))%>%
+  mutate(outcome=case_when(any(mstatus==2)~"complicated",
+                           any(mstatus==1)~"uncomplicated",
+                           #any(mstatus==3)~"treatment_failure",
+                           all(mstatus==0)&any(pardens>0)~"asymptomatic",
+                           all(mstatus==0)&all(pardens==0|is.na(pardens), pardens==0)~"uninfected",
+                           all(mstatus==0)&all(pardens==0|is.na(pardens), pardens==0|is.na(pardens))~"undetermined",
+                           .default="something_else"))%>%
+  group_by(id, four_week_increment)%>%
   mutate(has_comp=any(mstatus==2))%>%
   mutate(has_uncomp=any(mstatus==1))%>%
   mutate(has_hyper = ifelse(any(pardens>100000), "hyperparasitemia", "normal"))%>%
-  filter((n() == 1) |
-    (has_comp & mstatus == 2) |
-      (has_comp==FALSE & has_uncomp & mstatus == 1) |
-      (has_hyper=="hyperparasitemia" & pardens==max(pardens))
+  filter(
+    (outcome=="complicated" & mstatus == 2) |
+      (outcome=="uncomplicated" & mstatus == 1) |
+      outcome%in%c("uninfected", "asymptomatic", "undetermined")
+    #(has_hyper=="hyperparasitemia" & pardens==max(pardens))
   )%>%
+  group_by(id, four_week_increment)%>%
+  slice_max(n = 1, order_by = pardens, with_ties = F)%>%
   group_by(id, outcome)%>%
+  arrange(date)%>%
   mutate(order_of_outcome = seq(1, n()))
 
   
@@ -171,7 +178,7 @@ long_monthly_categories <- monthly_categories%>%
   arrange(id, date)%>%
   group_by(id)%>%
   #these n are not the order at the time, but the number of preceding episodes
-  mutate(n_nothing=cummax(nothing))%>%
+  mutate(n_nothing=cummax(uninfected))%>%
   mutate(n_complicated=cummax(complicated))%>%
   mutate(n_uncomplicated=cummax(uncomplicated))%>%
   mutate(n_asymptomatic=cummax(asymptomatic))%>%
@@ -279,7 +286,8 @@ malaria_summary_model_prediction <- quadratic_glm_visualiser(model=malaria_summa
               alpha = 0.2, inherit.aes = FALSE)+
   geom_function(fun = malaria_summary_model_prediction$fun, colour="black")+
   geom_text(aes(y=0.17, label= paste0("frac(",comp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
-  scale_x_continuous(breaks = 1:50, limits=c(1,20))+
+  scale_x_continuous(breaks = 1:50)+
+  scale_y_continuous(limits=c(0,0.30))+
   # scale_y_continuous(limits = c(0,0.2), labels = scales::label_percent())+
   # ggtitle("Placebo")+
   ggtitle(paste(sum(all_malaria_summary$comp_0+all_malaria_summary$comp_1), "malaria episodes (", sum(all_malaria_summary$comp_1), "complicated)"))+
@@ -357,7 +365,7 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/age_comp_plot.png",
 
 # individual level models, placebo only
 
-## individual level models , all data####
+## individual level models , no DP ####
 placebo_malaria <- all_malaria%>%
   filter(treatmentarm=="No DP")
 

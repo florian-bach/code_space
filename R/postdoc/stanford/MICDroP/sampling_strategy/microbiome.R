@@ -1,7 +1,6 @@
 # bakars new data ####
 
 stool_samples1 <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/microbiome/micdrop_stool_samples_dec_2025.csv")
-
 stool_samples2 <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/microbiome/LIST OF STOOL SAMPLES ALIQUOT 1.xlsx")
 
 bdays <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/specimen_QC/2024_06/MICDSpecimenBoxJun24_withclinical.dta", col_select = c(id, dob))
@@ -26,11 +25,13 @@ sample_ranges <- sort(c(sample_ages, sample_ages_minus, sample_ages_plus))
 
 full_stool_details <- full_stools %>%
   mutate("age_in_weeks"=as.numeric(as.Date(Date)-dob)%/%7)%>%
+  mutate(timepoint=case_when(age_in_weeks<12~"8 weeks", age_in_weeks>20&age_in_weeks<28~"24 weeks", age_in_weeks>48&age_in_weeks<56~"52 weeks", age_in_weeks>100&age_in_weeks<108~"104 weeks"))%>%
   mutate(treatmentarm=mic_drop_key$treatmentarm[match(SubjectID, mic_drop_key$id)],
          treatmentarm=case_match(treatmentarm,
                                  1~"Placebo",
                                  2~"DP 1 year",
-                                 3~"DP 2 years"))
+                                 3~"DP 2 years"))%>%
+  filter(grepl("^MICD-ST-10", BoxNumber))
 
 # write.csv(full_stool_details, "~/Downloads/stool_database_for_anna.csv", row.names = F)
 
@@ -42,6 +43,12 @@ kids_with_8_24_52 <- full_stool_details %>%
 
 kids_with_24_and_52 <- full_stool_details %>%
   filter(age_in_weeks>20 & age_in_weeks<60)%>%
+  group_by(SubjectID)%>%
+  add_count(name = "n_samples")%>%
+  filter(n_samples>=2)
+
+kids_with_8_and_52 <- full_stool_details %>%
+  filter(age_in_weeks<20 |( age_in_weeks>48 & age_in_weeks<60))%>%
   group_by(SubjectID)%>%
   add_count(name = "n_samples")%>%
   filter(n_samples>=2)

@@ -378,6 +378,11 @@ purf_52 <- clean_data%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
 
+# negative binomial means coefficient is on natural log scale.
+#so coef of -0.3 -> each 1-unit increase in conc is associated with ~26.6% decrease in the expected number of infections
+# higher conc at month 12 is associated with fewer cumulative infections over the first year.
+
+
 purf_52%>%
   select(targetName, n_malaria_padj, n_para_padj)%>%
   write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/n_infection_purf.csv", row.names = F)
@@ -386,7 +391,7 @@ sig_mala_12 <- purf_52%>%
   filter(n_malaria_padj<0.1)
 
 sig_para_12 <- purf_52%>%
-  filter(n_para_padj<0.15)
+  filter(n_para_padj<0.05)
 
 
 tlr_plot <- clean_data %>%
@@ -409,25 +414,25 @@ tlr_plot <- clean_data %>%
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/tlr_plot.png", tlr_plot, height=3, width=4.5, dpi=444, bg="white")
 
 
-for(i in 1:ceiling(length(sig_mala_12)/16)){
-  
-  plt <- clean_data %>%
-    filter(targetName %in% sig_mala_12$targetName,
-           timepoint=="52 weeks")%>%
-    mutate(targetNamef=factor(targetName, levels=sig_mala_12$targetName))%>%
-    ggplot(aes(x=factor(total_n_malaria_12), y=conc, fill=factor(total_n_malaria_12)))+
-    # geom_line(aes(group=id), alpha=0.2)+
-    geom_boxplot(outliers = FALSE)+
-    facet_wrap(~targetNamef, scales = "free")+
-    viridis::scale_fill_viridis(discrete = T)+
-    xlab("number of malaria episodes")+
-    theme_minimal()+
-    theme(legend.position = "none",
-          axis.title.y = element_blank())
-  
-  ggsave(paste("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/n_mala_no_pcr_analytes", (i-1)*16+1, i*16, ".png", sep="_"), plt, height=4, width=8, dpi=444, bg="white")
-  
-}
+# for(i in 1:ceiling(length(sig_mala_12)/16)){
+#   
+#   plt <- clean_data %>%
+#     filter(targetName %in% sig_mala_12$targetName,
+#            timepoint=="52 weeks")%>%
+#     mutate(targetNamef=factor(targetName, levels=sig_mala_12$targetName))%>%
+#     ggplot(aes(x=factor(total_n_malaria_12), y=conc, fill=factor(total_n_malaria_12)))+
+#     # geom_line(aes(group=id), alpha=0.2)+
+#     geom_boxplot(outliers = FALSE)+
+#     facet_wrap(~targetNamef, scales = "free")+
+#     viridis::scale_fill_viridis(discrete = T)+
+#     xlab("number of malaria episodes")+
+#     theme_minimal()+
+#     theme(legend.position = "none",
+#           axis.title.y = element_blank())
+#   
+#   ggsave(paste("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/n_mala_no_pcr_analytes", (i-1)*16+1, i*16, ".png", sep="_"), plt, height=4, width=8, dpi=444, bg="white")
+#   
+# }
 
 for(i in 1:ceiling(length(sig_para_12)/16)){
   
@@ -472,17 +477,17 @@ for(i in 1:ceiling(length(sig_para_12)/16)){
 
 ### logistic; any malaria / para ####
 purf_52_bino <- clean_data%>%
-  filter(mstatus==0, timepoint=="52 weeks")%>%
+  filter(mstatus==0, timepoint=="24 weeks")%>%
   group_by(targetName)%>%
-  mutate(any_malaria=ifelse(total_n_malaria_12==0, 0, 1))%>%
-  mutate(any_para=ifelse(total_n_para_12==0, 0, 1))%>%
+  # mutate(any_malaria=ifelse(total_n_malaria_12==0, 0, 1))%>%
+  # mutate(any_para=ifelse(total_n_para_12==0, 0, 1))%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~glm(any_malaria~conc+gender_categorical, data=., family="binomial"))) %>%
-  mutate(n_para_model=map(data, ~glm(any_para~conc+gender_categorical, data=., family="binomial"))) %>%
+  mutate(n_malaria_model=map(data, ~glm(any_malar_12~conc+log_qpcr+gender_categorical, data=., family="binomial"))) %>%
+  mutate(n_para_model=map(data, ~glm(any_para_12~conc+log_qpcr+gender_categorical, data=., family="binomial"))) %>%
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[14]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
@@ -496,10 +501,9 @@ sig_para_bino_12 <- purf_52_bino%>%
 
 
 clean_data%>%
-  mutate(any_malaria=ifelse(total_n_malaria_12==0, 0, 1))%>%
-  filter(mstatus==0, timepoint=="52 weeks")%>%
-  filter(targetName%in%sig_mala_12$targetName)%>%
-  ggplot(., aes(x=any_malaria, y=conc, fill=factor(any_malaria)))+
+  filter(mstatus==0, timepoint=="24 weeks")%>%
+  filter(targetName%in%sig_para_bino_12$targetName)%>%
+  ggplot(., aes(x=any_para_6, y=conc, fill=factor(any_para_6)))+
   facet_wrap(~targetName, scales="free")+
   geom_boxplot(outliers = F)+
   viridis::scale_fill_viridis(discrete = T)+
@@ -722,6 +726,87 @@ clean_data%>%
 
 
 # hierarchical clustering ####
+# alternatively, model incidence linearly####
+
+purf_52_lm <- clean_data%>%
+  filter(mstatus==0, timepoint=="52 weeks")%>%
+  group_by(targetName)%>%
+  nest()%>%
+  mutate(n_malaria_model_past=map(data, ~lm(conc~total_n_malaria_12+gender_categorical+log_qpcr, data=.))) %>%
+  mutate(n_para_model_past=map(data, ~lm(conc~total_n_para_12+gender_categorical+log_qpcr, data=.))) %>%
+  mutate(n_malaria_model_future=map(data, ~lm(conc~total_n_malaria_12_24+gender_categorical+log_qpcr, data=.))) %>%
+  mutate(n_para_model_future=map(data, ~lm(conc~total_n_para_12_24+gender_categorical+log_qpcr, data=.))) %>%
+  
+  # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  mutate(n_malaria_model_summary_past=map(n_malaria_model_past, ~summary(.))) %>%
+  mutate(n_para_model_summary_past=map(n_para_model_past, ~summary(.)))%>%
+  mutate(n_malaria_model_summary_future=map(n_malaria_model_future, ~summary(.))) %>%
+  mutate(n_para_model_summary_future=map(n_para_model_future, ~summary(.)))%>%
+  
+  #11 when additional covariate is included
+  mutate(n_malaria_past_p=map_dbl(n_malaria_model_summary_past, ~coef(.)[14]))%>%
+  mutate(n_para_past_p=map_dbl(n_para_model_summary_past, ~coef(.)[14]))%>%
+  mutate(n_malaria_future_p=map_dbl(n_malaria_model_summary_future, ~coef(.)[14]))%>%
+  mutate(n_para_future_p=map_dbl(n_para_model_summary_future, ~coef(.)[14]))%>%
+  ungroup()%>%
+  mutate(n_malaria_past_padj=p.adjust(n_malaria_past_p, method="BH"),
+         n_para_past_padj=p.adjust(n_para_past_p, method="BH"))%>%
+  mutate(n_malaria_future_padj=p.adjust(n_malaria_future_p, method="BH"),
+         n_para_future_padj=p.adjust(n_para_future_p, method="BH"))
+#0
+sig_malaria_12_lm <- purf_52_lm%>%
+  filter(n_malaria_past_padj<0.1)
+#34 @ 0.1
+sig_para_12_lm <- purf_52_lm%>%
+  filter(n_para_past_padj<0.05)%>%
+  arrange(n_para_past_padj)
+#
+sig_para_12_24_lm <- purf_52_lm%>%
+  filter(n_malaria_future_padj<0.1)
+
+sig_para_12_24_lm <- purf_52_lm%>%
+  filter(n_para_future_padj<0.1)
+
+clean_data %>%
+  filter(targetName %in% sig_para_12_lm$targetName,
+         timepoint=="52 weeks",
+         log_qpcr< 0)%>%
+  mutate(targetNamef=factor(targetName, levels=sig_para_12_lm$targetName))%>%
+  ggplot(aes(x=factor(total_n_para_12), y=conc, fill=factor(total_n_para_12)))+
+  # geom_line(aes(group=id), alpha=0.2)+
+  geom_boxplot(outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free")+
+  viridis::scale_fill_viridis(discrete = T)+
+  xlab("number of malaria episodes")+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+
+
+for(i in 1:ceiling(length(sig_para_12_lm$targetName)/9)){
+  
+  plt <- clean_data %>%
+    filter(targetName %in% sig_para_12_lm$targetName[seq((i-1)*9+1, i*9)])%>%
+    mutate(targetNamef=factor(targetName, levels=sig_para_12_lm$targetName[seq((i-1)*9+1, i*9)]))%>%
+    filter(timepoint=="52 weeks", log_qpcr<0)%>%
+    mutate(targetNamef=factor(targetName, levels=sig_para_12_lm$targetName))%>%
+    ggplot(aes(x=factor(total_n_para_12), y=conc, fill=factor(total_n_para_12)))+
+    # geom_line(aes(group=id), alpha=0.2)+
+    geom_boxplot(outliers = FALSE)+
+    facet_wrap(~targetNamef, scales = "free", nrow=3)+
+    viridis::scale_fill_viridis(discrete = T)+
+    xlab("number of parasitemic months")+
+    theme_minimal()+
+    theme(legend.position = "none",
+          axis.title.y = element_blank())
+  
+  ggsave(paste("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/simple_lm_n_para_conc", (i-1)*9+1, i*9, ".png", sep="_"), plt, height=12, width=8, dpi=444, bg="white")
+  
+}
+
+
 
 # sandbox; future modelling ####
 

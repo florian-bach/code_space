@@ -3,6 +3,59 @@ library(dplyr)
 library(xlsx)
 library(ggplot2)
 
+# great way of doing it ####
+mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
+mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
+
+micdrop_visits <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through October 31st 2025.dta")
+micdrop_specimens <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
+
+
+
+micdrop_malaria_episodes <- micdrop_visits%>%
+  filter(mstatus%in%c(1,2))%>%
+  mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
+  distinct(id, date, flo_age_in_wks, mstatus, pardens, temp)%>%
+  mutate(episode_date=date)%>%
+  select(-date)%>%
+  group_by(id)%>%
+  mutate(n_malaria=paste("infection_", seq(1,n()), sep=""))
+
+
+long_specimen_data <- micdrop_specimens %>%
+  mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
+  select(id, date, flo_age_in_wks, c("BoxNumber1", "PositionColumn1", "PositionRow1", "RandomNumber1"), PBMC) %>%
+  mutate("visit_id"=paste(id, date, sep="_"))%>%
+  pivot_longer(cols = c(PBMC), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
+  filter(Specimen_Type=="PBMC")%>%
+  mutate(pbmc_date=date)%>%
+  select(-date)%>%
+  mutate(treatmentarm=mic_drop_key$treatmentarm[match(id, mic_drop_key$id)],
+         treatmentarm=case_match(treatmentarm,
+                                 1~"Placebo",
+                                 2~"DP 1 year",
+                                 3~"DP 2 years"))%>%
+  filter(Specimen_ID!="")%>%
+  select(id, treatmentarm, pbmc_date,  c("BoxNumber1", "PositionColumn1", "PositionRow1", "RandomNumber1"))
+
+
+micdrop_combo_df <- long_specimen_data%>%
+  inner_join(., micdrop_malaria_episodes, by="id")%>%
+  mutate(days_since_malaria=episode_date-pbmc_date)
+
+select_combo_df <- micdrop_combo_df%>%
+  filter(
+    (days_since_malaria >=3 &days_since_malaria<=8))%>%
+  select(id, flo_age_in_wks, mstatus, days_since_malaria, n_malaria)%>%
+  arrange(id)
+
+# pick just a handful of samples for pilot with Nana;
+# no kids with repeat infections; 
+# select first infections only; maybe unusual timepoints?
+
+# for big BD experiment: 5 first, 3 third, 3 fourth, 3 sixth, 3 10+; 17 PBMC; 34 samples; 6 captures assuming six barcodes
+
+# bad way of doing it ####
 `%notin%` <- Negate(`%in%`)
 is.blank <- function(x){sapply(x, function(y) {ifelse(y=="", TRUE, FALSE)})}
 
@@ -55,8 +108,6 @@ ex_vivo <- long_specimen_data %>%
          most_recent_malaria = as.Date(cummax(malaria_episode_num_date)),
          malaria_episode_id = paste(id, most_recent_malaria,sep="_"),
          days_since_malaria = date-most_recent_malaria)
-
-
 
 
 

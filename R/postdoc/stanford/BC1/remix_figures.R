@@ -391,7 +391,7 @@ exposure_6 <- combo_data %>%
   facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
   # ggtitle("Etramp5, GLURP,  Hyp2,  MSP1, SBP1, are significantly increased at six months\nin children who get infected early in life")+
   ylab("Concentration at 6 Months [AU]")+
-  xlab("Number of Infections in Months 0-6")+
+  xlab("Number of Parasitemic Months in Months 0-6")+
   scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 0), limits=10^c(-5, 0))+
   theme_minimal()+
   theme(
@@ -417,7 +417,7 @@ exposure_12 <- combo_data %>%
   facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
   # ggtitle("Only MSP1, MSP2 & Etramp5 are significantly increased\nat twelve months in children who get infected in months 6-12")+
   ylab("Concentration at 12 Months [AU]")+
-  xlab("Number of Infections in Months 6-12")+
+  xlab("Number of Parasitemic Months in Months 6-12")+
   scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 0), limits=10^c(-5, 0))+
   theme_minimal()+
   theme(
@@ -702,6 +702,35 @@ all_ab_broomer <- long_true_combo%>%
   do(broom::tidy(cor.test(.$cell_freq, .$conc, method="spearman")))%>%
   ungroup()%>%
   mutate("p_adj"=p.adjust(p.value, method="fdr" ))
+
+
+# supp fig. ALL DATA matneral chemoprevention ####
+
+
+#all_momrx_cord <-
+combo_data %>%
+  filter(!is.na(gestage), timepointf=="Cord Blood")%>%
+  mutate(gestagef=factor(if_else(gestage<28, "<28", 
+                                 if_else(gestage>=28 & gestage<32, "28-32", 
+                                         if_else(gestage>=32 & gestage<37, "32-37", 
+                                                 if_else(gestage>=37, ">37", "whoops")))), levels=c("<28", "28-32", "32-37", ">37")))%>%
+  ggplot(., aes(x=MomFinalRx, y=log10(conc)))+
+  geom_hline(data=filter(cutoff_df), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
+  geom_point(alpha=0.2, shape=21)+
+  geom_boxplot(aes(fill=MomFinalRx), outlier.shape = NA)+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=3)+
+  ggtitle("Maternal Chemoprevention Has No Impact on Antibody Concentrations in Cord Blood")+
+  xlab("\n Maternal Chemoprevention Regimen")+
+  ylab("Concentration")+
+  theme_minimal()+
+  theme(#panel.grid = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_text(angle = 90, hjust=1),
+    strip.text = element_text())+
+  scale_fill_manual(values=gestage_pal)
+
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/all_gestages_cord.png", all_gestages_cord, height = 7.5, width=8, bg="white", limitsize = FALSE)
 
 # supp. fig. 1 ALL DATA gestational age, maternal malaria, 0 infection kids ####
 

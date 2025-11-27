@@ -6,103 +6,83 @@ library(purrr)
 library(emmeans)
 
 var_luminex <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/slim_luminex_results.csv", check.names = F)
+colnames(var_luminex)[12:13] <- c("CIDRg3",	"CIDRa6")
+colnames(var_luminex)[31:32] <- c("schizont",	"tetanus")
+
 plate_map <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/final_plate_map.csv")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
+mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
+maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
 
-raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
-
+raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Oct25/MICDSpecimenBoxOct25_withclinical.dta")
 
 plate_map <- plate_map%>%
   mutate(well=paste(plate.row, plate.column, sep=""),
          location=paste(dane.plate, well, sep=""))
-         
+
 slim_plate_map <- plate_map%>%
   select(location, id, date, ageinwks)%>%
   mutate("date"=as.Date(lubridate::parse_date_time(.$date, orders="%m/%d/%y")))
 
-
-colnames(var_luminex)[12:13] <- c("CIDRg3",	"CIDRa6")
-colnames(var_luminex)[31:32] <- c("schizont",	"tetanus")
-maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
-
-maternal_gravid_cat <-  haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP individual level analysis database_FINAL.dta")%>%
-  distinct(id, gravidcat)
-
-maternal_malaria_cat <-  haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP individual level analysis database_FINAL.dta")%>%
-  distinct(id, gravidcat)
-# write.csv(all_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/all_samples.csv", row.names = F)
-
-# add epi data ####
-metadata_columns <- c("id", "dob", "date", "ageinwks", "gender", "mstatus", "qPCRparsdens", "visittype", "fever", "febrile", "rogerson", "anyHP", "GAcomputed", "gi", "SGA", "qPCRdich", "mqPCRparsdens")
-
-all_samples <- distinct(plate_map, id, date)%>%
+all_samples <- distinct(plate_map, id, date, ageinwks)%>%
   mutate("date"=as.Date(lubridate::parse_date_time(.$date, orders="%m/%d/%y")))
 
-#merge based on id and date
-metadata <- raw_data%>%
-  select(all_of(metadata_columns))%>%
-  right_join(., all_samples, by=c("id", "date"))%>%
-  mutate(timepoint_num=as.numeric(ageinwks), id=as.numeric(id))%>%
-  mutate(log_qpcr=log10(qPCRparsdens+0.01))%>%
-  mutate(mom_rx=maternal_treatment_arms$treatmentarm[match(id-10000, maternal_treatment_arms$id)],
-         mom_rx=case_match(mom_rx,
-                           1~"SP",
-                           2~"DP",
-                           3~"DPSP"),
-         gravidcat=maternal_gravid_cat$gravidcat[match(id-10000, maternal_gravid_cat$id)],)
-
-## infection data ####
-
-# fix birthdays, email Timothy
+# add epi data ####
+## add visit-level metadata ####
+metadata_columns <- c("id", "date", "mstatus", "pardens", "qPCRparsdens", "fever", "febrile", "gender")
 
 dobs <- raw_data%>%
-  filter(!is.na(dob))%>%
-  distinct(id, dob)
+  distinct(id, dob)%>%
+  filter(!is.na(dob))
 
-infs_and_meta <- raw_data%>%
+visit_metadata <- raw_data%>%
+  mutate(date=as.Date(lubridate::parse_date_time(date, "%y/%m/%d")))%>%
+  select(all_of(metadata_columns))%>%
+  right_join(., all_samples, by=c("id", "date"))%>%
   mutate(dob2=dobs$dob[match(id, dobs$id)])%>%
-  mutate("flo_age_in_wks"=as.numeric(date-dob2)%/%7)%>%
-  # filter(ageinwks<54)%>%
-  group_by(id) %>%
-  mutate("total_n_para_12"=sum(pardens>1&flo_age_in_wks<53, na.rm=TRUE),
-         "total_n_malaria_12"=sum(mstatus!=0&flo_age_in_wks<53, na.rm=TRUE),
-         "total_n_para_24"=sum(pardens>1&flo_age_in_wks<105, na.rm=TRUE),
-         "total_n_malaria_24"=sum(mstatus!=0&flo_age_in_wks<105, na.rm=TRUE),
-         "total_n_para_12_24"=sum(pardens>1&flo_age_in_wks<105&flo_age_in_wks>52, na.rm=TRUE),
-         "total_n_malaria_12_24"=sum(mstatus!=0&flo_age_in_wks<105&flo_age_in_wks>52, na.rm=TRUE),
-         "total_n_para_6"=sum(pardens>1&flo_age_in_wks<27, na.rm=TRUE),
-         "total_n_malaria_6"=sum(mstatus!=0&flo_age_in_wks<27, na.rm=TRUE),
-         "any_malar_6"=if_else(total_n_malaria_6==0, FALSE, TRUE),
-         "any_malar_12"=if_else(total_n_malaria_12==0, FALSE, TRUE))%>%
-  select(id, date, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, total_n_para_24, total_n_malaria_24, total_n_para_12_24, total_n_malaria_12_24, -gender)%>%
-  inner_join(., metadata, by=c("id", "date"))%>%
-  group_by(id)%>%
-  mutate(total_n_para=max(total_n_para_12, na.rm = T),
-         total_n_malaria=max(total_n_malaria_12, na.rm = T))%>%
+  mutate(real_dob=as.Date(lubridate::parse_date_time(dob2, "%y/%m/%d")))%>%
+  # mutate(ageinwks=round((date-real_dob)/7))%>%
+  mutate(timepoint_num=as.numeric(ageinwks))%>%
   mutate(timepoint_num=case_when(timepoint_num==9~8,
-                                 timepoint_num==25~24,
                                  timepoint_num==53~52,
-                                 .default=timepoint_num))
+                                 timepoint_num==105~104,
+                                 .default=timepoint_num))%>%
+  mutate(log_qpcr=log10(qPCRparsdens+0.001))%>%
+  mutate(gender_categorical=if_else(gender==1, "male", "female"))
+
+
+## static meta data (infection, birth outcomes) ####
+static_metadata <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/micdrop_metadata_for_immunology.csv")
 
 long_luminex <- var_luminex%>%
   mutate(location=paste(Plate, Well, sep=""))%>%
   pivot_longer(cols=c(colnames(var_luminex)[3:32]), names_to = "antigen", values_to = "MFI")%>%
   left_join(., slim_plate_map, by="location")%>%
-  mutate(log_mfi=log10(MFI+1))%>%
-  mutate(treatmentarm=mic_drop_key$treatmentarm[match(id, mic_drop_key$id)])%>%
-  mutate(timepoint=case_when(ageinwks<10~"8 weeks",
-                             ageinwks==24~"24 weeks",
-                             ageinwks%in%c(52, 53)~"52 weeks",
-                             ageinwks%in%c(104, 105)~"104 weeks"),
-         timepoint=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks", "104 weeks")),
+  left_join(., visit_metadata, by=c("id", "date"))%>%
+  mutate(date=as.Date(lubridate::parse_date_time(date, "%y/%m/%d")))%>%
+  mutate(log_mfi=log10(MFI+1),
+         timepointw=paste(timepoint_num, "weeks"),
+         timepoint=factor(timepointw, levels=c("8 weeks", "24 weeks", "52 weeks", "104 weeks")))%>%
+  filter(!is.na(log_mfi), is.finite(log_mfi))%>%
+  left_join(., static_metadata, by=c("id"))%>%
+  mutate(antigen=gsub("_", " ", antigen),
+         id_cat=as.character(id))%>%
+  # there's a couple of mispipetted samples that have NAs for timepoint
+  filter(!is.na(timepoint_num))%>%
+  mutate(treatmentarm=mic_drop_key$treatmentarm[match(as.numeric(id), mic_drop_key$id)],
+         anyDP=if_else(treatmentarm==1, "no", "yes"),
          treatmentarm=case_match(treatmentarm,
                                  1~"Placebo",
                                  2~"DP 1 year",
-                                 3~"DP 2 years"))%>%
-  filter(!is.na(treatmentarm), !is.na(log_mfi), is.finite(log_mfi))%>%
-  left_join(., infs_and_meta, by=c("id", "date"))%>%
-  mutate(antigen=gsub("_", " ", antigen),
-         id_cat=as.character(id))
+                                 3~"DP 2 years"))
+
+## add binder information to same table ####
+var_domains <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/var_domain_dictionary.csv")
+colnames(var_domains)[1] <- "antigen"
+slim_var_domains <- var_domains[,1:3]
+
+long_luminex <- long_luminex%>%
+  left_join(., slim_var_domains, by="antigen")
 
 write.csv(long_luminex, "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/long_luminex.csv", row.names = F)
 
@@ -145,7 +125,7 @@ treatment_purf <- long_luminex%>%
   filter(MFI>100)%>%
   group_by(antigen)%>%
   nest()%>%
-  mutate(time_model=map(data, ~lme4::lmer(log_mfi~timepoint*treatmentarm+(1|id_cat), data=.))) %>%
+  mutate(time_model=map(data, ~lme4::lmer(log_mfi~timepoint*treatmentarm+log_qpcr+(1|id_cat), data=.))) %>%
   mutate(summary=map(time_model, ~summary(.))) %>%
   mutate(emm=map(time_model, ~emmeans(., specs = pairwise ~ treatmentarm | timepoint)))%>%
   mutate(emm2=map(time_model, ~emmeans(., specs = pairwise ~ timepoint | treatmentarm)))%>%
@@ -163,6 +143,7 @@ treatment_purf <- long_luminex%>%
   group_by(contrast)%>%
   mutate(padj = p.adjust(p, method="BH"))
 
+
 #nothing
 sigs_8 <- treatment_purf%>%
   filter(padj<0.05, contrast=="8 weeks")%>%
@@ -172,15 +153,17 @@ sigs_24 <- treatment_purf%>%
   filter(padj<0.05, contrast=="24 weeks")%>%
   select(antigen, contrast, p, padj)
 
+# 10 without pcr; 15 with pcr
 sigs_52 <- treatment_purf%>%
   filter(padj<0.05, contrast=="52 weeks")%>%
   select(antigen, contrast, p, padj)%>%
   arrange(padj)
 
+# nothing
 sigs_104 <- treatment_purf%>%
   filter(padj<0.05, contrast=="104 weeks")%>%
   select(antigen, contrast, p, padj)
-
+#6 without pcr, 5 with
 sigs_52_104 <- treatment_purf%>%
   filter(padj<0.05, contrast%in%c("Placebo boost 52 - 104 weeks", "DP boost 52 - 104 weeks"))%>%
   select(antigen, contrast, p, padj)
@@ -554,21 +537,20 @@ ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_malaria_si
 
 
 ### 52 - 104 weeks ####
-
 inf_purf_52_104 <- long_luminex%>%
-  filter(timepoint=="104 weeks", MFI>100)%>%
+  filter(timepoint=="52 weeks", MFI>100)%>%
   group_by(antigen)%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12_24~log_mfi, data=.))) %>%
-  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12_24~log_mfi, data=.))) %>%
+  mutate(n_malaria_model=map(data, ~lm(log_mfi~total_n_malaria_12_24+log_qpcr, data=.))) %>%
+  mutate(n_para_model=map(data, ~lm(log_mfi~total_n_para_12_24+log_qpcr, data=.))) %>%
   # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
   #11 when additional covariate is included
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[8]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[8]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
@@ -579,20 +561,51 @@ inf_sigs_52_104 <- inf_purf_52_104%>%
 
 
 n_malaria_sigs_52_104 <- long_luminex %>%
-  filter(antigen %in% inf_sigs_52$antigen[1:9])%>%
-  mutate(antigen=factor(antigen, levels=inf_sigs_52$antigen[1:9]))%>%
-  filter(timepoint =="104 weeks")%>%
-  mutate(total_n_para_12_24f=if_else(total_n_para_12_24>3, "4+", as.character(total_n_para_12_24)))%>%
-  ggplot(., aes(x=factor(total_n_para_12_24f), y=MFI, fill=factor(total_n_para_12_24f)))+
+  filter(!is.na(total_n_malaria_12_24))%>%
+  filter(antigen %in% c(inf_sigs_52_104$antigen[1:3], "schizont"))%>%
+  # mutate(antigen=factor(antigen, levels=inf_sigs_52_104$antigen[1:9]))%>%
+  filter(timepoint %in% c("52 weeks", "104 weeks"))%>%
+  # mutate(total_n_malaria_12_24f=if_else(total_n_malaria_12_24>3, "4+", as.character(total_n_malaria_12_24)))%>%
+  ggplot(., aes(x=factor(total_n_malaria_12_24), y=MFI, fill=factor(total_n_malaria_12_24)))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
-  facet_wrap(~antigen, scales="free", nrow=3)+
-  scale_fill_viridis_d()+
+  ylab("MFI at 52 weeks")+
+  xlab("number malaria episodes in second year of life")+
+  facet_wrap(~antigen+treatmentarm, scales="fixed")+
+  scale_fill_manual(values=viridis::magma(n=7))+
   theme_minimal()+
   theme(legend.position = "none",
-        axis.title.x = element_blank())
+        axis.text = element_text(size=14),
+        axis.title = element_text(size=16))
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_malaria_sigs_52_104.png", n_malaria_sigs_52_104, height=8, width=8, dpi=400, bg="white")  
+
+
+n_para_non_sigs_52_104 <- long_luminex %>%
+  filter(!is.na(total_n_malaria_12_24))%>%
+  filter(antigen %in% c("CIDRa6",
+                        "CIDRa1.7 2083-1",
+                        "CIDRg3 IT4var08"
+  ))%>%
+  # mutate(antigen=factor(antigen, levels=inf_sigs_52_104$antigen[1:9]))%>%
+  filter(timepoint %in% c("52 weeks", "104 weeks"))%>%
+  # mutate(total_n_malaria_12_24f=if_else(total_n_malaria_12_24>3, "4+", as.character(total_n_malaria_12_24)))%>%
+  ggplot(., aes(x=factor(total_n_malaria_12_24), y=MFI, fill=factor(total_n_malaria_12_24)))+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  ylab("MFI at 52 weeks")+
+  xlab("number malaria episodes in second year of life")+
+  facet_wrap(~antigen+treatmentarm, scales="fixed")+
+  scale_fill_manual(values=viridis::magma(n=7))+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.text = element_text(size=14),
+        axis.title = element_text(size=16))
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_para_non_sigs_52_104.png", n_para_non_sigs_52_104, height=8, width=12, dpi=400, bg="white")  
+
+
+
 
 
 
@@ -611,6 +624,96 @@ n_malaria_sigs_52_104_DP <- long_luminex %>%
         axis.title.x = element_blank())
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_malaria_sigs_52_104_DP.png", n_malaria_sigs_52_104_DP, height=8, width=8, dpi=400, bg="white")  
+
+### 8 weeks ####
+inf_purf_8 <- long_luminex%>%
+  filter(timepoint=="8 weeks", MFI>100)%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(n_malaria_model=map(data, ~glm(any_malar_6~log_mfi+gender_categorical+log_qpcr, family = "binomial", data=.))) %>%
+  mutate(n_para_model=map(data, ~glm(any_para_6~log_mfi+gender_categorical+log_qpcr,family = "binomial",  data=.))) %>%
+  # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  
+  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+  mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
+  #11 when additional covariate is included
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[14]))%>%
+  ungroup()%>%
+  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
+         n_para_padj=p.adjust(n_para_p, method="BH"))
+
+
+inf_sigs_8 <- inf_purf_8%>%
+  filter(n_para_padj<0.1 |n_malaria_padj <0.1 )%>%
+  select(antigen,n_para_padj, n_malaria_padj )%>%
+  arrange(n_para_padj)
+
+inf_purf_8%>%
+  select(antigen,n_para_padj, n_malaria_padj )%>%
+  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/inf_purf_8.csv")
+
+
+n_malaria_sigs_8a <- long_luminex %>%
+  filter(antigen %in% c("CIDRa6",
+                        "CIDRa1.7 2083-1",
+                        "CIDRg3 IT4var08",
+                        "schizont"))%>%
+  filter(timepoint =="8 weeks", !is.na(total_n_para_6))%>%
+  ggplot(., aes(x=factor(total_n_para_6), y=MFI, fill=factor(total_n_para_6)))+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  ylab("MFI at 8 weeks")+
+  xlab("number of parasitemic months in the first six months of life")+
+  facet_wrap(~antigen, scales="free", nrow=3)+
+  scale_fill_viridis_d()+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/var_para8_plot.png", n_malaria_sigs_8a, height=5, width=8, dpi=400, bg="white")  
+
+n_malaria_sigs_8b <- long_luminex %>%
+  filter(antigen %in% c("CIDRa6",
+                        "CIDRa1.7 2083-1",
+                        "CIDRg3 IT4var08",
+                        "schizont"))%>%
+  filter(timepoint =="8 weeks", !is.na(total_n_malaria_6))%>%
+  ggplot(., aes(x=factor(total_n_malaria_6), y=MFI, fill=factor(total_n_malaria_6)))+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  ylab("MFI at 8 weeks")+
+  xlab("number of malaria episodesin the first six months of life")+
+  facet_wrap(~antigen, scales="free", nrow=3)+
+  scale_fill_viridis_d()+
+  theme_minimal()+
+  theme(legend.position = "none")
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/var_malaria8_plot.png", n_malaria_sigs_8b, height=5, width=8, dpi=400, bg="white")  
+
+#### parasitemia ####
+
+var_parasitemia_plot <- long_luminex %>%
+  filter(antigen %in% c("CIDRa6",
+                        "CIDRa1.7 2083-1",
+                        "CIDRg3 IT4var08",
+                        "schizont"))%>%
+  ggplot(., aes(x=log_qpcr, y=log_mfi, color=antigen))+
+  geom_smooth(method="lm")+
+  geom_point()+
+  ylab("log10 MFI")+
+  xlab("log10 qPCR")+
+  ggpubr::stat_cor(method = "spearman", label.y = c(0.8, 0.6, 0.4, 0.2))+
+  facet_wrap(~timepoint, scales="fixed", nrow=1)+
+  scale_color_manual(values=viridis::magma(n=7))+
+  theme_minimal()+
+  guides(color = guide_legend(override.aes = list(label = "")))+
+  theme(legend.position = "bottom",
+        legend.background = element_rect(fill = "white", colour = NA),
+        legend.key = element_rect(fill = "white", colour = NA),        axis.text = element_text(size=14),
+        strip.text = element_text(size=16),
+        axis.title = element_text(size=16))
+
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/var_parasitemia_plot.png", var_parasitemia_plot, height=5, width=8, dpi=400, bg="white")  
 
 # pca plots ####
 

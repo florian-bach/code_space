@@ -1264,7 +1264,7 @@ big_early_life_malaria_cells06 <- long_true_combo %>%
   scale_fill_manual(values=n_infection_cols[])
 
 
-demographics table1
+# demographics table ####
 maternal_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/BC1_Children/AntibodyStudy/BC1 Antibodydata_June2017/STATA/MothersClinicalData.dta")
 
 maternal_data_186 <- maternal_data%>%

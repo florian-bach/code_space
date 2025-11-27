@@ -6,9 +6,9 @@ clean_data <- clean_data %>%
 # analytes that vary by parasitemia, but not class; 59/95
 # sig_base_para$targetName[sig_base_para$targetName%notin%sig_base_zero_class$targetName]
 clean_data %>%
-  filter(class %in% c("A", "S"))%>%
+  filter(infectiontype %in% c("A", "S"))%>%
   filter(targetName %in% c("CTLA4", "IL2RA", "TNFRSF1A", "FASLG", "CCL4", "GZMA"))%>%
-  ggplot(., aes(x=log_qpcr, y=concentration, color=class))+
+  ggplot(., aes(x=log_qpcr, y=concentration, color=infectiontype))+
   geom_point()+
   geom_smooth(method="lm")+
   facet_wrap(~targetName)+
@@ -42,14 +42,19 @@ clean_data %>%
 sig_base_para$targetName[sig_base_para$targetName %in% sig_base_zero$targetName]
 
 clean_data %>%
-  filter(class %in% c("A", "S"))%>%
+  filter(infectiontype %in% c("A", "S"))%>%
   filter(targetName %in% c("IL10", "CRP", "CXCL10", "LAG3", "IL27", "IFNG"))%>%
-  ggplot(., aes(x=log_qpcr, y=concentration, color=class, shape=temperature_cat))+
+  ggplot(., aes(x=log_qpcr, y=concentration, color=infectiontype, shape=temperature_cat))+
   geom_point()+
   # geom_smooth(method="lm")+
   facet_wrap(~targetName, scales="free")+
   scale_color_manual(values=viridis::magma(n=3))+
   theme_minimal()
+
+
+
+
+
 
 clean_data %>%
   filter(class %in% c("A", "S"), timepoint %notin% c("bad_baseline", "day28", "day7"))%>%

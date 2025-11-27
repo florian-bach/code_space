@@ -40,7 +40,7 @@ fdr_cutoff=0.05
 #| echo: false
 `%notin%` <- Negate(`%in%`)
 
-musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
+musical_metadata <- read.csv("/Users/fbach/Library/CloudStorage/Box-Box/Florian Bach's Files/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
 random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/id_date_code.csv")
 random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1JLGS", "DIJLGS", random_codes$plasma.barcode)

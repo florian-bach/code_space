@@ -1157,7 +1157,7 @@ ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/musical_tr1
 
 tr1_freq_plasma_protein_cor <- long_combo %>%
   filter(timepoint=="baseline", infectiontype %in% c("A", "S"), stim!="unstim")%>%
-  filter(gate %in% c("Tr1_IL10_Frequency", "IL10_Frequency"),targetName %in% c("IL10", "LAG3", "GZMA"))%>%
+  filter(gate %in% c("Tr1_IL10_Frequency", "IL10_Frequency"),targetName %in% c("IL10", "LAG3", "GZMA", "IL27"))%>%
   ggplot(., aes(x=freq, y=concentration, color=stim))+
   geom_point()+
   facet_wrap(~targetName+gate+stim, scales="free", ncol=4)+

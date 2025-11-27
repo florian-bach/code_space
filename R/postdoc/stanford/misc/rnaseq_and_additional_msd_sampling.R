@@ -257,3 +257,41 @@ existing_immunology_samples_for_anna.csv <- immuno_df_for_anna%>%
 write.csv(existing_immunology_samples_for_anna.csv,
           "~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/existing_immunology_samples_for_anna.csv",
           row.names = F)
+
+
+
+sweden_map <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/swedes_for_plating.csv")
+
+one_year_samples <- data.frame("sample_id"=rep(paste(sweden_map$id, sweden_map$date), each=2))
+
+one_year_samples <- one_year_samples%>%
+  mutate("plate"=rep_len(rep(1:9, each=80), nrow(.)),
+         "plate row"=rep_len(rep(LETTERS[1:8],each=10), nrow(.)),
+         "plate column"=rep_len(3:12, nrow(.)))
+
+write.csv(one_year_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/CSP_elisas/big_csp_wlisa_plate_map.csv", row.names = F)
+
+
+## 2 year samples ####
+
+two_year_samples <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/104_week_timepoints_to_pick.csv")
+two_year_platemap <- data.frame("id"=rep(two_year_samples$id, each=2))%>%
+  mutate("plate"=rep_len(rep(1:9, each=80), nrow(.)),
+         "plate_row"=rep_len(rep(LETTERS[1:8],each=10), nrow(.)),
+         "plate_column"=rep_len(3:12, nrow(.)))
+
+write.csv(two_year_platemap, "~/postdoc/stanford/plasma_analytes/MICDROP/CSP_elisas/two_year_platemap.csv", row.names = F)
+
+
+additional_MSD_to_pick=read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/additional_samples_for_msd.csv")
+
+plate_map_for_george_box_4 <- additional_MSD_to_pick%>%
+  arrange(id)%>%
+  mutate("plate"="TS05021786",
+         "plate row"=rep_len(rep(LETTERS[1:8],each=12), nrow(.)),
+         "plate column"=rep_len(1:12, nrow(.)),
+         "age_in_weeks"=rep_len(c("8 weeks", "24 weeks", "52 weeks"),nrow(.)))%>%
+  select(id, age_in_weeks, plate, `plate row`, `plate column`)
+
+write.csv(plate_map_for_george_box_4, "~/postdoc/stanford/plasma_analytes/MICDROP/MSD/additional_samples_platemap.csv", row.names = F)
+

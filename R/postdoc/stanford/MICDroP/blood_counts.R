@@ -10,7 +10,7 @@ comp_pal <- c("no malaria"="lightgrey",
               "Q/AS failure"="purple")
 
 
-mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through June 30th 2025.dta")
+mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through September 30th 2025.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 

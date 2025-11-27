@@ -5,13 +5,10 @@ library(purrr)
 
 `%notin%` <- Negate(`%in%`)
 
-
 # read in pilots NULISA data ####
-
 pilot_nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/extra_24/combined_pilot_data.csv")
 
 # get data in same shape as big experiemnt
-
 pilot_nulisa_edit <- pilot_nulisa%>%
   mutate("sample"=gsub("w", "", sample_id))%>%
   mutate("sample"=gsub("_", "_tp", sample))%>%
@@ -22,12 +19,11 @@ pilot_nulisa_edit <- pilot_nulisa%>%
   mutate(study="MICDROP")%>%
   select(targetName, sample, conc, file_name, id, timepoint2, study, plate)
   
-  
-
 # read in big NULISA data ####
 excel_files <- list.files(path="~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/Data Files/", pattern = "*Report.xlsx", full.names = T)
 
 big_data <- data.frame()
+
 for(file in excel_files){
   
   sheet <- readxl::read_excel(file, sheet=1)
@@ -63,11 +59,10 @@ micdrop_nulisa <- very_big_data%>%
 
 
 # read in metadata####
-## clinical data####
+## clinical data at sampling visit####
 raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
 
 master_plate_map <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/master_plate_map.xlsx", col_types = c("numeric", "date", "numeric", "text", "guess", "guess", "guess"))
-  
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
 big_experiment_samples <- master_plate_map%>%
@@ -83,7 +78,6 @@ pilot_samples <- raw_data%>%
   filter(sample %in% unique(pilot_nulisa_edit$sample))%>%
   add_row(id=10766, date=as.Date("2022-11-04"), ageinwks=25, Plasma="10766-AB", sample="10766_tp24")
 
-
 all_samples <- bind_rows(pilot_samples, big_experiment_samples)%>%
   select(id, date)%>%
   mutate(hbs=mic_drop_hbs$HbS[match(as.numeric(id), mic_drop_hbs$id)],
@@ -94,51 +88,32 @@ all_samples <- bind_rows(pilot_samples, big_experiment_samples)%>%
 
 # write.csv(all_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/all_samples.csv", row.names = F)
 
-metadata_columns <- c("id", "dob", "date", "ageinwks", "gender", "mstatus", "qPCRparsdens", "visittype", "fever", "febrile", "rogerson", "anyHP", "GAcomputed", "gi", "SGA", "qPCRdich", "mqPCRparsdens")
+metadata_columns <- c("id","date", "ageinwks", "mstatus", "pardens", "qPCRparsdens", "fever", "febrile", "gender")
 
 #merge based on id and date
-metadata <- raw_data%>%
+visit_metadata <- raw_data%>%
+  mutate(date=as.Date(lubridate::parse_date_time(date, "%y/%m/%d")))%>%
   select(all_of(metadata_columns))%>%
   right_join(., all_samples, by=c("id", "date"))%>%
-  mutate(timepoint_num=as.numeric(ageinwks), id=as.numeric(id))%>%
-  mutate(log_qpcr=log10(qPCRparsdens+0.01))
-    
-## infection data ####
-infs_and_meta <- raw_data%>%
-# filter(ageinwks<54)%>%
-  group_by(id) %>%
-  mutate("total_n_para_12"=sum(pardens>1&ageinwks<53, na.rm=TRUE),
-         "total_n_malaria_12"=sum(mstatus!=0&ageinwks<53, na.rm=TRUE),
-         "total_n_para_24"=sum(pardens>1&ageinwks<105, na.rm=TRUE),
-         "total_n_malaria_24"=sum(mstatus!=0&ageinwks<105, na.rm=TRUE),
-         "total_n_para_12_24"=sum(pardens>1&ageinwks<105&ageinwks>52, na.rm=TRUE),
-         "total_n_malaria_12_24"=sum(mstatus!=0&ageinwks<105&ageinwks>52, na.rm=TRUE),
-         "symp_prob_12_24"=total_n_malaria_12_24/total_n_para_12_24,
-         "total_n_para_6"=sum(pardens>1&ageinwks<27, na.rm=TRUE),
-         "total_n_malaria_6"=sum(mstatus!=0&ageinwks<27, na.rm=TRUE),
-         "any_malar_6"=if_else(total_n_malaria_6==0, FALSE, TRUE),
-         "any_malar_12"=if_else(total_n_malaria_12==0, FALSE, TRUE),
-         "any_malar_12_24"=if_else(total_n_malaria_12_24==0, FALSE, TRUE))%>%
-  select(id, date, any_malar_6, any_malar_12, any_malar_12_24, total_n_para_6, total_n_malaria_6, total_n_para_12, total_n_malaria_12, total_n_para_24, total_n_malaria_24, total_n_para_12_24,total_n_malaria_12_24,symp_prob_12_24, -gender)%>%
-  right_join(., metadata, by=c("id", "date"))%>%
-  group_by(id)%>%
-  mutate(total_n_para=max(total_n_para_12, na.rm = T),
-         total_n_malaria=max(total_n_malaria_12, na.rm = T))%>%
+  mutate(log_qpcr=log10(qPCRparsdens+0.001))%>%
+  mutate(timepoint_num=as.numeric(ageinwks))%>%
   mutate(timepoint_num=case_when(timepoint_num==9~8,
                                  timepoint_num==25~24,
                                  timepoint_num==53~52,
-                                 .default=timepoint_num))
+                                 .default=timepoint_num))%>%
+  mutate(gender_categorical=if_else(gender==1, "male", "female"))
+    
+## infection data ####
+static_metadata <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/micdrop_metadata_for_immunology.csv")
 
-
-## apply QC ####
+## merge all metadata, apply qc ####
 qc_results <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/NULISA_QC_summary.csv")
 
-## put it together####
-#duplciation happens here?
 micdrop_nulisa_with_meta <- micdrop_nulisa%>%
-  inner_join(., infs_and_meta, by=c("id", "timepoint_num"), multiple = "first")%>%
-  mutate(qc_failed=if_else(sample %in% qc_results$sample_id, TRUE, FALSE))%>%
-  mutate(gender_categorical=if_else(gender==1, "male", "female"))
+  inner_join(., static_metadata, by=c("id"))%>%
+  left_join(., visit_metadata, by=c("id", "timepoint_num"), multiple = "first")%>%
+  mutate(qc_failed=if_else(sample %in% qc_results$sample_id, TRUE, FALSE))
+
 
 #13% dropout; 642 - 86 samples; mostly plate 8 (37)
 

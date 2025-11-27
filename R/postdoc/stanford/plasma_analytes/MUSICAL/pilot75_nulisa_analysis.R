@@ -3,7 +3,7 @@ library(tidyr)
 library(dplyr)
 `%notin%` <- Negate(`%in%`)
 
-musical_metadata <- read.csv("/Users/fbach/Library/CloudStorage/Box-Box/Florian Bach's Externally Shareable Files/stanford/cytometry/CyTOF/MUSICAL/pilot75/")
+musical_metadata <- read.csv("/Users/fbach/Library/CloudStorage/Box-Box/Florian Bach's Files/cytometry/CyTOF/MUSICAL/pilot75/MASTER_METADATA.csv")
 random_codes <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/id_date_code.csv")
 random_codes$plasma.barcode <- gsub("D1PN8A", "D1_PN8A", random_codes$plasma.barcode)
 random_codes$plasma.barcode <- gsub("D1JLGS", "DIJLGS", random_codes$plasma.barcode)
@@ -26,10 +26,14 @@ slim_musical_metadata <- musical_metadata %>%
   # select(combined_id, combined_date, enrolltype, day_annotation)%>%
   mutate(id=combined_id, date=combined_date, class=enrolltype, timepoint=paste("t", day_annotation, sep=""))%>%
   select(-combined_id, -combined_date, -enrolltype, -day_annotation)%>%
-  mutate("study"="MUSICAL")
+  mutate("study"="MUSICAL")%>%
+  select(id, date, ageyrs, class, timepoint, study)
 
-combo_frame <- merge(slim_musical_metadata, random_codes, by=c("id", "date"))
-combo_frame2 <- rbind(combo_frame, micdrop_codes)
+combo_frame <- right_join(slim_musical_metadata, random_codes, by=c("id", "date"))
+combo_frame2 <- micdrop_codes%>%
+  select(id, date, class, timepoint, study)%>%
+  mutate(age=1, id=as.numeric(id))%>%
+  bind_rows(combo_frame)
 
 nulisa <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/pilot/nulisa_data.csv")
 
