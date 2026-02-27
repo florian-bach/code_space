@@ -2,7 +2,7 @@
 #palettes
 time_palette <- colorspace::sequential_hcl(n=4, "RdPu")[1:3]
 pc1_cols <- colorspace::sequential_hcl(23, palette = "Purple Yellow")
-names(pc1_cols) <- c("CSP", "EBA140", "EBA75", "EBA181", "Etramp4", "Etramp5", "GEXP", "H103", "HSP40", "Hyp2", "MSP2 CH150", "MSP2 DD2", "AMA1", "GLURP", "MSP1", "SEA", "Rh2", "Rh4 2", "Rh5", "SBP1", "TT")  
+names(pc1_cols) <- c("CSP", "EBA140", "EBA75", "EBA181", "ETRAMP4", "ETRAMP5", "GEXP", "H103", "HSP40", "HYP2", "MSP2-CH150", "MSP2-DD2", "AMA1", "GLURP", "MSP1", "SEA", "RH2", "RH4", "RH5", "SBP1", "TT")  
 incidence_cols <- colorspace::sequential_hcl(11, palette = "Purple Yellow")
 n_infection_cols <- c("white", colorspace::sequential_hcl(n=5, palette = "Lajolla")[-1])
 gestage_pal <- colorspace::sequential_hcl(n=5, "RdPu")[1:3]
@@ -248,7 +248,8 @@ venn_diagram <- ggvenn(
   fill_color = c("#CD534CFF", "#0073C2FF", "#EFC000FF"),
   stroke_size = 0.5, set_name_size = 4
 )
-ggsave("~/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/sample_set_diagram.png", venn_diagram, width=5, height=5, bg='white')
+# ggsave("~/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/sample_set_diagram.png", venn_diagram, width=5, height=5, bg='white')
+ggsave("~/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/sample_set_diagram.pdf", venn_diagram, width=5, height=5, bg='white')
 
 # fig 1. gestational age, maternal malaria, 0 infection kids ####
 # Ab responses stratified by gestational age,
@@ -270,9 +271,10 @@ gestages_cord <- combo_data %>%
   # ggtitle("Higher Gestational Age Facilitates Transfer of Protective Antibodies")+
   xlab("\n Gestational Age in Weeks")+
   ylab("Cord Blood Concentration [AU]")+
-  ggpubr::stat_cor(method = "spearman", size=2.3)+
+  ggpubr::stat_cor(method = "spearman", size=2.1)+
   scale_x_continuous(breaks = seq(32, 42, by=2))+
   scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, 2.5))+
+  coord_cartesian(ylim = c(-5, 2))+
   theme_minimal()+
   theme(#panel.grid = element_blank(),
     legend.position = "none",
@@ -280,48 +282,72 @@ gestages_cord <- combo_data %>%
     strip.text = element_text())+
   scale_color_manual(values=pc1_cols)
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/gestages_cord_scatter.png", gestages_cord, height = 2.7, width=5, bg="white", limitsize = FALSE)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/gestages_cord_scatter.png", gestages_cord, height = 2.7, width=5, bg="white", limitsize = FALSE)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/gestages_cord_scatter.pdf", gestages_cord, height = 2.7, width=5, bg="white", limitsize = FALSE)
 
 
-cord_blood_matmal <- combo_data %>%
-  filter(timepointf=="Cord Blood", !is.na(matmal), antigen %in% placental_antigens, is.finite(conc))%>%
-  ggplot(., aes(x=matmal, y=conc))+
-  # scale_x_discrete(labels = scales::label_wrap(11))+
-  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, 2.5))+
-  # annotation_logticks(sides = "l", size = 0.1)+
-  geom_hline(data=filter(cutoff_df, antigen %in% placental_antigens), aes(yintercept = max_below_standard), linetype="dashed")+
-  geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=matmal), outlier.shape = NA,)+
-  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "fixed", nrow=1)+
-  # ggtitle("Maternal Pf Infection Negatively Impacts Antibody Transfer")+
-  ylab("Cord Blood Concentration [AU]")+
-  theme_minimal()+
-  theme(
-    legend.position="bottom",
-    legend.title = element_blank(),
-    axis.text.x = element_blank(),
-    # axis.text.x = element_text(hjust = 0.5, angle = 90, vjust = 0.5),
-    axis.title.x = element_blank(),
-    strip.text = element_text())+
-  scale_fill_manual(values=disease_pal)
+(cord_blood_matmal <- combo_data %>%
+    filter(
+      timepointf == "Cord Blood",
+      !is.na(matmal),
+      antigen %in% placental_antigens,
+      is.finite(conc),
+      conc > 0
+    ) %>%
+    mutate(
+      matmal = factor(matmal),
+      log_conc = log10(conc)
+    ) %>%
+    ggplot(aes(x = matmal, y = log_conc, fill = matmal)) +
+    geom_hline(
+      data = filter(cutoff_df, antigen %in% placental_antigens),
+      aes(yintercept = log10(max_below_standard)),
+      linetype = "dashed"
+    ) +
+    geom_point(alpha = 0.2, shape = 21) +
+    geom_boxplot(outliers = F) +
+    # ggpubr::stat_compare_means(
+    #   comparisons = list(c("no malaria", "placental malaria")),
+    #   label = "p.format",
+    #   label.y = c(2), size=2.2
+    # ) +
+    facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), nrow = 1) +
+    scale_y_continuous(
+      breaks = seq(-5, 2),
+      labels = scales::label_math(10^.x)
+    ) +
+    coord_cartesian(ylim = c(-5, NA))+
+    ylab("Cord Blood Concentration [AU]")+
+    theme_minimal()+
+    theme( legend.position="bottom",
+           legend.title = element_blank(),
+           axis.text.x = element_blank(),
+           # axis.text.x = element_text(hjust = 0.5, angle = 90, vjust = 0.5),
+           axis.title.x = element_blank(),
+           strip.text = element_text())+
+    scale_fill_manual(values=disease_pal))
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/cord_blood_matmal.png", cord_blood_matmal, height=2.7, width=5, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/cord_blood_matmal.png", cord_blood_matmal, height=2.7, width=5, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/cord_blood_matmal.pdf", cord_blood_matmal, height=2.7, width=5, bg="white", dpi=444)
 
 
 
 # fig 2. without infection antibodies quickly wane below linear range of assay ####
-no_inf_matmal <- combo_data %>%
+(no_inf_matmal <- combo_data %>%
   filter(inf_0_12==0, antigen %in% c(placental_antigens), is.finite(conc))%>%
   ggplot(., aes(x=timepointf, y=conc))+
   geom_hline(data=filter(cutoff_df, antigen %in% c(placental_antigens)), aes(yintercept = max_below_standard), linetype="dashed")+
   geom_point(alpha=0.2, shape=21, position = position_dodge(width=0.75))+
   geom_line(aes(group=id), alpha=0.1)+
   geom_boxplot(aes(fill=timepointf), outlier.shape = NA)+
-  # stat_summary(fun = median, fun.min = median, fun.max = median,
-  #              geom = "crossbar", width = 0.5, color="darkred")+
+  # ggpubr::stat_compare_means(
+  #   comparisons = list(c("Cord Blood", "6 Months")),
+  #   label = "p.format", size=2.2
+  # ) +  # stat_summary(fun = median, fun.min = median, fun.max = median,
+  # #              geom = "crossbar", width = 0.5, color="darkred")+
   facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
   # ggtitle("In The Absence of Infection, Maternal Antibodies Wane Below Limit of Quantification\nWithin 6 Months")+
-  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, 2.5))+
+  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, NA))+
   ylab("Concentration [AU]")+
   theme_minimal()+
   theme(
@@ -330,9 +356,12 @@ no_inf_matmal <- combo_data %>%
     axis.text.x = element_text(angle=90, hjust=1),
     axis.title.x = element_blank(),
     strip.text = element_text())+
-  scale_fill_manual(values=rev(unname(pc1_cols[c(7, 13,19)])))
+  scale_fill_manual(values=rev(unname(pc1_cols[c(7, 13,19)]))))
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/no_inf_six_twelve.png", no_inf_matmal, height=2.7, width=5, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/no_inf_six_twelve.png", no_inf_matmal, height=2.7, width=5, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/no_inf_six_twelve.svg", no_inf_matmal, height=2.7, width=5, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/Fig2.pdf", no_inf_matmal, height=2.7, width=5, bg="white", dpi=444)
+
 {# yes_inf_matmal <- combo_data %>%
   #   filter(inf_0_12!=0, antigen %in% placental_antigens, is.finite(conc))%>%
   #   ggplot(., aes(x=timepointf, y=conc))+
@@ -355,32 +384,183 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 
 # fig 3. antibody markers of exposure and/or protection ####
+protection_antigens <- c("SEA", "EBA181", "SBP1", "HSP40")
+
 protection <- combo_data %>%
-  filter(timepointf=="Cord Blood", antigen %in% c("HSP40", "SEA"))%>%
-  filter(antigen %in% c("HSP40", "SEA"))%>%
-  ggplot(., aes(x=factor(symp_0_12), y=conc))+
-  geom_hline(data=filter(cutoff_df, antigen %in% c("HSP40", "SEA")), aes(yintercept = max_below_standard), linetype="dashed")+
+  filter(timepointf=="Cord Blood", antigen %in% protection_antigens)%>%
+  ggplot(., aes(x=factor(inf_0_6), y=conc))+
+  geom_hline(data=filter(cutoff_df, antigen %in% protection_antigens), aes(yintercept = max_below_standard), linetype="dashed")+
   geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=factor(symp_0_12)), outlier.shape = NA)+
+  geom_boxplot(aes(fill=factor(inf_0_6)), outlier.shape = NA)+
   facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
-  # ggtitle("Cord Blood Antibodies HSP40 & SEA are Significantly Higher in Infants who Remain\nUninfected in the First Six Months of Life")+
+  # ggpubr::stat_compare_means(
+  #   comparisons = list(c("0", "2")),
+  #   label = "p.format", size=2.2
+  # )+# ggtitle("Cord Blood Antibodies HSP40 & SEA are Significantly Higher in Infants who Remain\nUninfected in the First Six Months of Life")+
   ylab("Cord Blood Concentration [AU]")+
-  xlab("Number of Malaria Episodes\nin the First Year of Life")+
-  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, 2.5))+
+  xlab("Number of Parasitemic Months in Months 0-6")+
+  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, NA))+
   theme_minimal()+
   theme(
     legend.position="none",
     legend.title = element_blank(),
-    axis.title.x = element_text(hjust=0),
+    axis.title.x = element_text(hjust=0.5),
     # axis.title.x = element_blank(),
     strip.text = element_text())+
   scale_fill_manual(values=n_infection_cols)
 
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/protection_cord.png", protection, height=3, width=3, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/protection_cord.png", protection, height=3, width=3, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/protection_cord.pdf", protection, height=3, width=6, bg="white", dpi=444)
 
 
-antigens_exposure_6 <- c("ETRAMP5", "GLURP",  "HYP2",  "MSP1", "SBP1")
+
+any_inf_012_matmal_frac <- combo_data %>%
+  filter(!duplicated(id), !is.na(matmal))%>%
+  mutate("any_inf_0_12"=if_else(inf_0_12==0, "none", "some"))%>%
+  group_by(any_inf_0_12, matmal)%>%
+  summarise("n"=n())%>%
+  pivot_wider(names_from = matmal, values_from = n)%>%
+  mutate(sum=sum(`no malaria`, `non-placental malaria`, `placental malaria`, na.rm = TRUE))%>%
+  pivot_longer(c(`no malaria`, `non-placental malaria`, `placental malaria`), names_to = "matmal", values_to = "n")%>%
+  mutate(n=if_else(is.na(n), 0, n), "frac"=n/sum)%>%
+  ggplot(., aes(x=any_inf_0_12, y=frac, fill=matmal))+
+  geom_bar(stat="identity")+
+  geom_text(aes(label=paste("n = ", sum, sep="")), y=0.75)+
+  xlab("Any parasitemic episodes in the first year of life")+
+  ylab("Fraction of maternal malaria status")+
+  scale_y_continuous(labels = scales::label_percent())+
+  scale_fill_manual(values=disease_pal)+
+  theme_minimal()+
+  theme(legend.title = element_blank())
+
+#inf 0 12
+tab <- matrix(c(77, 64,
+                16,  5),
+              nrow = 2,
+              byrow = TRUE)
+
+rownames(tab) <- c("none", "some")
+colnames(tab) <- c("no_malaria", "placental")
+chisq.test(tab)
+
+#symp 0 12
+tab <- matrix(c(77, 64,
+                11,  4),
+              nrow = 2,
+              byrow = TRUE)
+
+rownames(tab) <- c("none", "some")
+colnames(tab) <- c("no_malaria", "placental")
+chisq.test(tab)
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/any_inf_012_matmal_frac.pdf", any_inf_012_matmal_frac, height=3, width=4.5, bg="white")
+
+
+
+## breadth figure ####
+
+breadth_score_summary_frame <- ab_clin%>%
+  filter(antigen!="TT")%>%
+  group_by(antigen, timepoint)%>%
+  mutate(quarter=quantile(conc, na.rm=T)[2],
+         half=quantile(conc, na.rm=T)[3],
+         three_quarter=quantile(conc, na.rm=T)[4])%>%
+  select(id, timepoint, antigen, conc, quarter, half, three_quarter)%>%
+  mutate(quartile=case_when(conc >= three_quarter ~ 4,
+                            conc >= half & conc < three_quarter ~ 3,
+                            conc >= quarter & conc < half ~ 2,
+                            conc < quarter ~ 1,
+                            is.na(conc) ~ 0))%>%
+  distinct(id, timepoint, antigen, quartile)%>%
+  group_by(id, timepoint)%>%
+  summarise(breadth_score=sum(quartile))
+
+breadth_and_infs <- breadth_score_summary_frame%>%
+  right_join(infs, by=c("id"))
+
+
+
+inf06_breadth <- breadth_and_infs%>%
+  filter(!is.na(timepoint))%>%
+  mutate("timepointf" = recode(timepoint, 
+                               "1"="Cord Blood",
+                               "2"="6 Months",
+                               "3"="12 Months"))%>%
+  mutate(timepointf=factor(timepointf, levels=c("Cord Blood", "6 Months", "12 Months")))%>%
+  ggplot(., aes(x=factor(inf_0_6), y=breadth_score))+
+  geom_point(alpha=0.2, shape=21)+
+  geom_boxplot(aes(fill=factor(inf_0_6)), outliers = F)+
+  scale_fill_viridis_d()+
+  facet_wrap(~timepointf)+
+  ylab("Breadth Score")+
+  xlab("Number of Parasitemic Months in Months 0-6")+
+  theme_minimal()+
+  theme(
+    legend.position="none",
+    legend.title = element_blank(),
+    axis.title.x = element_text(hjust=0.5),
+    # axis.title.x = element_blank(),
+    strip.text = element_text())+
+  scale_fill_manual(values=n_infection_cols)
+
+
+inf612_breadth <- breadth_and_infs%>%
+  filter(!is.na(timepoint))%>%
+  mutate("timepointf" = recode(timepoint, 
+                               "1"="Cord Blood",
+                               "2"="6 Months",
+                               "3"="12 Months"))%>%
+  mutate(timepointf=factor(timepointf, levels=c("Cord Blood", "6 Months", "12 Months")))%>%
+  ggplot(., aes(x=factor(inf_6_12), y=breadth_score))+
+  geom_point(alpha=0.2, shape=21)+
+  geom_boxplot(aes(fill=factor(inf_6_12)), outliers = F)+
+  scale_fill_viridis_d()+
+  facet_wrap(~timepointf)+
+  ylab("Breadth Score")+
+  xlab("Number of Parasitemic Months in Months 6-12")+
+  theme_minimal()+
+  theme(
+    legend.position="none",
+    legend.title = element_blank(),
+    axis.title.x = element_text(hjust=0.5),
+    # axis.title.x = element_blank(),
+    strip.text = element_text())+
+  scale_fill_manual(values=n_infection_cols)
+
+
+
+inf1218_breadth <- breadth_and_infs%>%
+  filter(!is.na(timepoint))%>%
+  mutate("timepointf" = recode(timepoint, 
+                               "1"="Cord Blood",
+                               "2"="6 Months",
+                               "3"="12 Months"))%>%
+  mutate(timepointf=factor(timepointf, levels=c("Cord Blood", "6 Months", "12 Months")))%>%
+  ggplot(., aes(x=factor(inf_12_18), y=breadth_score))+
+  geom_point(alpha=0.2, shape=21)+
+  geom_boxplot(aes(fill=factor(inf_12_18)), outliers = F)+
+  scale_fill_viridis_d()+
+  facet_wrap(~timepointf)+
+  ylab("Breadth Score")+
+  xlab("Number of Parasitemic Months in Months 12-18")+
+  theme_minimal()+
+  theme(
+    legend.position="none",
+    legend.title = element_blank(),
+    axis.title.x = element_text(hjust=0.5),
+    # axis.title.x = element_blank(),
+    strip.text = element_text())+
+  scale_fill_manual(values=n_infection_cols)
+
+
+breadth_figure <- inf06_breadth / inf612_breadth / inf1218_breadth
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/breadth_and_infs.pdf", breadth_figure, height=7, width=7, bg="white", dpi=444)
+
+
+# remove MSP1 because the 12 month timepoint has a lot of "imputed" values
+antigens_exposure_6 <- c("ETRAMP4", "ETRAMP5", "HSP40",  "HYP2", "GLURP",  "RH5", "SBP1")
 
 exposure_6 <- combo_data %>%
   filter(timepointf=="6 Months", antigen %in% antigens_exposure_6)%>%
@@ -403,10 +583,11 @@ exposure_6 <- combo_data %>%
   scale_fill_manual(values=n_infection_cols)
 
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_6.png", exposure_6, height=3, width=8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_6.png", exposure_6, height=3, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_6.pdf", exposure_6, height=3, width=8, bg="white", dpi=444)
 
 
-antigens_exposure_12 <- c("MSP1", "MSP2-CH150", "ETRAMP5")
+antigens_exposure_12 <- c("ETRAMP5", "HYP2", "MSP1")
 
 exposure_12 <- combo_data %>%
   filter(timepointf=="12 Months", antigen %in% antigens_exposure_12)%>%
@@ -418,7 +599,7 @@ exposure_12 <- combo_data %>%
   # ggtitle("Only MSP1, MSP2 & Etramp5 are significantly increased\nat twelve months in children who get infected in months 6-12")+
   ylab("Concentration at 12 Months [AU]")+
   xlab("Number of Parasitemic Months in Months 6-12")+
-  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 0), limits=10^c(-5, 0))+
+  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 0), limits=10^c(-5, NA))+
   theme_minimal()+
   theme(
     legend.position="none",
@@ -430,11 +611,16 @@ exposure_12 <- combo_data %>%
   scale_fill_manual(values=n_infection_cols)
 
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_12.png", exposure_12, height=3, width=4.8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_12.png", exposure_12, height=3, width=4.8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_12.pdf", exposure_12, height=3, width=3.428571, bg="white", dpi=444)
 
 # fig 4. early life malaria causes ab defects ####
 # antigens_defect_12 <- c("Etramp5", "H103", "Hyp2", "GLURP", "MSP1", "Rh4 2", "SBP1")
-antigens_defect_symp_12 <- c("CSP", "EBA75", "H103", "AMA1", "GLURP")
+antigens_defect_symp_12 <- c("EBA140", "H103", "CSP", "HSP40")
+# ab_incidence_purf%>%
+#   dplyr::select(antigen, incidence_type, timepoint, cell_incidence_model_summary_padj)%>%
+#   filter(timepoint==3, incidence_type %in% c("inf_0_6", "symp_0_6"), cell_incidence_model_summary_padj<0.05)%>%
+#   pull(antigen) -> defect_antigens
 
 defect_12_symp <- combo_data %>%
   filter(timepointf=="12 Months", antigen %in% antigens_defect_symp_12)%>%
@@ -457,11 +643,12 @@ defect_12_symp <- combo_data %>%
     strip.text = element_text())+
   scale_fill_manual(values=n_infection_cols)
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/defect_12_symp.png", defect_12_symp, height=3, width=8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/defect_12_symp.png", defect_12_symp, height=3, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/defect_12_symp.pdf", defect_12_symp, height=3, width=8, bg="white", dpi=444)
 
 
 
-antigens_defect_inf_12 <- c("RH4", "EBA140", "H103")
+antigens_defect_inf_12 <- c("EBA140", "H103",  "RH4", "RH2", "GEXP",  "CSP" , "HYP2",  "SEA", "HSP40", "TT",  "RH5" )
 
 defect_12_inf <- combo_data %>%
   filter(timepointf=="12 Months", antigen %in% antigens_defect_inf_12)%>%
@@ -471,7 +658,7 @@ defect_12_inf <- combo_data %>%
   geom_hline(data=filter(cutoff_df, antigen %in% antigens_defect_inf_12), aes(yintercept = max_below_standard), linetype="dashed")+
   geom_point(alpha=0.2, shape=21)+
   geom_boxplot(aes(fill=factor(inf_0_6)), outlier.shape = NA)+
-  facet_grid(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free")+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=2)+
   # ggtitle("Etramp5, H103, Hyp2, GLURP, MSP1, Rh4 2, SBP1 are lower at 12 months\nin children who were infected in the first six months of life")+
   ylab("Concentration at 12 Months [AU]")+
   xlab("Number of Parasitemic Months in Months 0-6")+
@@ -485,7 +672,8 @@ defect_12_inf <- combo_data %>%
   scale_fill_manual(values=n_infection_cols)
 
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/defect_12_inf.png", defect_12_inf, height=3, width=4.8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/defect_12_inf.png", defect_12_inf, height=3, width=4.8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/defect_12_inf.pdf", defect_12_inf, height=4.5, width=8, bg="white", dpi=444)
 
 
 
@@ -493,131 +681,34 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 # fig 5 impact of early life infection on b & t cell subsets ####
 
-tfh_clinab <- inner_join(combo_data, tfh_combo_batch, by="id")
-
-long_tfh_clinab <- tfh_clinab %>%
+tfh_clin <- tfh_combo_batch%>%
+  mutate(id=factor(id))%>%
+  left_join(., infs, by="id")%>%
   pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive"), names_to = "cell_pop", values_to = "cell_freq")%>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "incidence_type", values_to = "incidence_value")
+
+long_tfh_clinab <- tfh_clin %>%
+  # pivot_longer(cols = c("Tfh_perc", "Tfh_Th1", "Tfh_Th1_Th17", "Tfh_Th17", "Tfh_Th2","Th_memory", "Th_naive"), names_to = "cell_pop", values_to = "cell_freq")%>%
   mutate(cell_popf=case_when(cell_pop=="Tfh_perc"~"Tfh % of CD4",
                              cell_pop=="Tfh_Th1"~"Th1-like of Tfh",
                              cell_pop=="Tfh_Th2"~"Th2-like of Tfh",
                              cell_pop=="Tfh_Th17"~"Th17-like of Tfh",
                              cell_pop=="Tfh_Th1_Th17"~"Th1/Th17-like of Tfh",
                              cell_pop=="Th_naive"~"naive T Cells",
-                             cell_pop=="Th_memory"~"memory T Cells"))
+                             cell_pop=="Th_memory"~"memory T Cells"))%>%
+  mutate(cell_popf=factor(cell_popf, levels=c("Th1-like of Tfh", "Th1/Th17-like of Tfh", "Th17-like of Tfh",  "Th2-like of Tfh", "Tfh % of CD4", "naive T Cells", "memory T Cells")))
 
-tfh_incidence_purf <- long_tfh_clinab %>%
-  select(-starts_with("any_"), -c(symp_6_12, inf_6_12))%>%
-  filter(timepoint==3)%>%
-  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
-  # filter(Incidence_Type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"), timepoint==3)%>%
-  group_by(cell_pop, Incidence_Type)%>%
-  filter(!duplicated(id))%>%
-  nest() %>%
-  # mutate(cell_incidence_model=map(data, ~glm(data=., Incidence_Value ~ cell_freq, family="poisson")))%>%
-  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value~cell_freq , random = ~1 | id,family=poisson)))%>%
-  mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
-  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
-  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
-  ungroup()%>%
-  # group_by(Incidence_Type)%>%
-  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="fdr"))
-
-tfh_incidence_sigs <- tfh_incidence_purf %>%
-  dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
-  filter(cell_incidence_model_summary_padj<0.1)
-
-
-
-
-
-# tfh_0_6 <- long_tfh_clinab %>%
-#   filter(!duplicated(id), !is.na(inf_0_6))%>%
-#   ggplot(., aes(x=factor(any_inf_0_6), y=cell_freq/100, fill=factor(any_inf_0_6)))+
-#   geom_boxplot()+
-#   geom_point()+
-#   scale_y_continuous(labels = scales::label_percent())+
-#   facet_wrap(~cell_pop, scales = "free", ncol=4)+
-#   scale_fill_manual(values = n_infection_cols)+
-#   theme_minimal()
-
-big_n_infection_cols <- c(n_infection_cols[1:4],  colorspace::sequential_hcl(n=20, palette = "Lajolla")[17:20])
 
 tfh_0_12 <- long_tfh_clinab %>%
-  filter(!is.na(symp_0_12), cell_pop %in% c("Tfh_Th1_Th17", "Tfh_Th1", "Th_memory","Th_naive"))%>%
-  filter(timepointf=="12 Months")%>%
-  ggplot(., aes(x=factor(symp_0_12), y=cell_freq/100))+
+  # filter(cell_pop %in% c("Tfh_Th1_Th17", "Tfh_Th17", "Th_memory","Th_naive"))%>%
+  filter(incidence_type%in%c("inf_0_12"), !is.na(incidence_value))%>%
+  ggplot(., aes(x=factor(incidence_value), y=cell_freq/100))+
   geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=factor(symp_0_12)), outlier.shape = NA)+
-  facet_wrap(~cell_popf, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=1)+
+  geom_boxplot(aes(fill=factor(incidence_value)), outlier.shape = NA)+
+  facet_wrap(~cell_popf, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", ncol=4)+
   # ggtitle("early life malaria is associated with decreased memory differentiation in T Cells \nand a slight shift in Tfh differentiation")+
   ylab("% of Parent Population at 12 Months")+
-  xlab("Number of Malaria Epiosdes in The First Year of Life")+
-  scale_y_continuous(labels = scales::label_percent())+
-  theme_minimal()+
-  theme(
-    legend.position="none",
-    legend.title = element_blank(),
-    # axis.text.x = element_text(angle = 90, hjust=1),
-    strip.text = element_text())+
-  scale_fill_manual(values=big_n_infection_cols)
-
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/t_cell_incidence_012.png", tfh_0_12, height=3, width=8, bg="white", dpi=444)
-
-
-
-
-#b cell stuff
-abc_clinab <- right_join(combo_data, abc_combo_batch, by="id")
-
-long_abc_clinab <- abc_clinab %>%
-  mutate("immature_b_perc"=(1-(mature_b_count/b_count))*100)%>%
-  pivot_longer(cols = c("immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"), names_to = "cell_pop", values_to = "cell_freq")%>%
-  mutate(cell_popf=case_when(cell_pop=="activated_b"~"activated B Cells",
-                             cell_pop=="atypical_b"~"atypical B Cells",
-                             cell_pop=="memory_b"~"memory B Cells",
-                             cell_pop=="naive_b"~"naive B Cells",
-                             cell_pop=="immature_b_perc"~"CD10+ B Cells"))
-
-
-
-
-abc_incidence_purf <- long_abc_clinab %>%
-  filter(timepoint==3)%>%
-  select(-starts_with("any_"), -c(symp_6_12, inf_6_18))%>%
-  pivot_longer(cols = matches("symp|inf"), names_to = "Incidence_Type", values_to = "Incidence_Value")%>%
-  filter(Incidence_Type %in% c("inf_0_12", "inf_12_24", "symp_0_12", "symp_12_24"))%>%
-  group_by(cell_pop, Incidence_Type)%>%
-  filter(!duplicated(id))%>%
-  nest() %>%
-  # glm
-  # mutate(cell_incidence_model=map(data, ~glm(Incidence_Value ~ cell_freq, data=.)))%>%
-  # poisson model
-  mutate(cell_incidence_model=map(data, ~MASS::glmmPQL(data=., Incidence_Value ~ cell_freq, random = ~1 | id, family=poisson)))%>%
-  mutate(cell_incidence_model_summary=map(cell_incidence_model, ~summary(.)))%>%
-  #negative binomial p
-  # mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~coef(.)[8]))%>%
-  #poisson p
-  mutate(cell_incidence_model_summary_p=map_dbl(cell_incidence_model_summary, ~.$tTable[10]))%>%
-  ungroup()%>%
-  # group_by(Incidence_Type)%>%
-  mutate(cell_incidence_model_summary_padj= p.adjust(cell_incidence_model_summary_p, method="fdr"))
-
-abc_incidence_sigs <- abc_incidence_purf %>%
-  dplyr::select(cell_pop, Incidence_Type, cell_incidence_model_summary_p, cell_incidence_model_summary_padj)%>%
-  filter(cell_incidence_model_summary_padj<0.1)
-
-
-
-abc_0_12 <- long_abc_clinab %>%
-  filter(!is.na(symp_0_12), cell_pop %in% c("memory_b", "naive_b", "immature_b_perc", "atypical_b"))%>%
-  # filter(timepointf=="12 Months")%>%
-  ggplot(., aes(x=factor(symp_0_12), y=cell_freq/100))+
-  geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=factor(symp_0_12)), outlier.shape = NA)+
-  facet_wrap(~factor(cell_popf, levels=c("atypical B Cells", "activated B Cells", "naive B Cells", "memory B Cells", "CD10+ B Cells")), labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=1)+
-  # ggtitle("early life malaria is associated with increased\nmemory differentiation in B cells")+
-  ylab("% of Parent Population at 12 Months")+
-  xlab("Number of Malaria Episodes in The First Year of Life")+
+  xlab("Number of Parasitemic Months in Months 0-12")+
   scale_y_continuous(labels = scales::label_percent())+
   theme_minimal()+
   theme(
@@ -627,7 +718,51 @@ abc_0_12 <- long_abc_clinab %>%
     strip.text = element_text())+
   scale_fill_manual(values=n_infection_cols)
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/b_cell_incidence_0_12.png", abc_0_12, height=3, width=8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/t_cell_incidence_012.png", tfh_0_12, height=3, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/t_cell_incidence_012.pdf", tfh_0_12, height=4.5, width=8, bg="white", dpi=444)
+
+
+
+
+#b cell stuff
+abc_clinab <- abc_combo_batch%>%
+  # mutate(id=as.numeric(id))%>%
+  left_join(., infs, by="id")
+
+long_abc_clinab <- abc_clinab %>%
+  mutate("immature_b_perc"=(1-(mature_b_count/b_count))*100)%>%
+  pivot_longer(cols = matches("symp|inf"), names_to = "incidence_type", values_to = "incidence_value")%>%
+  pivot_longer(cols = c("immature_b_perc", "activated_b", "memory_b", "naive_b", "atypical_b"), names_to = "cell_pop", values_to = "cell_freq")%>%
+  mutate(cell_popf=case_when(cell_pop=="activated_b"~"activated B Cells",
+                             cell_pop=="atypical_b"~"atypical B Cells",
+                             cell_pop=="memory_b"~"memory B Cells",
+                             cell_pop=="naive_b"~"naive B Cells",
+                             cell_pop=="immature_b_perc"~"CD10+ B Cells"))%>%
+  mutate(cell_popf=factor(cell_popf, levels=c("naive B Cells", "memory B Cells", "atypical B Cells", "activated B Cells", "CD10+ B Cells")))
+
+abc_0_12 <- long_abc_clinab %>%
+  # filter(cell_pop %in% c("memory_b", "naive_b", "immature_b_perc", "atypical_b"))%>%
+  filter(incidence_type%in%c("inf_0_12"), !is.na(incidence_value))%>%
+  distinct(id, incidence_value, cell_popf, cell_freq)%>%
+  # filter(timepointf=="12 Months")%>%
+  ggplot(., aes(x=factor(incidence_value), y=cell_freq/100))+
+  geom_point(alpha=0.2, shape=21)+
+  geom_boxplot(aes(fill=factor(incidence_value)), outliers = F)+
+  facet_wrap(~cell_popf, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", ncol=4)+
+  # ggtitle("early life malaria is associated with increased\nmemory differentiation in B cells")+
+  ylab("% of Parent Population at 12 Months")+
+  xlab("Number of Parasitemic Months in Months 0-12")+
+  scale_y_continuous(labels = scales::label_percent())+
+  theme_minimal()+
+  theme(
+    legend.position="none",
+    legend.title = element_blank(),
+    # axis.text.x = element_text(angle = 90, hjust=1),
+    strip.text = element_text())+
+  scale_fill_manual(values=n_infection_cols)
+
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/b_cell_incidence_0_12.png", abc_0_12, height=3, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/b_cell_incidence_0_12.pdf", abc_0_12, height=4.5, width=8, bg="white", dpi=444)
 
 
 abc_0_6 <- long_abc_clinab %>%
@@ -703,7 +838,32 @@ all_ab_broomer <- long_true_combo%>%
   ungroup()%>%
   mutate("p_adj"=p.adjust(p.value, method="fdr" ))
 
-# supp. fig. 1 ALL DATA gestational age, maternal malaria, 0 infection kids ####
+# supp. fig. 1 show lack of difference between maternal treatment arms 
+#ALL DATA gestational age, maternal malaria, 0 infection kids ####
+(mom_rx_plot <- combo_data %>%
+  filter(!is.na(gestage), timepointf=="Cord Blood")%>%
+  mutate(gestagef=factor(if_else(gestage<28, "<28", 
+                                 if_else(gestage>=28 & gestage<32, "28-32", 
+                                         if_else(gestage>=32 & gestage<37, "32-37", 
+                                                 if_else(gestage>=37, ">37", "whoops")))), levels=c("<28", "28-32", "32-37", ">37")))%>%
+  ggplot(., aes(x=MomFinalRx, y=log10(conc)))+
+  geom_hline(data=filter(cutoff_df), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
+  geom_point(alpha=0.2, shape=21)+
+  geom_boxplot(aes(fill=MomFinalRx), outlier.shape = NA)+
+  ggpubr::stat_compare_means(size=2, comparisons = list(c("3 Dose SP", "3 Dose DP"),
+                                                c("3 Dose SP", "Monthly DP"), 
+                                                c("3 Dose DP", "Monthly DP")))+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=3)+
+  xlab("")+
+  ylab("Concentration in Cord Blood [AU]")+
+  theme_minimal()+
+  theme(#panel.grid = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_text(angle = 90, hjust=1),
+    strip.text = element_text(size=7))+
+  scale_fill_viridis_d(option = "G"))
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/S1_mom_rx_plot.pdf", mom_rx_plot, height=10, width = 8)
 
 gestage_purf <- combo_data %>%
   filter(!is.na(gestage), timepointf=="Cord Blood")%>%
@@ -746,29 +906,32 @@ all_gestages_cord <- combo_data %>%
   scale_fill_manual(values=gestage_pal)
 
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_gestages_cord.png", all_gestages_cord, height = 7.5, width=8, bg="white", limitsize = FALSE)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_gestages_cord.png", all_gestages_cord, height = 7.5, width=8, bg="white", limitsize = FALSE)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_gestages_cord.pdf", all_gestages_cord, height = 10, width=8, bg="white", limitsize = FALSE)
 
 
 
-all_cord_blood_matmal <- combo_data %>%
-  filter(timepointf=="Cord Blood", !is.na(matmal))%>%
-  ggplot(., aes(x=matmal, y=log10(conc)))+
-  geom_hline(data=filter(cutoff_df), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
-  geom_point(alpha=0.2, shape=21)+
-  geom_boxplot(aes(fill=matmal), outlier.shape = NA)+
-  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow=3)+
-  ggtitle("Maternal Pf Infection Negatively Impacts Antibody Transfer")+
-  ylab("Concentration")+
+(all_gestages_corr <- combo_data %>%
+  filter(!is.na(gestage), !is.na(matmal), timepointf=="Cord Blood")%>%
+  ggplot(., aes(x=gestage, y=conc))+
+  geom_hline(data=cutoff_df, aes(yintercept = max_below_standard), linetype="dashed")+
+  geom_point(alpha=0.35)+
+  geom_smooth(method="lm", aes(color=antigen))+
+  facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "fixed", nrow=3)+
+  xlab("\n Gestational Age in Weeks")+
+  ylab("Cord Blood Concentration [AU]")+
+  ggpubr::stat_cor(method = "spearman", size=2, vjust=2, color="red")+
+  scale_x_continuous(breaks = seq(32, 42, by=2))+
+  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, 2.5))+
   theme_minimal()+
-  theme(
-    legend.position="bottom",
-    legend.title = element_blank(),
-    axis.text.x = element_blank(),
-    axis.title.x = element_blank(),
+  theme(#panel.grid = element_blank(),
+    legend.position = "none",
+    axis.text.x = element_text(angle = 90, hjust=1),
     strip.text = element_text())+
-  scale_fill_manual(values=disease_pal)
+  scale_color_manual(values=pc1_cols))
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_cord_blood_matmal.png", all_cord_blood_matmal, height=7.5, width=8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_cord_gestages.png", all_cord_blood_matmal, height=10, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_cord_gestages.pdf", all_gestages_corr, height=10, width=8, bg="white", dpi=444)
 
 
 
@@ -779,7 +942,6 @@ all_no_inf_matmal <- combo_data %>%
   geom_point(alpha=0.2, shape=21, position = position_dodge(width=0.75))+
   geom_boxplot(aes(fill=timepointf), outlier.shape = NA)+
   facet_wrap(~antigen, labeller = labeller(antigen = label_wrap_gen(width = 6)), scales = "free", nrow = 3)+
-  ggtitle("Maternal Antibodies Wane Within 6 Months")+
   ylab("Concentration")+
   theme_minimal()+
   theme(
@@ -787,11 +949,12 @@ all_no_inf_matmal <- combo_data %>%
     legend.title = element_blank(),
     axis.text.x = element_text(angle=90, hjust=1),
     axis.title.x = element_blank(),
-    strip.text = element_text())+
+    strip.text = element_text(size=7))+
   scale_fill_manual(values=rev(unname(pc1_cols[c(7, 13,19)])))
 
 
-ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_no_inf_six_twelve.png", all_no_inf_matmal, height=7.5, width=8, bg="white", dpi=444)
+# ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_no_inf_six_twelve.png", all_no_inf_matmal, height=7.5, width=8, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/all_no_inf_six_twelve.pdf", all_no_inf_matmal, height=10, width=8, bg="white", dpi=444)
 
 
 # supp fig. 2 antibody vs. exposures
@@ -820,7 +983,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 
 
-all_6_12 <- combo_data %>%
+# all_6_12 <- combo_data %>%
   filter(!is.na(inf_6_12), timepointf=="12 Months")%>%
   ggplot(., aes(x=factor(inf_6_12), y=log10(conc)))+
   geom_hline(data=filter(cutoff_df), aes(yintercept = log10(max_below_standard)), linetype="dashed")+
@@ -1113,7 +1276,7 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 
 early_vs_late_exposure_b_memory <- long_abc_clinab %>%
   filter(!is.na(symp_12_18), cell_pop %in% c("memory_b","naive_b"))%>%
-  filter(timepointf=="12 Months")%>%
+  filter(timepoin_tf=="12 Months")%>%
   ggplot(., aes(x=factor(symp_12_18), y=cell_freq/100))+
   stat_summary(aes(group=factor(inf_0_12)), position = position_dodge(width=0.75), fun.y = median, fun.min = median, fun.max = median,
                geom = "crossbar", width = 1)+

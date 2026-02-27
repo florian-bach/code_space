@@ -177,6 +177,7 @@ ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/figures/big_any_serononco
 
 
 
+
 serconversion_df <- wide_long_msd%>%
   filter(if (n()>1) conversion!="nothing" else TRUE)%>%
   mutate(conversion=gsub("nothing", "no", conversion))%>%
@@ -190,14 +191,23 @@ serconversion_df2 <- wide_long_msd%>%
   distinct(id, antigen, conversion)%>%
   pivot_wider(names_from = antigen , values_from = conversion)
 
+seroconversion_df3 <- wide_long_msd%>%
+  distinct(id, conversion, antigen)%>%
+  group_by(id, antigen)%>%
+  mutate(sero_conversion=case_when(any(conversion=="converts 8 to 24")~"converts 8 to 24",
+                                   any(conversion=="converts 24 to 52")~"converts 24 to 52",
+                                   all(conversion=="nothing")~"nothing",
+                                   .default = "somthing_else"))%>%
+  distinct(id, antigen, sero_conversion)
+
 antigens <- colnames(serconversion_df)[3:ncol(serconversion_df)]
 timepoints <- c("8 weeks", "24 weeks", "52 weeks")
 
 nulisa_and_seroconversion <-  nulisa_data%>%
   left_join(., serconversion_df, by=c("id", "timepoint"))%>%
   pivot_longer(cols = all_of(antigens), names_to = "antigen", values_to = "conversion")%>%
-  select(id, timepoint, targetName, conc, antigen, conversion)%>%
-  filter(!is.na(conversion))%>%
+  dplyr::select(id, timepoint, targetName, conc, antigen, conversion)%>%
+  # filter(!is.na(conversion))%>%
   filter(timepoint %in% timepoints)
 
 
@@ -332,15 +342,15 @@ purf <- nulisa_and_seroconversion%>%
   mutate(padj=p.adjust(p, method="fdr"))
 
 sig_purf_conversion_nulisa <- purf%>%
-  filter(padj<0.15)
+  filter(padj<0.1)
 
-polio_analytes <- purf%>%
-  filter(padj<0.15, antigen=="Polio")
+Tetanus_IgA_analytes <- purf%>%
+  filter(padj<0.1, antigen=="Tetanus_IgA")
 
 seroconverter_hits <- nulisa_and_seroconversion%>%
   semi_join(., sig_purf_conversion_nulisa, by=c("targetName", "antigen"))%>%
-  # filter(targetName %in% polio_analytes$targetName)%>%
-  # filter(antigen=="Polio")%>%
+  filter(targetName %in% Tetanus_IgA_analytes$targetName)%>%
+  filter(antigen=="Tetanus_IgA")%>%
   ggplot(., aes(x=timepoint, y=conc, fill=conversion))+
   geom_boxplot(outliers = F)+
   ggpubr::stat_compare_means(label="p.format", size=2, vjust=.3)+
