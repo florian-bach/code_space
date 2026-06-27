@@ -7,8 +7,8 @@ library(ggplot2)
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
-micdrop_visits <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through October 31st 2025.dta")
-micdrop_specimens <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
+micdrop_visits <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through May 31st 2026.dta")
+micdrop_specimens <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Oct25/MICDSpecimenBoxOct25_withclinical.dta")
 
 
 
@@ -24,7 +24,7 @@ micdrop_malaria_episodes <- micdrop_visits%>%
 
 long_specimen_data <- micdrop_specimens %>%
   mutate("flo_age_in_wks"=as.numeric(date-dob)%/%7)%>%
-  select(id, date, flo_age_in_wks, c("BoxNumber1", "PositionColumn1", "PositionRow1", "RandomNumber1"), PBMC) %>%
+  select(id, date, flo_age_in_wks, gender, c("BoxNumber1", "PositionColumn1", "PositionRow1", "RandomNumber1"), PBMC) %>%
   mutate("visit_id"=paste(id, date, sep="_"))%>%
   pivot_longer(cols = c(PBMC), names_to = "Specimen_Type", values_to = "Specimen_ID")%>%
   filter(Specimen_Type=="PBMC")%>%
@@ -45,15 +45,57 @@ micdrop_combo_df <- long_specimen_data%>%
 
 select_combo_df <- micdrop_combo_df%>%
   filter(
-    (days_since_malaria >=3 &days_since_malaria<=8))%>%
-  select(id, flo_age_in_wks, mstatus, days_since_malaria, n_malaria)%>%
+    days_since_malaria>=2, days_since_malaria<=9)%>%
+  select(id, treatmentarm, flo_age_in_wks, mstatus, days_since_malaria, n_malaria)%>%
   arrange(id)
 
 # pick just a handful of samples for pilot with Nana;
 # no kids with repeat infections; 
 # select first infections only; maybe unusual timepoints?
 
-# for big BD experiment: 5 first, 3 third, 3 fourth, 3 sixth, 3 10+; 17 PBMC; 34 samples; 6 captures assuming six barcodes
+# flow pilot samples: 4; test activation levels 
+select_combo_df <- micdrop_combo_df%>%
+  filter(
+    days_since_malaria>=3, days_since_malaria<=9)%>%
+  # select(id, pbmc_date, treatmentarm, flo_age_in_wks, mstatus, days_since_malaria, n_malaria)%>%
+  # filter(n_malaria=="infection_1")%>%
+  # flow pilot
+  # filter(id%in%c(10983, 10582, 11637, 11145))
+  filter(id%notin%c(10983, 10582, 11637, 11145))%>%
+  select(id, n_malaria, days_since_malaria)
+
+select_combo_df <- micdrop_combo_df%>%
+  filter(
+    days_since_malaria>=9, days_since_malaria<=10, n_malaria%in% c("infection_1", "infection_3", "infection_5"))%>%
+  # select(id, pbmc_date, treatmentarm, flo_age_in_wks, mstatus, days_since_malaria, n_malaria)%>%
+  # filter(n_malaria=="infection_1")%>%
+  # flow pilot
+  # filter(id%in%c(10983, 10582, 11637, 11145))
+  filter(id%notin%c(10983, 10582, 11637, 11145))%>%
+  select(id, flo_age_in_wks, days_since_malaria, n_malaria, BoxNumber1, PositionColumn1, PositionRow1)
+
+# BD rhapsody pilot
+micdrop_combo_df%>%
+  filter(id %notin% c(10891,  10977, 11565, 11481, 11743, 11773))%>%
+  filter(id %notin%c(10983, 10582, 11637, 11145))%>%
+  mutate(box_num=substr(BoxNumber1, 6,10))%>%
+  filter(box_num<3065)%>%
+  filter(days_since_malaria>=8, days_since_malaria<=10, n_malaria%in% c("infection_1", "infection_3", "infection_5", "infection_4"))%>%
+  select(id, n_malaria, days_since_malaria,  BoxNumber1, PositionColumn1, PositionRow1)
+  
+
+sample_finder <- long_specimen_data%>%
+  filter(
+    days_since_malaria==7, n_malaria%in% c("infection_1", "infection_4", "infection_3"))%>%
+  select(BoxNumber1, PositionRow1, PositionColumn1)%>%
+  right_join(., trial, by="id")
+
+
+# BD rhapsody pilot samples: 12
+# BD big experiment: ~36 additional samples 
+# 43 samples with 8 @ days or earlier; 55 @ 9 days or fewer; pick
+# for big BD experiment: 5 first, 3 third, 3 fourth, 3 sixth, 3 10+; 17 PBMC; 34 samples;
+# 6 captures assuming six barcodes
 
 # bad way of doing it ####
 `%notin%` <- Negate(`%in%`)

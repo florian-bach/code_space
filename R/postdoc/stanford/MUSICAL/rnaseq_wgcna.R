@@ -14,27 +14,40 @@ infectiontype_cols <- list("A"="darkslateblue",
                            "S" = "darkred")
 
 
+# read in RNA data and select variable genes ####
 transcriptomic_data <- readRDS("~/Downloads/dataObject_MI_part1_part2.rds")
 
-expression_data <- data.frame(transcriptomic_data$expr)%>%
+rna_expression_data <- data.frame(transcriptomic_data$expr)%>%
   mutate(targetName=rownames(transcriptomic_data$expr))%>%
   pivot_longer(cols = colnames(transcriptomic_data$expr), names_to = "rna_sample", values_to = "expression")
 
 #select most variable genes
-var_df <- expression_data %>%
-  group_by(targetName)%>%
-  summarise("variance"=var(expression))
+genes_to_keep <- rowMeans(transcriptomic_data$expr) > 0.1   # or 25th percentile
+# datExpr_f <- transcriptomic_data$expr[genes_to_keep, ]
 
-most_variable_genes <- var_df%>%
-  filter(variance>=0.27)
+samples_to_keep <- transcriptomic_data$pheno%>%
+  filter(infection=="A" | infection=="asymptomatic" | timepoint_category=="Baseline")%>%
+  pull(`novogene code`)
+
+datExpr_f <- transcriptomic_data$expr[genes_to_keep, samples_to_keep]
+
+mad_values <- apply(datExpr_f, 1, mad)
+
+cutoff <- quantile(mad_values, 0.85)
+#0.8~4000 genes; 0.9~2000; 0.95~1000
+most_variable_genes <- names(mad_values)[mad_values >= cutoff]
+
 # put data together ####
 #transforming the data.frame so columns now represent genes and rows represent samples
-expression.data <- data.frame(expression_data%>%
-  filter(targetName %in% most_variable_genes$targetName)%>%
-  pivot_wider(names_from = targetName, values_from = expression))
+wide_rna_expression_data <- data.frame(rna_expression_data%>%
+                                         filter(targetName %in% most_variable_genes, rna_sample%in% samples_to_keep, rna_sample!="B209")%>%
+                                         pivot_wider(names_from = "targetName", values_from = "expression"))
 
-rownames(expression.data) <- expression.data$rna_sample
-expression.data <- expression.data[,-match("rna_sample", colnames(expression.data))]
+rownames(wide_rna_expression_data) <- wide_rna_expression_data$rna_sample
+expression.data <- wide_rna_expression_data[,-match("rna_sample", colnames(wide_rna_expression_data))]
+
+
+
 
 # get rid of non-expression data
 # look at dendrogram of smaples to look for outliers
@@ -72,6 +85,13 @@ plot(spt$fitIndices[,1],spt$fitIndices[,2],
      main = paste("Scale independence"))
 text(spt$fitIndices[,1],spt$fitIndices[,2],col="red")
 abline(h=0.80,col="red")
+
+par(mar=c(1,1,1,1))
+plot(spt$fitIndices[,1], spt$fitIndices[,5],
+     xlab="Soft Threshold (power)",ylab="Mean Connectivity", type="n",
+     main = paste("Mean connectivity"))
+text(spt$fitIndices[,1], spt$fitIndices[,5], labels= spt$fitIndices[,1],col="red")
+
 
 softPower <- 6
 adjacency <- adjacency(expression.data, power = softPower)
@@ -130,7 +150,7 @@ musical_metadata <- transcriptomic_data$pheno%>%
   mutate(log_qpcr = log10(qpcr+0.001))
 
 traitRows <- musical_metadata%>%
-  right_join(., MEs, by="sample_id")
+  inner_join(., MEs, by="sample_id")
 
 datTraits <- traitRows%>%
   select(temperature, log_qpcr, ageyrs)
@@ -231,8 +251,8 @@ module_cor_heatmap <- heatmap_df%>%
 
 ## integration with rest of data ####
 
-parasite_networks <- c("MEblue", "MEgrey", "MEtan", "MEred", "MEmagenta")
-fever_networks <- c("MEturquoise", "MEgreen", "MEpurple", "MEbrown")
+parasite_networks <- c("MEblack", "MEgrey", "MEturquoise")
+# fever_networks <- c("MEblue", "MEpink", "MEred")
 
 
 musical_with_networks <- traitRows%>%
@@ -240,26 +260,58 @@ musical_with_networks <- traitRows%>%
 
 
 ## timepoint vs network value ####
-musical_with_networks%>%
-  filter(timepoint_category%in%c("Baseline", "Day 0","Day 14"))%>%
-  filter(infection%in%c("A", "S"), network%in%c("MEturquoise", "MEred", "MEmagenta", "MEbrown"))%>%
+a_timepoints <- musical_with_networks%>%
+  filter(timepoint_category%in%c("Baseline", "Day 0","Day 14", "Day 28"))%>%
+  filter(infection%in%c("A"), network%in%parasite_networks)%>%
   mutate(timepoint=factor(timepoint, levels=c("Baseline", "Day 0","Day 14")))%>%
-  mutate(network=case_match(network, "MEturquoise"~"fever",
-                            "MEred"~"parasite density",
-                            "MEmagenta"~"parasite clearance", 
-                            "MEbrown"~"combined fever and parasites"))%>%
+  # mutate(network=case_match(network, "MEturquoise"~"fever",
+  #                           "MEred"~"parasite density",
+  #                           "MEmagenta"~"parasite clearance", 
+  #                           "MEbrown"~"combined fever and parasites"))%>%
   ggplot(., aes(x=timepoint_category, y=network_value, fill=timepoint_category))+
   geom_violin(draw_quantiles = 0.5)+
   geom_smooth(method="lm")+
   geom_point()+
-  ggpubr::stat_compare_means(aes(group=timepoint_category), comparisons = list(c("Day 0", "Day 14"),
-                                                c("Day 0", "Baseline")),
+  facet_wrap(~infection+network, scales="free_x", nrow=1)+
+  ggpubr::stat_compare_means(aes(group=timepoint_category), comparisons = list(c("Baseline", "Day 0"),
+                                                                               c("Baseline", "Day 14"),
+                                                                               c("Baseline", "Day 28")),
                              label = "p.signif", hide.ns = F)+
-  facet_wrap(~infection+network, scales="free_x", nrow=2)+
+  
   ylab("module eigengene")+
   scale_fill_manual(values=unname(unlist(time_cols)))+
-  theme_minimal()
+  theme_minimal(base_size = 20)+
+  theme(legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
+s_timepoints <- musical_with_networks%>%
+  filter(timepoint_category%in%c("Baseline", "Day 0"))%>%
+  filter(infection%in%c("S"), network%in%parasite_networks)%>%
+  mutate(timepoint=factor(timepoint, levels=c("Baseline", "Day 0","Day 14")))%>%
+  # mutate(network=case_match(network, "MEturquoise"~"fever",
+  #                           "MEred"~"parasite density",
+  #                           "MEmagenta"~"parasite clearance", 
+  #                           "MEbrown"~"combined fever and parasites"))%>%
+  ggplot(., aes(x=timepoint_category, y=network_value, fill=timepoint_category))+
+  geom_violin(draw_quantiles = 0.5)+
+  geom_smooth(method="lm")+
+  geom_point()+
+  facet_wrap(~infection+network, scales="free_x", nrow=1)+
+  ggpubr::stat_compare_means(aes(group=timepoint_category), comparisons = list(c("Baseline", "Day 0")),
+                             label = "p.signif", hide.ns = F)+
+  
+  ylab("module eigengene")+
+  scale_fill_manual(values=unname(unlist(time_cols)))+
+  theme_minimal(base_size = 20)+
+  theme(legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+combo_timepoints <- a_timepoints + s_timepoints + plot_layout(widths = c(1.5, 1))
+ggsave("~/postdoc/stanford/rna_seq/MUSICAL/figures/parasite_networks.png", combo_timepoints, width = 17.5, height=7, dpi=444)
+
+ggsave()
 ## infectiontype vs network values####
 musical_with_networks%>%
   filter(timepoint_category%in%c("Baseline"))%>%
@@ -272,17 +324,17 @@ musical_with_networks%>%
   ggpubr::stat_compare_means(label = "p.signif", hide.ns = F)+
   facet_wrap(~timepoint_category+network, scales="free_x")+
   ylab("Module Eigengene")+
-  scale_fill_manual(values=infection_cols)+
+  scale_fill_manual(values=infectiontype_cols)+
   theme_minimal()
 
 ## timepoint_category vs network value parasite controllers and non controllers####
 asymp_ctrl <- musical_with_networks%>%
-  filter(infection%in%c("A"), network %in% c("MEred", "MEmagenta"))%>%
+  filter(infection%in%c("A"), network %in% c(parasite_networks, "MEred"))%>%
   mutate(day14_para=if_else(timepoint_category=="Day 14"&infection=="A" & qpcr > 10, "parasitemic_Day 14", "no_parasites_Day 14"))%>%
   group_by(cohortid)%>%
   mutate(class2= if_else(any(day14_para=="parasitemic_Day 14"), "parasitaemic at Day 14", "parasites cleared"))%>%
   filter(timepoint_category%in%c("Baseline", "Day 0","Day 14"))%>%
-  mutate(timepoint_category=factor(timepoint_category, levels=c("Baseline", "Day 0","Day 14")))%>%
+  mutate(timepoint_category=factor(timepoint_category, levels=c("Baseline", "Day 0","Day 14", "Day 28")))%>%
   filter(!is.na(class2))%>%
   # mutate(network=case_match(network, "MEturquoise"~"fever",
   #                           "MEred"~"parasite density",
@@ -292,7 +344,7 @@ asymp_ctrl <- musical_with_networks%>%
   geom_violin(draw_quantiles = 0.5)+
   geom_point(aes(color=timepoint_category), position = position_dodge(width=0.9))+
   ggpubr::stat_compare_means(label = "p.signif", hide.ns = T, size=13, vjust=1)+
-  facet_wrap(~infection+network, scales="free_x")+
+  facet_wrap(~infection+network, scales="free_x", nrow=1)+
   scale_color_manual(values=unname(unlist(time_cols)))+
   scale_fill_manual(values=c("#636363", "darkgrey"))+
   ylab("module eigengene")+
@@ -301,10 +353,14 @@ asymp_ctrl <- musical_with_networks%>%
   theme(axis.title.x = element_blank(),
         legend.title = element_blank(),
         legend.position = "bottom")
-# ggsave("~/postdoc/stanford/abstracts/immunology_retreat_2025/asymp_ctrl.png", asymp_ctrl, width = 12, height=8, dpi=444)
+
+ggsave("~/postdoc/stanford/rna_seq/MUSICAL/figures/parasite_networks_parsite_control.png", asymp_ctrl, width = 10, height=5, dpi=444)
 
 (symp_time <- musical_with_networks%>%
-    filter(infection%in%c("S"), network%in%c(fever_networks))%>%
+    
+    # filter(infection%in%c("S"), network%in%c(fever_networks))%>%
+    filter(infection%in%c("S"), network%in%c("MEblue", "MEpink"))%>%
+    
     mutate(day14_para=if_else(timepoint_category=="Day 14"&infection=="A" & qpcr > 10, "parasitemic_Day 14", "no_parasites_Day 14"))%>%
     group_by(cohortid)%>%
     mutate(class2=if_else(any(day14_para=="parasitemic_Day 14"), "parasitaemic at Day 14", "parasites cleared"))%>%
@@ -314,9 +370,9 @@ asymp_ctrl <- musical_with_networks%>%
     ggplot(., aes(x=timepoint_category, y=network_value, fill=timepoint_category))+
     geom_violin(draw_quantiles = 0.5)+
     geom_point(position = position_dodge(width=0.9))+
-    ggpubr::stat_compare_means(comparisons = list(
-                                                  c("Day 0", "Baseline")),
-                               label = "p.signif", hide.ns = F)+
+    ggpubr::stat_compare_means(vjust=2,comparisons = list(
+      c("Day 0", "Baseline")),
+      label = "p.signif", hide.ns = F)+
     facet_wrap(~infection+network, scales="free_x")+
     scale_color_manual(values=unname(unlist(time_cols)))+
     scale_fill_manual(values=unname(unlist(time_cols)))+
@@ -329,7 +385,7 @@ asymp_ctrl <- musical_with_networks%>%
 ggsave("~/postdoc/stanford/abstracts/immunology_retreat_2025/asymp_ctrl.png", asymp_ctrl, width = 10, height=5, dpi=444)
 
 
-o
+
 ## visualise "loadings" ####
 # Compute module membership (kME)
 kME <- cor(expression.data, MEs, use = "p")
@@ -371,7 +427,36 @@ long_kme_p <- kME_df%>%
 
 
 curve_plot1 <- long_kme_p%>%
-  filter(network%in%fever_networks)%>%
+  # filter(network%in%fever_networks)%>%
+  filter(network %in% c("MEgreen", parasite_networks))%>%
+  mutate(network_color=gsub("ME", "", network))%>%
+  # mutate(network=case_match(network, "MEturquoise"~"fever",
+  #                           "MEred"~"parasite density",
+  #                           "MEmagenta"~"parasite clearance", 
+  #                           "MEbrown"~"combined fever and parasites"))%>%
+  ggplot(., aes(x=`Pearson R`, y=-log10(padj), color=network_color))+
+  geom_point()+
+  facet_wrap(~network, nrow=1)+
+  ggrepel::geom_text_repel(
+    data = . %>% 
+      # filter(network%in%fever_networks)%>%
+      group_by(network)%>%
+      slice_min(n = 15, order_by = padj),
+    aes(label = targetName),   # or whatever your gene column is called
+    force = 10,
+    nudge_x = -0.4, box.padding = 0.2
+  ) +
+  theme_minimal()+
+  scale_color_manual(values=c("black", "grey", "red", "turquoise"))+
+  # theme_minimal(base_size = 18)+
+  theme(legend.position = "none")
+
+ggsave("~/postdoc/stanford/rna_seq/MUSICAL/figures/parasite_networks_curve_plot.png", curve_plot1, width = 10, height=5, dpi=444)
+
+
+curve_plot2 <- long_kme_p%>%
+  # filter(network%in%fever_networks)%>%
+  filter(network %in% c("MEblue", "MEpink"))%>%
   # mutate(network=case_match(network, "MEturquoise"~"fever",
   #                           "MEred"~"parasite density",
   #                           "MEmagenta"~"parasite clearance", 
@@ -381,18 +466,86 @@ curve_plot1 <- long_kme_p%>%
   facet_wrap(~network)+
   ggrepel::geom_text_repel(
     data = . %>% 
-      filter(network%in%fever_networks)%>%
+      # filter(network%in%fever_networks)%>%
+      group_by(network)%>%
+      slice_min(n = 30, order_by = padj),
+    aes(label = targetName),   # or whatever your gene column is called
+    force = 10,
+    nudge_x = -0.4, box.padding = 0.2
+  ) +
+  scale_color_manual(values=c("blue", "orchid1"))+
+  theme_minimal(base_size = 12)+
+  theme(legend.position = "none")
+
+ggsave("~/postdoc/stanford/rna_seq/MUSICAL/figures/fever_networks_curve_plot.png", curve_plot2, width = 5, height=5, dpi=444)
+
+
+module_cor_heatmap1 <- heatmap_df%>%
+  filter(network %in% fever_networks)%>%
+  mutate(text_color=ifelse(.$R>=0.2, "black", "white"))%>%
+  ggplot(., aes(x=covariate, y=network, fill=R))+
+  # geom_point(aes(size=(-log10(p)), color=R))+
+  geom_tile()+
+  geom_text(aes(color=text_color,
+                label=paste(round(R, digits = 2), "\n(p=",
+                            signif(p, 1), ")", sep = "")))+
+  scale_fill_gradientn(
+    colors = c("#053061", "#2166AC", "#000000", "#FFA500", "#FFFFB2"),  # blue → black → yellow
+    values = scales::rescale(c(-1, -0.5, 0, 0.5, 1)),
+    limits = c(-1, 1)
+  )+
+  scale_color_manual(values=c("black","white"))+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text = element_text(size=12),
+        legend.title = element_text(hjust = 0.16))
+
+fever_combo <- module_cor_heatmap1+curve_plot1+patchwork::plot_layout(widths = c(1,2))
+
+
+
+
+curve_plot2 <- long_kme_p%>%
+  filter(network%in%parasite_networks)%>%
+  ggplot(., aes(x=`Pearson R`, y=-log10(padj), color=network))+
+  geom_point(aes(color=network))+
+  facet_wrap(~network)+
+  ggrepel::geom_text_repel(
+    data = . %>% 
+      filter(network%in%parasite_networks)%>%
       group_by(network)%>%
       slice_min(n = 20, order_by = padj),
     aes(label = targetName),   # or whatever your gene column is called
-     force = 10,
+    force = 10,
     nudge_x = -0.4, box.padding = 0.2
   ) +
   # scale_color_manual(values=c("tomato4", "turquoise4"))+
   # theme_minimal(base_size = 18)+
   theme(legend.position = "none")
 
-ggsave("~/postdoc/stanford/abstracts/immunology_retreat_2025/curve_plot.png", curve_plot, width = 7, height = 7, dpi=444)
+module_cor_heatmap2 <- heatmap_df%>%
+  filter(network %in% parasite_networks)%>%
+  mutate(text_color=ifelse(.$R>=0.2, "black", "white"))%>%
+  ggplot(., aes(x=covariate, y=network, fill=R))+
+  # geom_point(aes(size=(-log10(p)), color=R))+
+  geom_tile()+
+  geom_text(aes(color=text_color,
+                label=paste(round(R, digits = 2), "\n(p=",
+                            signif(p, 1), ")", sep = "")))+
+  scale_fill_gradientn(
+    colors = c("#053061", "#2166AC", "#000000", "#FFA500", "#FFFFB2"),  # blue → black → yellow
+    values = scales::rescale(c(-1, -0.5, 0, 0.5, 1)),
+    limits = c(-1, 1)
+  )+
+  scale_color_manual(values=c("black","white"))+
+  theme_minimal()+
+  theme(axis.title = element_blank(),
+        axis.text = element_text(size=12),
+        legend.title = element_text(hjust = 0.16))
+
+parasite_combo <- module_cor_heatmap2+curve_plot2+patchwork::plot_layout(widths = c(1,2))
+
+
 
 
 module_cor_heatmap1 <- heatmap_df%>%

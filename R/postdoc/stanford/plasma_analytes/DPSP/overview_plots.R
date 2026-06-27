@@ -307,3 +307,91 @@ dpsp_nulisa%>%
   facet_wrap(~targetName, scales = "free")+
   theme_minimal()
 
+
+
+# sga comparison####
+sga_kids <- clean_data%>%
+  filter(SGA==1)%>%
+  distinct(id)%>%
+  pull(id)
+
+# 7
+lbw_kids <- clean_data%>%
+  filter(LBWdich==1)%>%
+  distinct(id)%>%
+  pull(id)
+
+dpsp_results2 <- dpsp_nulisa %>%
+  filter(timepoint2!="post")%>%
+  mutate(id_cat=as.character(id))%>%
+  mutate(SGA=ifelse((id+10000) %in% sga_kids, "SGA", "NGA"))%>%
+  group_by(targetName)%>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(conc~timepoint2*SGA+(1|id_cat), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint2*SGA)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate("delivery_p"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("pregnant_p"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
+  mutate("coef delivery"=map_dbl(emm_contrast_summary, ~.$estimate[2])) %>%
+  mutate("coef_pregnant"=map_dbl(emm_contrast_summary, ~.$estimate[5])) %>%
+  ungroup()%>%
+  mutate("delivery_padj" =p.adjust(delivery_p, method="fdr"))%>%
+  mutate("pregnant_padj" =p.adjust(pregnant_p, method="fdr"))
+
+dpsp_results2_sigs <- dpsp_results2%>%
+  filter(delivery_padj<0.1 | pregnant_padj<0.1)%>%
+  select(targetName, delivery_padj, pregnant_padj)%>%
+  arrange(delivery_padj)
+
+
+(plt <- dpsp_nulisa%>%
+  filter(timepoint2!="post")%>%
+  filter(targetName %in% c("CD40", "KDR", "IL15", "IFNL1"))%>%
+  mutate(SGA=ifelse((id+10000) %in% sga_kids, "SGA", "NGA"))%>%
+  ggplot(., aes(x=timepoint2, y=conc, fill=SGA))+
+  geom_boxplot(outliers=F)+
+  ggpubr::stat_compare_means()+
+  theme_minimal()+
+  facet_wrap(~targetName, scales="free"))
+
+
+# lbw ####
+
+
+dpsp_results3 <- dpsp_nulisa %>%
+  filter(timepoint2!="post", targetName!="IFNA2")%>%
+  mutate(id_cat=as.character(id))%>%
+  mutate(LBW=ifelse((id+10000) %in% lbw_kids, "LBW", "NBW"))%>%
+  group_by(targetName)%>%
+  nest() %>%
+  mutate(model=map(data, ~lme4::lmer(conc~timepoint2*LBW+(1|id_cat), data=.))) %>%
+  mutate(summary=map(model, ~summary(.))) %>%
+  mutate(emm=map(model, ~emmeans(., specs = pairwise ~ timepoint2*LBW)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate("delivery_p"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("pregnant_p"=map_dbl(emm_contrast_summary, ~.$p.value[5])) %>%
+  mutate("coef delivery"=map_dbl(emm_contrast_summary, ~.$estimate[2])) %>%
+  mutate("coef_pregnant"=map_dbl(emm_contrast_summary, ~.$estimate[5])) %>%
+  ungroup()%>%
+  mutate("delivery_padj" =p.adjust(delivery_p, method="fdr"))%>%
+  mutate("pregnant_padj" =p.adjust(pregnant_p, method="fdr"))
+
+dpsp_results3_sigs <- dpsp_results3%>%
+  filter(delivery_padj<0.1 | pregnant_padj<0.1)%>%
+  select(targetName, delivery_padj, pregnant_padj)%>%
+  arrange(delivery_padj)
+
+
+(plt <- dpsp_nulisa%>%
+    filter(timepoint2!="post")%>%
+    filter(targetName %in% c("IL27", "IL6"))%>%
+    mutate(LBW=ifelse((id+10000) %in% lbw_kids, "LBW", "NBW"))%>%
+    ggplot(., aes(x=timepoint2, y=conc, fill=LBW))+
+    geom_boxplot(outliers=F)+
+    ggpubr::stat_compare_means()+
+    theme_minimal()+
+    facet_wrap(~targetName, scales="free"))
+

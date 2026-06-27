@@ -5,6 +5,9 @@ library(ggplot2)
 library(purrr)
 library(emmeans)
 
+treatment_palette <-  c("darkred", "darkblue")
+names(treatment_palette) <-c("Placebo", "DP 1 year")
+
 var_luminex <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/slim_luminex_results.csv", check.names = F)
 colnames(var_luminex)[12:13] <- c("CIDRg3",	"CIDRa6")
 colnames(var_luminex)[31:32] <- c("schizont",	"tetanus")
@@ -29,7 +32,7 @@ all_samples <- distinct(plate_map, id, date, ageinwks)%>%
 
 # add epi data ####
 ## add visit-level metadata ####
-metadata_columns <- c("id", "date", "mstatus", "pardens", "qPCRparsdens", "fever", "febrile", "gender")
+metadata_columns <- c("id", "date", "mstatus", "pardens", "qPCRparsdens", "fever", "febrile", "gender", "mom_rx")
 
 dobs <- raw_data%>%
   distinct(id, dob)%>%
@@ -146,26 +149,27 @@ treatment_purf <- long_luminex%>%
 
 #nothing
 sigs_8 <- treatment_purf%>%
-  filter(padj<0.05, contrast=="8 weeks")%>%
+  filter(padj<0.1, contrast=="8 weeks")%>%
   select(antigen, contrast, p, padj)
 #nothing
 sigs_24 <- treatment_purf%>%
-  filter(padj<0.05, contrast=="24 weeks")%>%
+  filter(padj<0.1, contrast=="24 weeks")%>%
   select(antigen, contrast, p, padj)
 
 # 10 without pcr; 15 with pcr
 sigs_52 <- treatment_purf%>%
-  filter(padj<0.05, contrast=="52 weeks")%>%
+  filter(padj<0.01, contrast=="52 weeks")%>%
   select(antigen, contrast, p, padj)%>%
   arrange(padj)
 
 # nothing
 sigs_104 <- treatment_purf%>%
-  filter(padj<0.05, contrast=="104 weeks")%>%
+  filter(padj<0.1, contrast=="104 weeks")%>%
   select(antigen, contrast, p, padj)
+
 #6 without pcr, 5 with
 sigs_52_104 <- treatment_purf%>%
-  filter(padj<0.05, contrast%in%c("Placebo boost 52 - 104 weeks", "DP boost 52 - 104 weeks"))%>%
+  filter(padj<0.1, contrast%in%c("Placebo boost 52 - 104 weeks", "DP boost 52 - 104 weeks"))%>%
   select(antigen, contrast, p, padj)
 
 
@@ -185,7 +189,7 @@ sig_52_plot1 <- long_luminex %>%
   geom_boxplot(outliers = F)+
   scale_y_log10()+
   facet_wrap(~antigen, scales="free", labeller = label_wrap_gen(width = 10), nrow=2)+
-  scale_fill_manual(values=c("darkred", "#00555A"))+
+  scale_fill_manual(values=treatment_palette)+
   theme_minimal()+
   theme(legend.position="bottom",
         legend.direction = "horizontal",
@@ -237,7 +241,7 @@ sig_52_104_plot <- long_luminex %>%
   # geom_violin(draw_quantiles = seq(0,1,0.25))+
   scale_y_log10()+
   facet_grid(treatmentarm~antigen, scales="free", labeller = label_wrap_gen(width = 10))+
-  scale_fill_manual(values=c("darkred", "#00555A"))+
+  scale_fill_manual(values=treatment_palette)+
   theme_minimal()+
   theme(axis.text.x = element_text(angle = 90, hjust=1),
         axis.title.x = element_blank(),
@@ -422,6 +426,7 @@ n_para_sigs_52_1 <- long_luminex %>%
   ggplot(., aes(x=factor(total_n_para_12f), y=MFI, fill=factor(total_n_para_12f)))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
+  ylab("MFI at 52 weeks")+
   facet_wrap(~antigen, scales="free", nrow=3)+
   scale_fill_viridis_d()+
   theme_minimal()+
@@ -438,28 +443,13 @@ n_para_sigs_52_2 <- long_luminex %>%
   ggplot(., aes(x=factor(total_n_para_12f), y=MFI, fill=factor(total_n_para_12f)))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
+  ylab("MFI at 52 weeks")+
   facet_wrap(~antigen, scales="free", nrow=3)+
   scale_fill_viridis_d()+
   theme_minimal()+
   theme(legend.position = "none",
         axis.title.x = element_blank())
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_para_sigs_52_2.png", n_para_sigs_52_2, height=8, width=8, dpi=400, bg="white")  
-
-n_para_sigs_52_3 <- long_luminex %>%
-  filter(antigen %in% inf_sigs_52$antigen[19:20])%>%
-  mutate(antigen=factor(antigen, levels=inf_sigs_52$antigen[19:20]))%>%
-  filter(timepoint =="52 weeks", treatmentarm=="Placebo")%>%
-  mutate(total_n_para_12f=if_else(total_n_para_12>6, "7+", as.character(total_n_para_12)))%>%
-  ggplot(., aes(x=factor(total_n_para_12f), y=MFI, fill=factor(total_n_para_12f)))+
-  geom_boxplot(outliers = F)+
-  scale_y_log10()+
-  facet_wrap(~antigen, scales="free", nrow=3)+
-  scale_fill_viridis_d()+
-  theme_minimal()+
-  theme(legend.position = "none",
-        axis.title.x = element_blank())
-
-ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_para_sigs_52_3.png", n_para_sigs_52_3, height=8, width=8, dpi=400, bg="white")  
 
 n_malaria_sigs_52 <- long_luminex %>%
   filter(antigen %in% inf_sigs_52$antigen[inf_sigs_52$n_malaria_padj<0.05])%>%
@@ -468,13 +458,14 @@ n_malaria_sigs_52 <- long_luminex %>%
   ggplot(., aes(x=factor(total_n_malaria_12), y=MFI, fill=factor(total_n_malaria_12)))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
-  facet_wrap(~antigen, scales="free", nrow=3)+
+  ylab("MFI at 52 weeks")+
+  facet_wrap(~antigen, scales="free", nrow=2)+
   scale_fill_viridis_d()+
   theme_minimal()+
   theme(legend.position = "none",
         axis.title.x = element_blank())
 
-ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_malaria_sigs_52.png", n_malaria_sigs_52, height=3, width=3, dpi=400, bg="white")  
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/n_malaria_sigs_52.png", n_malaria_sigs_52, height=4, width=8, dpi=400, bg="white")  
 
 ### 104 weeks ####
 
@@ -482,33 +473,47 @@ inf_purf_104 <- long_luminex%>%
   filter(timepoint=="104 weeks", MFI>100)%>%
   group_by(antigen)%>%
   nest()%>%
-  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_24~log_mfi, data=.))) %>%
-  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_24~log_mfi, data=.))) %>%
+  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12_24~log_mfi*treatmentarm, data=.))) %>%
+  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12_24~log_mfi*treatmentarm, data=.))) %>%
+  mutate(emm=map(n_malaria_model, ~emmeans(., specs = pairwise ~ treatmentarm)))%>%
+  mutate(emm2=map(n_para_model, ~emmeans(., specs = pairwise ~ treatmentarm)))%>%
+  mutate(emm_contrast=map(emm, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast2=map(emm2, ~contrast(., "pairwise", adjust="none")))%>%
+  mutate(emm_contrast_summary=map(emm_contrast, ~summary(.)))%>%
+  mutate(emm_contrast_summary2=map(emm_contrast2, ~summary(.)))%>%
+  mutate("8 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[1])) %>%
+  mutate("24 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[2])) %>%
+  mutate("52 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[3])) %>%
+  mutate("104 weeks"=map_dbl(emm_contrast_summary, ~.$p.value[4])) %>%
+  
   # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
   
   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
   mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
   #11 when additional covariate is included
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[8]))%>%
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
   mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[8]))%>%
   ungroup()%>%
   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
          n_para_padj=p.adjust(n_para_p, method="BH"))
 
 inf_sigs_104 <- inf_purf_104%>%
-  filter(n_malaria_p<0.05,
-         n_para_p<0.05)
+  filter(n_malaria_padj<0.05|
+         n_para_padj<0.05)%>%
+  select(antigen,n_para_padj, n_malaria_padj )%>%
+  arrange(n_para_padj)
 
 
 n_malaria_sigs_104 <- long_luminex %>%
-  filter(antigen %in% inf_sigs_52$antigen[1:9])%>%
-  mutate(antigen=factor(antigen, levels=inf_sigs_52$antigen[1:9]))%>%
+  filter(antigen %in% inf_sigs_104$antigen[1:9])%>%
+  mutate(antigen=factor(antigen, levels=inf_sigs_104$antigen[1:9]))%>%
   filter(timepoint =="104 weeks")%>%
   mutate(total_n_para_24f=if_else(total_n_para_24>6, "7+", as.character(total_n_para_24)))%>%
   ggplot(., aes(x=factor(total_n_para_24f), y=MFI, fill=factor(total_n_para_24f)))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
+  ylab("MFI at 104 weeks")+
   facet_wrap(~antigen, scales="free", nrow=3)+
   scale_fill_viridis_d()+
   theme_minimal()+
@@ -527,6 +532,7 @@ n_malaria_sigs_104_dp <- long_luminex %>%
   ggplot(., aes(x=total_n_para_24f, y=MFI, fill=total_n_para_24f))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
+  ylab("MFI at 104 weeks (DP)")+
   facet_wrap(~antigen, scales="free", nrow=3)+
   scale_fill_viridis_d()+
   theme_minimal()+
@@ -564,7 +570,7 @@ n_malaria_sigs_52_104 <- long_luminex %>%
   filter(!is.na(total_n_malaria_12_24))%>%
   filter(antigen %in% c(inf_sigs_52_104$antigen[1:3], "schizont"))%>%
   # mutate(antigen=factor(antigen, levels=inf_sigs_52_104$antigen[1:9]))%>%
-  filter(timepoint %in% c("52 weeks", "104 weeks"))%>%
+  filter(timepoint %in% c("52 weeks"))%>%
   # mutate(total_n_malaria_12_24f=if_else(total_n_malaria_12_24>3, "4+", as.character(total_n_malaria_12_24)))%>%
   ggplot(., aes(x=factor(total_n_malaria_12_24), y=MFI, fill=factor(total_n_malaria_12_24)))+
   geom_boxplot(outliers = F)+
@@ -656,10 +662,7 @@ inf_purf_8%>%
 
 
 n_malaria_sigs_8a <- long_luminex %>%
-  filter(antigen %in% c("CIDRa6",
-                        "CIDRa1.7 2083-1",
-                        "CIDRg3 IT4var08",
-                        "schizont"))%>%
+  filter(antigen %in% c("CIDRa5 IT4var14"))%>%
   filter(timepoint =="8 weeks", !is.na(total_n_para_6))%>%
   ggplot(., aes(x=factor(total_n_para_6), y=MFI, fill=factor(total_n_para_6)))+
   geom_boxplot(outliers = F)+
@@ -714,6 +717,86 @@ var_parasitemia_plot <- long_luminex %>%
         axis.title = element_text(size=16))
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/var_parasitemia_plot.png", var_parasitemia_plot, height=5, width=8, dpi=400, bg="white")  
+
+# probability of symptoms, given infection ####
+
+symp_prob_purf_52 <- long_luminex%>%
+  filter(timepoint=="52 weeks")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(n_malaria_model=map(data, ~glm(symp_prop_12_24~log_mfi+gender_categorical+treatmentarm, data=., family = "binomial" , weights = total_n_para_12_24))) %>%
+  # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+  #11 when additional covariate is included
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
+  ungroup()%>%
+  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"))
+
+symp_prob_sigs_52 <- symp_prob_purf_52%>%
+  filter(n_malaria_padj < 0.1 )%>%
+  select(antigen,n_malaria_p, n_malaria_padj )%>%
+  arrange(n_malaria_padj)
+
+
+long_luminex %>%
+  mutate(symp_prob_12_24f=case_when(symp_prop_12_24<0.25~"< 25%",
+                                    symp_prop_12_24>=0.25&symp_prop_12_24<0.5~"25-50%",
+                                    symp_prop_12_24>=0.5&symp_prop_12_24<0.75~"50-75%",
+                                    symp_prop_12_24>=0.75~"> 75%",
+                                    total_n_para_12_24==0~"no parasitemia"))%>%
+  mutate(symp_prob_12_24f=factor(symp_prob_12_24f, levels=c("< 25%", "25-50%", "50-75%", "> 75%")))%>%
+  filter(antigen %in% symp_prob_sigs_52$antigen, !is.na(symp_prob_12_24f))%>%
+  filter(timepoint =="52 weeks")%>%
+  ggplot(., aes(x=symp_prob_12_24f, y=MFI, fill=treatmentarm))+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  facet_wrap(~treatmentarm+antigen, nrow=2)+
+  ylab("MFI at 52 weeks")+
+  scale_fill_manual(values=treatment_palette)+
+  theme_minimal()+
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank())
+
+symp_prob_purf_104 <- long_luminex%>%
+  filter(timepoint=="104 weeks", symp_prop_24_36<=1)%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(n_malaria_model=map(data, ~glm(symp_prop_24_36~log_mfi+gender_categorical+treatmentarm, data=., family = "binomial" , weights = total_n_para_12_24))) %>%
+  # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+  #11 when additional covariate is included
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[14]))%>%
+  ungroup()%>%
+  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"))
+
+symp_prob_sigs_104 <- symp_prob_purf_104%>%
+  filter(n_malaria_padj < 0.03 )%>%
+  select(antigen,n_malaria_p, n_malaria_padj )%>%
+  arrange(n_malaria_padj)
+
+
+
+long_luminex %>%
+  mutate(symp_prob_24_36f=case_when(symp_prop_24_36<0.25~"< 25%",
+                                    symp_prop_24_36>=0.25&symp_prop_24_36<0.5~"25-50%",
+                                    symp_prop_24_36>=0.5&symp_prop_24_36<0.75~"50-75%",
+                                    symp_prop_24_36>=0.75~"> 75%",
+                                    total_n_para_24_36==0~"no parasitemia"))%>%
+  mutate(symp_prob_24_36f=factor(symp_prob_24_36f, levels=c("< 25%", "25-50%", "50-75%", "> 75%")))%>%
+  filter(antigen %in% symp_prob_sigs_104$antigen, !is.na(symp_prob_24_36f))%>%
+  filter(timepoint =="104 weeks")%>%
+  ggplot(., aes(x=symp_prob_24_36f, y=MFI, fill=treatmentarm))+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  facet_wrap(~treatmentarm+antigen, nrow=2)+
+  ylab("MFI at 104 weeks")+
+  scale_fill_manual(values=treatment_palette)+
+  theme_minimal()+
+  theme(legend.position = "bottom",
+        axis.title.x = element_blank())
+
 
 # pca plots ####
 
@@ -880,4 +963,27 @@ long_luminex%>%
 )
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/pardens_nulisa_cor_plot.png", pardens_nulisa_cor_plot, width=8, height=4, dpi=444, bg="white")
+
+
+
+# heatmap for paper ####
+
+(p1 <- long_luminex %>%
+  filter(antigen!="tetanus", antigen!="var2csa", timepoint %in% c("8 weeks", "24 weeks", "52 weeks")) %>%
+  mutate(log_mfi = log10(MFI + 1)) %>%
+  # group_by(antigen, timepoint, treatmentarm) %>%
+  # summarise(mean_log_mfi = mean(log_mfi, na.rm = TRUE)) %>%
+  ggplot(aes(x = factor(id), y = antigen, fill = log_mfi)) +
+  geom_tile() +
+  # scale_fill_gradientn(colors=viridis::mako(n=5))+
+  scale_fill_gradient2(
+    low = "#233875",
+    mid = "white",
+    high = "#FF5A00",
+    midpoint = 2.89
+  ) +
+  facet_wrap(~treatmentarm+timepoint, scales="free_x") +
+  theme_minimal()+
+   theme(axis.text.x = element_blank())
+)
 

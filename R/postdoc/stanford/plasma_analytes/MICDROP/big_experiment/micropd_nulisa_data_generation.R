@@ -17,7 +17,7 @@ pilot_nulisa_edit <- pilot_nulisa%>%
   mutate(plate=study)%>%
   mutate(conc=concentration)%>%
   mutate(study="MICDROP")%>%
-  select(targetName, sample, conc, file_name, id, timepoint2, study, plate)
+  dplyr::select(targetName, sample, conc, file_name, id, timepoint2, study, plate)
   
 # read in big NULISA data ####
 excel_files <- list.files(path="~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/Data Files/", pattern = "*Report.xlsx", full.names = T)
@@ -66,20 +66,20 @@ master_plate_map <- readxl::read_excel("~/postdoc/stanford/plasma_analytes/MICDR
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
 
 big_experiment_samples <- master_plate_map%>%
-  select(id, date)%>%
+  dplyr::select(id, date)%>%
   filter(!is.na(id))%>%
   mutate(date=as.Date(date))
 
 pilot_samples <- raw_data%>%
   filter(id %in% c(unique(pilot_nulisa_edit$id)))%>%
   filter(Plasma!="")%>%
-  select(id, date, ageinwks, Plasma)%>%
+  dplyr::select(id, date, ageinwks, Plasma)%>%
   mutate(sample=paste(id, "_tp", ageinwks, sep=""))%>%
   filter(sample %in% unique(pilot_nulisa_edit$sample))%>%
   add_row(id=10766, date=as.Date("2022-11-04"), ageinwks=25, Plasma="10766-AB", sample="10766_tp24")
 
 all_samples <- bind_rows(pilot_samples, big_experiment_samples)%>%
-  select(id, date)%>%
+  dplyr::select(id, date)%>%
   mutate(hbs=mic_drop_hbs$HbS[match(as.numeric(id), mic_drop_hbs$id)],
          hbs=case_match(hbs,
                         1~"HbAA",
@@ -88,12 +88,12 @@ all_samples <- bind_rows(pilot_samples, big_experiment_samples)%>%
 
 # write.csv(all_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/all_samples.csv", row.names = F)
 
-metadata_columns <- c("id","date", "ageinwks", "mstatus", "pardens", "qPCRparsdens", "fever", "febrile", "gender")
+metadata_columns <- c("id","date", "ageinwks", "mstatus", "pardens", "qPCRparsdens", "fever", "febrile", "gender", "temp")
 
 #merge based on id and date
 visit_metadata <- raw_data%>%
   mutate(date=as.Date(lubridate::parse_date_time(date, "%y/%m/%d")))%>%
-  select(all_of(metadata_columns))%>%
+  dplyr::select(all_of(metadata_columns))%>%
   right_join(., all_samples, by=c("id", "date"))%>%
   mutate(log_qpcr=log10(qPCRparsdens+0.001))%>%
   mutate(timepoint_num=as.numeric(ageinwks))%>%

@@ -23,7 +23,7 @@ hard_downsample <- function(fs, event_number){
 
 musical_panel <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/musical_panel_edit.csv")[,2:4]
 
-musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/pilot75/single_cell_metadata.csv")
+musical_metadata <- read.csv("~/postdoc/stanford/cytometry/CyTOF/MUSICAL/redownload_pilot75/redownload_big_fcs/single_cell_metadata.csv")
 musical_metadata$batch <- as.character(musical_metadata$batch)
 
 # kids only

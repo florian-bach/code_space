@@ -44,7 +44,7 @@ promote_data <- promote %>%
 
 # mic drop ####
 
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/May25/MICDSpecimenBoxMay25_withclinical.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Oct25/MICDSpecimenBoxOct25_withclinical.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 mic_drop_data <- mic_drop %>%
@@ -179,7 +179,7 @@ prd$uci <- err$fit + 1.96 * err$se.fit
 
 
 
-combo_comp_plot <- ggplot(combo_comp, aes(x=n_infection, y=risk))+
+  combo_comp_plot <- ggplot(combo_comp, aes(x=n_infection, y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
   geom_ribbon(data=prd, aes(x=n_infection, ymin = exp(lci), ymax = exp(uci)),
@@ -201,7 +201,7 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/no_dp_impact_promot
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/impact_promote_and_micdrop_comp_plot.png", combo_comp_plot, height = 4.5, width=6, dpi=444, bg="white")
 
 
-combo_comp_age <- ggplot(combo_comp2, aes(x=factor(agebins), y=risk))+
+combo_comp_age <- ggplot(combo_comp, aes(x=factor(agebins), y=risk))+
   geom_point(color="darkred")+
   theme_minimal()+
   geom_smooth(aes(x=as.numeric(factor(agebins)), y=risk), method="lm", color="black", inherit.aes = F)+
@@ -422,6 +422,9 @@ comp_model2b <- MASS::glmmPQL(complicated~n_infection+I(n_infection^2)+age_at_fi
 # biomalpar thoughts ####
 
 all_malaria %>%
+  group_by(id)%>%
+  mutate(age_at_first=age[n_infection==1])%>%
+  mutate(age_at_first_bins=cut(as.numeric(age_at_first), breaks = seq(0, 1460, by=90), labels = three_month_labels))%>%
   filter(age_at_first<540)%>%
   group_by(disease, n_infection, age_at_first_bins)%>%
   summarise("n"=n())%>%

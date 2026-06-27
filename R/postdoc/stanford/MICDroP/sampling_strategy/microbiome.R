@@ -191,4 +191,14 @@ stool_samples%>%
   mutate(Date = as.Date(lubridate::parse_date_time(.$Date, orders="%m/%d/%y")))%>%
   bind_rows(., stool_samples2)
 
+
+# making of boxmap
+
+samples_we_picked <- readxl::read_excel("~/postdoc/stanford/clinical_data/MICDROP/microbiome/samples_we_picked.xlsx")
   
+box_map <- samples_we_picked%>%
+  mutate(reorder.column=rep_len(1:9, nrow(.)),
+         reorder.row=rep_len(rep(1:9,each=9), nrow(.)),
+         reorder.box=rep_len(rep(1:9, each=81), nrow(.)))
+
+write.csv(box_map, "~/postdoc/stanford/clinical_data/MICDROP/microbiome/box_map.csv", row.names = F)

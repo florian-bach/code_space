@@ -31,11 +31,12 @@ slim_nulisa_data <- nulisa_data %>%
   mutate(timepoint_imm=if_else(timepoint=="baseline", -1, timepoint_imm))
 
 # cell_count_data <- read.csv("~/postdoc/stanford/manuscripts/jason_tr1_2/t_cell_cytometry_count_data.csv")
-slim_cell_count_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/df_jason_analysis.csv")
+# slim_cell_count_data <- read.csv("~/postdoc/stanford/plasma_analytes/MUSICAL/df_jason_analysis.csv")
+slim_cell_count_data <- read.csv("~/Library/CloudStorage/Box-Box/Border Cohort Immunology (MUSICAL)/Data/final_data_tables/t_cell_stim.csv")
 
 slim_cell_count_data <- slim_cell_count_data%>%
   pivot_longer(cols = ends_with("Frequency"), names_to = "gate", values_to = "freq")%>%
-  mutate(timepoint_imm=timepoint)%>%
+  mutate(id=cohortid, timepoint_imm=timepoint)%>%
   mutate(infectiontype=substr(infectiontype, 1, 1))%>%
   mutate("timepoint"=case_when(
     timepoint_imm==-1~"baseline",

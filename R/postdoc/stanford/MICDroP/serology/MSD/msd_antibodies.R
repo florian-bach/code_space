@@ -26,8 +26,11 @@ nulisa_data <- nulisa_data%>%
 metadata_columns <- c("id", "anyDP", "treatmentarm",  "dob", "date", "ageinwks", "gender_categorical", "mstatus", "qPCRparsdens", "visittype", "fever", "febrile", "rogerson", "GAcomputed", "gi", "SGA", "qPCRdich", "mqPCRparsdens")
 
 epi_data <- nulisa_data%>%
+  mutate(sample=paste(id, "_tp", ageinwks, sep=""))%>%
+  mutate(sample=case_when(grepl("_tp9$", sample)~paste(id, "_tp", 8, sep=""),
+                          grepl("_tp53$", sample)~paste(id, "_tp", 52, sep=""), .default = as.character(sample)))%>%
   distinct(sample, total_n_para_12, total_n_malaria_12, total_n_malaria_6, total_n_para_6,
-           id, dob, date, ageinwks, gender_categorical, mstatus, qPCRparsdens, visittype, fever, febrile, rogerson, GAcomputed, gi, SGA, qPCRdich, mqPCRparsdens, anyHP)%>%
+           id, date, ageinwks, gender_categorical, mstatus, qPCRparsdens, fever, febrile, rogerson, GAcomputed, SGA, LBWdich, anyHP)%>%
   mutate(treatmentarm=mic_drop_key$treatmentarm[match(as.numeric(id), mic_drop_key$id)],
          anyDP=if_else(treatmentarm==1, "no", "yes"),
          treatmentarm=case_match(treatmentarm,
@@ -40,7 +43,7 @@ epi_data <- nulisa_data%>%
                            2~"DP",
                            3~"DPSP"))
 
-msd_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/batch_one.csv")
+msd_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/MSD/msd_results_v2.csv")
 
 long_msd <- msd_data%>%
   mutate(sample=paste(SubjectID, "_", "tp", TimePt, sep=""))%>%
@@ -48,9 +51,11 @@ long_msd <- msd_data%>%
   mutate(timepoint=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")))%>%
   select(-SubjectID, -TimePt)%>%
   pivot_longer(cols=-c(sample, id, timepoint), names_to = "antigen", values_to = "titer")
+  # filter(!is.na(titer))
 
-antibodies_and_epi <- epi_data%>%
-  inner_join(., long_msd, by="sample")
+#8636
+antibodies_and_epi <- long_msd%>%
+  inner_join(., epi_data, by="sample")
 
 antibodies_and_nulisa <-  nulisa_data%>%
   select(-id, -timepoint)%>%
@@ -58,11 +63,12 @@ antibodies_and_nulisa <-  nulisa_data%>%
 
 
 antibodies_and_epi%>%
-  filter(timepoint=="8 weeks", !is.na(anyHP))%>%
+  filter(timepoint=="24 weeks", !is.na(anyHP))%>%
   mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
-         any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
-  ggplot(., aes(x=factor(anyHP), y=titer))+
+         any_malaria = if_else(total_n_para_6 > 0, 1, 0))%>%
+  ggplot(., aes(x=factor(any_para), y=titer))+
   geom_boxplot(outliers = F)+
+  scale_y_log10()+
   ggpubr::stat_compare_means(vjust = 0.5)+
   facet_wrap(~antigen, scales="free")+
   theme_minimal()
@@ -145,14 +151,14 @@ sigs_only <- big_purrf%>%
 
 
 big_plot <- antibodies_and_nulisa%>%
-  mutate(any_para = if_else(total_n_para_12 > 0, 1, 0),
-         any_malaria = if_else(total_n_malaria_12 > 0, 1, 0))%>%
+  mutate(any_para = if_else(total_n_para_6 > 0, 1, 0),
+         any_malaria = if_else(total_n_malaria_6 > 0, 1, 0))%>%
   # filter(antigen %in% c("RSV", "Pneumo.1.4.14", "PIV.1", "PIV.2"))%>%
   distinct(sample, timepoint, titer, any_para, antigen)%>%
   ggplot(., aes(x=timepoint, y=titer, fill=factor(any_para)))+
   geom_boxplot(outliers = F)+
   scale_y_log10()+
-  ggpubr::stat_compare_means()+
+  ggpubr::stat_compare_means(label = "p.signif")+
   facet_wrap(~antigen, scales="free")+
   theme_minimal()
 
@@ -665,7 +671,7 @@ anyhp_purf <- antibodies_and_epi%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
 kinda_sigs <- anyhp_purf %>%
-  filter(padj<0.1)
+  filter(padj<0.2)
 
 anyhp_8week_plot <- antibodies_and_epi%>%
   filter(timepoint=="8 weeks", !is.na(anyHP))%>%
@@ -792,6 +798,80 @@ antibodies_and_nulisa%>%
 
 
 
+## continuous infection ####
+n_para6_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(log_qpcr=log10(qPCRparsdens+0.001))%>%
+  mutate(id_cat=factor(id.x))%>%
+  filter(timepoint=="24 weeks")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(n_malaria_model=map(data, ~lm(log_titer~total_n_malaria_6+log_qpcr, data=.))) %>%
+  mutate(n_para_model=map(data, ~lm(log_titer~total_n_para_6+log_qpcr, data=.))) %>%
+  # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+  mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
+  #11 when additional covariate is included
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
+  ungroup()%>%
+  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
+         n_para_padj=p.adjust(n_para_p, method="BH"))
+
+inf_sigs_6 <- n_para6_purf%>%
+  filter(n_malaria_padj<0.1| n_para_padj<0.1)
+
+n_para12_purf <- antibodies_and_epi%>%
+  mutate(log_titer=log10(titer))%>%
+  mutate(log_qpcr=log10(qPCRparsdens+0.001))%>%
+  mutate(id_cat=factor(id.x))%>%
+  filter(timepoint=="52 weeks")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(n_malaria_model=map(data, ~lm(log_titer~total_n_malaria_12+log_qpcr, data=.))) %>%
+  mutate(n_para_model=map(data, ~lm(log_titer~total_n_para_12+log_qpcr, data=.))) %>%
+  # mutate(n_malaria_model=map(data, ~glmmTMB::glmmTMB(total_n_malaria_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  # mutate(n_para_model=map(data, ~glmmTMB::glmmTMB(total_n_para_12~conc+log_qpcr, data=., family=nbinom2))) %>%
+  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
+  mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
+  #11 when additional covariate is included
+  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
+  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[11]))%>%
+  ungroup()%>%
+  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
+         n_para_padj=p.adjust(n_para_p, method="BH"))
+
+inf_sigs_52 <- n_para12_purf%>%
+  filter(n_malaria_padj<0.1| n_para_padj<0.1)
+
+
+antibodies_and_epi%>%
+  filter(timepoint=="52 weeks")%>%
+  filter(antigen %in% c("Diptheria", "Varicella"))%>%
+  ggplot(., aes(x=factor(total_n_para_12), y=titer, fill=factor(total_n_para_12)))+
+  geom_boxplot()+
+  scale_y_log10()+
+  xlab("number of parasitemic months in first 12 months")+
+  ylab("antibody titer at 52 weeks")+
+  scale_fill_viridis_d()+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
+antibodies_and_epi%>%
+  filter(timepoint=="24 weeks")%>%
+  filter(antigen %in% c("Diptheria", "Varicella"))%>%
+  ggplot(., aes(x=factor(total_n_para_6), y=titer, fill=factor(total_n_para_6)))+
+  geom_boxplot(outliers = F)+
+  scale_y_log10()+
+  xlab("number of parasitemic months in first six months")+
+  ylab("antibody titer at 24 weeks")+
+  scale_fill_viridis_d()+
+  facet_wrap(~antigen, scales="free")+
+  theme_minimal()+
+  theme(legend.position = "none")
 # attempt at mixture models ####
 
 # credit Kenneth & Alyssa for code below this line

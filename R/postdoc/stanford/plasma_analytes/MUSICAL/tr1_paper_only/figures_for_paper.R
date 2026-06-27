@@ -158,7 +158,7 @@ tr1_count_plot <- cell_count_data %>%
   # scale_y_log10()+
   ylab("Tr1 cells / μL")+
   facet_wrap(~infectiontype, scales = "free_x")+
-  scale_fill_manual(values=time_cols)+
+  # scale_fill_manual(values=time_cols)+
   theme_minimal()+
   theme(axis.title.x = element_blank(),
         axis.text.x = element_text(angle = 90, hjust=1),
@@ -255,7 +255,9 @@ tr1_freq_plot <- cell_count_data %>%
   geom_boxplot(outliers = F)+
   # geom_point(position = position_dodge(width = 0.75))+
   # scale_y_log10()+
-  ggpubr::stat_compare_means()+
+  ggpubr::stat_compare_means(paired = T, comparisons = list(#c("baseline", "day0"),
+                                                #c("baseline", "day14"),
+                                                c("baseline", "day7")))+
   ylab(expression(Tr1~cells/~mu~L))+
   facet_wrap(~infectiontype, scales = "free_x")+
   scale_fill_manual(values=time_cols)+
@@ -265,7 +267,7 @@ tr1_freq_plot <- cell_count_data %>%
   theme(axis.title.x = element_blank(),
         legend.position = "bottom")
 
-ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_plot.png", tr1_freq_plot, width =5.3333333, height=3, dpi=444, bg="white")
+# ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_plot.png", tr1_freq_plot, width =5.3333333, height=3, dpi=444, bg="white")
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_plot.pdf", tr1_freq_plot, width =5.3333333, height=3, dpi=444, bg="white")
 
 model <- tr1_counts%>%
@@ -305,7 +307,7 @@ target_cor_plot <- long_combo%>%
   ggpubr::stat_cor(method="spearman")+
   geom_smooth(method="lm", color="black")+
   xlab("Tr1% of non-naive CD4")+
-  scale_fill_manual(values=time_cols)+
+  # scale_fill_manual(values=time_cols)+
   scale_shape_manual(values=c(21, 25))+
   facet_wrap(~targetName, scales = "free")+
   guides(fill=guide_none())+
@@ -313,6 +315,24 @@ target_cor_plot <- long_combo%>%
 
 # ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_tr1_proteins.png", target_cor_plot, width=5.33333, height=5.33333, bg="white")
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_tr1_proteins.pdf", target_cor_plot, width=5.33333, height=5.33333, bg="white")
+
+
+target_cor_plot2 <- long_combo%>%
+  filter(gate=="Th1_Frequency", stim=="unstim", infectiontype%in%c("A", "S"), targetName %in%  c("IL10", "LAG3", "GZMA", "IFNG"))%>%
+  distinct(id, timepoint, infectiontype, targetName, gate, freq, stim, concentration)%>%
+  ggplot(., aes(x=freq, y=concentration))+
+  geom_point(aes(fill=timepoint, shape=infectiontype), stroke=0.1)+
+  ggpubr::stat_cor(method="spearman")+
+  geom_smooth(method="lm", color="black")+
+  xlab("Th1% of non-naive CD4")+
+  scale_fill_manual(values=time_cols)+
+  scale_shape_manual(values=c(21, 25))+
+  facet_wrap(~targetName, scales = "free")+
+  # guides(fill=guide_none())+
+  theme_minimal()
+
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_th1_proteins.png", target_cor_plot2, width=5.33333, height=5.33333, bg="white")
+ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/big_correlation_th1_proteins.pdf", target_cor_plot2, width=5.33333, height=5.33333, bg="white")
 
 
 base_target_cor_plot <- long_combo%>%
@@ -676,3 +696,31 @@ library(patchwork)
 tr1_freq_and_count <- tr1_freq_plot + tr1_count_plot
 
 ggsave("~/postdoc/stanford/manuscripts/jason_tr1_2/revised_baselines/tr1_freq_and_count.png", tr1_freq_and_count, width = 8, height = 4, dpi=444, bg="white")
+
+
+
+
+# data export ####
+
+tr1_counts_plot <- cell_count_data %>%
+  filter(infectiontype %in% c("S"), timepoint!="bad_baseline", stim=="unstim")%>%
+  distinct(id, infectiontype, timepoint, absolute_Tr1)%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("baseline", "day0", "day7", "day14")), y=absolute_Tr1, fill=timepoint))+
+  geom_line(color="grey",aes(group=id))+
+  geom_boxplot(outliers = F)+
+  # scale_y_log10()+
+  ylab("Tr1 cells / μL")+
+  facet_wrap(~infectiontype, scales = "free_x")+
+  scale_fill_manual(values=time_cols)+
+  theme_minimal()+
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust=1),
+        legend.position = "none")
+
+tr1_counts <- tr1_counts$data
+
+write.csv(tr1_counts, "~/Downloads/tr1_counts.csv", row.names = F)
+
+nulisa_subset <- target_cor_plot$data
+
+write.csv(nulisa_subset, "~/Downloads/nulisa_subset.csv", row.names = F)

@@ -432,7 +432,7 @@ s_tr1_count_plot <- cell_count_data %>%
   geom_boxplot(outliers = F)+
   # scale_y_log10()+
   ylab("Tr1 cells / μL")+
-  scale_fill_manual(values=time_cols)+
+  # scale_fill_manual(values=time_cols)+
   theme_minimal()+
   theme(axis.title.x = element_blank(),
         # axis.text.x = element_text(angle = 90, hjust=1),

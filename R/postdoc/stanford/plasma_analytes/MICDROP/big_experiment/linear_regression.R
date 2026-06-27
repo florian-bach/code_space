@@ -10,6 +10,7 @@ clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experimen
   mutate(timepoint=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks", "68 weeks")))%>%
   filter(targetName %notin% c("CTSS", "LTA|LTB", "IFNA2"))
 
+random_200 <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/Samples selected for Florian Oct 30 2024.dta")
 
 # modelz ####
 ## change through time ####
@@ -382,16 +383,17 @@ purf_52 <- clean_data%>%
 #so coef of -0.3 -> each 1-unit increase in conc is associated with ~26.6% decrease in the expected number of infections
 # higher conc at month 12 is associated with fewer cumulative infections over the first year.
 
-
-purf_52%>%
-  select(targetName, n_malaria_padj, n_para_padj)%>%
-  write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/n_infection_purf.csv", row.names = F)
+# 
+# purf_52%>%
+#   select(targetName, n_malaria_padj, n_para_padj)%>%
+#   write.csv(., "~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/n_infection_purf.csv", row.names = F)
 
 sig_mala_12 <- purf_52%>%
   filter(n_malaria_padj<0.1)
 
 sig_para_12 <- purf_52%>%
-  filter(n_para_padj<0.05)
+  filter(n_para_padj<0.05)%>%
+  arrange(n_para_padj)
 
 
 tlr_plot <- clean_data %>%
@@ -413,6 +415,24 @@ tlr_plot <- clean_data %>%
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/figures/tlr_plot.png", tlr_plot, height=3, width=4.5, dpi=444, bg="white")
 
+
+clean_data %>%
+  filter(targetName %in% sig_para_12$targetName[1:9],
+         timepoint=="52 weeks", mstatus==0,
+         log_qpcr<0.001)%>%
+  mutate(pardens_dich = if_else(log_qpcr>0.001, "some", "none"))%>%
+  mutate(targetNamef=factor(targetName, levels=sig_mala_12$targetName))%>%
+  ggplot(aes(x=total_n_para_12, y=conc))+
+  # geom_line(aes(group=id), alpha=0.2)+
+  # geom_smooth(method="lm")+
+  geom_boxplot(aes(fill=factor(total_n_para_12)), outliers = FALSE)+
+  facet_wrap(~targetNamef, scales = "free")+
+  viridis::scale_fill_viridis(discrete = T)+
+  xlab("number of parasitemic episodes")+
+  facet_wrap(~targetName)+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
 
 # for(i in 1:ceiling(length(sig_mala_12)/16)){
 #   
@@ -646,6 +666,7 @@ clean_data <- clean_data%>%
                     3~"DP 2 years"))
 
 treatment_purf <- clean_data%>%
+  filter(id %in% random_200$id)%>%
   filter(mstatus==0, treatmentarm!="DP 2 years")%>%
   group_by(targetName)%>%
   nest()%>%
@@ -665,7 +686,7 @@ treatment_purf <- clean_data%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
 sigs <- treatment_purf%>%
-  filter(padj<0.1)%>%
+  filter(padj<0.05)%>%
   filter(contrast=="52 weeks")
 
 time_treatment_plot <- clean_data%>%
@@ -808,105 +829,61 @@ for(i in 1:ceiling(length(sig_para_12_lm$targetName)/9)){
 
 
 
-# sandbox; future modelling ####
+# Empirical bayes shrinkage ####
 
-future_purf_52 <- clean_data%>%
-  filter(mstatus==0, timepoint=="52 weeks", treatmentarm!="DP 2 years")%>%
-  # mutate(total_n_malaria_12_24=if_else(total_n_malaria_12_24>6, 6, total_n_malaria_12_24))%>%
-  group_by(targetName)%>%
-  nest()%>%
-  mutate(n_malaria_model=map(data, ~MASS::glm.nb(total_n_malaria_12_24~conc+treatmentarm+gender_categorical+log_qpcr, data=.))) %>%
-  mutate(n_para_model=map(data, ~MASS::glm.nb(total_n_para_12_24~conc+treatmentarm+gender_categorical+log_qpcr, data=.))) %>%
-  mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
-  mutate(n_para_model_summary=map(n_para_model, ~summary(.)))%>%
-  #11 when additional covariate is included
-  mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[17]))%>%
-  mutate(n_para_p=map_dbl(n_para_model_summary, ~coef(.)[17]))%>%
-  ungroup()%>%
-  mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"),
-         n_para_padj=p.adjust(n_para_p, method="BH"))
+library(limma)
 
 
-future_purf_52%>%
-  select(targetName, n_malaria_p, n_para_p, n_malaria_padj, n_para_padj)%>%
-  arrange(n_para_padj)
-
-future_purf_52%>%
-  select(targetName, n_malaria_p, n_para_p, n_malaria_padj, n_para_padj)%>%
-  arrange(n_malaria_padj)
 
 
-symp_prob_data <- clean_data%>%
-  ungroup()%>%
-  filter(mstatus==0, timepoint=="52 weeks", treatmentarm!="DP 2 years")%>%
-  mutate(treatmentarmf=factor(treatmentarm, levels = c("DP 1 year", "Placebo")))%>%
-  filter(!is.na(symp_prob_12_24), !is.na(conc), !is.na(treatmentarmf), !is.na(total_n_para_12_24))
+moderate_contrast <- function(df) {
+  
+  # observed t statistics
+  t_obs <- df$estimate / df$SE
+  
+  # squeeze variances across proteins
+  squeeze <- squeezeVar(df$SE^2, df$df)
+  
+  # moderated t
+  t_mod <- df$estimate / sqrt(squeeze$var.post)
+  
+  # moderated p-values
+  p_mod <- 2 * pt(-abs(t_mod), df = squeeze$df.prior + df$df)
+  
+  df %>%
+    mutate(
+      t_moderated = t_mod,
+      p_moderated = p_mod
+    )
+}
 
-symp_prob_purf <- symp_prob_data %>%
+fits <- clean_data %>%
+  filter(mstatus == 0) %>%
   group_by(targetName) %>%
   nest() %>%
-  mutate(n_malaria_model = map(data, ~ {
-    df <- droplevels(.x)  # remove unused factor levels
-    if (nlevels(df$treatmentarmf) < 2) return(NULL)
-    glm(symp_prob_12_24 ~ conc + treatmentarmf, data = df,
-        family = "binomial", weights = total_n_para_12_24)
-  }),
-  # Safely summarize models
-  n_malaria_model_summary = map(n_malaria_model, ~ if (!is.null(.x)) summary(.x) else NULL),
-  # Safely extract p-values
-  n_malaria_p = map_dbl(n_malaria_model_summary, ~ if (!is.null(.x)) coef(.x)[11] else NA_real_)
-  ) %>%
-  ungroup() %>%
   mutate(
-    n_malaria_padj = p.adjust(n_malaria_p, method = "BH")
+    time_model = map(data, ~ lmer(conc ~ timepoint + gender_categorical + log_qpcr + (1|id), data = .))
   )
 
-# symp_prob_52 <- clean_data%>%
-#   mutate(treatmentarm=factor(treatmentarm))%>%
-#   ungroup()%>%
-#   filter(mstatus==0, timepoint=="52 weeks", treatmentarm!="DP 2 years")%>%
-#   group_by(targetName)%>%
-#   nest()%>%
-#   mutate(n_malaria_model=map(data, ~glm(any_malar_12_24~conc+treatmentarm, data=., family="binomial"))) %>%
-#   mutate(n_malaria_model_summary=map(n_malaria_model, ~summary(.))) %>%
-#   mutate(n_malaria_p=map_dbl(n_malaria_model_summary, ~coef(.)[11]))%>%
-#   ungroup()%>%
-#   mutate(n_malaria_padj=p.adjust(n_malaria_p, method="BH"))
-# 
+fits <- fits %>%
+  mutate(
+    emm = map(time_model, ~ emmeans(.x, specs = pairwise ~ timepoint)),
+    contrasts = map(emm, ~ contrast(.x, "pairwise") %>% summary(infer = TRUE))
+  )
 
-kinda_sigs <- symp_prob_52%>%
-  filter(n_malaria_padj<0.15)
+contrast_tbl <- fits %>%
+  select(targetName, contrasts) %>%
+  unnest(contrasts) %>%
+  select(targetName, contrast, estimate, SE, df)
 
 
-clean_data%>%
-  filter(mstatus==0, timepoint=="52 weeks")%>%
-  filter(targetName %in%kinda_sigs$targetName)%>%
-  ggplot(., aes(x=symp_prob_12_24, y= conc))+
-  geom_point()+
-  geom_smooth(method="lm")+
-  facet_wrap(~targetName, scales="free")+
-  scale_fill_viridis_d(option="F")+
-  theme_minimal()
+eb_results <- contrast_tbl %>%
+  group_by(contrast) %>%
+  group_modify(~ moderate_contrast(.x)) %>%
+  ungroup()
 
-
-clean_data%>%
-  filter(mstatus==0, timepoint=="52 weeks")%>%
-  filter(targetName %in%kinda_sigs$targetName)%>%
-  filter(symp_prob_12_24==0 | symp_prob_12_24==1)%>%
-  ggplot(., aes(x=factor(symp_prob_12_24), y= conc))+
-  geom_boxplot()+
-  geom_smooth(method="lm")+
-  ggpubr::stat_compare_means()+
-  facet_wrap(~targetName, scales="free")+
-  scale_fill_viridis_d(option="F")+
-  theme_minimal()
-
-clean_data%>%
-  filter(mstatus==0, timepoint=="52 weeks")%>%
-  filter(targetName %in% c("BMP7", "TNFSF14"))%>%
-  ggplot(., aes(x=factor(total_n_para_12_24), y= conc, fill=factor(total_n_para_12_24)))+
-  geom_boxplot()+
-  facet_wrap(~targetName, scales="free")+
-  scale_fill_viridis_d(option="F")+
-  theme_minimal()
+final_results <- eb_results %>%
+  group_by(contrast) %>%
+  mutate(padj = p.adjust(p_moderated, method = "fdr")) %>%
+  ungroup()
 

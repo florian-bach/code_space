@@ -403,7 +403,7 @@ seroprev_est_df <- data.table()
 
 for(v in unique(long_luminex$antigen)){
   fmm_model=NULL
-  log_serotype_vector <- long_luminex$log_mfi[long_luminex$antigen==v&!is.na(long_luminex$log_mfi)]
+  log_serotype_vector <- long_luminex$log_mfi[long_luminex$antigen==v&!is.na(long_luminex$log_mfi)&long_luminex$timepoint_num==52]
   print(v)
   ### fit initial mixutre model with 2 components
   k <- 2 #number of components 

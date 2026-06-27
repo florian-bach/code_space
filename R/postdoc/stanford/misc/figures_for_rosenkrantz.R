@@ -4,13 +4,15 @@ p1 <- nulisa_and_seroconversion%>%
   filter(antigen %in% c("Rotavirus_IgA"), targetName %in% c("TLR3", "IL23"), timepoint=="8 weeks")%>%
   mutate(converts=ifelse(sero_conversion=="nothing", "no", "yes"))%>%
   ggplot(., aes(x=converts, y=conc, fill=factor(converts)))+
-  geom_boxplot(outliers = F)+
+  geom_violin()+
+  geom_boxplot(outliers = F, width=0.2, color="lightgrey")+
   xlab("seroconversion to Rotavirus IgA")+
-  ylab("log2 concentration at 8 weeks")+
+  ylab("log2 concentration at 8 weeks [NPQ]")+
   ggpubr::stat_compare_means(method="wilcox.test", label = "p.format")+
   facet_wrap(~targetName, scales="free_y")+
-  scale_fill_manual(values=c("slategrey", "#FF5A00"))+
-  theme_minimal(base_size = 13)+
+  scale_y_continuous(expand=expansion(mult=0.1))+
+  scale_fill_manual(values=c("#233875", "#FF5A00"))+
+  theme_minimal(base_size = 14)+
   theme(legend.position = "none", 
         plot.title = element_text(hjust=0.5))
 
@@ -19,24 +21,52 @@ p2 <- nulisa_and_seroconversion%>%
   mutate(converts=ifelse(sero_conversion=="nothing", "no", "yes"))%>%
   filter(antigen %in% c("Pertussis"), targetName %in% c("AREG", "CSF1"), timepoint=="8 weeks")%>%
   ggplot(., aes(x=converts, y=conc, fill=factor(converts)))+
-  geom_boxplot(outliers = F)+
+  geom_violin()+
+  geom_boxplot(outliers = F, width=0.2, color="lightgrey")+
   ggpubr::stat_compare_means(method="wilcox.test", label = "p.format")+
   xlab("seroconversion to Pertussis IgG")+
-  ylab("log2 concentration at 8 weeks")+
+  ylab("log2 concentration at 8 weeks [NPQ]")+
   facet_wrap(~targetName, scales="free_y")+
-  scale_fill_manual(values=c("slategrey", "#FF5A00"))+
-  theme_minimal(base_size = 13)+
+  scale_y_continuous(expand=expansion(mult=0.1))+
+  scale_fill_manual(values=c("#233875", "#FF5A00"))+
+  theme_minimal(base_size = 14)+
   theme(legend.position = "none", 
         plot.title = element_text(hjust=0.5))
 
-p3 <- p1+p2
 
-ggsave("~/Library/CloudStorage/Box-Box/Jagannathan_Lab_Folder/PROJECTS/Florian_Grant_Applications/2026/Rosenkrantz/figures/seroconversion.png", p3, width=8, height=4, dpi=444, bg="white")
+# add seroconversion figure!! ####
 
+line_data <- line_data%>%
+  mutate(antigen=gsub("_", " ", antigen))
 
-# add seroconversion figure!!
+p3 <- wide_long_msd%>%
+  mutate(antigen=gsub("_", " ", antigen))%>%
+  filter(antigen%in%c("Pertussis", "Rotavirus IgA"))%>%
+  arrange(desc(conversion))%>%
+  ggplot(., aes(x=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks")), y=titer))+
+  geom_segment(data = filter(line_data, next_color=="nothing", antigen%in%c("Pertussis", "Rotavirus IgA")), aes(x = timepoint, y = titer, xend = next_x, yend = next_y, color = next_color), alpha=0.7) +
+  geom_segment(data = filter(line_data, next_color!="nothing", antigen%in%c("Pertussis", "Rotavirus IgA")), aes(x = timepoint, y = titer, xend = next_x, yend = next_y, color = next_color), alpha=0.7) +
+  geom_point(aes(color=conversion))+
+  scale_y_continuous(trans='log10')+
+  scale_color_manual(values = c("#233875", "#B80F0A", "orange"))+
+  theme_minimal(base_size = 14)+
+  xlab("")+
+  ylab("antibody concentration [MSD units]")+
+  facet_wrap(~antigen, scales="free_y", nrow=2)+
+  theme(
+        legend.title = element_blank(),
+        legend.position = "none",
+        strip.text = element_text(size=13)
+        #axis.text.x = element_text(angle=30, vjust=1, hjust=1)
+  )
 
+nulisa <- (p2 / p1)+
+  plot_layout(axis_titles = "collect")
 
+p4 <- (p3 | nulisa)
+
+ggsave("~/Library/CloudStorage/Box-Box/Jagannathan_Lab_Folder/PROJECTS/Florian_Grant_Applications/2026/Rosenkrantz/figures/seroconversion.png", p4, width=7, height=6, dpi=444, bg="white")
+  
 #sandbox ####
 
 seroconversion_df3 <- wide_long_msd%>%

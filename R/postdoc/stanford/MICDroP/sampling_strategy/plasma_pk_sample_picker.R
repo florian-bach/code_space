@@ -7,7 +7,7 @@
 
 
 ## read in databases
-specimen_database <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Jun25/MICDSpecimenBoxJun25_withclinical.dta")
+specimen_database <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Oct25/MICDSpecimenBoxOct25_withclinical.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 sample_ages <- c(8, 24, 52, 56, 60, 64, 68, 84, 104, 120)
@@ -100,9 +100,17 @@ pardens_mic_drop_data <- specimen_database %>%
 slim_inf_data <- pardens_mic_drop_data%>%
   select(id, date, n_malaria, n_para, mstatus)%>%
   mutate(most_recent_malaria=date)
+# 
+# malaria_pk <- long_specimen_data%>%
+#   filter(Specimen_Type=="PlasmaPK", mstatus!=0)%>%
+#   filter(Specimen_ID!="")%>%
+#   left_join(., slim_inf_data, by=c("id", "date"))%>%
+#   select(id, treatmentarm, date, flo_age_in_wks, mstatus.x, n_malaria, n_para, RandomNumber4, BoxNumber4, PositionColumn4, PositionRow4, visittype)
 
 malaria_pk <- long_specimen_data%>%
-  filter(Specimen_Type=="PlasmaPK", mstatus!=0)%>%
+  # filter(Specimen_Type%in%c("PlasmaPK", "Plasma"), mstatus!=0)%>%
+  
+  filter(Specimen_Type%in%c("Plasma"), mstatus!=0)%>%
   filter(Specimen_ID!="")%>%
   left_join(., slim_inf_data, by=c("id", "date"))%>%
   select(id, treatmentarm, date, flo_age_in_wks, mstatus.x, n_malaria, n_para, RandomNumber4, BoxNumber4, PositionColumn4, PositionRow4, visittype)

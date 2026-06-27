@@ -6,6 +6,8 @@ library(emmeans)
 
 `%notin%` <- Negate(`%in%`)
 treatment_palette <- c("Placebo"="darkred", "DP 1 year"="#00555A", "DP 2 years"="orange")
+random_200 <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/sampling_strategy/Samples selected for Florian Oct 30 2024.dta")
+
 # var gene stuff ####
 long_luminex <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/long_luminex.csv")%>%
   mutate(timepoint=factor(timepoint, levels=c("8 weeks", "24 weeks", "52 weeks", "104 weeks")))
@@ -328,6 +330,7 @@ clean_data <- clean_data%>%
 treatment_nulisa_purf <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/nulisa_treatment_regression.csv")
 
 treatment_nulisa_fc_data <- clean_data %>%
+  filter(id %in% random_200$id)%>%
   filter(treatmentarm != "DP 2 years", timepoint !=c("68 weeks"))%>%
   group_by(targetName, timepoint, treatmentarm)%>%
   summarise("mean_conc"=mean(conc, na.rm = T))%>%
@@ -341,10 +344,8 @@ treatment_nulisa_purf_fc <- treatment_nulisa_purf%>%
   mutate(contrast=factor(contrast, levels=c("8 weeks", "24 weeks", "52 weeks")))
 
 treatment_nulisa_sigs <- treatment_nulisa_purf_fc %>%
-  filter(padj<0.1 & abs(fc)>=0.5 )
+  filter(padj<0.05)
 
-treatment_nulisa_kinda_sigs <- treatment_nulisa_purf_fc%>%
-  filter(padj<0.05 )
 
 
 
@@ -367,14 +368,22 @@ treatment_nulisa_kinda_sigs <- treatment_nulisa_purf_fc%>%
     scale_color_manual(values=rev(c("#FF8C00", "darkblue")))+
     scale_x_continuous(limits=c(-2, 2))+
     scale_y_continuous(trans=c("log10", "reverse"))+
+   labs(
+     title = "**Differentially Abundant Plasma Proteins**  
+    <span style='font-size:11pt'>
+    <span style='color:#FF8C00;'>up in DP group </span> vs.
+    <span style='color:darkblue;'>up in placebo group </span>",
+   ) +
     # ggtitle("differentially abundant plasma proteins in placebo vs. DP")+
     facet_wrap(~contrast)+
     xlab("log2 fold change")+
     ylab("padj")+
     theme_minimal()+
-    theme(legend.position="none"))
+    theme(legend.position="none",
+          plot.title=ggtext::element_markdown()))
 
 ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/figures_for_gates_meeting/sig_nulisa_treatment_volcano_plot.png", treatment_volcano, height=4, width=10, dpi=400, bg="white")
+ggsave("~/postdoc/stanford/plasma_analytes/MICDROP/lavstsen/figures/figures_for_gates_meeting/sig_nulisa_treatment_volcano_plot.pdf", treatment_volcano, height=4, width=10, dpi=400, bg="white")
 
 
 treatment_nulisa_purf <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/nulisa_treatment_regression.csv")
@@ -1006,13 +1015,13 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_para_symp_summa
 (tlr3_plot <- clean_data%>%
 filter(timepoint=="52 weeks", mstatus==0)%>%
   filter(targetName=="TLR3", log_qpcr<0.1)%>%
-  mutate(total_n_para_12=ifelse(total_n_para_12<7, total_n_para_12, "7+"))%>%
+  mutate(total_n_para_12=ifelse(total_n_para_12<9, total_n_para_12, "9+"))%>%
   ggplot(aes(x=factor(total_n_para_12), y=conc, fill=factor(total_n_para_12)))+
   geom_boxplot(outliers=F)+
   stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median,
                geom = "crossbar", position = position_dodge(width = 0.75), width = 0.65, fatten=0.25, color="white")+
   facet_wrap(~targetName, scales="free", nrow=2)+
-  scale_fill_manual(values=viridis::viridis(n=8, option = "D"))+
+  scale_fill_manual(values=viridis::viridis(n=13, option = "D"))+
   theme_minimal()+
   xlab("\nnumber of parasitemic episodes\nin first year of life")+
   theme(legend.title = element_blank(),

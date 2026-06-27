@@ -63,7 +63,7 @@ kids_with_clinical <- long_specimen_data %>%
   select(id, date, Specimen_Type, ageinwks, BoxNumber1, mstatus, withdrawaldate)
 
 # finding "ex vivo" samples ####
-ex_vivo <- long_specimen_data %>%
+ ex_vivo <- long_specimen_data %>%
   filter(!is.na(mstatus))%>%
   group_by(id)%>%
   # make variable "days_since_malaria" that calculates the days a malaria episode and resets to 0 when mstatus!=0
@@ -612,4 +612,32 @@ write.csv(extra_samples, "~/postdoc/stanford/plasma_analytes/MICDROP/extra_24/ex
 # 11651 complete
 
 
+# find DP2 kids that have dropped out in the first year ####
+mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
+low_priority_samples <- (long_specimen_data%>%
+    filter(!is.na(withdrawaldate), Specimen_Type=="PBMC", Specimen_ID!="", id %notin% kids_with_comp)%>%
+    mutate(treatmentarm=mic_drop_key$treatmentarm[match(as.numeric(id), mic_drop_key$id)],
+           anyDP=if_else(treatmentarm==1, "no", "yes"),
+           treatmentarm=case_match(treatmentarm,
+                                   1~"Placebo",
+                                   2~"DP 1 year",
+                                   3~"DP 2 years"))%>%
+    # filter(treatmentarm=="DP 2 years", ageinwks <60)%>%
+    select(id, treatmentarm, date, ageinwks, RandomNumber1, BoxNumber1, PositionRow1, PositionColumn1))
+
+unicates <- low_priority_samples%>%
+  group_by(id)%>%
+  count()%>%
+  filter(n<=2)%>%
+  filter(!id%in%c(11021, 10651))
+
+low_priority_samples%>%
+  filter(id %in% unicates$id)%>%
+  filter(ageinwks!=8)
+
+draft_for_nana <- low_priority_samples%>%
+  filter(id %in% unicates$id)%>%
+  filter(ageinwks!=8)
+
+write.csv(draft_for_nana, "~/Downloads/micdrop_dropout_pbmc_samples_for_nana.csv", row.names = F)

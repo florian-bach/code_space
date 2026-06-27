@@ -127,6 +127,8 @@ musical_metadata <- clean_data%>%
 traitRows <- musical_metadata%>%
   right_join(., MEs, by="sample_id")
 
+# write.csv(traitRows, "~/postdoc/stanford/plasma_analytes/MUSICAL/combo/wgcna_nulisa_MEs.csv", row.names = F)
+
 datTraits <- traitRows%>%
   select(temperature, log_qpcr, ageyrs)
   
@@ -369,7 +371,7 @@ curve_plot <- long_kme_p%>%
   facet_wrap(~network)+
   ggrepel::geom_label_repel(
     data = . %>% group_by(network)%>%
-      slice_min(n = 12, order_by = padj),
+      slice_min(n = 25, order_by = padj),
     aes(label = targetName),   # or whatever your gene column is called
     size = 5, force = 10,
     nudge_x = -0.4, box.padding = 0.2

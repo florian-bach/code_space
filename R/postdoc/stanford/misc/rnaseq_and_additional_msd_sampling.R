@@ -106,7 +106,9 @@ infs_and_meta <- specimen_database%>%
                                  2~"DP 1 year",
                                  3~"DP 2 years"))
 
-
+kids_with_comp <- raw_data%>%
+  filter(mstatus==2)%>%
+  pull(unique(id))
 ## subset database to include correct cohort of 100 individuals, 50:50 treatment:placebo, 8 & 52 weeks
 
 # 70

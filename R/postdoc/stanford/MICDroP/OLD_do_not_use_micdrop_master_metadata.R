@@ -2,7 +2,7 @@ library(tidyr)
 library(dplyr)
 
 ## infection data ####
-raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through October 31st 2025.dta")
+raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through March 31st 2026.dta")
 
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 mic_drop_hbs <- haven::read_dta("~/postdoc/stanford/clinical_data/MICDROP/MICDROP SickleTr final.dta")
@@ -110,6 +110,8 @@ outcomes <- long_monthly_categories%>%
 
 # static metadata: demographics, genotypes, birth outcomes etc ####
 meta_raw_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/Specimens/Oct25/MICDSpecimenBoxOct25_withclinical.dta")
+maternal_treatment_arms <- haven::read_dta("~/Library/CloudStorage/Box-Box/DP+SP study/Databases and preliminary findings/Final database used for analyses/DPSP treatment allocation_FINAL.dta")
+
 meta <- meta_raw_data%>%
   distinct(id, dob, withdrawaldate, gender, rogerson, anyHP, gravid, gravidcat,
            preterm, birthweight, LBWdich, GAcomputed, SGA)%>%
@@ -121,7 +123,12 @@ meta <- meta_raw_data%>%
          treatmentarm=case_match(treatmentarm,
                                  1~"Placebo",
                                  2~"DP 1 year",
-                                 3~"DP 2 years"))%>%
+                                 3~"DP 2 years"),
+         mom_rx=maternal_treatment_arms$treatmentarm[match(id-10000, maternal_treatment_arms$id)],
+         mom_rx=case_match(mom_rx,
+                           1~"SP",
+                           2~"DP",
+                           3~"DPSP"))%>%
   mutate(hbs=mic_drop_hbs$HbS[match(as.numeric(id), mic_drop_hbs$id)],
          hbs=case_match(hbs,
                         1~"HbAA",

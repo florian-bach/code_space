@@ -87,7 +87,7 @@ promote_data <- promote1 %>%
   select(all_of(meta_cols))
   
 ## mic drop ####
-mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through October 31st 2025.dta")
+mic_drop <-  haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through March 31st 2026.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 mic_drop_data <- mic_drop %>%
@@ -139,7 +139,7 @@ twelve_month_labels <- paste0(seq(0, 48, by=12), " to ", seq(12, 60, by=12), " m
 
 monthly_categories <- combo_data %>%
   filter(!is.na(mstatus), !is.na(flo_age_in_wks), mstatus!=3, mstatus!=4)%>%
-  mutate("four_week_increment"=floor(flo_age_in_months))%>%
+  mutate("four_week_increment"=floor(flo_age_in_wks/4))%>%
   mutate(age_quarter=cut(flo_age_in_wks, breaks = seq(0,60,by=3), labels=three_month_labels))%>%
   mutate(age_semi=cut(flo_age_in_wks, breaks = seq(0,60,by=6), labels=six_month_labels))%>%
   arrange(id, four_week_increment)%>%
@@ -147,9 +147,9 @@ monthly_categories <- combo_data %>%
   mutate(outcome=case_when(any(mstatus==2)~"complicated",
                            any(mstatus==1)~"uncomplicated",
                            #any(mstatus==3)~"treatment_failure",
-                           all(mstatus==0)&any(pardens>0)~"asymptomatic",
-                           all(mstatus==0)&all(pardens==0|is.na(pardens), pardens==0)~"uninfected",
-                           all(mstatus==0)&all(pardens==0|is.na(pardens), pardens==0|is.na(pardens))~"undetermined",
+                           all(mstatus==0) & any(pardens>0)~"asymptomatic",
+                           all(mstatus==0) & pardens==0~"uninfected",
+                           all(mstatus==0) & all(is.na(pardens))~"missing data",
                            .default="something_else"))%>%
   group_by(id, four_week_increment)%>%
   mutate(has_comp=any(mstatus==2))%>%
@@ -158,8 +158,7 @@ monthly_categories <- combo_data %>%
   filter(
     (outcome=="complicated" & mstatus == 2) |
       (outcome=="uncomplicated" & mstatus == 1) |
-      outcome%in%c("uninfected", "asymptomatic", "undetermined")
-    #(has_hyper=="hyperparasitemia" & pardens==max(pardens))
+      outcome %in% c("uninfected", "asymptomatic", "missing data", "something_else")
   )%>%
   group_by(id, four_week_increment)%>%
   slice_max(n = 1, order_by = pardens, with_ties = F)%>%
@@ -172,8 +171,7 @@ monthly_categories <- combo_data %>%
 ## count instances of each outcome for each individual ####
 long_monthly_categories <- monthly_categories%>%
   tidyr::pivot_wider(names_from = outcome, values_fill = 0,values_from = order_of_outcome,
-                     id_cols = c("id", "date", "flo_age_in_wks", "flo_age_in_months", "age_quarter", "age_semi", "four_week_increment", "mstatus", "pardens", "has_hyper", "study", "treatmentarm", "gender", "mom_rx"))%>%
-  
+                     id_cols = c("id", "date", "study", "treatmentarm", "gender", "flo_age_in_wks", "flo_age_in_months", "age_quarter", "age_semi", "four_week_increment", "mstatus", "pardens", "has_hyper"))%>%
   ungroup()%>%
   arrange(id, date)%>%
   group_by(id)%>%
@@ -194,6 +192,20 @@ long_monthly_categories <- monthly_categories%>%
                                              treatmentarm=="DP 1 year"~four_week_increment-13,
                                              treatmentarm=="DP 2 years"~four_week_increment-26))
 
+prevalent_outcomes <- long_monthly_categories%>%
+  group_by(id)%>%
+  reframe("total_n_para_14w"=max(n_any_para[flo_age_in_wks<=15], na.rm = T),
+          "total_n_para_6"=max(n_any_para[flo_age_in_wks<=25], na.rm = T),
+          "total_n_para_12"=max(n_any_para[flo_age_in_wks<=53], na.rm = T),
+          "total_n_para_24"=max(n_any_para[flo_age_in_wks<=105], na.rm = T),
+          "total_n_para_36"=max(n_any_para[flo_age_in_wks<=157], na.rm = T),
+          "total_n_para_12_24"=total_n_para_24-total_n_para_12,
+          "total_n_para_24_36"=total_n_para_36-total_n_para_24)%>%
+  # -5 = truncated data
+  # -10 = impossible match (denominator is 0 / NA)
+  mutate(across(starts_with("total_n"), ~ case_when(is.infinite(.)~ -5,
+                                                    is.nan(.)~ -10,
+                                                    .default = .)))
 
 
 
@@ -203,7 +215,8 @@ long_monthly_categories <- monthly_categories%>%
 all_malaria <- long_monthly_categories%>%
   group_by(id)%>%
   filter(complicated!=0|uncomplicated!=0)%>%
-  arrange(id, date)
+  arrange(id, date)%>%
+  mutate(id=as.character(id))
 
 all_para <- long_monthly_categories%>%
   group_by(id)%>%
@@ -214,22 +227,25 @@ all_para <- long_monthly_categories%>%
 # complicated malaria ####
 ## individual level models , all data####
 
-malaria_null_model <- lme4::glmer(bino_complicated ~ 1 + mom_rx + (1|id), family = "binomial", data=all_malaria)
-malaria_linear_model <- lme4::glmer(bino_complicated ~ n_any_malaria + mom_rx +  (1|id), family = "binomial", data=all_malaria)
-malaria_model <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + mom_rx +  (1|id), family = "binomial", data=all_malaria)
-malaria_model_para <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2)+ log10(pardens) + mom_rx +  (1|id), family = "binomial", data=all_malaria)
-malaria_model_age <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + flo_age_in_months + mom_rx +  (1|id), family = "binomial", data=all_malaria)
-malaria_model_age_gender <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + flo_age_in_months+ gender+ mom_rx +  (1|id), family = "binomial", data=all_malaria)
-malaria_model_age_gender_para <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + log10(pardens) + flo_age_in_months+ gender+  mom_rx + (1|id), family = "binomial", data=all_malaria)
-AIC(malaria_null_model, malaria_linear_model, malaria_model, malaria_model_para, malaria_model_age, malaria_model_age_gender, malaria_model_age_gender_para)
+malaria_null_model <- lme4::glmer(bino_complicated ~ 1 + (1|id), family = "binomial", data=all_malaria)
+malaria_linear_model <- lme4::glmer(bino_complicated ~ n_any_malaria +  (1|id), family = "binomial", data=all_malaria)
+malaria_model <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) +  (1|id), family = "binomial", data=all_malaria)
+malaria_model_para <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2)+ log10(pardens) +  (1|id), family = "binomial", data=all_malaria)
+malaria_model_age_only <- lme4::glmer(bino_complicated ~ flo_age_in_months +  (1|id), family = "binomial", data=all_malaria)
+malaria_model_age <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + flo_age_in_months +  (1|id), family = "binomial", data=all_malaria)
+malaria_model_age_gender <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + flo_age_in_months+ gender+  (1|id), family = "binomial", data=all_malaria)
+malaria_model_age_gender_para <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + log10(pardens) + flo_age_in_months+ gender+  (1|id), family = "binomial", data=all_malaria)
+malaria_model_age_dp <- lme4::glmer(bino_complicated ~ n_any_malaria + I(n_any_malaria^2) + flo_age_in_months + anyDP + (1|id), family = "binomial", data=all_malaria)
 
-para_null_model <- lme4::glmer(bino_complicated ~ 1 +  mom_rx + (1|id),  family = "binomial", data=all_para)
-para_linear_model <- lme4::glmer(bino_complicated ~ n_any_para + mom_rx +  (1|id),  family = "binomial", data=all_para)
-para_model <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + mom_rx +  (1|id),  family = "binomial", data=all_para)
-para_model_para <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + log10(pardens)+ mom_rx + (1|id),  family = "binomial", data=all_para)
-para_model_age <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + flo_age_in_months +  mom_rx + (1|id),  family = "binomial", data=all_para)
-para_model_age_gender <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + flo_age_in_months + gender + mom_rx +  (1|id),  family = "binomial", data=all_para)
-para_model_age_gender_para <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + log10(pardens)+flo_age_in_months + gender +  mom_rx + (1|id),  family = "binomial", data=all_para)
+AIC(malaria_null_model, malaria_linear_model, malaria_model, malaria_model_para, malaria_model_age_only, malaria_model_age, malaria_model_age_gender, malaria_model_age_gender_para, malaria_model_age_dp)
+
+para_null_model <- lme4::glmer(bino_complicated ~ 1 +  (1|id),  family = "binomial", data=all_para)
+para_linear_model <- lme4::glmer(bino_complicated ~ n_any_para +  (1|id),  family = "binomial", data=all_para)
+para_model <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) +  (1|id),  family = "binomial", data=all_para)
+para_model_para <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + log10(pardens)+ (1|id),  family = "binomial", data=all_para)
+para_model_age <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + flo_age_in_months +  (1|id),  family = "binomial", data=all_para)
+para_model_age_gender <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + flo_age_in_months + gender +  (1|id),  family = "binomial", data=all_para)
+para_model_age_gender_para <- lme4::glmer(bino_complicated ~ n_any_para + I(n_any_para^2) + log10(pardens)+flo_age_in_months + gender  +  (1|id),  family = "binomial", data=all_para)
 AIC(para_null_model, para_linear_model, para_model, para_model_para, para_model_age, para_model_age_gender, para_model_age_gender_para)
 
 
@@ -253,17 +269,7 @@ all_para_summary <- all_para%>%
 all_malaria_age_summary <- all_malaria%>%
   group_by(bino_complicated, age_quarter, treatmentarm)%>%
   summarise("n_cases"=n())%>%
-  tidyr::pivot_wider(names_from = bino_complicated, values_from = n_cases, names_prefix = "comp_",  values_fill = NA)%>%
-  mutate(total_infections=comp_1+comp_0,
-         risk=comp_1/total_infections)%>%
-  arrange(age_quarter)%>%
-  mutate(age_quarter_num=as.numeric(factor(age_quarter)))
-
-all_malaria_maternal_rx_age_summary <- all_malaria%>%
-  filter(!is.na(mom_rx))%>%
-  group_by(bino_complicated, age_quarter, mom_rx)%>%
-  summarise("n_cases"=n())%>%
-  tidyr::pivot_wider(names_from = bino_complicated, values_from = n_cases, names_prefix = "comp_",  values_fill = NA)%>%
+  tidyr::pivot_wider(names_from = bino_complicated, values_from = n_cases, names_prefix = "comp_",  values_fill = 0)%>%
   mutate(total_infections=comp_1+comp_0,
          risk=comp_1/total_infections)%>%
   arrange(age_quarter)%>%
@@ -296,11 +302,11 @@ malaria_summary_model_prediction <- quadratic_glm_visualiser(model=malaria_summa
 
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_uncomplicated_comp_plot.png", uncomplicated_comp_plot, width=7, height=6, dpi=444, bg="white")
 
+
+
 para_summary_model_prediction <- quadratic_glm_visualiser(model=para_summary_model,
                                                    x_name =  "n_any_para",
                                                    x_range = c(1, 25))
-
-
 (para_comp_plot <- ggplot(all_para_summary, aes(x=n_any_para, y=risk))+
     geom_point(color="darkred")+
     theme_minimal()+
@@ -340,31 +346,6 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/age_comp_plot.png",
 
 
 
-(mo_rx_age_comp_plot <- all_malaria_maternal_rx_age_summary%>%
-    filter(!is.na(age_quarter))%>%
-    ggplot(., aes(x=age_quarter, y=risk))+
-    geom_point(color="darkred")+
-    geom_smooth(method="lm", color="black", aes(x=as.numeric(factor(age_quarter))))+
-    theme_minimal()+
-    # geom_ribbon(data=para_summary_model_prediction$se, aes(x=n_any_para, ymin = exp(lci), ymax = exp(uci)),
-    #             alpha = 0.2, inherit.aes = FALSE)+
-    # geom_function(fun = para_summary_model_prediction$fun, colour="black")+
-    geom_text(aes(y=0.17, label= paste0("frac(",comp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
-    # scale_x_continuous(breaks = 1:50, limits=c(1,12))+
-    # scale_y_continuous(limits = c(0,0.2), labels = scales::label_percent())+
-    ggtitle("")+
-    facet_wrap(~mom_rx)+
-    xlab("Age")+
-    ylab("Risk of Complicated Malaria")+
-    theme(axis.text.x = element_text(angle=90, hjust=0.5, vjust=1)))
-
-ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/age_comp_plot.png", age_comp_plot, width=12, height=4, dpi=444)
-
-
-
-
-# individual level models, placebo only
-
 ## individual level models , no DP ####
 placebo_malaria <- all_malaria%>%
   filter(treatmentarm=="No DP")
@@ -392,11 +373,12 @@ AIC(para_null_model, para_linear_model, para_model, para_model_para, para_model_
 
 
 # probability of symptoms ####
-para_model <- lme4::glmer(bino_symp ~ n_any_para*treatmentarm + flo_age_in_months+ mom_rx + (1|id),  family = "binomial", data=all_para)
+para_model <- lme4::glmer(bino_symp ~ n_any_para*treatmentarm + study+ flo_age_in_months + (1|id),  family = "binomial", data=all_para)
 car::Anova(para_model, type = "III")
 
 
 all_para_symp_summary <- all_para%>%
+  filter(study!="promote")%>%
   group_by(bino_symp, n_any_para, treatmentarm)%>%
   summarise("n_cases"=n())%>%
   tidyr::pivot_wider(names_from = bino_symp, values_from = n_cases, names_prefix = "symp_", values_fill = 0)%>%
@@ -405,7 +387,7 @@ all_para_symp_summary <- all_para%>%
   arrange(n_any_para)
 
 (all_para_symp_summary_plot <- all_para_symp_summary%>%
-    filter(n_any_para<13)%>%
+    filter(n_any_para<17)%>%
     ggplot(., aes(x=n_any_para, y=risk))+
     theme_minimal()+
     geom_smooth(method = "lm", color="black")+
@@ -440,9 +422,9 @@ age_symp_summary <- all_para%>%
     theme_minimal()+
     geom_smooth(aes(x=quartn, y=risk),inherit.aes = FALSE, method = "lm", color="black")+
     geom_point(color="darkred")+
-    geom_text(aes(y=0.3, label= paste0("frac(",symp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
-    scale_x_continuous(breaks = unique(as.numeric(age_symp_summary$age_quarter[!is.na(age_symp_summary$age_quarter)])),
-                       labels = levels(age_symp_summary$age_quarter)[1:14])+
+    # geom_text(aes(y=0.3, label= paste0("frac(",symp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
+    # scale_x_continuous(breaks = unique(as.numeric(age_symp_summary$age_quarter[!is.na(age_symp_summary$age_quarter)])),
+    #                    labels = levels(age_symp_summary$age_quarter)[1:14])+
     scale_y_continuous(labels = scales::label_percent())+
     facet_wrap(~treatmentarm, scales="free_x")+
     coord_cartesian(ylim = c(0.2, 0.9))+
@@ -484,31 +466,6 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/mom_rx_age_symp_sum
 
 
 
-mom_rx_all_para_symp_summary <- all_para%>%
-  filter(!is.na(mom_rx))%>%
-  group_by(bino_symp, n_any_para, mom_rx)%>%
-  summarise("n_cases"=n())%>%
-  tidyr::pivot_wider(names_from = bino_symp, values_from = n_cases, names_prefix = "symp_", values_fill = 0)%>%
-  mutate(total_infections=symp_1+symp_0,
-         risk=symp_1/total_infections)%>%
-  arrange(n_any_para)
-
-(mom_rx_all_para_symp_summary_plot <- mom_rx_all_para_symp_summary%>%
-    filter(n_any_para<13)%>%
-    ggplot(., aes(x=n_any_para, y=risk))+
-    theme_minimal()+
-    geom_smooth(method = "lm", color="black")+
-    geom_point(color="darkred")+
-    geom_text(aes(y=0.3, label= paste0("frac(",symp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
-    scale_x_continuous(breaks = 1:50)+
-    scale_y_continuous(labels = scales::label_percent())+
-    facet_wrap(~mom_rx, scales="free_x")+
-    coord_cartesian(ylim = c(0.25, 0.85))+
-    xlab("order of parasitemic month")+
-    ylab("P(symptoms | parsitemia)"))
-
-ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/mom_rx_all_para_symp_summary_plot.png", mom_rx_all_para_symp_summary_plot, width=10, height=5, bg="white")
-
 # parasite density ####
 malaria_pardens_plot <- all_malaria%>%
   ggplot(., aes(x=factor(n_any_malaria), y=pardens, fill=factor(n_any_malaria)))+
@@ -518,7 +475,7 @@ malaria_pardens_plot <- all_malaria%>%
   theme_minimal()+
   ylab("parasites / μL")+
   xlab("")+
-  scale_fill_manual(values=viridis::rocket(n=20))+
+  scale_fill_manual(values=viridis::rocket(n=24))+
   facet_wrap(~treatmentarm, scales="free")+
   xlab("order of malaria episode")+
   theme(legend.position = "none")
@@ -534,7 +491,7 @@ para_pardens_plot <- all_para%>%
   theme_minimal()+
   ylab("parasites / μL")+
   xlab("")+
-  scale_fill_manual(values=viridis::rocket(n=25))+
+  scale_fill_manual(values=viridis::rocket(n=31))+
   facet_wrap(~treatmentarm, scales="free")+
   xlab("order of parasitemic month")+
   theme(legend.position = "none")
@@ -555,8 +512,8 @@ asymp_para_pardens_plot <- all_asymp%>%
   ggtitle("asymptomatic infections")+
   ylab("parasites / μL")+
   xlab("")+
-  scale_fill_manual(values=viridis::rocket(n=25))+
-  facet_wrap(~treatmentarm, scales="free")+
+  scale_fill_manual(values=viridis::rocket(n=28))+
+  facet_wrap(~treatmentarm, scales="free_x")+
   xlab("order of parasitemic month")+
   theme(legend.position = "none")
 
@@ -672,30 +629,6 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/100k_parasites_only
 # ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/next_highest_infs_up_arrow_plot.png", parsdens_arrow_plot, height = 4, width=8, dpi=444, bg="white")
 
 
-parsdens_down_arrow <- parsdens_arrow_data %>%
-  filter(up_down=="down")%>%
-  ggplot(aes(x=age*52, y=parsdens, group=factor(id)))+
-  geom_point(aes(color=complicatedmalaria))+
-  geom_line(arrow = arrow(length=unit(0.10,"cm"), ends="last", type = "closed"))+
-  # geom_segment(aes(x=age_at_comp_episode, y=pars_dens_comp, xend=age, yend=parsdens),
-  #              arrow = arrow(length=unit(0.10,"cm"), ends="last", type = "open"),
-  #              lineend = "butt", # See available arrow types in example above
-  #              linejoin = "mitre")+
-  # facet_wrap(~up_down)+
-  scale_y_log10(limits=c(10^2, 10^6))+
-  annotation_logticks(sides = "l", color = "grey")+
-  side_by_side_theme+
-  ggtitle("n = 11")+
-  ylab("parasites /  μL")+
-  xlab("age (weeks)")+
-  scale_color_manual(values = c("uncomplicated"="#FC6A03",
-                                "complicated"="darkred"))+
-  theme_minimal()+
-  theme(legend.position = "none")
-
-
-ggsave("~/postdoc/stanford/clinical_data/PROMOTE/figures/parsdens_down_arrow_plot.png", parsdens_down_arrow, height = 3, width=4, dpi=444, bg="white")
-
 
 # no chemoprevention ####
 no_dp_malaria_summary <- all_malaria%>%
@@ -759,7 +692,7 @@ ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/no_dp_para_comp_plo
 # age at first ####
 # plot idea: remake with placebo only
 all_malaria_age_at_first_summary <- all_malaria%>%
-  mutate(age_at_first_bins=cut(age_at_first_malaria, breaks = seq(0,60,by=6), labels=six_month_labels))%>%
+  mutate(age_at_first_bins=cut(age_at_first_malaria, breaks = seq(0,48,by=12), labels=twelve_month_labels[1:4]))%>%
   group_by(bino_complicated, n_any_malaria, age_at_first_bins)%>%
   summarise("n_cases"=n())%>%
   tidyr::pivot_wider(names_from = bino_complicated, values_from = n_cases, names_prefix = "comp_",  values_fill = NA)%>%
@@ -785,25 +718,27 @@ all_malaria_age_at_first_plot <- all_malaria_age_at_first_summary%>%
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_malaria_age_at_first_plot.png", all_malaria_age_at_first_plot, width=16, height=8, dpi=444, bg="white")
 
 all_para_age_at_first_summary <- all_para%>%
-  mutate(age_at_first_bins=cut(age_at_first_para, breaks = seq(0,60,by=6), labels=six_month_labels))%>%
+  mutate(age_at_first_bins=cut(age_at_first_malaria, breaks = seq(0,48,by=12), labels=twelve_month_labels[1:4]))%>%
   group_by(bino_complicated, n_any_para, age_at_first_bins)%>%
   summarise("n_cases"=n())%>%
   tidyr::pivot_wider(names_from = bino_complicated, values_from = n_cases, names_prefix = "comp_",  values_fill = NA)%>%
   mutate(total_infections=comp_1+comp_0,
-         risk=comp_1/total_infections)
+         risk=comp_1/total_infections)%>%
+  filter(!is.na(age_at_first_bins))
 
 
-all_para_age_at_first_plot <- ggplot(all_para_age_at_first_summary, aes(x=n_any_para, y=risk))+
-  geom_text(aes(y=0.2, label= paste0("frac(",comp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
+(all_para_age_at_first_plot <- ggplot(all_para_age_at_first_summary, aes(x=n_any_para, y=risk))+
+  # geom_text(aes(y=0.2, label= paste0("frac(",comp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
   geom_point()+
   scale_y_continuous(labels = scales::label_percent())+
   scale_x_continuous(breaks = seq(1,18), limits=c(1,18))+
   coord_cartesian(ylim=c(0,0.33))+
+  geom_smooth()+
   ggtitle("age at first para episode in months")+
   ylab("risk of complicated malaria")+
   xlab("order of parasitemic month")+
   facet_wrap(~age_at_first_bins, ncol=4, scales="free_x")+
-  theme_minimal()
+  theme_minimal())
 
 ggsave("~/postdoc/stanford/clinical_data/complicated_malaria/all_para_age_at_first_plot.png", all_para_age_at_first_plot, width=16, height=8, dpi=444, bg="white")
 
@@ -819,7 +754,7 @@ all_para_age_at_first_summary2 <- all_para%>%
 
 
 all_para_age_at_first_plot2 <- ggplot(all_para_age_at_first_summary2, aes(x=n_any_para, y=risk))+
-  geom_text(aes(y=0.2, label= paste0("frac(",symp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
+  # geom_text(aes(y=0.2, label= paste0("frac(",symp_1, ",", total_infections,")")),parse = TRUE, size=2.5)+
   geom_point()+
   scale_y_continuous(labels = scales::label_percent())+
   # scale_x_continuous(breaks = seq(1,18), limits=c(1,18))+

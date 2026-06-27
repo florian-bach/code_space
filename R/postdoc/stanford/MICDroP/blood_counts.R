@@ -10,7 +10,7 @@ comp_pal <- c("no malaria"="lightgrey",
               "Q/AS failure"="purple")
 
 
-mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through September 30th 2025.dta")
+mic_drop <- haven::read_dta("~/Library/CloudStorage/Box-Box/MIC_DroP IPTc Study/Data/MICDroP Data/MICDROP all visit database through March 31st 2026.dta")
 mic_drop_key <- haven::read_dta("~/Downloads/MIC-DROP treatment assignments.dta")
 
 
@@ -52,7 +52,7 @@ blood_counts <- mic_drop %>%
 
  
 blood_counts%>%
-  filter(cell_type%in%c("mono", "plt", "hb"), Timepoint_in_weeks<53, mstatus==0)%>%
+  filter(cell_type%in%c("plt"), cell_freq<2*10^6, Timepoint_in_weeks<53, mstatus==0)%>%
   mutate(anyDP=if_else(treatmentarm=="No DP", "no DP", "DP"))%>%
   ggplot(., aes(x=factor(Timepoint_in_weeks), y=cell_freq,  fill = anyDP))+
     geom_boxplot(outliers = F)+
@@ -60,11 +60,11 @@ blood_counts%>%
     # geom_boxplot(aes(fill=factor(Timepoint_in_weeks)), outliers = FALSE)+
     # geom_line(aes(group=id))+
     facet_wrap(~cell_type, scales="free")+
-    scale_y_log10()+
   ggpubr::stat_compare_means(size=3, label = "p.format")+
     # scale_fill_manual(values=colorspace::sequential_hcl(n = 9, palette="LaJolla"))+
     scale_alpha_manual(values = c(1,0))+
-    scale_color_manual(values=comp_pal)+
+    scale_fill_manual(values=c('darkblue', "darkred"))+
+  
     theme_minimal()
 
 

@@ -37,7 +37,7 @@ long_raw_dfff <- bc1 %>%
   dplyr::select(all_of(c("id", "timepoint", ab_columns, "MomFinalRx", "momid", "anyHPfinal", "gestage", "gender", "anymalariapreg", "logpd")))%>%
   pivot_longer(cols=all_of(ab_columns), names_to = "antigen", values_to = "conc")%>%
   mutate(conc=10^conc)%>%
-  filter(antigen %notin% c("logGST"))%>%
+  filter(!antigen %in% c("logGST"))%>%
   mutate(antigen=gsub("log", "", antigen,  fixed = TRUE))%>%
   mutate(antigen=gsub("_", " ", antigen, fixed = TRUE))%>%
   mutate(antigen=toupper(antigen))%>%
@@ -362,6 +362,49 @@ ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/no_inf_six_twelve.svg", no_inf_matmal, height=2.7, width=5, bg="white", dpi=444)
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/Fig2.pdf", no_inf_matmal, height=2.7, width=5, bg="white", dpi=444)
 
+# cord blood six month correlation ####
+# cord blood ~ 6 month correlation figure
+cors <- combo_data%>%
+  filter(inf_0_12==0, is.finite(conc), conc>10^-5)%>%
+  distinct(id, timepoint, antigen, conc)%>%
+  pivot_wider(names_from = timepoint, values_from = conc, names_prefix = "t_")%>%
+  group_by(antigen)%>%
+  nest()%>%
+  mutate(rho=map_dbl(data, ~cor.test(.$t_1, .$t_2, method="spearman")$estimate),
+         p=map_dbl(data, ~cor.test(.$t_1, .$t_2, method="spearman")$p.value))%>%
+  ungroup()%>%
+  mutate(padj=p.adjust(p))
+
+# significant cord blood six months interactions
+cord_six_corr_plot <- combo_data%>%
+  filter(inf_0_12==0, is.finite(conc))%>%
+  filter(id %notin% c(11130, 11084, 11037, 12015, 12028, 12337))%>%
+  mutate("timepointf" = recode(timepoint, 
+                               "1"="Cord Blood",
+                               "2"="6 Months",
+                               "3"="12 Months"))%>%
+  distinct(id, timepointf, antigen, conc)%>%
+  filter(antigen %in% cors$antigen[cors$padj<0.1])%>%
+  pivot_wider(names_from = timepointf, values_from = conc)%>%
+  ggplot(., aes(x=`Cord Blood`, y=`6 Months`))+
+  geom_point(alpha=0.35)+
+  xlab("Cord Blood Concentration [AU]")+
+  ylab("Concentration at 6 Months [AU]")+
+  scale_y_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, NA))+
+  scale_x_log10(labels=scales::label_log(), breaks=10^seq(-5, 2), limits=10^c(-5, NA))+
+  geom_smooth(method="lm", aes(color=antigen))+
+  geom_text(data=cors[cors$padj<0.1,], size=2.5,aes(x=0.01, y=16, label = paste("R =", round(rho, digits = 2), "padj =", signif(padj, digits = 3))))+
+  facet_wrap(~antigen, nrow=1, scales="fixed")+
+  scale_color_manual(values=pc1_cols)+
+  theme_minimal(base_size = 12)+
+  theme(legend.position = "none",
+        axis.text = element_text(size=5.5))
+
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/cord_six_corr_plot.svg", cord_six_corr_plot, height=2.7, width=8.1, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/cord_six_corr_plot.pdf", cord_six_corr_plot, height=2.7, width=8.1, bg="white", dpi=444)
+ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/cord_six_corr_plot.png", cord_six_corr_plot, height=2.7, width=8.1, bg="white", dpi=444)
+
+
 {# yes_inf_matmal <- combo_data %>%
   #   filter(inf_0_12!=0, antigen %in% placental_antigens, is.finite(conc))%>%
   #   ggplot(., aes(x=timepointf, y=conc))+
@@ -585,6 +628,7 @@ exposure_6 <- combo_data %>%
 
 # ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_6.png", exposure_6, height=3, width=8, bg="white", dpi=444)
 ggsave("/Users/fbach/postdoc/stanford/clinical_data/BC1/remix/figures_for_paper/final_version/exposure_6.pdf", exposure_6, height=3, width=8, bg="white", dpi=444)
+
 
 
 antigens_exposure_12 <- c("ETRAMP5", "HYP2", "MSP1")
@@ -1431,7 +1475,7 @@ big_early_life_malaria_cells06 <- long_true_combo %>%
 maternal_data <- haven::read_dta("~/Library/CloudStorage/Box-Box/BC1_Children/AntibodyStudy/BC1 Antibodydata_June2017/STATA/MothersClinicalData.dta")
 
 maternal_data_186 <- maternal_data%>%
-  filter(id %in% unique(combo_data$momid))
+  filter(id %in% unique(as.numeric(as.character(combo_data$id))-1000))
 
 moms_with_two_kids <- combo_data%>%
   distinct(id, momid)%>%
@@ -1454,3 +1498,51 @@ maternal_data_186%>%
   count()
 
 antibody_data_redo <- haven::read_dta("~/Library/CloudStorage/Box-Box/BC1_Children/AntibodyStudy/BC1 Antibodydata_June2017/STATA/MergedAntibodyData_ChildClinical.dta")
+
+
+
+
+# significant 12 months interactions
+combo_data%>%
+  filter(inf_0_12==0)%>%
+  filter(id %notin% c(11130, 11084, 11037, 12015, 12028, 12337))%>%
+  mutate("timepointf" = recode(timepoint, 
+                               "1"="Cord Blood",
+                               "2"="6 Months",
+                               "3"="12 Months"))%>%
+  distinct(id, timepointf, antigen, conc)%>%
+  filter(antigen %in% cors2$antigen[cors2$padj<0.1])%>%
+  pivot_wider(names_from = timepointf, values_from = conc)%>%
+  ggplot(., aes(x=`Cord Blood`, y=`12 Months`))+
+  geom_point(alpha=0.35)+
+  xlab("Cord Blood Concentration [AU]")+
+  ylab("Concentration at 12 Months [AU]")+
+  geom_smooth(method="lm", aes(color=antigen))+
+  geom_text(data=cors2[cors2$padj<0.1,], size=2,aes(x=-3.5, y=0, label = paste("R =", round(rho, digits = 2), "padj =", signif(padj, digits = 3))))+
+  facet_wrap(~antigen, nrow=1)+
+  scale_color_manual(values=pc1_cols)+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+
+long_raw_dfff%>%
+  filter(id %notin% c(11130, 11084, 11037, 12015, 12028, 12337))%>%
+  mutate("timepointf" = recode(timepoint, 
+                               "1"="Cord Blood",
+                               "2"="6 Months",
+                               "3"="12 Months"))%>%
+  distinct(id, timepointf, antigen, conc)%>%
+  filter(antigen %in% cors$antigen[cors$padj<0.1])%>%
+  pivot_wider(names_from = timepointf, values_from = conc)%>%
+  ggplot(., aes(x=`Cord Blood`, y=`6 Months`))+
+  geom_point(alpha=0.35)+
+  xlab("Cord Blood Concentration [AU]")+
+  ylab("Concentration at 6 Months [AU]")+
+  geom_smooth(method="lm", aes(color=antigen))+
+  geom_text(data=cors[cors$padj<0.1,], size=2,aes(x=-3.5, y=0, label = paste("R =", round(rho, digits = 2), "padj =", signif(padj, digits = 3))))+
+  facet_wrap(~antigen, nrow=1)+
+  scale_color_manual(values=pc1_cols)+
+  theme_minimal()+
+  theme(legend.position = "none")
+
+

@@ -5,17 +5,179 @@ library(purrr)
 
 `%notin%` <- Negate(`%in%`)
 
-clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv")
 
-clean_data%>%
-  distinct(id, timepoint, total_n_malaria_12)%>%
-  group_by(total_n_malaria_12)%>%
-  summarise(n())
+# clinical / epi ####
 
 neuro_cog <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/neurocognitive/NCT_infants_share032025.csv")
 neuro_cog_edit <- neuro_cog%>%
   mutate(id=subjid, date=as.Date(vdate))%>%
   select(-gender, -GAcomputed, -SGA, -date, -dob)
+
+static_metadata <- read.csv("~/postdoc/stanford/clinical_data/MICDROP/micdrop_metadata_for_immunology.csv")
+
+neuro_cog_with_meta <- left_join(neuro_cog_edit, static_metadata, by="id")
+
+
+# no obvious interaction with transmission in first 6, 12, 24 months of life
+# no obvious interaction with geometric parasite density
+# no obvious interaction with preterm, IPTc, IPTp
+# lbw --> lower mot_composite
+# sga --> lower mot_composite (almost lower lang_composite)
+# no obvious interatcion between IPTp and gender / treatmentarm / sga / lbw
+# preterm kids born to moms that get SP have higher lang_composite than DPSP and DP
+neuro_cog_with_meta%>%
+  pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
+  ggplot(., aes(x=geometric_qPCRparsdens12, y=composite_score))+
+  scale_x_log10()+
+  geom_smooth(method="lm")+
+  geom_point()+
+  ggpubr::stat_cor(method="spearman")+
+  theme_minimal()+
+  facet_wrap(~composite_kind)
+
+neuro_cog_with_meta%>%
+  pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
+  mutate(preterm=case_match(preterm.x, 1~"preterm", 0~"term"))%>%
+  filter(!is.na(rogerson))%>%
+  ggplot(., aes(x=factor(total_n_malaria_24), y=composite_score))+
+  geom_boxplot(outliers = F)+
+  scale_y_continuous(limits=c(70, 150))+
+  theme_minimal()+
+  ggpubr::stat_compare_means()+
+  # ggpubr::stat_compare_means(label.y = c(115, 125, 135),
+  #                            method = "wilcox.test",
+  #                            comparisons = list(c("DP", "DPSP"),
+  #                                               c("DP", "SP"),
+  #                                               c("SP", "DPSP")))+
+  facet_wrap(~composite_kind+treatmentarm)
+
+preterm_plot <- neuro_cog_with_meta%>%
+  pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
+  mutate(preterm=case_match(preterm.x, 1~"preterm", 0~"term"))%>%
+  ggplot(., aes(x=factor(mom_rx), y=composite_score))+
+  geom_boxplot(outliers = F)+
+  scale_y_continuous(limits=c(70, 150))+
+  theme_minimal()+
+  ggpubr::stat_compare_means(label.y = c(115, 125, 135),
+                             method = "wilcox.test",
+                             comparisons = list(c("DP", "DPSP"),
+                                                c("DP", "SP"),
+                                                c("SP", "DPSP")))+
+  facet_wrap(~composite_kind+preterm, ncol=2)
+
+ggsave("~/Downloads/preterm_neurocog.png", preterm_plot, height=8, width=4, dpi=444)
+
+
+
+# infection history ~ treatmentarm ####
+
+# infection history ~ treatmentarm ####
+
+neuro_inf_purf <- neuro_cog_with_meta %>%
+  pivot_longer(
+    cols = ends_with("composite"),
+    names_to = "composite_kind",
+    values_to = "composite_score"
+  ) %>%
+  group_by(composite_kind) %>%
+  nest() %>%
+  
+  # fit interaction model
+  mutate(
+    model = map(data, ~lm(
+      composite_score ~ total_n_para_24 * treatmentarm,
+      data = .
+    ))
+  ) %>%
+  # fit quadratic interaction model
+  mutate(
+    model = map(data, ~lm(
+      composite_score ~ treatmentarm * (total_n_para_24 + I(total_n_para_24^2)),
+      data = .
+    ))
+  ) %>%
+  
+  # slope of para within each treatment arm
+  mutate(
+    slopes = map(model, ~emmeans::emtrends(
+      ., specs = "treatmentarm",
+      var   = "total_n_para_24"
+    )),
+    slopes_tbl = map(slopes, broom::tidy)
+  )
+
+neuro_inf_purf$slopes_tbl
+
+
+
+neuro_cog_with_meta%>%
+  # pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
+  # mutate(preterm=case_match(preterm.x, 1~"preterm", 0~"term"))%>%
+  # filter(!is.na(rogerson))%>%
+  ggplot(., aes(x=factor(total_n_para_24), y=mot_composite))+
+  geom_boxplot(outliers = F)+
+  scale_y_continuous(limits=c(70, 150))+
+  theme_minimal()+
+  ggpubr::stat_compare_means()+
+  # ggpubr::stat_compare_means(label.y = c(115, 125, 135),
+  #                            method = "wilcox.test",
+  #                            comparisons = list(c("DP", "DPSP"),
+  #                                               c("DP", "SP"),
+  #                                               c("SP", "DPSP")))+
+  facet_wrap(~anyDP, scales="free")
+
+
+
+modelq_comp <- neuro_cog_with_meta %>%
+  pivot_longer(
+    cols = ends_with("composite"),
+    names_to = "composite_kind",
+    values_to = "composite_score"
+  ) %>%
+  group_by(composite_kind) %>%
+  nest() %>%
+  
+  # fit interaction model
+  mutate(
+    model_lin = map(data, ~lm(
+      composite_score ~ total_n_para_24 * treatmentarm,
+      data = .
+    ))
+  ) %>%
+  # fit quadratic interaction model (borderline worth)
+  mutate(
+    model_q = map(data, ~lm(
+      composite_score ~ treatmentarm * (total_n_para_24 + I(total_n_para_24^2)),
+      data = .
+    ))
+  )%>%
+  mutate(model_q_aic=map_dbl(model_q, ~AIC(.)),
+         model_lin_aic=map_dbl(model_lin, ~AIC(.)),
+         aic_diff=model_q_aic-model_lin_aic)
+
+
+
+
+
+neuro_cog_with_meta%>%
+  # pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
+  # mutate(preterm=case_match(preterm.x, 1~"preterm", 0~"term"))%>%
+  # filter(!is.na(rogerson))%>%
+  ggplot(., aes(x=factor(total_n_malaria_24), y=mot_composite))+
+  geom_boxplot(outliers = F)+
+  scale_y_continuous(limits=c(70, 150))+
+  theme_minimal()+
+  # ggpubr::stat_compare_means()+
+  # ggpubr::stat_compare_means(label.y = c(115, 125, 135),
+  #                            method = "wilcox.test",
+  #                            comparisons = list(c("DP", "DPSP"),
+  #                                               c("DP", "SP"),
+  #                                               c("SP", "DPSP")))+
+  facet_wrap(~treatmentarm, scales="free")
+
+
+# NULISA ##### NULISA ####LBWdich.x
+clean_data <- read.csv("~/postdoc/stanford/plasma_analytes/MICDROP/big_experiment/clean_data_with_meta.csv")
 
 nulisa_plus_neuro <- left_join(clean_data, neuro_cog_edit, by="id")
 
@@ -41,7 +203,7 @@ big_palette_hex <- c("#000000", "#FFFF00", "#1CE6FF", "#FF34FF", "#FF4A46", "#00
 
 
 id_columns <- c("sample", "qc_failed","plate", "id", "gender", "ageinwks", "timepoint", "log_qpcr",
-"total_n_malaria_12", "mstatus", "febrile", "fever", "rogerson", "SGA", "cog_scale", "rlan_scale",
+"total_n_malaria_12","total_n_malaria_12", "total_n_malaria_24", "total_n_para_12", "total_n_para_24", "total_n_para_12_24", 'total_n_malaria_12_24',  "mstatus", "febrile", "fever", "rogerson", "SGA", "cog_scale", "rlan_scale",
 "elan_scaled", "fmot_scaled", "gmot_scaled", "lang_composite","mot_composite", 
 "cog_composite", "weeks_age", "mother_id", "dob", "AGE", "gravidcat", "LBWdich", 
 "preterm", "anyHP", "totalvisits", "totalfever","everfever", "totalmalaria","evermalaria", "BMIenrol","Olevel")
@@ -49,7 +211,7 @@ id_columns <- c("sample", "qc_failed","plate", "id", "gender", "ageinwks", "time
 wide_df2 <- nulisa_plus_neuro %>%
   filter(targetName %notin% c("IFNA2", "CTSS", "LTA|LTB"))%>%
   # filter(sample_id %notin% c("X384_S.1_D1V93U", "X744_A.1_D1KT5Z", "X323_A14_D1DZ2D", "X496_NM7_D1CAYS", "X316_S.1_D12FNR", "X667_NM7_D1GBYA", "X 176 S_t14 D1FXRJ", "X164_NM0_D1WA6Q"))%>%
-  pivot_wider(names_from = targetName, values_from = conc, id_cols = all_of(id_columns))
+  pivot_wider(names_from = targetName, values_from = conc)
 
 
 rownames(wide_df2) <- wide_df2$sample
@@ -87,33 +249,35 @@ large_pca12 <- pca_plot_data %>%
 neuro_cog_purff52 <- nulisa_plus_neuro %>%
   filter(timepoint=="52 weeks")%>%
   filter(targetName %notin% c("IFNA2", "CTSS", "LTA|LTB"))%>%
-  mutate(gender_categorical=if_else(gender==1, "male", "female"))%>%
   group_by(targetName)%>%
   nest() %>%
-  mutate(cog_model=map(data, ~lm(conc~cog_composite+gender_categorical, data=., na))) %>%
-  mutate(mot_model=map(data, ~lm(conc~mot_composite+gender_categorical, data=.))) %>%
-  mutate(lang_model=map(data, ~lm(conc~lang_composite+gender_categorical, data=.))) %>%
+  mutate(cog_model=map(data, ~lm(conc~cog_composite+gender_categorical+educ+wealthcat, data=.))) %>%
+  mutate(mot_model=map(data, ~lm(conc~mot_composite+gender_categorical+educ+wealthcat, data=.))) %>%
+  mutate(lang_model=map(data, ~lm(conc~lang_composite+gender_categorical+educ+wealthcat, data=.))) %>%
   mutate(cog_model_summary=map(cog_model, ~summary(.))) %>%
   mutate(mot_model_summary=map(mot_model, ~summary(.))) %>%
   mutate(lang_model_summary=map(lang_model, ~summary(.))) %>%
-  mutate(cog_model_summary_p=map(cog_model_summary, ~coef(.)[11])) %>%
-  mutate(mot_model_summary_p=map(mot_model_summary, ~coef(.)[11])) %>%
-  mutate(lang_model_summary_p=map(lang_model_summary, ~coef(.)[11])) %>%
+  mutate(cog_model_summary_p=map(cog_model_summary, ~coef(.)[17])) %>%
+  mutate(mot_model_summary_p=map(mot_model_summary, ~coef(.)[17])) %>%
+  mutate(lang_model_summary_p=map(lang_model_summary, ~coef(.)[17])) %>%
   pivot_longer(cols=ends_with("_p"), names_to = "contrast", values_to = "p")%>%
   group_by(contrast)%>%
   mutate(padj = p.adjust(p, method="fdr"))
 
+neuro_cog_purff52_sigs <- neuro_cog_purff52%>%
+  filter(padj<0.1)%>%
+  select(targetName, contrast, padj)
 
-neuro_cog_plot <- nulisa_plus_neuro%>%
-  filter(timepoint=="52 weeks")%>%
-  filter(targetName %notin% c("IFNA2", "CTSS", "LTA|LTB"))%>%
-  mutate(gender_categorical=if_else(gender==1, "male", "female"))%>%
-  # select(id, targetName, conc, timepoint,  GAcomputed, SGA, preterm, lang_composite, mot_composite, cog_composite, totalfever, totalmalaria, rogerson)%>%
-  pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
-  ggplot(., aes(x=factor(gender_categorical), y=conc, fill=factor(gender_categorical)))+
-  geom_violin(draw_quantiles = seq(0, 1, by=0.25))+
-  facet_wrap(~composite_kind+timepoint)
-
+(neuro_cog_plot <- nulisa_plus_neuro%>%
+  filter(timepoint != "68 weeks", !is.na(cog_composite))%>%
+  filter(targetName %in% neuro_cog_purff52_sigs$targetName)%>%
+  # pivot_longer(cols = ends_with("composite"), names_to = "composite_kind", values_to = "composite_score")%>%
+  # filter(composite_kind=="cog_composite")%>%
+  ggplot(., aes(x=factor(cog_composite), y=conc))+
+  geom_boxplot(outliers = F)+
+  facet_wrap(~targetName, scales="free_y")+
+  theme_minimal()
+)
 
 nulisa_plus_neuro%>%
   filter(targetName %in% c("IL3RA", "TNFRSF14", "IFNB1", "SDC1"))%>%
@@ -234,3 +398,5 @@ simple_linear_lms%>%
   arrange(padj)
 
 
+nulisa_plus_neuro%>%
+  distinct(id, all_of(id_cols))
